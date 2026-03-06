@@ -1,0 +1,184 @@
+const fs = require('fs');
+const path = require('path');
+const Database = require('better-sqlite3');
+
+const dataDir = path.join(__dirname, '..', 'data');
+const dbPath = path.join(dataDir, 'claw800.db');
+
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+const db = new Database(dbPath);
+const DEFAULT_CATEGORIES = [
+  'AI 与大语言模型',
+  '开发与编码',
+  'DevOps 与云',
+  '浏览器与网页自动化',
+  '营销与销售',
+  '生产力与工作流',
+  '搜索与研究',
+  '通信与社交',
+  '媒体与内容',
+  '金融与加密货币',
+  '健康与健身',
+  '安全与监控',
+  '自动化与实用工具',
+  '业务运营',
+  '代理协调'
+];
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS sites (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    url TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    category TEXT DEFAULT 'OpenClaw 生态',
+    source TEXT DEFAULT 'admin',
+    submitter_name TEXT DEFAULT '',
+    submitter_email TEXT DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pending',
+    reviewer_note TEXT DEFAULT '',
+    reviewed_by TEXT DEFAULT '',
+    reviewed_at TEXT DEFAULT '',
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    is_enabled INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS tutorials (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'published',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+function migrateUniqueUrlToUrlCategory() {
+  const tableSqlRow = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'sites'").get();
+  const tableSql = String(tableSqlRow?.sql || '').toLowerCase();
+  const usesOldUrlUnique = tableSql.includes('url text not null unique');
+
+  if (!usesOldUrlUnique) {
+    return;
+  }
+
+  db.exec(`
+    BEGIN;
+    ALTER TABLE sites RENAME TO sites_old;
+    CREATE TABLE sites (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      url TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      category TEXT DEFAULT 'OpenClaw 生态',
+      source TEXT DEFAULT 'admin',
+      submitter_name TEXT DEFAULT '',
+      submitter_email TEXT DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'pending',
+      reviewer_note TEXT DEFAULT '',
+      reviewed_by TEXT DEFAULT '',
+      reviewed_at TEXT DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    INSERT OR IGNORE INTO sites (
+      id, name, url, description, category, source, submitter_name, submitter_email,
+      status, reviewer_note, reviewed_by, reviewed_at, created_at
+    )
+    SELECT
+      id, name, url, description, category, source, submitter_name, submitter_email,
+      status, reviewer_note, reviewed_by, reviewed_at, created_at
+    FROM sites_old;
+    DROP TABLE sites_old;
+    COMMIT;
+  `);
+}
+
+migrateUniqueUrlToUrlCategory();
+
+const hasSortOrder = db.prepare("SELECT 1 FROM pragma_table_info('sites') WHERE name = 'sort_order'").get();
+if (!hasSortOrder) {
+  db.exec('ALTER TABLE sites ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0');
+}
+
+db.exec(`
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_sites_url_category_unique
+  ON sites(url, category);
+`);
+
+db.prepare("UPDATE sites SET category = 'AI 与大语言模型' WHERE category = '大模型'").run();
+db.prepare("UPDATE sites SET category = 'AI 与大语言模型' WHERE category = 'OpenClaw 生态'").run();
+
+const categoryCount = db.prepare('SELECT COUNT(*) as c FROM categories').get().c;
+if (!categoryCount) {
+  const insertCategory = db.prepare('INSERT INTO categories (name, sort_order, is_enabled) VALUES (?, ?, 1)');
+  const tx = db.transaction(() => {
+    DEFAULT_CATEGORIES.forEach((name, idx) => insertCategory.run(name, idx));
+  });
+  tx();
+}
+
+// Ensure historical site categories are visible in category manager.
+const existingCategoryNames = new Set(
+  db.prepare('SELECT name FROM categories').all().map((row) => row.name)
+);
+const siteCategories = db
+  .prepare("SELECT DISTINCT category FROM sites WHERE category IS NOT NULL AND TRIM(category) <> ''")
+  .all()
+  .map((row) => row.category);
+const nextSort = db.prepare('SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM categories').get().n;
+let sortCursor = nextSort;
+const insertMissingCategory = db.prepare('INSERT OR IGNORE INTO categories (name, sort_order, is_enabled) VALUES (?, ?, 1)');
+for (const category of siteCategories) {
+  if (existingCategoryNames.has(category)) continue;
+  insertMissingCategory.run(category, sortCursor++);
+  existingCategoryNames.add(category);
+}
+
+function seedOpenClawSites() {
+  const seedPath = path.join(__dirname, '..', 'seed', 'openclaw-sites.json');
+  if (!fs.existsSync(seedPath)) {
+    return;
+  }
+
+  const rows = JSON.parse(fs.readFileSync(seedPath, 'utf-8'));
+  const insert = db.prepare(`
+    INSERT OR IGNORE INTO sites (
+      name, url, description, category, source, status, reviewed_by, reviewed_at
+    ) VALUES (
+      @name, @url, @description, @category, 'seed_openclaw', 'approved', 'system', datetime('now')
+    )
+  `);
+
+  const tx = db.transaction((items) => {
+    for (const item of items) {
+      insert.run({
+        name: item.name,
+        url: item.url,
+        description: item.description || '',
+        category: item.category || 'OpenClaw 生态'
+      });
+    }
+  });
+
+  tx(rows);
+}
+
+seedOpenClawSites();
+
+module.exports = db;

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>claw800.com - OpenClaw AI 导航</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="container">
+        <div class="hero-top">
+          <h1><a class="hero-logo" href="/">claw800.com</a></h1>
+        </div>
+        <div class="hero-subrow">
+          <p id="heroSubtitle">OpenClaw 生态导航，收录 AI 领域优质网站</p>
+          <div class="lang-switch">
+            <button id="openSubmitFormBtn" type="button">免费提交网站</button>
+            <button id="langZhBtn" type="button" class="active">中文</button>
+            <button id="langEnBtn" type="button">EN</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="container layout">
+      <aside class="left-nav">
+        <button id="showNavBtn" type="button" class="active">导航</button>
+        <button id="showTutorialBtn" type="button">教程</button>
+      </aside>
+
+      <section>
+        <div id="navView">
+          <div class="toolbar">
+            <input id="searchInput" type="text" placeholder="搜索网站名称 / URL / 简介" />
+            <button id="searchBtn">搜索</button>
+          </div>
+
+          <div id="categories" class="categories"></div>
+          <div id="siteList" class="grid"></div>
+        </div>
+
+        <div id="tutorialView" class="hidden">
+          <div id="tutorialList" class="admin-list"></div>
+        </div>
+      </section>
+    </main>
+
+    <div id="submitModal" class="submit-modal hidden">
+      <div class="submit-modal-mask" id="submitModalMask"></div>
+      <div class="submit-modal-card card" role="dialog" aria-modal="true" aria-labelledby="submitTitle">
+        <div class="submit-modal-head">
+          <h2 id="submitTitle">免费提交网站</h2>
+          <button id="closeSubmitModalBtn" type="button" class="submit-close-btn">关闭</button>
+        </div>
+        <p id="submitDesc">提交后进入审核，管理员通过后展示在首页。</p>
+        <form id="submitForm">
+          <label id="labelName">网站名称<input name="name" required /></label>
+          <label id="labelUrl">网站地址<input name="url" type="url" required placeholder="https://" /></label>
+          <label id="labelDesc">一句话简介<textarea name="description" rows="3"></textarea></label>
+          <label id="labelCategory">分类<select id="categorySelect" name="category"></select></label>
+          <label id="labelSubmitter">提交人<input name="submitterName" /></label>
+          <label id="labelEmail">邮箱<input name="submitterEmail" type="email" /></label>
+          <button id="submitBtn" type="submit">提交审核</button>
+        </form>
+        <p id="submitMessage" class="message"></p>
+      </div>
+    </div>
+
+    <script src="/main.js"></script>
+  </body>
+</html>

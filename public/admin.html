@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>claw800 后台</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="container admin">
+      <div class="lang-switch lang-switch--light">
+        <button id="adminLangZhBtn" type="button" class="active">中文</button>
+        <button id="adminLangEnBtn" type="button">EN</button>
+      </div>
+
+      <section class="card" id="loginCard">
+        <h1 id="loginTitle">管理员登录</h1>
+        <form id="loginForm">
+          <label id="loginPasswordLabel">密码<input id="loginPasswordInput" name="password" type="password" required autofocus /></label>
+          <button id="loginBtn" type="submit">登录</button>
+        </form>
+        <p id="loginMessage" class="message"></p>
+      </section>
+
+      <section class="card hidden" id="panelCard">
+        <h1 id="panelTitle">审核后台</h1>
+        <div class="admin-panel-grid">
+          <aside class="admin-nav">
+            <button id="navHome">首页</button>
+            <button id="navAdd">手动新增</button>
+            <button id="navImport">批量导入</button>
+            <button id="navCategoryList">分类列表</button>
+            <button id="navCategoryAdd">新增分类</button>
+            <button id="navTutorialList">教程列表</button>
+            <button id="navTutorialAdd">新增教程</button>
+            <button id="navPassword">修改密码</button>
+            <button id="navPending">等待审核</button>
+            <button id="navApproved">已上线</button>
+            <button id="logoutBtn">退出</button>
+          </aside>
+
+          <div class="admin-main">
+            <div id="adminSearchToolbar" class="toolbar hidden">
+              <input id="adminSearchInput" type="text" placeholder="搜索已上线网站" />
+              <button id="adminSearchBtn" type="button">搜索</button>
+              <button id="adminClearSearchBtn" type="button">清空</button>
+            </div>
+
+            <div id="adminAddSection">
+              <h2 id="adminAddTitle">手动新增站点</h2>
+              <form id="adminAddForm" class="admin-add-form">
+                <label id="adminLabelName">网站名称<input name="name" required /></label>
+                <label id="adminLabelUrl">网站地址<input name="url" type="url" required placeholder="https://" /></label>
+                <label id="adminLabelDesc">简介<textarea name="description" rows="2"></textarea></label>
+                <label id="adminLabelCategory">分类<select id="adminCategorySelect" name="category"></select></label>
+                <label id="adminLabelSort">排序<input name="sortOrder" type="number" value="0" /></label>
+                <button id="adminAddBtn" type="submit">直接上线</button>
+              </form>
+              <p id="adminMessage" class="message"></p>
+            </div>
+
+            <div id="adminImportSection" class="hidden">
+              <h2 id="importTitle">批量导入（JSON）</h2>
+              <form id="adminImportForm">
+                <label id="importLabel">
+                  粘贴 JSON 数组
+                  <textarea name="json" rows="6" placeholder='[{"name":"Site A","url":"https://a.com","description":"...","category":"OpenClaw 生态"}]'></textarea>
+                </label>
+                <button id="importBtn" type="submit">批量导入并上线</button>
+              </form>
+              <p id="importMessage" class="message"></p>
+            </div>
+
+            <div id="adminCategoryAddSection" class="hidden">
+              <h2 id="categoriesAddTitle">新增分类</h2>
+              <form id="categoryAddForm" class="admin-add-form">
+                <label id="categoryNameLabel">分类名称<input name="name" required /></label>
+                <label id="categorySortLabel">排序<input name="sortOrder" type="number" value="0" /></label>
+                <label id="categoryEnabledLabel">
+                  启用
+                  <select name="isEnabled">
+                    <option value="1">是</option>
+                    <option value="0">否</option>
+                  </select>
+                </label>
+                <button id="categoryAddBtn" type="submit">新增分类</button>
+              </form>
+              <p id="categoryMessage" class="message"></p>
+            </div>
+
+            <div id="adminCategoryListSection" class="hidden">
+              <h2 id="categoriesListTitle">分类列表</h2>
+              <div id="categoryList" class="admin-list"></div>
+            </div>
+
+            <div id="adminTutorialAddSection" class="hidden">
+              <h2 id="tutorialAddTitle">新增教程</h2>
+              <form id="tutorialAddForm">
+                <label id="tutorialTitleLabel">标题<input name="title" required /></label>
+                <label id="tutorialContentLabel">
+                  图文内容
+                  <div id="tutorialEditorToolbar" class="toolbar">
+                    <button id="editorBoldBtn" type="button">加粗</button>
+                    <button id="editorH2Btn" type="button">标题</button>
+                    <button id="editorLinkBtn" type="button">链接</button>
+                  </div>
+                  <div class="editor-shell">
+                    <div id="tutorialEditor" class="rich-editor" contenteditable="true"></div>
+                    <div class="editor-scroll-actions">
+                      <button id="editorToTopBtn" type="button" title="到顶部">↑</button>
+                      <button id="editorToBottomBtn" type="button" title="到底部">↓</button>
+                    </div>
+                  </div>
+                  <p id="tutorialByteCounter" class="small">0 / 5000000 字节</p>
+                  <textarea id="tutorialContentInput" name="content" class="hidden-input"></textarea>
+                </label>
+                <div class="toolbar">
+                  <input id="tutorialImageInput" type="file" accept="image/*" />
+                  <button id="insertTutorialImageBtn" type="button">上传图片并插入内容</button>
+                </div>
+                <button id="tutorialAddBtn" type="submit">发布教程</button>
+              </form>
+              <p id="tutorialMessage" class="message"></p>
+            </div>
+
+            <div id="adminTutorialListSection" class="hidden">
+              <h2 id="tutorialListTitle">教程列表</h2>
+              <div id="tutorialList" class="admin-list"></div>
+            </div>
+
+            <div id="adminPasswordSection" class="hidden">
+              <h2 id="passwordTitle">修改后台密码</h2>
+              <form id="adminPasswordForm" class="admin-add-form">
+                <label id="oldPasswordLabel">当前密码<input name="oldPassword" type="password" required /></label>
+                <label id="newPasswordLabel">新密码<input name="newPassword" type="password" minlength="6" required /></label>
+                <label id="confirmPasswordLabel">确认新密码<input name="confirmPassword" type="password" minlength="6" required /></label>
+                <button id="passwordSaveBtn" type="submit">保存新密码</button>
+              </form>
+              <p id="passwordMessage" class="message"></p>
+            </div>
+
+            <div id="adminListSection" class="hidden">
+              <h2 id="listTitle">待审核列表</h2>
+              <div id="adminList" class="admin-list"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="/admin.js?v=20260227-23"></script>
+  </body>
+</html>

@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>教程 - claw800.com</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="container">
+        <div class="hero-top">
+          <h1><a class="hero-logo" href="/">claw800.com</a></h1>
+        </div>
+        <div class="hero-subrow">
+          <p id="tutorialSubTitle">图文教程</p>
+          <div class="lang-switch">
+            <button id="tutorialLangZhBtn" type="button" class="active">中文</button>
+            <button id="tutorialLangEnBtn" type="button">EN</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="container layout tutorial-layout">
+      <aside class="tutorial-side-action">
+        <button id="backHomeBtn" type="button">返回首页</button>
+      </aside>
+      <aside class="tutorial-scroll-action">
+        <button id="tutorialToTopBtn" type="button" title="到顶部">↑</button>
+        <button id="tutorialToBottomBtn" type="button" title="到底部">↓</button>
+      </aside>
+      <section class="card tutorial-card">
+        <h2 id="tutorialTitle"></h2>
+        <p id="tutorialMeta" class="small"></p>
+        <article id="tutorialContent" class="tutorial-content"></article>
+        <p id="tutorialMessage" class="message"></p>
+      </section>
+    </main>
+
+    <script>
+      const texts = {
+        zh: {
+          htmlLang: 'zh-CN',
+          titlePrefix: '教程 - ',
+          subTitle: '图文教程',
+          backHome: '返回首页',
+          loading: '加载中...',
+          notFound: '教程不存在或已下线',
+          failed: '加载失败，请稍后重试',
+          publishedAt: '发布时间'
+        },
+        en: {
+          htmlLang: 'en',
+          titlePrefix: 'Tutorial - ',
+          subTitle: 'Tutorial',
+          backHome: 'Back Home',
+          loading: 'Loading...',
+          notFound: 'Tutorial not found.',
+          failed: 'Load failed. Please retry later.',
+          publishedAt: 'Published At'
+        }
+      };
+
+      let currentLang = localStorage.getItem('claw800_lang') === 'en' ? 'en' : 'zh';
+
+      function t(key) {
+        return texts[currentLang][key];
+      }
+
+      function escapeHtml(str) {
+        return String(str || '')
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#039;');
+      }
+
+      function formatDate(input) {
+        const d = new Date(String(input || '').replace(' ', 'T') + 'Z');
+        if (Number.isNaN(d.getTime())) return String(input || '');
+        return d.toLocaleString(currentLang === 'en' ? 'en-US' : 'zh-CN', { hour12: false });
+      }
+
+      function applyLanguage() {
+        document.documentElement.lang = t('htmlLang');
+        document.getElementById('tutorialSubTitle').textContent = t('subTitle');
+        document.getElementById('backHomeBtn').textContent = t('backHome');
+        document.getElementById('tutorialLangZhBtn').classList.toggle('active', currentLang === 'zh');
+        document.getElementById('tutorialLangEnBtn').classList.toggle('active', currentLang === 'en');
+      }
+
+      async function loadTutorial() {
+        const params = new URLSearchParams(window.location.search);
+        const id = params.get('id');
+        const titleEl = document.getElementById('tutorialTitle');
+        const contentEl = document.getElementById('tutorialContent');
+        const metaEl = document.getElementById('tutorialMeta');
+        const messageEl = document.getElementById('tutorialMessage');
+
+        if (!id) {
+          messageEl.textContent = t('notFound');
+          messageEl.className = 'message error';
+          return;
+        }
+
+        messageEl.textContent = t('loading');
+        messageEl.className = 'message';
+
+        try {
+          const res = await fetch(`/api/tutorials/${id}`);
+          const data = await res.json();
+          if (!res.ok || !data.item) {
+            messageEl.textContent = t('notFound');
+            messageEl.className = 'message error';
+            return;
+          }
+
+          const item = data.item;
+          document.title = `${t('titlePrefix')}${item.title}`;
+          titleEl.textContent = item.title;
+          metaEl.textContent = `${t('publishedAt')}：${formatDate(item.created_at)}`;
+          contentEl.innerHTML = item.content;
+          messageEl.textContent = '';
+        } catch {
+          titleEl.textContent = '';
+          contentEl.innerHTML = '';
+          metaEl.textContent = '';
+          messageEl.textContent = t('failed');
+          messageEl.className = 'message error';
+        }
+      }
+
+      document.getElementById('backHomeBtn').addEventListener('click', () => {
+        window.location.href = '/';
+      });
+      document.getElementById('tutorialToTopBtn').addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+      document.getElementById('tutorialToBottomBtn').addEventListener('click', () => {
+        window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+      });
+
+      document.getElementById('tutorialLangZhBtn').addEventListener('click', () => {
+        currentLang = 'zh';
+        localStorage.setItem('claw800_lang', currentLang);
+        applyLanguage();
+        loadTutorial();
+      });
+
+      document.getElementById('tutorialLangEnBtn').addEventListener('click', () => {
+        currentLang = 'en';
+        localStorage.setItem('claw800_lang', currentLang);
+        applyLanguage();
+        loadTutorial();
+      });
+
+      applyLanguage();
+      loadTutorial();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "name": "claw800",
+  "version": "1.0.0",
+  "description": "AI 导航网站 claw800.com MVP",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "cookie-parser": "^1.4.7",
+    "express": "^4.21.2"
+  }
+}
