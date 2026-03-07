@@ -63,11 +63,17 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS categories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
+    name_en TEXT DEFAULT '',
     sort_order INTEGER NOT NULL DEFAULT 0,
     is_enabled INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
+
+const hasCategoryNameEn = db.prepare("SELECT 1 FROM pragma_table_info('categories') WHERE name = 'name_en'").get();
+if (!hasCategoryNameEn) {
+  db.exec("ALTER TABLE categories ADD COLUMN name_en TEXT DEFAULT ''");
+}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS settings (

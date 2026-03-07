@@ -183,6 +183,14 @@ function categoryLabel(category) {
   return category;
 }
 
+function categoryLabelForItem(item) {
+  const zh = String(item?.category || '').trim();
+  if (!zh) return t('defaultCategory');
+  if (currentLang !== 'en') return zh;
+  const fromApi = String(item?.category_en || '').trim();
+  return fromApi || CATEGORY_EN[zh] || zh;
+}
+
 function descriptionLabel(description) {
   const desc = String(description || '').trim();
   if (!desc) return t('noDesc');
@@ -281,16 +289,18 @@ function localizeApiError(message) {
 }
 
 function renderCategoryOptions() {
-  const categories = categoriesCache.map((item) => item.category);
-  categorySelect.innerHTML = categories
-    .map((category) => `<option value="${escapeHtml(category)}">${escapeHtml(categoryLabel(category))}</option>`)
+  categorySelect.innerHTML = categoriesCache
+    .map((item) => {
+      const zh = String(item.category || '').trim();
+      return `<option value="${escapeHtml(zh)}">${escapeHtml(categoryLabelForItem(item))}</option>`;
+    })
     .join('');
 }
 
 function renderCategories(items) {
   categoriesEl.innerHTML = '';
   const countMap = new Map(items.map((item) => [item.category, item.count]));
-  const orderedCategories = items.map((item) => item.category);
+  const orderedItems = items.slice();
 
   const allBtn = document.createElement('button');
   allBtn.textContent = t('allCategory');
@@ -302,10 +312,17 @@ function renderCategories(items) {
   };
   categoriesEl.appendChild(allBtn);
 
-  for (const category of orderedCategories) {
+  for (const item of orderedItems) {
+    const category = String(item.category || '').trim();
     const count = countMap.get(category) || 0;
     const btn = document.createElement('button');
-    btn.textContent = `${categoryLabel(category)} (${count})`;
+    const label = categoryLabelForItem(item);
+    // If EN label is still Chinese, mark for on-demand translation.
+    if (currentLang === 'en' && label === category && hasCjk(category)) {
+      btn.innerHTML = `<span data-src="${escapeHtml(category)}">${escapeHtml(category)}</span> (${escapeHtml(count)})`;
+    } else {
+      btn.textContent = `${label} (${count})`;
+    }
     btn.className = currentCategory === category ? 'active' : '';
     btn.onclick = () => {
       currentCategory = category;
@@ -314,6 +331,9 @@ function renderCategories(items) {
     };
     categoriesEl.appendChild(btn);
   }
+
+  // Translate any newly added categories without a predefined EN mapping.
+  translateVisibleTextNodes();
 }
 
 function applyLanguage() {

@@ -192,11 +192,11 @@ app.get('/api/sites', (req, res) => {
 app.get('/api/categories', (_req, res) => {
   const rows = db
     .prepare(`
-      SELECT c.id, c.name as category, c.sort_order, COALESCE(COUNT(s.id), 0) as count
+      SELECT c.id, c.name as category, c.name_en as category_en, c.sort_order, COALESCE(COUNT(s.id), 0) as count
       FROM categories c
       LEFT JOIN sites s ON s.category = c.name AND s.status = 'approved'
       WHERE c.is_enabled = 1
-      GROUP BY c.id, c.name, c.sort_order
+      GROUP BY c.id, c.name, c.name_en, c.sort_order
       ORDER BY c.sort_order ASC, c.id ASC
     `)
     .all();
@@ -462,17 +462,17 @@ app.post('/api/admin/changePassword/', requireAdmin, handleChangePassword);
 app.get('/api/admin/categories', requireAdmin, (_req, res) => {
   const rows = db
     .prepare(`
-      SELECT c.id, c.name, c.sort_order, c.is_enabled, COALESCE(COUNT(s.id), 0) AS site_count
+      SELECT c.id, c.name, c.name_en, c.sort_order, c.is_enabled, COALESCE(COUNT(s.id), 0) AS site_count
       FROM categories c
       LEFT JOIN sites s ON s.category = c.name
-      GROUP BY c.id, c.name, c.sort_order, c.is_enabled
+      GROUP BY c.id, c.name, c.name_en, c.sort_order, c.is_enabled
       ORDER BY c.sort_order ASC, c.id ASC
     `)
     .all();
   res.json({ items: rows });
 });
 
-app.post('/api/admin/categories', requireAdmin, (req, res) => {
+app.post('/api/admin/categories', requireAdmin, async (req, res) => {
   const name = String(req.body.name || '').trim();
   const sortOrder = Number.isFinite(Number(req.body.sortOrder)) ? Number(req.body.sortOrder) : 0;
   const isEnabled = req.body.isEnabled === 0 || req.body.isEnabled === '0' ? 0 : 1;
@@ -482,9 +482,10 @@ app.post('/api/admin/categories', requireAdmin, (req, res) => {
   }
 
   try {
+    const nameEn = await autoTranslateToEn(name);
     const result = db
-      .prepare('INSERT INTO categories (name, sort_order, is_enabled) VALUES (?, ?, ?)')
-      .run(name, sortOrder, isEnabled);
+      .prepare('INSERT INTO categories (name, name_en, sort_order, is_enabled) VALUES (?, ?, ?, ?)')
+      .run(name, nameEn || '', sortOrder, isEnabled);
     res.json({ ok: true, id: result.lastInsertRowid });
   } catch (err) {
     if (String(err.message).includes('UNIQUE')) {
@@ -494,7 +495,7 @@ app.post('/api/admin/categories', requireAdmin, (req, res) => {
   }
 });
 
-app.put('/api/admin/categories/:id', requireAdmin, (req, res) => {
+app.put('/api/admin/categories/:id', requireAdmin, async (req, res) => {
   const id = Number(req.params.id);
   const name = String(req.body.name || '').trim();
   const sortOrder = Number.isFinite(Number(req.body.sortOrder)) ? Number(req.body.sortOrder) : 0;
@@ -505,9 +506,10 @@ app.put('/api/admin/categories/:id', requireAdmin, (req, res) => {
   }
 
   try {
+    const nameEn = await autoTranslateToEn(name);
     const result = db
-      .prepare('UPDATE categories SET name = ?, sort_order = ?, is_enabled = ? WHERE id = ?')
-      .run(name, sortOrder, isEnabled, id);
+      .prepare('UPDATE categories SET name = ?, name_en = ?, sort_order = ?, is_enabled = ? WHERE id = ?')
+      .run(name, nameEn || '', sortOrder, isEnabled, id);
     if (!result.changes) {
       return res.status(404).json({ error: '记录不存在' });
     }
