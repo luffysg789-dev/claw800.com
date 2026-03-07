@@ -359,6 +359,17 @@ function t(key) {
   return texts[currentLang][key];
 }
 
+function showPanel() {
+  loginCard.classList.add('hidden');
+  panelCard.classList.remove('hidden');
+}
+
+function showLogin() {
+  loginCard.classList.remove('hidden');
+  panelCard.classList.add('hidden');
+  focusLoginPassword();
+}
+
 function focusLoginPassword() {
   setTimeout(() => {
     loginPasswordInput?.focus();
@@ -581,7 +592,7 @@ function renderCategoryOptions(selectedCategory) {
 
 async function loadAdminCategories() {
   try {
-    const res = await fetch('/api/admin/categories');
+    const res = await fetch('/api/admin/categories', { credentials: 'include' });
     if (res.status === 401) return;
     if (!res.ok) throw new Error('admin categories unavailable');
     const data = await res.json();
@@ -933,7 +944,8 @@ async function login(password) {
   const res = await fetch('/api/admin/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password })
+    body: JSON.stringify({ password }),
+    credentials: 'include'
   });
 
   const data = await res.json();
@@ -947,13 +959,13 @@ async function loadList(status = 'pending') {
   const params = new URLSearchParams({ status });
   if (currentQuery) params.set('q', currentQuery);
 
-  const res = await fetch(`/api/admin/sites?${params.toString()}`);
+  const res = await fetch(`/api/admin/sites?${params.toString()}`, { credentials: 'include' });
   if (res.status === 401) {
-    loginCard.classList.remove('hidden');
-    panelCard.classList.add('hidden');
-    focusLoginPassword();
+    showLogin();
     return;
   }
+  // Auto-enter admin panel when cookie is already valid (e.g. after refresh).
+  showPanel();
 
   const data = await res.json();
   let items = data.items;
@@ -1063,7 +1075,8 @@ window.approveSite = async function approveSite(id) {
   const res = await fetch(`/api/admin/sites/${id}/approve`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
+    credentials: 'include'
   });
   if (!res.ok) {
     alert(t('operationFailed'));
@@ -1077,7 +1090,8 @@ window.rejectSite = async function rejectSite(id) {
   const res = await fetch(`/api/admin/sites/${id}/reject`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ note })
+    body: JSON.stringify({ note }),
+    credentials: 'include'
   });
   if (!res.ok) {
     alert(t('operationFailed'));
@@ -1206,7 +1220,8 @@ window.saveSort = async function saveSort(id) {
   const res = await fetch(`/api/admin/sites/${id}/sort`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sortOrder })
+    body: JSON.stringify({ sortOrder }),
+    credentials: 'include'
   });
 
   const data = await res.json();
@@ -1227,7 +1242,8 @@ window.saveCategoryConfig = async function saveCategoryConfig(id) {
   const res = await fetch(`/api/admin/categories/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, sortOrder, isEnabled })
+    body: JSON.stringify({ name, sortOrder, isEnabled }),
+    credentials: 'include'
   });
   const data = await res.json();
   if (!res.ok) {
@@ -1249,7 +1265,7 @@ window.deleteCategoryConfig = async function deleteCategoryConfig(id) {
 
   if (!confirm(t('categoryDeleteConfirm'))) return;
 
-  const res = await fetch(`/api/admin/categories/${id}`, { method: 'DELETE' });
+  const res = await fetch(`/api/admin/categories/${id}`, { method: 'DELETE', credentials: 'include' });
   const data = await res.json();
   if (!res.ok) {
     alert(localizeApiError(data.error || t('operationFailed')));
@@ -1267,8 +1283,7 @@ loginForm.addEventListener('submit', async (e) => {
 
   try {
     await login(password);
-    loginCard.classList.add('hidden');
-    panelCard.classList.remove('hidden');
+    showPanel();
     setView('pending');
   } catch (err) {
     loginMessage.textContent = err.message || t('loginFailed');
@@ -1284,7 +1299,8 @@ adminAddForm.addEventListener('submit', async (e) => {
   const res = await fetch('/api/admin/sites', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
+    credentials: 'include'
   });
 
   const data = await res.json();
@@ -1320,7 +1336,8 @@ adminImportForm.addEventListener('submit', async (e) => {
   const res = await fetch('/api/admin/import', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ items })
+    body: JSON.stringify({ items }),
+    credentials: 'include'
   });
 
   const data = await res.json();
@@ -1343,7 +1360,8 @@ categoryAddForm.addEventListener('submit', async (e) => {
   const res = await fetch('/api/admin/categories', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
+    credentials: 'include'
   });
   const data = await res.json();
   if (!res.ok) {
@@ -1649,10 +1667,8 @@ document.getElementById('navHome').addEventListener('click', () => {
   window.open('/', '_blank', 'noopener');
 });
 document.getElementById('logoutBtn').addEventListener('click', async () => {
-  await fetch('/api/admin/logout', { method: 'POST' });
-  loginCard.classList.remove('hidden');
-  panelCard.classList.add('hidden');
-  focusLoginPassword();
+  await fetch('/api/admin/logout', { method: 'POST', credentials: 'include' });
+  showLogin();
 });
 
 adminLangZhBtn.addEventListener('click', () => {

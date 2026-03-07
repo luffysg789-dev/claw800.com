@@ -10,6 +10,9 @@ const HOST = process.env.HOST || '127.0.0.1';
 const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '123456';
 const TUTORIAL_MAX_BYTES = 5000000;
 const tutorialUploadDrafts = new Map();
+const ADMIN_COOKIE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+// Use COOKIE_SECURE=true in production HTTPS; keep false for localhost HTTP.
+const COOKIE_SECURE = String(process.env.COOKIE_SECURE || '') === 'true';
 
 app.use(express.json({ limit: '200mb' }));
 app.use(express.urlencoded({ extended: true, limit: '200mb' }));
@@ -69,6 +72,24 @@ const upsertSettingStmt = db.prepare(`
 
 function adminTokenForPassword(password) {
   return crypto.createHash('sha256').update(String(password || '')).digest('hex');
+}
+
+function setAdminCookie(res, token) {
+  res.cookie('admin_token', token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: COOKIE_SECURE,
+    path: '/',
+    maxAge: ADMIN_COOKIE_MAX_AGE_MS
+  });
+}
+
+function clearAdminCookie(res) {
+  res.clearCookie('admin_token', {
+    sameSite: 'lax',
+    secure: COOKIE_SECURE,
+    path: '/'
+  });
 }
 
 function validateTutorialContentSize(content, res) {
@@ -304,19 +325,13 @@ app.post('/api/admin/login', (req, res) => {
   }
 
   const token = adminTokenForPassword(currentAdminPassword);
-
-  res.cookie('admin_token', token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: false,
-    maxAge: 7 * 24 * 60 * 60 * 1000
-  });
+  setAdminCookie(res, token);
 
   res.json({ ok: true });
 });
 
 app.post('/api/admin/logout', requireAdmin, (_req, res) => {
-  res.clearCookie('admin_token');
+  clearAdminCookie(res);
   res.json({ ok: true });
 });
 
@@ -342,12 +357,7 @@ function handleChangePassword(req, res) {
     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')
   `).run(newPassword);
   const token = adminTokenForPassword(newPassword);
-  res.cookie('admin_token', token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: false,
-    maxAge: 7 * 24 * 60 * 60 * 1000
-  });
+  setAdminCookie(res, token);
   res.json({ ok: true });
 }
 
