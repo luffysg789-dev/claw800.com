@@ -32,8 +32,10 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS sites (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
+    name_en TEXT DEFAULT '',
     url TEXT NOT NULL,
     description TEXT DEFAULT '',
+    description_en TEXT DEFAULT '',
     category TEXT DEFAULT 'OpenClaw 生态',
     source TEXT DEFAULT 'admin',
     submitter_name TEXT DEFAULT '',
@@ -46,6 +48,16 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
+
+// Non-destructive schema evolution for persisted DBs.
+const hasNameEn = db.prepare("SELECT 1 FROM pragma_table_info('sites') WHERE name = 'name_en'").get();
+if (!hasNameEn) {
+  db.exec("ALTER TABLE sites ADD COLUMN name_en TEXT DEFAULT ''");
+}
+const hasDescEn = db.prepare("SELECT 1 FROM pragma_table_info('sites') WHERE name = 'description_en'").get();
+if (!hasDescEn) {
+  db.exec("ALTER TABLE sites ADD COLUMN description_en TEXT DEFAULT ''");
+}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS categories (

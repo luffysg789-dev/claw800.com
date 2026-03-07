@@ -145,9 +145,31 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+function hasCjk(text) {
+  return /[\u3400-\u9FBF]/.test(String(text || ''));
+}
+
+async function autoTranslateToEn(text) {
+  const input = String(text || '').trim();
+  if (!input) return '';
+  if (!hasCjk(input)) return input; // already EN-ish
+  try {
+    const translated = await translateTextCached(input, 'en');
+    const out = String(translated || '').trim();
+    // If translation service returns original Chinese (or still contains CJK),
+    // treat as "not translated yet" so frontend can fall back to on-demand translation.
+    if (!out) return '';
+    if (out === input) return '';
+    if (hasCjk(out)) return '';
+    return out;
+  } catch {
+    return '';
+  }
+}
+
 app.get('/api/sites', (req, res) => {
   const { category, q } = req.query;
-  let sql = `SELECT id, name, url, description, category, source, sort_order, created_at FROM sites WHERE status = 'approved'`;
+  let sql = `SELECT id, name, name_en, url, description, description_en, category, source, sort_order, created_at FROM sites WHERE status = 'approved'`;
   const params = [];
 
   if (category) {
@@ -156,9 +178,9 @@ app.get('/api/sites', (req, res) => {
   }
 
   if (q) {
-    sql += ' AND (name LIKE ? OR description LIKE ? OR url LIKE ?)';
+    sql += ' AND (name LIKE ? OR description LIKE ? OR url LIKE ? OR name_en LIKE ? OR description_en LIKE ?)';
     const kw = `%${q}%`;
-    params.push(kw, kw, kw);
+    params.push(kw, kw, kw, kw, kw);
   }
 
   sql += ' ORDER BY sort_order ASC, created_at DESC';
@@ -340,7 +362,7 @@ app.get('/api/tutorial/:id', (req, res) => {
   res.json({ item: row });
 });
 
-app.post('/api/submit', (req, res) => {
+app.post('/api/submit', async (req, res) => {
   const { name, url, description = '', category = '未分类', submitterName = '', submitterEmail = '' } = req.body;
 
   if (!name || !url) {
@@ -351,13 +373,27 @@ app.post('/api/submit', (req, res) => {
     return res.status(400).json({ error: 'url 格式不正确' });
   }
 
+  const trimmedName = String(name || '').trim();
+  const trimmedDesc = String(description || '').trim();
+  const nameEn = await autoTranslateToEn(trimmedName);
+  const descEn = await autoTranslateToEn(trimmedDesc);
+
   const stmt = db.prepare(`
-    INSERT INTO sites (name, url, description, category, source, submitter_name, submitter_email, status)
-    VALUES (?, ?, ?, ?, 'user_submit', ?, ?, 'pending')
+    INSERT INTO sites (name, name_en, url, description, description_en, category, source, submitter_name, submitter_email, status)
+    VALUES (?, ?, ?, ?, ?, ?, 'user_submit', ?, ?, 'pending')
   `);
 
   try {
-    const result = stmt.run(name.trim(), url.trim(), description.trim(), category.trim(), submitterName.trim(), submitterEmail.trim());
+    const result = stmt.run(
+      trimmedName,
+      nameEn || '',
+      url.trim(),
+      trimmedDesc,
+      descEn || '',
+      category.trim(),
+      submitterName.trim(),
+      submitterEmail.trim()
+    );
     res.json({ ok: true, id: result.lastInsertRowid, message: '提交成功，等待管理员审核' });
   } catch (err) {
     if (String(err.message).includes('UNIQUE')) {
@@ -679,7 +715,7 @@ app.get('/tutorial/:id', (req, res) => {
   res.json({ item: row });
 });
 
-app.post('/api/admin/sites', requireAdmin, (req, res) => {
+app.post('/api/admin/sites', requireAdmin, async (req, res) => {
   const { name, url, description = '', category = 'OpenClaw 生态', status = 'approved', sortOrder } = req.body;
 
   if (!name || !url) {
@@ -691,14 +727,18 @@ app.post('/api/admin/sites', requireAdmin, (req, res) => {
   }
 
   const parsedSortOrder = Number.isFinite(Number(sortOrder)) ? Number(sortOrder) : 0;
+  const trimmedName = String(name || '').trim();
+  const trimmedDesc = String(description || '').trim();
+  const nameEn = await autoTranslateToEn(trimmedName);
+  const descEn = await autoTranslateToEn(trimmedDesc);
 
   try {
     const result = db
       .prepare(`
-        INSERT INTO sites (name, url, description, category, source, status, sort_order, reviewed_by, reviewed_at)
-        VALUES (?, ?, ?, ?, 'admin', ?, ?, 'admin', datetime('now'))
+        INSERT INTO sites (name, name_en, url, description, description_en, category, source, status, sort_order, reviewed_by, reviewed_at)
+        VALUES (?, ?, ?, ?, ?, ?, 'admin', ?, ?, 'admin', datetime('now'))
       `)
-      .run(name.trim(), url.trim(), description.trim(), category.trim(), status, parsedSortOrder);
+      .run(trimmedName, nameEn || '', url.trim(), trimmedDesc, descEn || '', category.trim(), status, parsedSortOrder);
 
     res.json({ ok: true, id: result.lastInsertRowid });
   } catch (err) {
@@ -745,7 +785,7 @@ app.post('/api/admin/import', requireAdmin, (req, res) => {
   res.json({ ok: true, imported, skipped });
 });
 
-function updateSite(req, res) {
+async function updateSite(req, res) {
   const id = Number(req.params.id);
   const { name, url, description = '', category = 'OpenClaw 生态', sortOrder } = req.body;
 
@@ -758,15 +798,19 @@ function updateSite(req, res) {
   }
 
   const parsedSortOrder = Number.isFinite(Number(sortOrder)) ? Number(sortOrder) : 0;
+  const trimmedName = String(name || '').trim();
+  const trimmedDesc = String(description || '').trim();
+  const nameEn = await autoTranslateToEn(trimmedName);
+  const descEn = await autoTranslateToEn(trimmedDesc);
 
   try {
     const result = db
       .prepare(`
         UPDATE sites
-        SET name = ?, url = ?, description = ?, category = ?, sort_order = ?, reviewed_by = 'admin', reviewed_at = datetime('now')
+        SET name = ?, name_en = ?, url = ?, description = ?, description_en = ?, category = ?, sort_order = ?, reviewed_by = 'admin', reviewed_at = datetime('now')
         WHERE id = ?
       `)
-      .run(name.trim(), url.trim(), description.trim(), category.trim(), parsedSortOrder, id);
+      .run(trimmedName, nameEn || '', url.trim(), trimmedDesc, descEn || '', category.trim(), parsedSortOrder, id);
 
     if (!result.changes) {
       return res.status(404).json({ error: '记录不存在' });
@@ -809,17 +853,24 @@ app.put('/api/admin/sites/:id/sort', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-app.post('/api/admin/sites/:id/approve', requireAdmin, (req, res) => {
+app.post('/api/admin/sites/:id/approve', requireAdmin, async (req, res) => {
   const id = Number(req.params.id);
   const parsedSortOrder = Number.isFinite(Number(req.body.sortOrder)) ? Number(req.body.sortOrder) : 0;
+
+  const row = db.prepare('SELECT name, description FROM sites WHERE id = ?').get(id);
+  if (!row) {
+    return res.status(404).json({ error: '记录不存在' });
+  }
+  const nameEn = await autoTranslateToEn(String(row.name || ''));
+  const descEn = await autoTranslateToEn(String(row.description || ''));
 
   const result = db
     .prepare(`
       UPDATE sites
-      SET status = 'approved', sort_order = ?, reviewer_note = '', reviewed_by = 'admin', reviewed_at = datetime('now')
+      SET status = 'approved', sort_order = ?, reviewer_note = '', name_en = ?, description_en = ?, reviewed_by = 'admin', reviewed_at = datetime('now')
       WHERE id = ?
     `)
-    .run(parsedSortOrder, id);
+    .run(parsedSortOrder, nameEn || '', descEn || '', id);
 
   if (!result.changes) {
     return res.status(404).json({ error: '记录不存在' });
@@ -868,7 +919,8 @@ app.post('/api/admin/sites/:id/delete', requireAdmin, (req, res) => {
 app.delete('/admin/sites/:id', requireAdmin, (req, res) => res.redirect(307, `/api/admin/sites/${req.params.id}`));
 app.post('/admin/sites/:id/delete', requireAdmin, (req, res) => res.redirect(307, `/api/admin/sites/${req.params.id}/delete`));
 
-const TRANSLATE_PROVIDER = String(process.env.TRANSLATE_PROVIDER || 'libretranslate').toLowerCase();
+// Default to MyMemory because it tends to be more reachable on many servers without extra setup.
+const TRANSLATE_PROVIDER = String(process.env.TRANSLATE_PROVIDER || 'mymemory').toLowerCase();
 const TRANSLATE_ENDPOINT = String(process.env.TRANSLATE_ENDPOINT || 'https://libretranslate.com/translate');
 const TRANSLATE_API_KEY = String(process.env.TRANSLATE_API_KEY || '');
 const TRANSLATE_TIMEOUT_MS = Number(process.env.TRANSLATE_TIMEOUT_MS || 8000);
@@ -879,10 +931,6 @@ const getTranslationStmt = db.prepare(
 const insertTranslationStmt = db.prepare(
   'INSERT OR IGNORE INTO translations (target_lang, source_hash, source_text, translated_text) VALUES (?, ?, ?, ?)'
 );
-
-function hasCjk(text) {
-  return /[\u3400-\u9FBF]/.test(String(text || ''));
-}
 
 async function translateViaLibreTranslate(text, targetLang) {
   const controller = new AbortController();
@@ -912,6 +960,25 @@ async function translateViaLibreTranslate(text, targetLang) {
   }
 }
 
+async function translateViaMyMemory(text, targetLang) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TRANSLATE_TIMEOUT_MS);
+  try {
+    const q = String(text || '');
+    const to = String(targetLang || 'en').toLowerCase();
+    // MyMemory expects langpair=from|to. We only route CJK text here, so assume zh-CN source.
+    const langpair = `zh-CN|${to}`;
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(q)}&langpair=${encodeURIComponent(langpair)}`;
+    const resp = await fetch(url, { method: 'GET', signal: controller.signal });
+    if (!resp.ok) throw new Error(`mymemory failed: ${resp.status}`);
+    const data = await resp.json();
+    const translated = String(data?.responseData?.translatedText || '').trim();
+    return translated || q;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function translateTextCached(text, targetLang) {
   const source = String(text || '');
   const to = String(targetLang || 'en').toLowerCase();
@@ -919,26 +986,47 @@ async function translateTextCached(text, targetLang) {
 
   const cached = getTranslationStmt.get(to, hash);
   if (cached && typeof cached.translated_text === 'string') {
-    return cached.translated_text;
+    const cachedText = String(cached.translated_text || '').trim();
+    // Guard: if we previously cached a "bad translation" (same as source or still CJK for EN),
+    // ignore it so the system can retry later.
+    if (to === 'en' && (cachedText === source.trim() || hasCjk(cachedText))) {
+      // treat as cache miss
+    } else if (cachedText) {
+      return cachedText;
+    }
   }
 
   let translated = source;
   if (TRANSLATE_PROVIDER === 'off' || TRANSLATE_PROVIDER === 'none') {
     translated = source;
   } else if (TRANSLATE_PROVIDER === 'libretranslate') {
-    translated = await translateViaLibreTranslate(source, to);
+    try {
+      translated = await translateViaLibreTranslate(source, to);
+    } catch {
+      // Fallback: LibreTranslate can be blocked/unstable on some servers.
+      translated = await translateViaMyMemory(source, to);
+    }
+  } else if (TRANSLATE_PROVIDER === 'mymemory') {
+    translated = await translateViaMyMemory(source, to);
   } else {
     // Unknown provider: return original to avoid breaking the page.
     translated = source;
   }
 
-  try {
-    insertTranslationStmt.run(to, hash, source, translated);
-  } catch {
-    // ignore cache write failures
+  const translatedTrimmed = String(translated || '').trim();
+  const sourceTrimmed = String(source || '').trim();
+  const shouldCache =
+    translatedTrimmed &&
+    (to !== 'en' || (translatedTrimmed !== sourceTrimmed && !hasCjk(translatedTrimmed)));
+  if (shouldCache) {
+    try {
+      insertTranslationStmt.run(to, hash, source, translatedTrimmed);
+    } catch {
+      // ignore cache write failures
+    }
   }
 
-  return translated;
+  return translatedTrimmed || source;
 }
 
 app.get('/api/translate', async (req, res) => {

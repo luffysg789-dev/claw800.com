@@ -236,8 +236,11 @@ async function translateBatchToEn(texts) {
       });
       if (res.ok && Array.isArray(data.items)) {
         need.forEach((src, idx) => {
-          const translated = String(data.items[idx] ?? '');
-          if (translated) translationCache.set(`en|${src}`, translated);
+          const translated = String(data.items[idx] ?? '').trim();
+          // Only accept real EN translations (not empty, not same as source, not still CJK).
+          if (translated && translated !== src.trim() && !hasCjk(translated)) {
+            translationCache.set(`en|${src}`, translated);
+          }
         });
       }
     } catch {
@@ -396,16 +399,28 @@ async function loadSites() {
 
   siteListEl.innerHTML = data.items
     .map((site) => {
-      const rawName = String(site.name || '').trim();
-      const rawDesc = String(site.description || '').trim();
-      const nameAttr = currentLang === 'en' && hasCjk(rawName) ? ` data-src="${escapeHtml(rawName)}"` : '';
-      const descAttr = currentLang === 'en' && hasCjk(rawDesc) ? ` data-src="${escapeHtml(rawDesc)}"` : '';
-      const descDisplay = descriptionLabel(rawDesc);
+      const zhName = String(site.name || '').trim();
+      const zhDesc = String(site.description || '').trim();
+      const enName = String(site.name_en || '').trim();
+      const enDesc = String(site.description_en || '').trim();
+
+      const enNameUsable = Boolean(enName) && !hasCjk(enName);
+      const enDescUsable = Boolean(enDesc) && !hasCjk(enDesc);
+
+      const displayName = currentLang === 'en' ? (enNameUsable ? enName : zhName) : zhName;
+      const displayDescRaw = currentLang === 'en' ? (enDescUsable ? enDesc : zhDesc) : zhDesc;
+
+      const needsNameTranslate = currentLang === 'en' && !enNameUsable && hasCjk(zhName);
+      const needsDescTranslate = currentLang === 'en' && !enDescUsable && hasCjk(zhDesc);
+
+      const nameAttr = needsNameTranslate ? ` data-src="${escapeHtml(zhName)}"` : '';
+      const descAttr = needsDescTranslate ? ` data-src="${escapeHtml(zhDesc)}"` : '';
+      const descDisplay = descriptionLabel(displayDescRaw);
       return `
       <a class="site-card-link" href="${escapeHtml(site.url)}" target="_blank" rel="noopener">
         <article class="site-card">
           <div class="site-row">
-            <span class="site-value"${nameAttr}>${escapeHtml(rawName)}</span>
+            <span class="site-value"${nameAttr}>${escapeHtml(displayName)}</span>
           </div>
           <div class="site-row">
             <span class="site-value site-link">${escapeHtml(site.url)}</span>
