@@ -959,17 +959,34 @@ window.editSite = async function editSite(id) {
     name: name.trim(),
     url: url.trim(),
     description: description.trim(),
-    category: normalizeCategoryInput(categoryInput)
+    category: normalizeCategoryInput(categoryInput),
+    // Keep existing sort unless explicitly changed elsewhere.
+    sortOrder: Number.isFinite(Number(site.sort_order)) ? Number(site.sort_order) : 0
   };
 
-  const res = await fetch(`/api/admin/sites/${id}`, {
+  const putResult = await requestTutorialJson([`/api/admin/sites/${id}`, `/admin/sites/${id}`], {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
+  const res = putResult.res;
+  const data = putResult.data || {};
 
-  const data = await res.json();
-  if (!res.ok) {
+  if (!res || res.status === 404 || res.status === 405) {
+    const postResult = await requestTutorialJson([`/api/admin/sites/${id}/update`, `/admin/sites/${id}/update`], {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!postResult.res) {
+      alert(t('operationFailed'));
+      return;
+    }
+    if (!postResult.res.ok) {
+      alert(localizeApiError(postResult.data?.error || t('operationFailed')));
+      return;
+    }
+  } else if (!res.ok) {
     alert(localizeApiError(data.error || t('operationFailed')));
     return;
   }

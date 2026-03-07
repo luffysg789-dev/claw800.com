@@ -628,7 +628,7 @@ app.post('/api/admin/import', requireAdmin, (req, res) => {
   res.json({ ok: true, imported, skipped });
 });
 
-app.put('/api/admin/sites/:id', requireAdmin, (req, res) => {
+function updateSite(req, res) {
   const id = Number(req.params.id);
   const { name, url, description = '', category = 'OpenClaw 生态', sortOrder } = req.body;
 
@@ -662,7 +662,12 @@ app.put('/api/admin/sites/:id', requireAdmin, (req, res) => {
     }
     res.status(500).json({ error: '更新失败' });
   }
-});
+}
+
+app.put('/api/admin/sites/:id', requireAdmin, updateSite);
+app.post('/api/admin/sites/:id/update', requireAdmin, updateSite);
+app.put('/admin/sites/:id', requireAdmin, (req, res) => res.redirect(307, `/api/admin/sites/${req.params.id}`));
+app.post('/admin/sites/:id/update', requireAdmin, (req, res) => res.redirect(307, `/api/admin/sites/${req.params.id}/update`));
 
 app.put('/api/admin/sites/:id/sort', requireAdmin, (req, res) => {
   const id = Number(req.params.id);
