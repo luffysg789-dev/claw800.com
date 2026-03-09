@@ -76,6 +76,47 @@ body {
   color: var(--brand-2);
 }
 
+.lang-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.lang-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  padding: 6px 0;
+}
+
+.lang-menu-popup {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 120px;
+  background: rgba(255, 255, 255, 0.97);
+  color: var(--ink);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+  z-index: 50;
+}
+
+.lang-menu-popup .lang-option {
+  width: 100%;
+  background: transparent;
+  color: var(--ink);
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.lang-menu-popup .lang-option:hover {
+  background: rgba(46, 111, 64, 0.12);
+}
+
 .lang-switch--light {
   margin-bottom: 12px;
 }

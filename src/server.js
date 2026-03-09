@@ -945,16 +945,17 @@ app.post('/api/admin/sites', requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/admin/import', requireAdmin, (req, res) => {
+app.post('/api/admin/import', requireAdmin, async (req, res) => {
   const items = Array.isArray(req.body.items) ? req.body.items : [];
 
   if (!items.length) {
     return res.status(400).json({ error: 'items 必须是非空数组' });
   }
 
+  // Support optional pre-translated fields from clients: name_en/description_en.
   const insert = db.prepare(`
-    INSERT OR IGNORE INTO sites (name, url, description, category, source, status, reviewed_by, reviewed_at)
-    VALUES (?, ?, ?, ?, 'admin_import', 'approved', 'admin', datetime('now'))
+    INSERT OR IGNORE INTO sites (name, name_en, url, description, description_en, category, source, status, reviewed_by, reviewed_at)
+    VALUES (?, ?, ?, ?, ?, ?, 'admin_import', 'approved', 'admin', datetime('now'))
   `);
 
   let imported = 0;
@@ -963,6 +964,8 @@ app.post('/api/admin/import', requireAdmin, (req, res) => {
     const name = String(item.name || '').trim();
     const url = String(item.url || '').trim();
     const description = String(item.description || '').trim();
+    const nameEnIn = String(item.name_en || item.nameEn || '').trim();
+    const descEnIn = String(item.description_en || item.descriptionEn || '').trim();
     const category = String(item.category || 'OpenClaw 生态').trim();
 
     if (!name || !url || !isValidUrl(url)) {
@@ -970,7 +973,9 @@ app.post('/api/admin/import', requireAdmin, (req, res) => {
       continue;
     }
 
-    const result = insert.run(name, url, description, category);
+    const nameEn = nameEnIn || (await autoTranslateToEn(name)) || '';
+    const descEn = descEnIn || (await autoTranslateToEn(description)) || '';
+    const result = insert.run(name, nameEn, url, description, descEn, category);
     if (result.changes) {
       imported += 1;
     } else {

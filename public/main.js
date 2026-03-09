@@ -8,8 +8,8 @@ const submitModalMask = document.getElementById('submitModalMask');
 const submitMessage = document.getElementById('submitMessage');
 const searchInput = document.getElementById('searchInput');
 const searchBtn = document.getElementById('searchBtn');
-const langZhBtn = document.getElementById('langZhBtn');
-const langEnBtn = document.getElementById('langEnBtn');
+const langMenuBtn = document.getElementById('langMenuBtn');
+const langMenuPopup = document.getElementById('langMenuPopup');
 const categorySelect = document.getElementById('categorySelect');
 const navView = document.getElementById('navView');
 const heroLogoEl = document.getElementById('heroLogo');
@@ -97,7 +97,7 @@ const texts = {
     allCategory: '全部',
     submitTitle: '免费提交网站',
     submitDesc: '提交后进入审核，管理员通过后展示在首页。',
-    openSubmit: '免费提交网站',
+    openSubmit: '免费提交',
     labelName: '网站名称',
     labelUrl: '网站地址',
     labelDesc: '一句话简介',
@@ -463,9 +463,6 @@ function applyLanguage() {
   document.getElementById('submitBtn').textContent = dict.submitBtn;
   closeSubmitModalBtn.textContent = dict.closeSubmit;
 
-  langZhBtn.classList.toggle('active', currentLang === 'zh');
-  langEnBtn.classList.toggle('active', currentLang === 'en');
-
   renderCategoryOptions();
   renderCategories(categoriesCache);
   renderFooter();
@@ -614,8 +611,50 @@ submitForm.addEventListener('submit', async (e) => {
   closeSubmitModal();
 });
 
-langZhBtn.addEventListener('click', () => setLanguage('zh'));
-langEnBtn.addEventListener('click', () => setLanguage('en'));
+function openLangMenu() {
+  if (!langMenuPopup || !langMenuBtn) return;
+  langMenuPopup.classList.remove('hidden');
+  langMenuBtn.setAttribute('aria-expanded', 'true');
+}
+
+function closeLangMenu() {
+  if (!langMenuPopup || !langMenuBtn) return;
+  langMenuPopup.classList.add('hidden');
+  langMenuBtn.setAttribute('aria-expanded', 'false');
+}
+
+function toggleLangMenu() {
+  if (!langMenuPopup) return;
+  if (langMenuPopup.classList.contains('hidden')) openLangMenu();
+  else closeLangMenu();
+}
+
+if (langMenuBtn) {
+  langMenuBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleLangMenu();
+  });
+}
+
+if (langMenuPopup) {
+  langMenuPopup.addEventListener('click', (e) => {
+    const btn = e.target?.closest?.('button[data-lang]');
+    if (!btn) return;
+    const lang = String(btn.getAttribute('data-lang') || '');
+    setLanguage(lang);
+    closeLangMenu();
+  });
+}
+
+document.addEventListener('click', (e) => {
+  if (!langMenuPopup || !langMenuBtn) return;
+  const target = e.target;
+  if (target === langMenuBtn || langMenuBtn.contains(target)) return;
+  if (langMenuPopup.contains(target)) return;
+  closeLangMenu();
+});
+
 searchBtn.addEventListener('click', loadSites);
 searchInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
