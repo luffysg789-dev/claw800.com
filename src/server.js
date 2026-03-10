@@ -46,6 +46,64 @@ app.use((req, res, next) => {
   next();
 });
 
+const insertVisitLogStmt = db.prepare(
+  'INSERT INTO visit_logs (ip_address, request_path, user_agent, visit_date, created_at) VALUES (?, ?, ?, ?, datetime(\'now\'))'
+);
+
+function normalizeIp(ip) {
+  const raw = String(ip || '').trim();
+  if (!raw) return '';
+  if (raw === '::1') return '127.0.0.1';
+  return raw.replace(/^::ffff:/, '');
+}
+
+function getRequestIp(req) {
+  const forwarded = String(req.headers['x-forwarded-for'] || '')
+    .split(',')
+    .map((item) => normalizeIp(item))
+    .find(Boolean);
+  if (forwarded) return forwarded;
+  return normalizeIp(req.ip || req.socket?.remoteAddress || '');
+}
+
+function getVisitDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function shouldTrackVisit(req) {
+  if (req.method !== 'GET') return false;
+  const pathName = String(req.path || '');
+  return pathName === '/' || pathName === '/index.html' || pathName === '/tutorial.html';
+}
+
+app.use((req, res, next) => {
+  if (!shouldTrackVisit(req)) {
+    next();
+    return;
+  }
+
+  res.on('finish', () => {
+    if (res.statusCode >= 400) return;
+    const ipAddress = getRequestIp(req);
+    if (!ipAddress) return;
+    try {
+      insertVisitLogStmt.run(
+        ipAddress,
+        String(req.path || '/'),
+        String(req.headers['user-agent'] || '').slice(0, 500),
+        getVisitDateKey()
+      );
+    } catch {
+      // ignore visit log write failures
+    }
+  });
+
+  next();
+});
+
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 function isValidUrl(url) {
@@ -629,6 +687,84 @@ app.get('/api/admin/categories', requireAdmin, (_req, res) => {
     `)
     .all();
   res.json({ items: rows });
+});
+
+app.get('/api/admin/visit-stats', requireAdmin, (_req, res) => {
+  const today = getVisitDateKey();
+  const totals = db
+    .prepare(
+      `
+      SELECT
+        COUNT(*) AS total_pv,
+        COUNT(DISTINCT ip_address) AS total_uv
+      FROM visit_logs
+    `
+    )
+    .get();
+
+  const todayStats = db
+    .prepare(
+      `
+      SELECT
+        COUNT(*) AS today_pv,
+        COUNT(DISTINCT ip_address) AS today_uv
+      FROM visit_logs
+      WHERE visit_date = ?
+    `
+    )
+    .get(today);
+
+  const todayByPath = db
+    .prepare(
+      `
+      SELECT
+        request_path,
+        COUNT(*) AS pv,
+        COUNT(DISTINCT ip_address) AS uv
+      FROM visit_logs
+      WHERE visit_date = ?
+      GROUP BY request_path
+      ORDER BY pv DESC, request_path ASC
+    `
+    )
+    .all(today);
+
+  const recentDays = db
+    .prepare(
+      `
+      SELECT
+        visit_date,
+        COUNT(*) AS pv,
+        COUNT(DISTINCT ip_address) AS uv
+      FROM visit_logs
+      GROUP BY visit_date
+      ORDER BY visit_date DESC
+      LIMIT 7
+    `
+    )
+    .all()
+    .reverse();
+
+  res.json({
+    ok: true,
+    today,
+    totals: {
+      totalPv: Number(totals?.total_pv || 0),
+      totalUv: Number(totals?.total_uv || 0),
+      todayPv: Number(todayStats?.today_pv || 0),
+      todayUv: Number(todayStats?.today_uv || 0)
+    },
+    todayByPath: todayByPath.map((row) => ({
+      path: String(row.request_path || '/'),
+      pv: Number(row.pv || 0),
+      uv: Number(row.uv || 0)
+    })),
+    recentDays: recentDays.map((row) => ({
+      date: String(row.visit_date || ''),
+      pv: Number(row.pv || 0),
+      uv: Number(row.uv || 0)
+    }))
+  });
 });
 
 app.post('/api/admin/categories', requireAdmin, async (req, res) => {

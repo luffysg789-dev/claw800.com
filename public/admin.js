@@ -17,6 +17,12 @@ const navAutoCrawl = document.getElementById('navAutoCrawl');
 const adminSearchInput = document.getElementById('adminSearchInput');
 const adminSearchToolbar = document.getElementById('adminSearchToolbar');
 const adminAddSection = document.getElementById('adminAddSection');
+const adminVisitStatsSection = document.getElementById('adminVisitStatsSection');
+const visitStatsMessage = document.getElementById('visitStatsMessage');
+const visitStatsCards = document.getElementById('visitStatsCards');
+const visitStatsPathList = document.getElementById('visitStatsPathList');
+const visitStatsRecentList = document.getElementById('visitStatsRecentList');
+const visitStatsRefreshBtn = document.getElementById('visitStatsRefreshBtn');
 const adminSiteConfigSection = document.getElementById('adminSiteConfigSection');
 const siteConfigForm = document.getElementById('siteConfigForm');
 const siteConfigMessage = document.getElementById('siteConfigMessage');
@@ -104,6 +110,7 @@ const texts = {
     loginBtn: '登录',
     panelTitle: '审核后台',
     navHome: '前端首页',
+    navVisitStats: '访问统计',
     navSiteConfig: '站点设置',
     navAutoCrawl: '自动抓取',
     navAdd: '手动新增',
@@ -199,6 +206,22 @@ const texts = {
     passwordSaveBtn: '保存新密码',
     passwordChanged: '密码已更新',
     passwordRouteMissing: '密码接口不存在（404）。请重启后端后再试。',
+    visitStatsTitle: '访问统计',
+    visitStatsRefreshBtn: '刷新',
+    visitStatsLoading: '加载中...',
+    visitStatsLoadFailed: '访问统计加载失败',
+    visitStatsTodayBreakdownTitle: '今日页面访问',
+    visitStatsRecentTitle: '最近 7 天',
+    visitStatsAutoRefresh: '每 30 秒自动刷新一次',
+    visitStatsTotalPv: '累计访问量',
+    visitStatsTotalUv: '累计独立 IP',
+    visitStatsTodayPv: '今日访问量',
+    visitStatsTodayUv: '今日独立 IP',
+    visitStatsPathPv: '访问量',
+    visitStatsPathUv: '独立 IP',
+    visitStatsNoData: '暂无访问数据',
+    visitStatsPathHome: '首页',
+    visitStatsPathTutorial: '教程页',
     categoryNameLabel: '分类名称',
     categorySortLabel: '排序',
     categoryEnabledLabel: '启用',
@@ -261,6 +284,7 @@ const texts = {
     loginBtn: 'Login',
     panelTitle: 'Review Console',
     navHome: 'Frontend Home',
+    navVisitStats: 'Visit Stats',
     navSiteConfig: 'Site Settings',
     navAutoCrawl: 'Auto Crawl',
     navAdd: 'Add Website',
@@ -356,6 +380,22 @@ const texts = {
     passwordSaveBtn: 'Save Password',
     passwordChanged: 'Password updated.',
     passwordRouteMissing: 'Password API not found (404). Please restart backend and retry.',
+    visitStatsTitle: 'Visit Stats',
+    visitStatsRefreshBtn: 'Refresh',
+    visitStatsLoading: 'Loading...',
+    visitStatsLoadFailed: 'Failed to load visit stats.',
+    visitStatsTodayBreakdownTitle: 'Today by Page',
+    visitStatsRecentTitle: 'Last 7 Days',
+    visitStatsAutoRefresh: 'Auto-refreshes every 30 seconds',
+    visitStatsTotalPv: 'Total PV',
+    visitStatsTotalUv: 'Total Unique IPs',
+    visitStatsTodayPv: 'Today PV',
+    visitStatsTodayUv: 'Today Unique IPs',
+    visitStatsPathPv: 'PV',
+    visitStatsPathUv: 'Unique IPs',
+    visitStatsNoData: 'No visit data yet.',
+    visitStatsPathHome: 'Homepage',
+    visitStatsPathTutorial: 'Tutorial Page',
     categoryNameLabel: 'Category Name',
     categorySortLabel: 'Sort',
     categoryEnabledLabel: 'Enabled',
@@ -422,6 +462,8 @@ let tutorialItems = [];
 let editingTutorialId = null;
 let editingSiteId = null;
 let siteConfigCache = null;
+let visitStatsCache = null;
+let visitStatsTimer = null;
 
 function t(key) {
   return texts[currentLang][key];
@@ -430,11 +472,13 @@ function t(key) {
 function showPanel() {
   loginCard.classList.add('hidden');
   panelCard.classList.remove('hidden');
+  syncVisitStatsTimer();
 }
 
 function showLogin() {
   loginCard.classList.remove('hidden');
   panelCard.classList.add('hidden');
+  syncVisitStatsTimer();
   focusLoginPassword();
 }
 
@@ -693,6 +737,7 @@ function applyLanguage() {
   document.getElementById('loginBtn').textContent = dict.loginBtn;
   document.getElementById('panelTitle').textContent = dict.panelTitle;
   document.getElementById('navHome').textContent = dict.navHome;
+  document.getElementById('navVisitStats').textContent = dict.navVisitStats;
   document.getElementById('navSiteConfig').textContent = dict.navSiteConfig;
   document.getElementById('navAutoCrawl').textContent = dict.navAutoCrawl;
   document.getElementById('navAdd').textContent = dict.navAdd;
@@ -742,6 +787,10 @@ function applyLanguage() {
   refreshTutorialEditorTitleAndButton();
   document.getElementById('tutorialListTitle').textContent = dict.tutorialListTitle;
   document.getElementById('passwordTitle').textContent = dict.passwordTitle;
+  document.getElementById('visitStatsTitle').textContent = dict.visitStatsTitle;
+  document.getElementById('visitStatsRefreshBtn').textContent = dict.visitStatsRefreshBtn;
+  document.getElementById('visitStatsTodayBreakdownTitle').textContent = dict.visitStatsTodayBreakdownTitle;
+  document.getElementById('visitStatsRecentTitle').textContent = dict.visitStatsRecentTitle;
   document.getElementById('categoryNameLabel').childNodes[0].textContent = dict.categoryNameLabel;
   document.getElementById('categorySortLabel').childNodes[0].textContent = dict.categorySortLabel;
   document.getElementById('categoryEnabledLabel').childNodes[0].textContent = dict.categoryEnabledLabel;
@@ -771,12 +820,14 @@ function applyLanguage() {
   renderAdminCategoryOptions();
   renderCategoryList();
   renderTutorialList([]);
+  if (visitStatsCache) renderVisitStats(visitStatsCache);
   setView(currentView);
 }
 
 function setView(view) {
   currentView = view;
   adminAddSection.classList.toggle('hidden', view !== 'add');
+  adminVisitStatsSection.classList.toggle('hidden', view !== 'visit-stats');
   adminSiteConfigSection.classList.toggle('hidden', view !== 'site-config');
   adminAutoCrawlSection.classList.toggle('hidden', view !== 'auto-crawl');
   adminImportSection.classList.toggle('hidden', view !== 'import');
@@ -794,6 +845,9 @@ function setView(view) {
   if (view === 'site-config') {
     loadSiteConfig();
   }
+  if (view === 'visit-stats') {
+    loadVisitStats();
+  }
   if (view === 'auto-crawl') {
     loadAutoCrawlStatus();
   }
@@ -808,6 +862,8 @@ function setView(view) {
   } else if (view === 'approved') {
     loadList('approved');
   }
+
+  syncVisitStatsTimer();
 }
 
 function formatTime(ms) {
@@ -845,6 +901,105 @@ function renderAutoCrawlStatusLine(data) {
   }
 
   autoCrawlStatus.textContent = parts.join(' | ');
+}
+
+function visitPathLabel(pathName) {
+  if (pathName === '/' || pathName === '/index.html') return t('visitStatsPathHome');
+  if (pathName === '/tutorial.html') return t('visitStatsPathTutorial');
+  return String(pathName || '/');
+}
+
+function renderVisitStats(data) {
+  visitStatsCache = data || null;
+  if (!visitStatsCards || !visitStatsPathList || !visitStatsRecentList) return;
+
+  const totals = data?.totals || {};
+  const cards = [
+    { label: t('visitStatsTotalPv'), value: Number(totals.totalPv || 0) },
+    { label: t('visitStatsTotalUv'), value: Number(totals.totalUv || 0) },
+    { label: t('visitStatsTodayPv'), value: Number(totals.todayPv || 0) },
+    { label: t('visitStatsTodayUv'), value: Number(totals.todayUv || 0) }
+  ];
+
+  visitStatsCards.innerHTML = cards
+    .map(
+      (item) => `
+        <article class="visit-stat-card">
+          <div class="small">${escapeHtml(item.label)}</div>
+          <strong>${escapeHtml(item.value)}</strong>
+        </article>
+      `
+    )
+    .join('');
+
+  const todayByPath = Array.isArray(data?.todayByPath) ? data.todayByPath : [];
+  if (!todayByPath.length) {
+    visitStatsPathList.innerHTML = `<p class="empty">${escapeHtml(t('visitStatsNoData'))}</p>`;
+  } else {
+    visitStatsPathList.innerHTML = todayByPath
+      .map(
+        (item) => `
+          <article class="review-card">
+            <h3>${escapeHtml(visitPathLabel(item.path))}</h3>
+            <p class="small">${escapeHtml(t('visitStatsPathPv'))}: ${escapeHtml(Number(item.pv || 0))}</p>
+            <p class="small">${escapeHtml(t('visitStatsPathUv'))}: ${escapeHtml(Number(item.uv || 0))}</p>
+          </article>
+        `
+      )
+      .join('');
+  }
+
+  const recentDays = Array.isArray(data?.recentDays) ? data.recentDays : [];
+  if (!recentDays.length) {
+    visitStatsRecentList.innerHTML = `<p class="empty">${escapeHtml(t('visitStatsNoData'))}</p>`;
+  } else {
+    visitStatsRecentList.innerHTML = recentDays
+      .map(
+        (item) => `
+          <article class="review-card">
+            <h3>${escapeHtml(item.date || '')}</h3>
+            <p class="small">${escapeHtml(t('visitStatsPathPv'))}: ${escapeHtml(Number(item.pv || 0))}</p>
+            <p class="small">${escapeHtml(t('visitStatsPathUv'))}: ${escapeHtml(Number(item.uv || 0))}</p>
+          </article>
+        `
+      )
+      .join('');
+  }
+}
+
+async function loadVisitStats() {
+  if (!visitStatsMessage) return;
+  visitStatsMessage.textContent = t('visitStatsLoading');
+  visitStatsMessage.className = 'message';
+  const result = await requestTutorialJson(['/api/admin/visit-stats']);
+  if (!result.res) {
+    visitStatsMessage.textContent = t('visitStatsLoadFailed');
+    visitStatsMessage.className = 'message error';
+    return;
+  }
+  if (result.res.status === 401) {
+    showLogin();
+    return;
+  }
+  if (!result.res.ok) {
+    visitStatsMessage.textContent = localizeApiError(result.data?.error || t('visitStatsLoadFailed'));
+    visitStatsMessage.className = 'message error';
+    return;
+  }
+  renderVisitStats(result.data || {});
+  visitStatsMessage.textContent = t('visitStatsAutoRefresh');
+  visitStatsMessage.className = 'message success';
+}
+
+function syncVisitStatsTimer() {
+  if (visitStatsTimer) {
+    clearInterval(visitStatsTimer);
+    visitStatsTimer = null;
+  }
+  if (currentView !== 'visit-stats') return;
+  visitStatsTimer = setInterval(() => {
+    if (currentView === 'visit-stats') loadVisitStats();
+  }, 30000);
 }
 
 async function loadAutoCrawlStatus() {
@@ -1854,6 +2009,7 @@ if (siteConfigForm) {
 }
 
 document.getElementById('navAdd').addEventListener('click', () => setView('add'));
+document.getElementById('navVisitStats').addEventListener('click', () => setView('visit-stats'));
 document.getElementById('navSiteConfig').addEventListener('click', () => setView('site-config'));
 document.getElementById('navAutoCrawl').addEventListener('click', () => setView('auto-crawl'));
 document.getElementById('navImport').addEventListener('click', () => setView('import'));
@@ -1872,6 +2028,9 @@ document.getElementById('navTutorialAdd').addEventListener('click', () => {
 document.getElementById('navPassword').addEventListener('click', () => setView('password'));
 document.getElementById('navPending').addEventListener('click', () => setView('pending'));
 document.getElementById('navApproved').addEventListener('click', () => setView('approved'));
+if (visitStatsRefreshBtn) {
+  visitStatsRefreshBtn.addEventListener('click', () => loadVisitStats());
+}
 document.getElementById('navHome').addEventListener('click', () => {
   window.open('/', '_blank', 'noopener');
 });

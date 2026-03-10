@@ -156,6 +156,27 @@ db.exec(`
   );
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS visit_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ip_address TEXT NOT NULL,
+    request_path TEXT NOT NULL,
+    user_agent TEXT DEFAULT '',
+    visit_date TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_visit_logs_date_path
+  ON visit_logs(visit_date, request_path);
+`);
+
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_visit_logs_date_ip
+  ON visit_logs(visit_date, ip_address);
+`);
+
 const defaultAdminPassword = process.env.ADMIN_PASSWORD || '123456';
 db.prepare(
   "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('admin_password', ?, datetime('now'))"

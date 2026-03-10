@@ -440,6 +440,27 @@ button.danger { background: var(--danger); }
   gap: 10px;
 }
 
+.visit-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.visit-stat-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.visit-stat-card strong {
+  display: block;
+  font-size: 28px;
+  line-height: 1.1;
+  margin-top: 8px;
+}
+
 .tutorial-item {
   display: block;
   background: #fff;
