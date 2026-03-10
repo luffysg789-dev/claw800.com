@@ -14,7 +14,7 @@ const categorySelect = document.getElementById('categorySelect');
 const navView = document.getElementById('navView');
 const heroLogoEl = document.getElementById('heroLogo');
 const heroSubtitleEl = document.getElementById('heroSubtitle');
-const faviconEl = document.getElementById('siteFavicon');
+const faviconEl = document.getElementById('siteFavicon') || document.querySelector('link[rel~="icon"]');
 const footerCopyrightEl = document.getElementById('footerCopyright');
 const footerLinksEl = document.getElementById('footerLinks');
 const footerContactEl = document.getElementById('footerContact');
@@ -164,11 +164,25 @@ const texts = {
   }
 };
 
+function normalizeLang(input) {
+  return String(input || '').trim() === 'en' ? 'en' : 'zh';
+}
+
 let currentCategory = '';
-let currentLang = localStorage.getItem('claw800_lang') === 'en' ? 'en' : 'zh';
+let currentLang = normalizeLang(localStorage.getItem('claw800_lang'));
 let categoriesCache = [];
-const translationCache = new Map(); // key: `en|${source}` -> translated
+const translationCache = new Map(); // key: `${to}|${source}` -> translated
+const translationInflight = new Map(); // key: `${to}|${source}` -> Promise<string>
+const translatedTextNodes = new WeakMap(); // Node -> { to, source }
 let siteConfig = null; // { title, subtitleZh, subtitleEn }
+
+function getUiLang() {
+  return currentLang;
+}
+
+function getTranslateTarget() {
+  return currentLang === 'en' ? 'en' : '';
+}
 
 function isProbablyUrl(text) {
   const s = String(text || '').trim();
@@ -255,11 +269,12 @@ function renderFooter() {
 function renderFavicon() {
   if (!faviconEl) return;
   const icon = String(siteConfig?.icon || '').trim();
-  faviconEl.href = icon || '/favicon.svg';
+  faviconEl.href = icon || '/favicon.ico';
 }
 
 function t(key) {
-  return texts[currentLang][key];
+  const uiLang = getUiLang();
+  return texts[uiLang][key];
 }
 
 function escapeHtml(str) {
@@ -326,48 +341,158 @@ async function requestJson(path, options) {
   throw lastError || new Error('request failed');
 }
 
-async function translateBatchToEn(texts) {
+function splitWhitespace(text) {
+  const m = String(text || '').match(/^(\s*)([\s\S]*?)(\s*)$/);
+  return [m ? m[1] : '', m ? m[2] : String(text || ''), m ? m[3] : ''];
+}
+
+function isNoTranslateNode(node) {
+  const el = node?.parentElement || (node?.nodeType === 1 ? node : null);
+  if (!el) return false;
+  return Boolean(el.closest?.('[data-no-translate="true"]'));
+}
+
+async function translateBatch(texts, to) {
+  const target = String(to || '').trim();
+  if (!target) return new Map();
+  const isCjkHeavyTarget = target === 'zh' || target === 'zh-tw' || target === 'ja' || target === 'ko';
   const unique = Array.from(new Set(texts.map((t) => String(t || '')).filter(Boolean)));
-  const need = unique.filter((t) => hasCjk(t) && !translationCache.has(`en|${t}`));
+  const immediate = new Map();
+  const waiters = [];
+  const need = [];
+
+  unique.forEach((src) => {
+    const key = `${target}|${src}`;
+    if (!hasCjk(src)) return;
+    if (translationCache.has(key)) {
+      immediate.set(src, translationCache.get(key));
+      return;
+    }
+    if (translationInflight.has(key)) {
+      waiters.push(
+        translationInflight.get(key).then((translated) => {
+          if (translated) immediate.set(src, translated);
+        })
+      );
+      return;
+    }
+    need.push(src);
+  });
+
   if (need.length) {
+    let resolveBatch;
+    let rejectBatch;
+    const batchPromise = new Promise((resolve, reject) => {
+      resolveBatch = resolve;
+      rejectBatch = reject;
+    });
+    need.forEach((src) => {
+      translationInflight.set(
+        `${target}|${src}`,
+        batchPromise.then((resultMap) => String(resultMap.get(src) || ''))
+      );
+    });
     try {
       const { res, data } = await requestJson('/api/translate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: 'en', texts: need })
+        body: JSON.stringify({ to: target, texts: need })
       });
+      const resultMap = new Map();
       if (res.ok && Array.isArray(data.items)) {
         need.forEach((src, idx) => {
           const translated = String(data.items[idx] ?? '').trim();
-          // Only accept real EN translations (not empty, not same as source, not still CJK).
-          if (translated && translated !== src.trim() && !hasCjk(translated)) {
-            translationCache.set(`en|${src}`, translated);
-          }
+          if (!translated) return;
+          if (translated === src.trim()) return;
+          if (!isCjkHeavyTarget && hasCjk(translated)) return;
+          translationCache.set(`${target}|${src}`, translated);
+          resultMap.set(src, translated);
         });
       }
+      resolveBatch(resultMap);
     } catch {
+      rejectBatch(new Error('translation failed'));
       // ignore translation failures; keep original text
+    } finally {
+      need.forEach((src) => {
+        translationInflight.delete(`${target}|${src}`);
+      });
     }
+  }
+
+  if (waiters.length) {
+    await Promise.allSettled(waiters);
   }
 
   const map = new Map();
   for (const src of unique) {
-    const cached = translationCache.get(`en|${src}`);
+    const cached = translationCache.get(`${target}|${src}`);
     if (cached) map.set(src, cached);
+    else if (immediate.has(src)) map.set(src, immediate.get(src));
   }
   return map;
 }
 
 async function translateVisibleTextNodes() {
-  if (currentLang !== 'en') return;
+  const to = getTranslateTarget();
+  if (!to) return;
   const els = Array.from(document.querySelectorAll('[data-src]'));
   const sources = els.map((el) => el.getAttribute('data-src') || '').filter(Boolean);
-  const translatedMap = await translateBatchToEn(sources);
+  const translatedMap = await translateBatch(sources, to);
   for (const el of els) {
     const src = el.getAttribute('data-src') || '';
     if (!src) continue;
     const translated = translatedMap.get(src);
     if (translated) el.textContent = translated;
+  }
+}
+
+async function translateElementTextNodes(rootEl) {
+  const to = getTranslateTarget();
+  if (!rootEl || !to) return;
+  if (isNoTranslateNode(rootEl)) return;
+
+  const nodes = [];
+  const walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      if (isNoTranslateNode(node)) return NodeFilter.FILTER_REJECT;
+      const already = translatedTextNodes.get(node);
+      if (already && already.to === to) return NodeFilter.FILTER_REJECT;
+      const raw = String(node.nodeValue || '');
+      if (!raw.trim()) return NodeFilter.FILTER_REJECT;
+      const parent = node.parentElement;
+      if (!parent) return NodeFilter.FILTER_REJECT;
+      const tag = parent.tagName;
+      if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'CODE' || tag === 'PRE') return NodeFilter.FILTER_REJECT;
+      const mid = splitWhitespace(raw)[1];
+      if (!hasCjk(mid)) return NodeFilter.FILTER_REJECT;
+      if (isProbablyUrl(mid) || isProbablyEmail(mid)) return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    }
+  });
+
+  let cur = walker.nextNode();
+  while (cur) {
+    nodes.push(cur);
+    if (nodes.length >= 300) break; // safety cap
+    cur = walker.nextNode();
+  }
+
+  const sources = nodes
+    .map((n) => splitWhitespace(n.nodeValue)[1])
+    .map((mid) => String(mid || '').trim())
+    .filter(Boolean);
+  if (!sources.length) return;
+
+  const translatedMap = await translateBatch(sources, to);
+  for (const node of nodes) {
+    const [lead, mid, trail] = splitWhitespace(node.nodeValue);
+    const key = String(mid || '').trim();
+    const translated = translatedMap.get(key);
+    if (translated) {
+      node.nodeValue = `${lead}${translated}${trail}`;
+      translatedTextNodes.set(node, { to, source: key });
+    }
   }
 }
 
@@ -395,9 +520,16 @@ function renderCategories(items) {
   categoriesEl.innerHTML = '';
   const countMap = new Map(items.map((item) => [item.category, item.count]));
   const orderedItems = items.slice();
+  const to = getTranslateTarget();
+  const uiLang = getUiLang();
 
   const allBtn = document.createElement('button');
-  allBtn.textContent = t('allCategory');
+  if (to && uiLang !== currentLang) {
+    const src = t('allCategory');
+    allBtn.innerHTML = `<span data-src="${escapeHtml(src)}">${escapeHtml(src)}</span>`;
+  } else {
+    allBtn.textContent = t('allCategory');
+  }
   allBtn.className = currentCategory === '' ? 'active' : '';
   allBtn.onclick = () => {
     currentCategory = '';
@@ -411,8 +543,8 @@ function renderCategories(items) {
     const count = countMap.get(category) || 0;
     const btn = document.createElement('button');
     const label = categoryLabelForItem(item);
-    // If EN label is still Chinese, mark for on-demand translation.
-    if (currentLang === 'en' && label === category && hasCjk(category)) {
+    // Mark for on-demand translation when current language isn't Chinese.
+    if (to && label === category && hasCjk(category)) {
       btn.innerHTML = `<span data-src="${escapeHtml(category)}">${escapeHtml(category)}</span> (${escapeHtml(count)})`;
     } else {
       btn.textContent = `${label} (${count})`;
@@ -535,8 +667,9 @@ async function loadSites() {
       const displayName = currentLang === 'en' ? (enNameUsable ? enName : zhName) : zhName;
       const displayDescRaw = currentLang === 'en' ? (enDescUsable ? enDesc : zhDesc) : zhDesc;
 
-      const needsNameTranslate = currentLang === 'en' && !enNameUsable && hasCjk(zhName);
-      const needsDescTranslate = currentLang === 'en' && !enDescUsable && hasCjk(zhDesc);
+      const to = getTranslateTarget();
+      const needsNameTranslate = Boolean(to) && currentLang !== 'zh' && hasCjk(zhName) && (currentLang !== 'en' || !enNameUsable);
+      const needsDescTranslate = Boolean(to) && currentLang !== 'zh' && hasCjk(zhDesc) && (currentLang !== 'en' || !enDescUsable);
 
       const nameAttr = needsNameTranslate ? ` data-src="${escapeHtml(zhName)}"` : '';
       const descAttr = needsDescTranslate ? ` data-src="${escapeHtml(zhDesc)}"` : '';
@@ -569,7 +702,7 @@ async function loadSites() {
 function syncLeftNavTop() {}
 
 function setLanguage(lang) {
-  currentLang = lang === 'en' ? 'en' : 'zh';
+  currentLang = normalizeLang(lang);
   localStorage.setItem('claw800_lang', currentLang);
   applyLanguage();
   loadSites();

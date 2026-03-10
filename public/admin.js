@@ -640,7 +640,7 @@ function getEnabledCategoryNames() {
     return managedCategories
       .filter((item) => item.is_enabled)
       .slice()
-      .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
+      .sort((a, b) => Number(b.sort_order || 0) - Number(a.sort_order || 0))
       .map((item) => item.name);
   }
   return FIXED_CATEGORIES.slice();
@@ -1358,7 +1358,6 @@ window.saveSiteEdit = async function saveSiteEdit(id) {
   }
 
   editingSiteId = null;
-  alert(t('editSaved'));
   loadList(currentStatus);
 };
 
@@ -1412,7 +1411,6 @@ window.saveSort = async function saveSort(id) {
     return;
   }
 
-  alert(t('sortSaved'));
   loadList(currentStatus);
 };
 
@@ -1452,7 +1450,6 @@ window.saveCategoryConfig = async function saveCategoryConfig(id) {
   }
 
   await loadAdminCategories();
-  alert(t('editSaved'));
 };
 
 window.deleteCategoryConfig = async function deleteCategoryConfig(id) {
@@ -1823,6 +1820,7 @@ if (siteConfigForm) {
       subtitleEn: String(payload.subtitleEn || '').trim(),
       htmlTitleZh: String(payload.htmlTitleZh || '').trim(),
       htmlTitleEn: String(payload.htmlTitleEn || '').trim(),
+      icon: String(payload.icon || '').trim(),
       footerCopyrightZh: String(payload.footerCopyrightZh || '').trim(),
       footerCopyrightEn: String(payload.footerCopyrightEn || '').trim(),
       footerLinksRaw: String(payload.footerLinksRaw || '').trim(),

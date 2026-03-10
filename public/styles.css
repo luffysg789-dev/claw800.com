@@ -94,6 +94,8 @@ body {
   right: 0;
   top: calc(100% + 8px);
   min-width: 120px;
+  max-height: 70vh;
+  overflow-y: auto;
   background: rgba(255, 255, 255, 0.97);
   color: var(--ink);
   border: 1px solid rgba(255, 255, 255, 0.55);

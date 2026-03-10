@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>教程 - claw800.com</title>
-    <link id="siteFavicon" rel="icon" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico">
     <link rel="stylesheet" href="/styles.css?v=20260310-01" />
   </head>
   <body>
@@ -16,8 +16,20 @@
         <div class="hero-subrow">
           <p id="tutorialSubTitle">图文教程</p>
           <div class="lang-switch">
-            <button id="tutorialLangZhBtn" type="button" class="active">中文</button>
-            <button id="tutorialLangEnBtn" type="button">EN</button>
+            <div class="lang-menu" id="langMenu" data-no-translate="true">
+              <button id="langMenuBtn" type="button" class="lang-menu-btn" aria-haspopup="menu" aria-expanded="false" title="Language">
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+                  <path
+                    fill="currentColor"
+                    d="M12 2a10 10 0 100 20 10 10 0 000-20Zm7.4 9h-3.1a15.6 15.6 0 00-1.2-5.2A8.02 8.02 0 0119.4 11ZM12 4c.8 0 2.1 1.7 2.9 7H9.1C9.9 5.7 11.2 4 12 4ZM4.6 13h3.1c.2 1.9.7 3.8 1.2 5.2A8.02 8.02 0 014.6 13Zm0-2a8.02 8.02 0 014.3-5.2A15.6 15.6 0 007.7 11H4.6ZM12 20c-.8 0-2.1-1.7-2.9-7h5.8c-.8 5.3-2.1 7-2.9 7Zm3.1-1.8c.5-1.4 1-3.3 1.2-5.2h3.1a8.02 8.02 0 01-4.3 5.2Z"
+                  />
+                </svg>
+              </button>
+              <div id="langMenuPopup" class="lang-menu-popup hidden" role="menu">
+                <button type="button" class="lang-option" data-lang="en" role="menuitem">English</button>
+                <button type="button" class="lang-option" data-lang="zh" role="menuitem">中文</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -75,14 +87,30 @@
         }
       };
 
-      let currentLang = localStorage.getItem('claw800_lang') === 'en' ? 'en' : 'zh';
-      const translationCache = new Map(); // key: `en|${source}` -> translated
+      function normalizeLang(input) {
+        return String(input || '').trim() === 'en' ? 'en' : 'zh';
+      }
+
+      let currentLang = normalizeLang(localStorage.getItem('claw800_lang'));
+      const translationCache = new Map(); // key: `${to}|${source}` -> translated
+      const translationInflight = new Map(); // key: `${to}|${source}` -> Promise<string>
+      const translatedTextNodes = new WeakMap(); // Node -> { to, source }
       let tutorialLoadToken = 0;
       let siteConfig = null;
-      const faviconEl = document.getElementById('siteFavicon');
+      const faviconEl = document.getElementById('siteFavicon') || document.querySelector('link[rel~=\"icon\"]');
+      const langMenuBtn = document.getElementById('langMenuBtn');
+      const langMenuPopup = document.getElementById('langMenuPopup');
       const footerCopyrightEl = document.getElementById('footerCopyright');
       const footerLinksEl = document.getElementById('footerLinks');
       const footerContactEl = document.getElementById('footerContact');
+
+      function getUiLang() {
+        return currentLang;
+      }
+
+      function getTranslateTarget() {
+        return currentLang === 'en' ? 'en' : '';
+      }
 
       function isProbablyUrl(text) {
         const s = String(text || '').trim();
@@ -169,11 +197,12 @@
       function renderFavicon() {
         if (!faviconEl) return;
         const icon = String(siteConfig?.icon || '').trim();
-        faviconEl.href = icon || '/favicon.svg';
+        faviconEl.href = icon || '/favicon.ico';
       }
 
       function t(key) {
-        return texts[currentLang][key];
+        const uiLang = getUiLang();
+        return texts[uiLang][key];
       }
 
       function escapeHtml(str) {
@@ -188,38 +217,96 @@
       function formatDate(input) {
         const d = new Date(String(input || '').replace(' ', 'T') + 'Z');
         if (Number.isNaN(d.getTime())) return String(input || '');
-        return d.toLocaleString(currentLang === 'en' ? 'en-US' : 'zh-CN', { hour12: false });
+        const locale = currentLang === 'en' ? 'en-US' : 'zh-CN';
+        return d.toLocaleString(locale, { hour12: false });
       }
 
       function hasCjk(text) {
         return /[\u3400-\u9FBF]/.test(String(text || ''));
       }
 
-      async function requestTranslateBatch(texts) {
+      function isNoTranslateNode(node) {
+        const el = node?.parentElement || (node?.nodeType === 1 ? node : null);
+        if (!el) return false;
+        return Boolean(el.closest?.('[data-no-translate="true"]'));
+      }
+
+      async function requestTranslateBatch(texts, to) {
+        const target = String(to || '').trim();
+        if (!target) return new Map();
+        const isCjkHeavyTarget = target === 'zh' || target === 'zh-tw' || target === 'ja' || target === 'ko';
         const unique = Array.from(new Set(texts.map((t) => String(t || '')).filter(Boolean)));
-        const need = unique.filter((t) => hasCjk(t) && !translationCache.has(`en|${t}`));
+        const immediate = new Map();
+        const waiters = [];
+        const need = [];
+
+        unique.forEach((src) => {
+          const key = `${target}|${src}`;
+          if (!hasCjk(src)) return;
+          if (translationCache.has(key)) {
+            immediate.set(src, translationCache.get(key));
+            return;
+          }
+          if (translationInflight.has(key)) {
+            waiters.push(
+              translationInflight.get(key).then((translated) => {
+                if (translated) immediate.set(src, translated);
+              })
+            );
+            return;
+          }
+          need.push(src);
+        });
+
         if (need.length) {
+          let resolveBatch;
+          let rejectBatch;
+          const batchPromise = new Promise((resolve, reject) => {
+            resolveBatch = resolve;
+            rejectBatch = reject;
+          });
+          need.forEach((src) => {
+            translationInflight.set(
+              `${target}|${src}`,
+              batchPromise.then((resultMap) => String(resultMap.get(src) || ''))
+            );
+          });
           try {
             const res = await fetch('/api/translate', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ to: 'en', texts: need })
+              body: JSON.stringify({ to: target, texts: need })
             });
             const data = await res.json().catch(() => ({}));
+            const resultMap = new Map();
             if (res.ok && Array.isArray(data.items)) {
               need.forEach((src, idx) => {
                 const translated = String(data.items[idx] ?? '').trim();
-                if (translated) translationCache.set(`en|${src}`, translated);
+                if (!translated) return;
+                if (translated === src.trim()) return;
+                if (!isCjkHeavyTarget && hasCjk(translated)) return;
+                translationCache.set(`${target}|${src}`, translated);
+                resultMap.set(src, translated);
               });
             }
+            resolveBatch(resultMap);
           } catch {
+            rejectBatch(new Error('translation failed'));
             // ignore translation failures
+          } finally {
+            need.forEach((src) => {
+              translationInflight.delete(`${target}|${src}`);
+            });
           }
+        }
+        if (waiters.length) {
+          await Promise.allSettled(waiters);
         }
         const map = new Map();
         for (const src of unique) {
-          const cached = translationCache.get(`en|${src}`);
+          const cached = translationCache.get(`${target}|${src}`);
           if (cached) map.set(src, cached);
+          else if (immediate.has(src)) map.set(src, immediate.get(src));
         }
         return map;
       }
@@ -230,10 +317,15 @@
       }
 
       async function translateElementTextNodes(rootEl) {
-        if (!rootEl || currentLang !== 'en') return;
+        const to = getTranslateTarget();
+        if (!rootEl || !to) return;
+        if (isNoTranslateNode(rootEl)) return;
         const nodes = [];
         const walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT, {
           acceptNode(node) {
+            if (isNoTranslateNode(node)) return NodeFilter.FILTER_REJECT;
+            const already = translatedTextNodes.get(node);
+            if (already && already.to === to) return NodeFilter.FILTER_REJECT;
             const raw = String(node.nodeValue || '');
             if (!raw.trim()) return NodeFilter.FILTER_REJECT;
             const parent = node.parentElement;
@@ -257,12 +349,15 @@
           .filter(Boolean);
         if (!sources.length) return;
 
-        const translatedMap = await requestTranslateBatch(sources);
+        const translatedMap = await requestTranslateBatch(sources, to);
         for (const node of nodes) {
           const [lead, mid, trail] = splitWhitespace(node.nodeValue);
           const key = String(mid || '').trim();
           const translated = translatedMap.get(key);
-          if (translated) node.nodeValue = `${lead}${translated}${trail}`;
+          if (translated) {
+            node.nodeValue = `${lead}${translated}${trail}`;
+            translatedTextNodes.set(node, { to, source: key });
+          }
         }
       }
 
@@ -270,7 +365,7 @@
         const input = String(html || '');
         if (!input) return [];
         // Try to split on safe-ish boundaries so we can append progressively.
-        const tokens = input.split(/(<\/p>|<\/h[1-6]>|<\/li>|<br\\s*\\/?>)/gi);
+        const tokens = input.split(/(<\/p>|<\/h[1-6]>|<\/li>|<br\s*\/?>)/gi);
         const blocks = [];
         let buf = '';
         for (const tok of tokens) {
@@ -318,11 +413,11 @@
       }
 
       function applyLanguage() {
-        document.documentElement.lang = t('htmlLang');
+        const dict = texts[currentLang];
+
+        document.documentElement.lang = dict.htmlLang;
         document.getElementById('tutorialSubTitle').textContent = t('subTitle');
         document.getElementById('backHomeBtn').textContent = t('backHome');
-        document.getElementById('tutorialLangZhBtn').classList.toggle('active', currentLang === 'zh');
-        document.getElementById('tutorialLangEnBtn').classList.toggle('active', currentLang === 'en');
         const titleFromConfig = String(siteConfig?.title || '').trim();
         const safeTitle = titleFromConfig || 'claw800.com';
         const logoEl = document.getElementById('tutorialHeroLogo');
@@ -409,21 +504,22 @@
 
           await renderHtmlProgressively({ html: item.content, contentEl, messageEl, token });
 
-          if (currentLang === 'en') {
+          const to = getTranslateTarget();
+          if (to) {
             const runTranslate = async () => {
               try {
                 if (token !== tutorialLoadToken) return;
                 messageEl.textContent = t('translating');
                 messageEl.className = 'message';
                 const rawTitle = String(item.title || '');
-                const titleMap = await requestTranslateBatch([rawTitle]);
+                const titleMap = await requestTranslateBatch([rawTitle], to);
                 const translatedTitle = titleMap.get(rawTitle);
                 if (translatedTitle && token === tutorialLoadToken) {
                   document.title = `${t('titlePrefix')}${translatedTitle}`;
                   titleEl.textContent = translatedTitle;
                 }
                 if (token !== tutorialLoadToken) return;
-                await translateElementTextNodes(contentEl);
+                await translateElementTextNodes(document.querySelector('main'));
               } finally {
                 if (token === tutorialLoadToken) messageEl.textContent = '';
               }
@@ -453,18 +549,55 @@
         window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
       });
 
-      document.getElementById('tutorialLangZhBtn').addEventListener('click', () => {
-        currentLang = 'zh';
-        localStorage.setItem('claw800_lang', currentLang);
-        applyLanguage();
-        loadTutorial();
-      });
+      function openLangMenu() {
+        if (!langMenuPopup || !langMenuBtn) return;
+        langMenuPopup.classList.remove('hidden');
+        langMenuBtn.setAttribute('aria-expanded', 'true');
+      }
 
-      document.getElementById('tutorialLangEnBtn').addEventListener('click', () => {
-        currentLang = 'en';
+      function closeLangMenu() {
+        if (!langMenuPopup || !langMenuBtn) return;
+        langMenuPopup.classList.add('hidden');
+        langMenuBtn.setAttribute('aria-expanded', 'false');
+      }
+
+      function toggleLangMenu() {
+        if (!langMenuPopup) return;
+        if (langMenuPopup.classList.contains('hidden')) openLangMenu();
+        else closeLangMenu();
+      }
+
+      function setLanguage(lang) {
+        currentLang = normalizeLang(lang);
         localStorage.setItem('claw800_lang', currentLang);
         applyLanguage();
         loadTutorial();
+      }
+
+      if (langMenuBtn) {
+        langMenuBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleLangMenu();
+        });
+      }
+
+      if (langMenuPopup) {
+        langMenuPopup.addEventListener('click', (e) => {
+          const btn = e.target?.closest?.('button[data-lang]');
+          if (!btn) return;
+          const lang = String(btn.getAttribute('data-lang') || '');
+          setLanguage(lang);
+          closeLangMenu();
+        });
+      }
+
+      document.addEventListener('click', (e) => {
+        if (!langMenuPopup || !langMenuBtn) return;
+        const target = e.target;
+        if (target === langMenuBtn || langMenuBtn.contains(target)) return;
+        if (langMenuPopup.contains(target)) return;
+        closeLangMenu();
       });
 
       (async () => {

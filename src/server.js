@@ -283,7 +283,7 @@ app.get('/api/categories', (_req, res) => {
       LEFT JOIN sites s ON s.category = c.name AND s.status = 'approved'
       WHERE c.is_enabled = 1
       GROUP BY c.id, c.name, c.name_en, c.sort_order
-      ORDER BY c.sort_order ASC, c.id ASC
+      ORDER BY c.sort_order DESC, c.id DESC
     `)
     .all();
   res.json({ items: rows });
@@ -625,7 +625,7 @@ app.get('/api/admin/categories', requireAdmin, (_req, res) => {
       FROM categories c
       LEFT JOIN sites s ON s.category = c.name
       GROUP BY c.id, c.name, c.name_en, c.sort_order, c.is_enabled
-      ORDER BY c.sort_order ASC, c.id ASC
+      ORDER BY c.sort_order DESC, c.id DESC
     `)
     .all();
   res.json({ items: rows });
@@ -1138,6 +1138,26 @@ const getTranslationStmt = db.prepare(
 const insertTranslationStmt = db.prepare(
   'INSERT OR IGNORE INTO translations (target_lang, source_hash, source_text, translated_text) VALUES (?, ?, ?, ?)'
 );
+const inflightTranslationJobs = new Map();
+const TRANSLATE_BATCH_CONCURRENCY = Math.max(1, Number(process.env.TRANSLATE_BATCH_CONCURRENCY || 6));
+
+async function mapWithConcurrency(items, limit, worker) {
+  const list = Array.from(items || []);
+  const out = new Array(list.length);
+  let cursor = 0;
+
+  async function runWorker() {
+    while (true) {
+      const index = cursor++;
+      if (index >= list.length) return;
+      out[index] = await worker(list[index], index);
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(limit, list.length) }, () => runWorker());
+  await Promise.all(workers);
+  return out;
+}
 
 async function translateViaLibreTranslate(text, targetLang) {
   const controller = new AbortController();
@@ -1190,57 +1210,101 @@ async function translateTextCached(text, targetLang) {
   const source = String(text || '');
   const to = String(targetLang || 'en').toLowerCase();
   const hash = crypto.createHash('sha256').update(source).digest('hex');
+  const sourceTrimmed = String(source || '').trim();
+  const isCjkHeavyTarget = to === 'zh' || to === 'zh-tw' || to === 'ja' || to === 'ko';
 
   const cached = getTranslationStmt.get(to, hash);
   if (cached && typeof cached.translated_text === 'string') {
     const cachedText = String(cached.translated_text || '').trim();
-    // Guard: if we previously cached a "bad translation" (same as source or still CJK for EN),
-    // ignore it so the system can retry later.
-    if (to === 'en' && (cachedText === source.trim() || hasCjk(cachedText))) {
+    // Ignore known bad cache entries so the system can retry translation:
+    // - untranslated content equal to the source
+    // - non-CJK targets that still come back as CJK text
+    if (
+      cachedText === sourceTrimmed ||
+      (!isCjkHeavyTarget && hasCjk(sourceTrimmed) && hasCjk(cachedText))
+    ) {
       // treat as cache miss
     } else if (cachedText) {
       return cachedText;
     }
   }
 
-  let translated = source;
-  if (TRANSLATE_PROVIDER === 'off' || TRANSLATE_PROVIDER === 'none') {
-    translated = source;
-  } else if (TRANSLATE_PROVIDER === 'libretranslate') {
-    try {
-      translated = await translateViaLibreTranslate(source, to);
-    } catch {
-      // Fallback: LibreTranslate can be blocked/unstable on some servers.
+  const inflightKey = `${to}|${hash}`;
+  if (inflightTranslationJobs.has(inflightKey)) {
+    return inflightTranslationJobs.get(inflightKey);
+  }
+
+  const job = (async () => {
+    let translated = source;
+    if (TRANSLATE_PROVIDER === 'off' || TRANSLATE_PROVIDER === 'none') {
+      translated = source;
+    } else if (TRANSLATE_PROVIDER === 'libretranslate') {
+      try {
+        translated = await translateViaLibreTranslate(source, to);
+      } catch {
+        // Fallback: LibreTranslate can be blocked/unstable on some servers.
+        translated = await translateViaMyMemory(source, to);
+      }
+    } else if (TRANSLATE_PROVIDER === 'mymemory') {
       translated = await translateViaMyMemory(source, to);
+    } else {
+      // Unknown provider: return original to avoid breaking the page.
+      translated = source;
     }
-  } else if (TRANSLATE_PROVIDER === 'mymemory') {
-    translated = await translateViaMyMemory(source, to);
-  } else {
-    // Unknown provider: return original to avoid breaking the page.
-    translated = source;
-  }
 
-  const translatedTrimmed = String(translated || '').trim();
-  const sourceTrimmed = String(source || '').trim();
-  const shouldCache =
-    translatedTrimmed &&
-    (to !== 'en' || (translatedTrimmed !== sourceTrimmed && !hasCjk(translatedTrimmed)));
-  if (shouldCache) {
-    try {
-      insertTranslationStmt.run(to, hash, source, translatedTrimmed);
-    } catch {
-      // ignore cache write failures
+    const translatedTrimmed = String(translated || '').trim();
+    const shouldCache =
+      translatedTrimmed &&
+      translatedTrimmed !== sourceTrimmed &&
+      (isCjkHeavyTarget || !hasCjk(translatedTrimmed));
+    if (shouldCache) {
+      try {
+        insertTranslationStmt.run(to, hash, source, translatedTrimmed);
+      } catch {
+        // ignore cache write failures
+      }
     }
-  }
 
-  return translatedTrimmed || source;
+    return translatedTrimmed || source;
+  })();
+
+  inflightTranslationJobs.set(inflightKey, job);
+  try {
+    return await job;
+  } finally {
+    inflightTranslationJobs.delete(inflightKey);
+  }
 }
+
+const SUPPORTED_TRANSLATE_LANGS = new Set([
+  'en',
+  'zh',
+  'zh-tw',
+  'es',
+  'hi',
+  'ar',
+  'fr',
+  'pt',
+  'ru',
+  'id',
+  'de',
+  'ja',
+  'ko',
+  'tr',
+  'vi',
+  'th',
+  'it',
+  'pl',
+  'nl',
+  'sv',
+  'uk'
+]);
 
 app.get('/api/translate', async (req, res) => {
   const to = String(req.query.to || 'en').toLowerCase();
   const text = String(req.query.text || '');
   if (!text) return res.status(400).json({ error: 'text 必填' });
-  if (!['en', 'zh'].includes(to)) return res.status(400).json({ error: 'to 只支持 en/zh' });
+  if (!SUPPORTED_TRANSLATE_LANGS.has(to)) return res.status(400).json({ error: 'to 不支持' });
 
   try {
     const translated = hasCjk(text) ? await translateTextCached(text, to) : text;
@@ -1254,7 +1318,7 @@ app.post('/api/translate', async (req, res) => {
   const to = String(req.body.to || 'en').toLowerCase();
   const texts = Array.isArray(req.body.texts) ? req.body.texts : [];
 
-  if (!['en', 'zh'].includes(to)) return res.status(400).json({ error: 'to 只支持 en/zh' });
+  if (!SUPPORTED_TRANSLATE_LANGS.has(to)) return res.status(400).json({ error: 'to 不支持' });
   if (!texts.length) return res.json({ ok: true, to, items: [] });
   if (texts.length > 200) return res.status(413).json({ error: 'texts 过多，请分批提交' });
 
@@ -1263,15 +1327,10 @@ app.post('/api/translate', async (req, res) => {
   if (totalBytes > 200000) return res.status(413).json({ error: '请求体过大（翻译）' });
 
   try {
-    const items = [];
-    for (const text of normalized) {
-      if (!text) {
-        items.push('');
-        continue;
-      }
-      // Only translate when it likely needs translation.
-      items.push(hasCjk(text) ? await translateTextCached(text, to) : text);
-    }
+    const items = await mapWithConcurrency(normalized, TRANSLATE_BATCH_CONCURRENCY, async (text) => {
+      if (!text) return '';
+      return hasCjk(text) ? await translateTextCached(text, to) : text;
+    });
     res.json({ ok: true, to, items });
   } catch {
     res.status(502).json({ error: '翻译服务不可用' });
