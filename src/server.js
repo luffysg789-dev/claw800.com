@@ -18,6 +18,9 @@ const tutorialUploadDrafts = new Map();
 const ADMIN_COOKIE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 // Use COOKIE_SECURE=true in production HTTPS; keep false for localhost HTTP.
 const COOKIE_SECURE = String(process.env.COOKIE_SECURE || '') === 'true';
+const TRUST_PROXY = String(process.env.TRUST_PROXY || 'loopback, linklocal, uniquelocal').trim();
+
+app.set('trust proxy', TRUST_PROXY);
 
 app.use(express.json({ limit: '200mb' }));
 app.use(express.urlencoded({ extended: true, limit: '200mb' }));
@@ -58,12 +61,11 @@ function normalizeIp(ip) {
 }
 
 function getRequestIp(req) {
-  const forwarded = String(req.headers['x-forwarded-for'] || '')
-    .split(',')
-    .map((item) => normalizeIp(item))
-    .find(Boolean);
-  if (forwarded) return forwarded;
-  return normalizeIp(req.ip || req.socket?.remoteAddress || '');
+  const trustedIp = normalizeIp(req.ip || '');
+  if (trustedIp) return trustedIp;
+  const realIp = normalizeIp(req.headers['x-real-ip']);
+  if (realIp) return realIp;
+  return normalizeIp(req.socket?.remoteAddress || '');
 }
 
 function getVisitDateKey(date = new Date()) {
@@ -312,7 +314,7 @@ async function autoTranslateToEn(text) {
 
 app.get('/api/sites', (req, res) => {
   const { category, q } = req.query;
-  let sql = `SELECT id, name, name_en, url, description, description_en, category, source, sort_order, is_hot, created_at FROM sites WHERE status = 'approved'`;
+  let sql = `SELECT id, name, name_en, url, description, description_en, category, source, sort_order, is_pinned, is_hot, created_at FROM sites WHERE status = 'approved'`;
   const params = [];
 
   if (category) {
@@ -326,8 +328,7 @@ app.get('/api/sites', (req, res) => {
     params.push(kw, kw, kw, kw, kw);
   }
 
-  // Higher sort_order should rank higher (appear earlier).
-  sql += ' ORDER BY sort_order DESC, created_at DESC';
+  sql += ' ORDER BY is_pinned DESC, sort_order DESC, created_at DESC';
   const rows = db.prepare(sql).all(...params);
 
   res.json({ items: rows });
@@ -876,7 +877,7 @@ app.get('/api/admin/sites', requireAdmin, (req, res) => {
   const status = String(req.query.status || 'pending');
   const q = String(req.query.q || '').trim();
   let sql = `
-      SELECT id, name, url, description, category, source, submitter_name, submitter_email, status, reviewer_note, reviewed_by, reviewed_at, sort_order, is_hot, created_at
+      SELECT id, name, url, description, category, source, submitter_name, submitter_email, status, reviewer_note, reviewed_by, reviewed_at, sort_order, is_pinned, is_hot, created_at
       FROM sites
       WHERE status = ?
   `;
@@ -888,8 +889,7 @@ app.get('/api/admin/sites', requireAdmin, (req, res) => {
     params.push(kw, kw, kw, kw);
   }
 
-  // Higher sort_order should rank higher (appear earlier).
-  sql += status === 'approved' ? ' ORDER BY sort_order DESC, created_at DESC' : ' ORDER BY created_at DESC';
+  sql += status === 'approved' ? ' ORDER BY is_pinned DESC, sort_order DESC, created_at DESC' : ' ORDER BY created_at DESC';
   const rows = db.prepare(sql).all(...params);
 
   res.json({ items: rows });
@@ -1050,7 +1050,7 @@ app.get('/tutorial/:id', (req, res) => {
 });
 
 app.post('/api/admin/sites', requireAdmin, async (req, res) => {
-  const { name, url, description = '', category = 'OpenClaw 生态', status = 'approved', sortOrder, isHot } = req.body;
+  const { name, url, description = '', category = 'OpenClaw 生态', status = 'approved', sortOrder, isPinned, isHot } = req.body;
 
   if (!name || !url) {
     return res.status(400).json({ error: 'name 和 url 必填' });
@@ -1061,6 +1061,7 @@ app.post('/api/admin/sites', requireAdmin, async (req, res) => {
   }
 
   const parsedSortOrder = Number.isFinite(Number(sortOrder)) ? Number(sortOrder) : 0;
+  const parsedIsPinned = isPinned === true || isPinned === 1 || isPinned === '1' || isPinned === 'on' ? 1 : 0;
   const parsedIsHot = isHot === true || isHot === 1 || isHot === '1' || isHot === 'on' ? 1 : 0;
   const trimmedName = String(name || '').trim();
   const trimmedDesc = String(description || '').trim();
@@ -1070,10 +1071,10 @@ app.post('/api/admin/sites', requireAdmin, async (req, res) => {
   try {
     const result = db
       .prepare(`
-        INSERT INTO sites (name, name_en, url, description, description_en, category, source, status, sort_order, is_hot, reviewed_by, reviewed_at)
-        VALUES (?, ?, ?, ?, ?, ?, 'admin', ?, ?, ?, 'admin', datetime('now'))
+        INSERT INTO sites (name, name_en, url, description, description_en, category, source, status, sort_order, is_pinned, is_hot, reviewed_by, reviewed_at)
+        VALUES (?, ?, ?, ?, ?, ?, 'admin', ?, ?, ?, ?, 'admin', datetime('now'))
       `)
-      .run(trimmedName, nameEn || '', url.trim(), trimmedDesc, descEn || '', category.trim(), status, parsedSortOrder, parsedIsHot);
+      .run(trimmedName, nameEn || '', url.trim(), trimmedDesc, descEn || '', category.trim(), status, parsedSortOrder, parsedIsPinned, parsedIsHot);
 
     res.json({ ok: true, id: result.lastInsertRowid });
   } catch (err) {
@@ -1129,7 +1130,7 @@ app.post('/api/admin/import', requireAdmin, async (req, res) => {
 
 async function updateSite(req, res) {
   const id = Number(req.params.id);
-  const { name, url, description = '', category = 'OpenClaw 生态', sortOrder, isHot } = req.body;
+  const { name, url, description = '', category = 'OpenClaw 生态', sortOrder, isPinned, isHot } = req.body;
 
   if (!name || !url) {
     return res.status(400).json({ error: 'name 和 url 必填' });
@@ -1140,6 +1141,7 @@ async function updateSite(req, res) {
   }
 
   const parsedSortOrder = Number.isFinite(Number(sortOrder)) ? Number(sortOrder) : 0;
+  const parsedIsPinned = isPinned === true || isPinned === 1 || isPinned === '1' || isPinned === 'on' ? 1 : 0;
   const parsedIsHot = isHot === true || isHot === 1 || isHot === '1' || isHot === 'on' ? 1 : 0;
   const trimmedName = String(name || '').trim();
   const trimmedDesc = String(description || '').trim();
@@ -1150,10 +1152,10 @@ async function updateSite(req, res) {
     const result = db
       .prepare(`
         UPDATE sites
-        SET name = ?, name_en = ?, url = ?, description = ?, description_en = ?, category = ?, sort_order = ?, is_hot = ?, reviewed_by = 'admin', reviewed_at = datetime('now')
+        SET name = ?, name_en = ?, url = ?, description = ?, description_en = ?, category = ?, sort_order = ?, is_pinned = ?, is_hot = ?, reviewed_by = 'admin', reviewed_at = datetime('now')
         WHERE id = ?
       `)
-      .run(trimmedName, nameEn || '', url.trim(), trimmedDesc, descEn || '', category.trim(), parsedSortOrder, parsedIsHot, id);
+      .run(trimmedName, nameEn || '', url.trim(), trimmedDesc, descEn || '', category.trim(), parsedSortOrder, parsedIsPinned, parsedIsHot, id);
 
     if (!result.changes) {
       return res.status(404).json({ error: '记录不存在' });

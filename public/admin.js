@@ -163,6 +163,7 @@ const texts = {
     adminLabelDesc: '简介',
     adminLabelCategory: '分类',
     adminLabelSort: '排序',
+    adminLabelPinned: '置顶',
     adminLabelHot: '热门',
     adminAddBtn: '直接上线',
     importTitle: '批量导入（JSON）',
@@ -337,6 +338,7 @@ const texts = {
     adminLabelDesc: 'Description',
     adminLabelCategory: 'Category',
     adminLabelSort: 'Sort',
+    adminLabelPinned: 'Pinned',
     adminLabelHot: 'Hot',
     adminAddBtn: 'Publish Now',
     importTitle: 'Bulk Import (JSON)',
@@ -759,6 +761,9 @@ function applyLanguage() {
   document.getElementById('adminLabelDesc').childNodes[0].textContent = dict.adminLabelDesc;
   document.getElementById('adminLabelCategory').childNodes[0].textContent = dict.adminLabelCategory;
   document.getElementById('adminLabelSort').childNodes[0].textContent = dict.adminLabelSort;
+  if (document.getElementById('adminLabelPinned')) {
+    document.getElementById('adminLabelPinned').childNodes[0].textContent = dict.adminLabelPinned;
+  }
   document.getElementById('adminLabelHot').childNodes[0].textContent = dict.adminLabelHot;
   document.getElementById('adminAddBtn').textContent = dict.adminAddBtn;
   document.getElementById('importTitle').textContent = dict.importTitle;
@@ -1339,6 +1344,12 @@ async function loadList(status = 'pending') {
                     ${renderCategoryOptions(site.category)}
                   </select>
                 </label>
+                <label class="small">${escapeHtml(texts[currentLang].adminLabelPinned)}
+                  <select id="editPinned-${site.id}">
+                    <option value="0" ${site.is_pinned ? '' : 'selected'}>${escapeHtml(t('enabledNo'))}</option>
+                    <option value="1" ${site.is_pinned ? 'selected' : ''}>${escapeHtml(t('enabledYes'))}</option>
+                  </select>
+                </label>
                 <label class="small">${escapeHtml(texts[currentLang].adminLabelHot)}
                   <select id="editHot-${site.id}">
                     <option value="0" ${site.is_hot ? '' : 'selected'}>${escapeHtml(t('enabledNo'))}</option>
@@ -1462,6 +1473,7 @@ window.saveSiteEdit = async function saveSiteEdit(id) {
   const url = String(document.getElementById(`editUrl-${id}`)?.value || '').trim();
   const category = String(document.getElementById(`editCategory-${id}`)?.value || '').trim();
   const description = String(document.getElementById(`editDesc-${id}`)?.value || '').trim();
+  const isPinned = String(document.getElementById(`editPinned-${id}`)?.value || '0').trim();
   const isHot = String(document.getElementById(`editHot-${id}`)?.value || '0').trim();
 
   const sortInput = document.getElementById(`sortInput-${id}`);
@@ -1482,6 +1494,7 @@ window.saveSiteEdit = async function saveSiteEdit(id) {
     description,
     category: normalizeCategoryInput(category),
     sortOrder,
+    isPinned,
     isHot
   };
 
