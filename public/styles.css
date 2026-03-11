@@ -422,6 +422,11 @@ button.danger { background: var(--danger); }
 }
 
 .site-link {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   color: var(--brand-2);
   text-decoration: underline;
 }
