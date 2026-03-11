@@ -1,5 +1,6 @@
 const path = require('path');
 const crypto = require('crypto');
+const net = require('net');
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const db = require('./db');
@@ -60,12 +61,55 @@ function normalizeIp(ip) {
   return raw.replace(/^::ffff:/, '');
 }
 
+function isPrivateOrLocalIp(ip) {
+  const normalized = normalizeIp(ip);
+  const type = net.isIP(normalized);
+  if (!type) return true;
+
+  if (type === 4) {
+    return (
+      normalized === '127.0.0.1' ||
+      normalized.startsWith('10.') ||
+      normalized.startsWith('192.168.') ||
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(normalized) ||
+      normalized.startsWith('169.254.')
+    );
+  }
+
+  const lower = normalized.toLowerCase();
+  return (
+    lower === '::1' ||
+    lower.startsWith('fc') ||
+    lower.startsWith('fd') ||
+    lower.startsWith('fe80:') ||
+    lower.startsWith('::ffff:127.')
+  );
+}
+
 function getRequestIp(req) {
-  const trustedIp = normalizeIp(req.ip || '');
-  if (trustedIp) return trustedIp;
-  const realIp = normalizeIp(req.headers['x-real-ip']);
-  if (realIp) return realIp;
-  return normalizeIp(req.socket?.remoteAddress || '');
+  const reqIp = normalizeIp(req.ip || '');
+  if (reqIp && !isPrivateOrLocalIp(reqIp)) return reqIp;
+
+  const headerCandidates = [
+    req.headers['cf-connecting-ip'],
+    req.headers['x-real-ip'],
+    ...String(req.headers['x-forwarded-for'] || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+  ]
+    .map((value) => normalizeIp(value))
+    .filter(Boolean);
+
+  const publicHeaderIp = headerCandidates.find((ip) => !isPrivateOrLocalIp(ip));
+  if (publicHeaderIp) return publicHeaderIp;
+
+  if (reqIp) return reqIp;
+
+  const socketIp = normalizeIp(req.socket?.remoteAddress || '');
+  if (socketIp) return socketIp;
+
+  return headerCandidates[0] || '';
 }
 
 function getVisitDateKey(date = new Date()) {
