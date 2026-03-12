@@ -9,9 +9,10 @@ let currentPage = 1;
 const PAGE_SIZE = 30;
 const INITIAL_SKILLS_LIMIT = 30;
 const langState = {
-  zh: { categories: {}, lastSyncMs: 0, fullLoaded: false, fullPromise: null },
-  en: { categories: {}, lastSyncMs: 0, fullLoaded: false, fullPromise: null }
+  zh: { categories: {}, categoryZhMap: {}, lastSyncMs: 0, fullLoaded: false, fullPromise: null },
+  en: { categories: {}, categoryZhMap: {}, lastSyncMs: 0, fullLoaded: false, fullPromise: null }
 };
+let summaryLoaded = false;
 
 const i18n = {
   zh: {
@@ -145,6 +146,20 @@ async function fetchInitialSkillsPayload(lang = 'en') {
   return buildSkillsPayloadFromCatalog(data, lang);
 }
 
+async function fetchSkillsSummary() {
+  const res = await fetch(`/api/skills-summary?_=${Date.now()}`, { cache: 'no-store' });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(`skills summary http ${res.status}`);
+  }
+  return {
+    total: Number(data.total || 0) || 0,
+    categoryCount: Number(data.categoryCount || 0) || 0,
+    categories: Array.isArray(data.categories) ? data.categories : [],
+    lastSyncMs: Number(data.lastSyncMs || 0) || 0
+  };
+}
+
 function getLangState(lang = currentLang) {
   return lang === 'zh' ? langState.zh : langState.en;
 }
@@ -155,6 +170,7 @@ function setLangPayload(lang, data, { fullLoaded = false } = {}) {
   state.categories = data.categories && typeof data.categories === 'object' ? data.categories : {};
   state.lastSyncMs = Number(data.lastSyncMs || 0) || 0;
   state.fullLoaded = fullLoaded;
+  state.categoryZhMap = {};
 
   if (lang === 'zh') {
     zhSkills = skills;
@@ -167,12 +183,45 @@ function setLangPayload(lang, data, { fullLoaded = false } = {}) {
 function refreshCurrentLanguageView() {
   const state = getLangState(currentLang);
   const visibleSkills = getSkills();
-  document.getElementById('total-count').textContent = String(Array.isArray(visibleSkills) ? visibleSkills.length : 0);
-  document.getElementById('cat-count').textContent = String(Object.keys(state.categories || {}).length);
+  if (!summaryLoaded || state.fullLoaded) {
+    document.getElementById('total-count').textContent = String(Array.isArray(visibleSkills) ? visibleSkills.length : 0);
+    document.getElementById('cat-count').textContent = String(Object.keys(state.categories || {}).length);
+  }
   lastSyncText = formatDateTime(state.lastSyncMs || 0);
   document.getElementById('sync-note').textContent = i18n[currentLang].syncNote(lastSyncText);
   renderCategories();
   filterSkills();
+}
+
+async function loadSummaryFast() {
+  try {
+    const summary = await fetchSkillsSummary();
+    langState.zh.categories = {};
+    langState.en.categories = {};
+    langState.zh.categoryZhMap = {};
+    langState.en.categoryZhMap = {};
+    langState.zh.lastSyncMs = summary.lastSyncMs;
+    langState.en.lastSyncMs = summary.lastSyncMs;
+
+    summary.categories.forEach((row) => {
+      const categoryEn = String(row.category_en || row.category || '').trim() || 'Other';
+      const categoryZh = String(row.category || row.category_en || '').trim() || categoryEn;
+      const count = Number(row.count || 0) || 0;
+      langState.zh.categories[categoryEn] = count;
+      langState.en.categories[categoryEn] = count;
+      langState.zh.categoryZhMap[categoryEn] = categoryZh;
+      langState.en.categoryZhMap[categoryEn] = categoryZh;
+    });
+
+    summaryLoaded = true;
+    document.getElementById('total-count').textContent = String(summary.total);
+    document.getElementById('cat-count').textContent = String(summary.categoryCount);
+    lastSyncText = formatDateTime(summary.lastSyncMs || 0);
+    document.getElementById('sync-note').textContent = i18n[currentLang].syncNote(lastSyncText);
+    renderCategories();
+  } catch {
+    // ignore
+  }
 }
 
 function ensureFullPayload(lang = currentLang, { silent = true } = {}) {
@@ -207,6 +256,7 @@ async function init() {
   document.getElementById('search').addEventListener('input', filterSkills);
   document.getElementById('bot-prompt').addEventListener('click', copyBotPrompt);
   document.getElementById('bot-copy-btn').addEventListener('click', copyBotPrompt);
+  loadSummaryFast();
   await loadPageConfig();
   applyLanguage();
   await loadData();
@@ -319,7 +369,7 @@ function buildCategoryMaps() {
   const state = getLangState(currentLang);
   const skills = getSkills();
   const counts = state.fullLoaded ? {} : { ...(state.categories || {}) };
-  const zhMap = {};
+  const zhMap = { ...(state.categoryZhMap || {}) };
   skills.forEach((skill) => {
     const key = String(skill.category || '').trim() || 'Other';
     if (state.fullLoaded) {
@@ -333,9 +383,13 @@ function buildCategoryMaps() {
 function renderCategories() {
   const { counts, zhMap } = buildCategoryMaps();
   const t = i18n[currentLang];
+  const state = getLangState(currentLang);
   const wrap = document.getElementById('categories');
   const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  let html = `<button class="cat-btn ${activeCategory === 'all' ? 'active' : ''}" onclick="setCategory('all', this)">${t.allCat} <span class="count">${getSkills().length}</span></button>`;
+  const allCount = summaryLoaded && !state.fullLoaded
+    ? Object.values(state.categories || {}).reduce((sum, count) => sum + (Number(count) || 0), 0)
+    : getSkills().length;
+  let html = `<button class="cat-btn ${activeCategory === 'all' ? 'active' : ''}" onclick="setCategory('all', this)">${t.allCat} <span class="count">${allCount}</span></button>`;
   sorted.forEach(([cat, count]) => {
     const label = currentLang === 'zh' ? (zhMap[cat] || cat) : cat;
     html += `<button class="cat-btn ${activeCategory === cat ? 'active' : ''}" onclick="setCategory('${escAttr(cat)}', this)">${escHtml(label)} <span class="count">${count}</span></button>`;

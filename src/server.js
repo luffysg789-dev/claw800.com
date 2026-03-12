@@ -284,6 +284,10 @@ const listSkillsCatalogCategoriesStmt = db.prepare(`
   GROUP BY category, category_en
   ORDER BY count DESC, category ASC
 `);
+const skillsCatalogSummaryStmt = db.prepare(`
+  SELECT COUNT(*) as total, COUNT(DISTINCT COALESCE(NULLIF(category, ''), '未分类')) as categoryCount
+  FROM skills_catalog
+`);
 const listAdminSkillsStmt = db.prepare(`
   SELECT id, name, name_en, url, description, description_en, category, category_en, icon, created_at, updated_at
   FROM skills_catalog
@@ -1284,6 +1288,23 @@ app.get('/api/skills-catalog', async (req, res) => {
     total,
     lastSyncMs,
     sourceUrl: 'https://claw123.ai/'
+  });
+});
+
+app.get('/api/skills-summary', (_req, res) => {
+  const summary = skillsCatalogSummaryStmt.get() || { total: 0, categoryCount: 0 };
+  const categories = listSkillsCatalogCategoriesStmt.all();
+  const lastSyncMs = parseEpochMs(getSetting('skills_catalog_last_sync_ms', '0'));
+
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.json({
+    ok: true,
+    total: Number(summary.total || 0),
+    categoryCount: Number(summary.categoryCount || 0),
+    categories,
+    lastSyncMs
   });
 });
 
