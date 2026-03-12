@@ -153,20 +153,21 @@ function applyLanguage() {
 }
 
 async function loadData() {
-  const res = await fetch('/api/skills.json', { cache: 'no-store' });
+  const cacheBust = `?_=${Date.now()}`;
+  const res = await fetch(`/api/skills.json${cacheBust}`, { cache: 'no-store' });
   const data = await res.json();
   allSkills = Array.isArray(data.skills) ? data.skills : [];
   document.getElementById('total-count').textContent = String(allSkills.length);
   document.getElementById('cat-count').textContent = String(Object.keys(data.categories || {}).length);
 
-  const meta = await fetch('/api/skills-catalog?limit=1', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({}));
+  const meta = await fetch(`/api/skills-catalog?limit=1&_=${Date.now()}`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({}));
   lastSyncText = formatDateTime(meta.lastSyncMs || 0);
   document.getElementById('sync-note').textContent = i18n[currentLang].syncNote(lastSyncText);
 
   if (currentLang === 'zh' && !zhLoaded) {
     document.getElementById('lang-loading').style.display = 'block';
     try {
-      const r = await fetch('/api/skills.zh.json', { cache: 'no-store' });
+      const r = await fetch(`/api/skills.zh.json?_=${Date.now()}`, { cache: 'no-store' });
       if (r.ok) {
         const d = await r.json();
         zhSkills = Array.isArray(d.skills) ? d.skills : [];
@@ -191,7 +192,7 @@ async function setLang(lang) {
   if (currentLang === 'zh' && !zhLoaded) {
     document.getElementById('lang-loading').style.display = 'block';
     try {
-      const r = await fetch('/api/skills.zh.json', { cache: 'no-store' });
+      const r = await fetch(`/api/skills.zh.json?_=${Date.now()}`, { cache: 'no-store' });
       if (r.ok) {
         const d = await r.json();
         zhSkills = Array.isArray(d.skills) ? d.skills : [];

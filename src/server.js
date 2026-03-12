@@ -1265,7 +1265,9 @@ app.get('/api/skills-catalog', async (req, res) => {
   const lastSyncMs = parseEpochMs(getSetting('skills_catalog_last_sync_ms', '0'));
   const total = Number(skillsCatalogCountStmt.get()?.c || 0);
 
-  res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.json({
     ok: true,
     items,
@@ -1299,7 +1301,9 @@ app.get('/api/skills.json', async (_req, res) => {
     };
   });
 
-  res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.json({ skills, categories });
 });
 
@@ -1329,7 +1333,9 @@ app.get('/api/skills.zh.json', async (_req, res) => {
     };
   });
 
-  res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.json({ skills, categories, categories_zh: categoriesZh });
 });
 
@@ -2255,7 +2261,9 @@ function uploadFetchedSkillsToCatalog() {
   if (!items.length) {
     return { at: Date.now(), total: 0, newCount: 0 };
   }
-  return saveSkillsToCatalog(items);
+  const result = saveSkillsToCatalog(items);
+  db.prepare('DELETE FROM skills_catalog_staging').run();
+  return { ...result, stagingCleared: true };
 }
 
 async function skillsCatalogTick({ forceIfEmpty = false } = {}) {
