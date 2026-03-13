@@ -190,6 +190,10 @@ const translationInflight = new Map(); // key: `${to}|${source}` -> Promise<stri
 const translatedTextNodes = new WeakMap(); // Node -> { to, source }
 let siteConfig = null; // { title, subtitleZh, subtitleEn }
 
+function markPageReady() {
+  document.documentElement.dataset.i18nReady = '1';
+}
+
 function getUiLang() {
   return currentLang;
 }
@@ -647,6 +651,7 @@ function applyLanguage() {
   renderCategories(categoriesCache);
   renderFooter();
   renderFavicon();
+  markPageReady();
 }
 
 async function loadSiteConfig() {
@@ -873,6 +878,7 @@ searchInput.addEventListener('keydown', (e) => {
 });
 
 (async () => {
+  applyLanguage();
   await Promise.all([loadSiteConfig(), loadCategories(), loadSites({ limit: HOME_INITIAL_SITE_LIMIT })]);
   applyLanguage();
 })();

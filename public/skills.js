@@ -15,6 +15,10 @@ const langState = {
 };
 let summaryLoaded = false;
 
+function markPageReady() {
+  document.documentElement.dataset.i18nReady = '1';
+}
+
 const i18n = {
   zh: {
     pageTitle: 'Claw800 龙虾技能大全 — OpenClaw 精选技能导航',
@@ -267,6 +271,7 @@ async function init() {
   document.getElementById('search').addEventListener('input', filterSkills);
   document.getElementById('bot-prompt').addEventListener('click', copyBotPrompt);
   document.getElementById('bot-copy-btn').addEventListener('click', copyBotPrompt);
+  applyLanguage();
   await Promise.all([loadSummaryFast(), loadPageConfig()]);
   applyLanguage();
   await loadData();
@@ -327,6 +332,7 @@ function applyLanguage() {
     const icon = String(pageConfig?.icon || '').trim();
     faviconEl.href = icon || '/favicon.ico';
   }
+  markPageReady();
   renderCategories();
   filterSkills();
 }
