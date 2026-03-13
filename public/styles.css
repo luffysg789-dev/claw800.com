@@ -561,18 +561,21 @@ button.danger { background: var(--danger); }
 
 .admin-panel-grid {
   display: grid;
-  grid-template-columns: 180px 1fr;
+  grid-template-columns: 1fr;
   gap: 16px;
 }
 
 .admin-nav {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-content: start;
 }
 
 .admin-nav button {
-  width: 100%;
+  width: auto;
+  min-width: 120px;
+  flex: 0 0 auto;
 }
 
 .admin-add-form {

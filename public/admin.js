@@ -968,7 +968,7 @@ function applyLanguage() {
     enabledSelect.options[1].textContent = dict.enabledNo;
   }
 
-  adminLangZhBtn.classList.add('active');
+  if (adminLangZhBtn) adminLangZhBtn.classList.add('active');
 
   renderAdminCategoryOptions();
   renderCategoryList();
@@ -2813,10 +2813,12 @@ autoCrawlClearBtn.addEventListener('click', async () => {
   if (currentView === 'pending') loadList('pending');
 });
 
-adminLangZhBtn.addEventListener('click', () => {
-  currentLang = 'zh';
-  applyLanguage();
-});
+if (adminLangZhBtn) {
+  adminLangZhBtn.addEventListener('click', () => {
+    currentLang = 'zh';
+    applyLanguage();
+  });
+}
 
 applyLanguage();
 syncTutorialContentInput();
