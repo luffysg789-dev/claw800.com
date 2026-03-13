@@ -612,7 +612,7 @@ function renderCategories(items) {
   translateVisibleTextNodes();
 }
 
-function applyLanguage() {
+function applyLanguage(markReady = true) {
   const dict = texts[currentLang];
 
   document.documentElement.lang = dict.htmlLang;
@@ -655,7 +655,7 @@ function applyLanguage() {
   renderCategories(categoriesCache);
   renderFooter();
   renderFavicon();
-  markPageReady();
+  if (markReady) markPageReady();
 }
 
 async function loadSiteConfig() {
@@ -882,7 +882,7 @@ searchInput.addEventListener('keydown', (e) => {
 });
 
 (async () => {
-  applyLanguage();
+  applyLanguage(false);
   await Promise.all([loadSiteConfig(), loadCategories(), loadSites({ limit: HOME_INITIAL_SITE_LIMIT })]);
   applyLanguage();
 })();

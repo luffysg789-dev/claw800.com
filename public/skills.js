@@ -271,7 +271,7 @@ async function init() {
   document.getElementById('search').addEventListener('input', filterSkills);
   document.getElementById('bot-prompt').addEventListener('click', copyBotPrompt);
   document.getElementById('bot-copy-btn').addEventListener('click', copyBotPrompt);
-  applyLanguage();
+  applyLanguage(false);
   await Promise.all([loadSummaryFast(), loadPageConfig()]);
   applyLanguage();
   await loadData();
@@ -292,7 +292,7 @@ async function loadPageConfig() {
   pageConfig = null;
 }
 
-function applyLanguage() {
+function applyLanguage(markReady = true) {
   const t = i18n[currentLang];
   document.documentElement.lang = currentLang === 'zh' ? 'zh-CN' : 'en';
   const headerTitle =
@@ -332,7 +332,7 @@ function applyLanguage() {
     const icon = String(pageConfig?.icon || '').trim();
     faviconEl.href = icon || '/favicon.ico';
   }
-  markPageReady();
+  if (markReady) markPageReady();
   renderCategories();
   filterSkills();
 }
