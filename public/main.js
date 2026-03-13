@@ -24,11 +24,6 @@ const faviconEl = document.getElementById('siteFavicon') || document.querySelect
 const footerCopyrightEl = document.getElementById('footerCopyright');
 const footerLinksEl = document.getElementById('footerLinks');
 const footerContactEl = document.getElementById('footerContact');
-const categoryToggleBtn = document.getElementById('categoryToggleBtn');
-const discoverEyebrowEl = document.getElementById('discoverEyebrow');
-const discoverTitleEl = document.getElementById('discoverTitle');
-const categoriesTitleEl = document.getElementById('categoriesTitle');
-const categoriesSubtitleEl = document.getElementById('categoriesSubtitle');
 
 const CATEGORY_EN = {
   'AI 与大语言模型': 'AI & Large Language Models',
@@ -46,24 +41,6 @@ const CATEGORY_EN = {
   '自动化与实用工具': 'Automation & Utilities',
   '业务运营': 'Business Operations',
   '代理协调': 'Agent Orchestration'
-};
-
-const CATEGORY_ICONS = {
-  'AI 与大语言模型': '🧠',
-  '开发与编码': '💻',
-  'DevOps 与云': '☁️',
-  '浏览器与网页自动化': '🌐',
-  '营销与销售': '📈',
-  '生产力与工作流': '⚡',
-  '搜索与研究': '🔎',
-  '通信与社交': '💬',
-  '媒体与内容': '🎬',
-  '金融与加密货币': '₿',
-  '健康与健身': '💪',
-  '安全与监控': '🛡️',
-  '自动化与实用工具': '🧰',
-  '业务运营': '🏢',
-  '代理协调': '🕸️'
 };
 
 const DESC_EN = {
@@ -119,14 +96,8 @@ const texts = {
     htmlLang: 'zh-CN',
     title: 'claw800.com - OpenClaw AI 导航',
     heroSubtitle: 'OpenClaw 生态导航，收录 AI 领域优质网站',
-    discoverEyebrow: 'AI 导航发现',
-    discoverTitle: '搜索与分类',
     searchPlaceholder: '搜索网站名称 / URL / 简介',
     searchBtn: '搜索',
-    categoriesTitle: '分类导航',
-    categoriesSubtitle: '按领域快速筛选优质工具，移动端更适合点选浏览。',
-    categoriesExpand: '展开更多',
-    categoriesCollapse: '收起分类',
     navBtn: '导航',
     skillsBtn: '技能大全',
     githubStarBtn: 'GitHub 加星',
@@ -167,14 +138,8 @@ const texts = {
     htmlLang: 'en',
     title: 'claw800.com - OpenClaw AI Directory',
     heroSubtitle: 'OpenClaw ecosystem directory for AI websites',
-    discoverEyebrow: 'AI Discovery',
-    discoverTitle: 'Search & Categories',
     searchPlaceholder: 'Search by name / URL / description',
     searchBtn: 'Search',
-    categoriesTitle: 'Browse Categories',
-    categoriesSubtitle: 'Tap clean category chips to filter tools faster on mobile.',
-    categoriesExpand: 'Show more',
-    categoriesCollapse: 'Show less',
     navBtn: 'Directory',
     skillsBtn: 'Skills',
     githubStarBtn: 'Star on GitHub',
@@ -224,14 +189,12 @@ let allSitesCache = [];
 let sitesRequestSeq = 0;
 let categoryRenderTaskId = 0;
 const HOME_INITIAL_SITE_LIMIT = 12;
-const MOBILE_CATEGORY_COLLAPSE_COUNT = 9;
 const translationCache = new Map(); // key: `${to}|${source}` -> translated
 const translationInflight = new Map(); // key: `${to}|${source}` -> Promise<string>
 const translatedTextNodes = new WeakMap(); // Node -> { to, source }
 let siteConfig = null; // { title, subtitleZh, subtitleEn }
 const BOOT_CACHE = window.__CLAW800_BOOT__ || {};
 let siteRenderTaskId = 0;
-let categoriesExpanded = false;
 
 if (BOOT_CACHE.siteConfig && typeof BOOT_CACHE.siteConfig === 'object') {
   siteConfig = BOOT_CACHE.siteConfig;
@@ -393,29 +356,6 @@ function categoryLabelForItem(item) {
   if (currentLang !== 'en') return zh;
   const fromApi = String(item?.category_en || '').trim();
   return fromApi || CATEGORY_EN[zh] || zh;
-}
-
-function categoryIcon(category) {
-  return CATEGORY_ICONS[String(category || '').trim()] || '✨';
-}
-
-function updateCategoryToggle(items = categoriesCache) {
-  if (!categoryToggleBtn || !categoriesEl) return;
-  const total = Array.isArray(items) ? items.length : 0;
-  const isMobile = window.innerWidth <= 768;
-  const canCollapse = isMobile && total > MOBILE_CATEGORY_COLLAPSE_COUNT;
-  categoryToggleBtn.classList.toggle('hidden', !canCollapse);
-
-  if (!canCollapse) {
-    categoriesExpanded = false;
-    categoriesEl.classList.remove('categories--expanded');
-    categoriesEl.classList.add('categories--collapsed');
-    return;
-  }
-
-  categoriesEl.classList.toggle('categories--expanded', categoriesExpanded);
-  categoriesEl.classList.toggle('categories--collapsed', !categoriesExpanded);
-  categoryToggleBtn.textContent = categoriesExpanded ? t('categoriesCollapse') : t('categoriesExpand');
 }
 
 function descriptionLabel(description) {
@@ -650,24 +590,15 @@ function renderCategories(items) {
   const orderedItems = items.slice();
   const to = getTranslateTarget();
   const uiLang = getUiLang();
-  const allCount = orderedItems.reduce((sum, item) => sum + (Number(item.count || 0) || 0), 0);
 
   const allBtn = document.createElement('button');
-  allBtn.className = `category-chip ${currentCategory === '' ? 'active' : ''}`;
   if (to && uiLang !== currentLang) {
     const src = t('allCategory');
-    allBtn.innerHTML = `
-      <span class="category-chip-icon" aria-hidden="true">✨</span>
-      <span class="category-chip-label" data-src="${escapeHtml(src)}">${escapeHtml(src)}</span>
-      <span class="category-chip-count">${allCount}</span>
-    `;
+    allBtn.innerHTML = `<span data-src="${escapeHtml(src)}">${escapeHtml(src)}</span>`;
   } else {
-    allBtn.innerHTML = `
-      <span class="category-chip-icon" aria-hidden="true">✨</span>
-      <span class="category-chip-label">${escapeHtml(t('allCategory'))}</span>
-      <span class="category-chip-count">${allCount}</span>
-    `;
+    allBtn.textContent = t('allCategory');
   }
+  allBtn.className = currentCategory === '' ? 'active' : '';
   allBtn.onclick = () => {
     currentCategory = '';
     renderCategories(items);
@@ -686,20 +617,12 @@ function renderCategories(items) {
       const count = countMap.get(category) || 0;
       const btn = document.createElement('button');
       const label = categoryLabelForItem(item);
-      btn.className = `category-chip ${currentCategory === category ? 'active' : ''}`;
       if (to && label === category && hasCjk(category)) {
-        btn.innerHTML = `
-          <span class="category-chip-icon" aria-hidden="true">${escapeHtml(categoryIcon(category))}</span>
-          <span class="category-chip-label" data-src="${escapeHtml(category)}">${escapeHtml(category)}</span>
-          <span class="category-chip-count">${escapeHtml(count)}</span>
-        `;
+        btn.innerHTML = `<span data-src="${escapeHtml(category)}">${escapeHtml(category)}</span> (${escapeHtml(count)})`;
       } else {
-        btn.innerHTML = `
-          <span class="category-chip-icon" aria-hidden="true">${escapeHtml(categoryIcon(category))}</span>
-          <span class="category-chip-label">${escapeHtml(label)}</span>
-          <span class="category-chip-count">${escapeHtml(count)}</span>
-        `;
+        btn.textContent = `${label} (${count})`;
       }
+      btn.className = currentCategory === category ? 'active' : '';
       btn.onclick = () => {
         currentCategory = category;
         renderCategories(items);
@@ -713,7 +636,6 @@ function renderCategories(items) {
     if (index < orderedItems.length) requestAnimationFrame(appendChunk);
   };
   requestAnimationFrame(appendChunk);
-  updateCategoryToggle(items);
 }
 
 function applyLanguage(markReady = true) {
@@ -736,10 +658,6 @@ function applyLanguage(markReady = true) {
       ? String(siteConfig?.subtitleEn || '').trim() || dict.heroSubtitle
       : String(siteConfig?.subtitleZh || '').trim() || dict.heroSubtitle;
   if (heroSubtitleEl) heroSubtitleEl.textContent = subtitle;
-  if (discoverEyebrowEl) discoverEyebrowEl.textContent = dict.discoverEyebrow;
-  if (discoverTitleEl) discoverTitleEl.textContent = dict.discoverTitle;
-  if (categoriesTitleEl) categoriesTitleEl.textContent = dict.categoriesTitle;
-  if (categoriesSubtitleEl) categoriesSubtitleEl.textContent = dict.categoriesSubtitle;
 
   searchInput.placeholder = dict.searchPlaceholder;
   searchBtn.textContent = dict.searchBtn;
@@ -761,7 +679,6 @@ function applyLanguage(markReady = true) {
 
   renderCategoryOptions();
   renderCategories(categoriesCache);
-  updateCategoryToggle(categoriesCache);
   renderFooter();
   renderFavicon();
   if (markReady) markPageReady();
@@ -1078,13 +995,6 @@ if (langMenuPopup) {
   });
 }
 
-if (categoryToggleBtn) {
-  categoryToggleBtn.addEventListener('click', () => {
-    categoriesExpanded = !categoriesExpanded;
-    updateCategoryToggle(categoriesCache);
-  });
-}
-
 document.addEventListener('click', (e) => {
   if (!langMenuPopup || !langMenuBtn) return;
   const target = e.target;
@@ -1092,8 +1002,6 @@ document.addEventListener('click', (e) => {
   if (langMenuPopup.contains(target)) return;
   closeLangMenu();
 });
-
-window.addEventListener('resize', () => updateCategoryToggle(categoriesCache));
 
 searchBtn.addEventListener('click', () => loadSites());
 searchInput.addEventListener('keydown', (e) => {

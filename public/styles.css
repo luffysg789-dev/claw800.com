@@ -312,163 +312,26 @@ button.danger { background: var(--danger); }
   flex-shrink: 0;
 }
 
-.discover-shell {
-  display: grid;
-  gap: 14px;
-  margin-bottom: 18px;
-}
-
-.search-panel,
-.categories-panel {
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.78);
-  border-radius: 20px;
-  padding: 16px;
-  box-shadow: 0 12px 28px rgba(24, 61, 37, 0.08);
-  backdrop-filter: blur(16px);
-}
-
-.search-panel-head,
-.categories-panel-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.discover-eyebrow {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--brand);
-  margin-bottom: 4px;
-}
-
-.discover-title,
-.categories-title {
-  margin: 0;
-  font-size: 18px;
-  line-height: 1.2;
-}
-
-.categories-subtitle {
-  margin: 4px 0 0;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.toolbar--search {
-  margin-bottom: 0;
-  align-items: stretch;
-}
-
 .categories {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 0;
-  position: relative;
-  z-index: 15;
-  background: transparent;
-  padding: 0;
-  overflow: hidden;
-  transition: max-height 0.24s ease;
-}
-
-.categories.categories--collapsed {
-  max-height: 332px;
-}
-
-.categories.categories--expanded {
-  max-height: 1200px;
-}
-
-.category-chip {
-  min-width: 0;
-  width: 100%;
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 12px;
-  border-radius: 18px;
-  border: 1px solid rgba(46, 111, 64, 0.08);
-  background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(242,246,241,0.98));
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  background: var(--bg);
+  padding: 0;
+}
+
+.categories button {
+  background: #eef3ed;
   color: var(--ink);
-  box-shadow: 0 6px 18px rgba(24, 61, 37, 0.05);
-  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
 
-.category-chip:hover {
-  transform: translateY(-1px);
-  border-color: rgba(46, 111, 64, 0.22);
-  box-shadow: 0 10px 22px rgba(24, 61, 37, 0.08);
-}
-
-.category-chip.active {
+.categories button.active {
+  background: var(--brand);
   color: #fff;
-  border-color: transparent;
-  background: linear-gradient(135deg, var(--brand), var(--brand-2));
-  box-shadow: 0 12px 24px rgba(24, 61, 37, 0.18);
-}
-
-.category-chip-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(46, 111, 64, 0.1);
-  font-size: 15px;
-  flex: 0 0 30px;
-}
-
-.category-chip.active .category-chip-icon {
-  background: rgba(255,255,255,0.18);
-}
-
-.category-chip-label {
-  min-width: 0;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.category-chip-count {
-  flex: 0 0 auto;
-  min-width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 8px;
-  background: rgba(24, 61, 37, 0.06);
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.category-chip.active .category-chip-count {
-  background: rgba(255,255,255,0.18);
-  color: #fff;
-}
-
-.category-toggle-btn {
-  background: rgba(46, 111, 64, 0.08);
-  color: var(--brand-2);
-  border: 1px solid rgba(46, 111, 64, 0.12);
-  border-radius: 999px;
-  padding: 8px 12px;
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
 }
 
 .grid {
@@ -957,8 +820,8 @@ button.danger { background: var(--danger); }
     grid-template-columns: 1fr;
   }
   .hero-subrow {
-    align-items: flex-start;
     flex-direction: column;
+    align-items: flex-start;
   }
   .hero .lang-switch {
     width: 100%;
@@ -967,26 +830,20 @@ button.danger { background: var(--danger); }
   .hero-center-nav {
     justify-content: flex-start;
   }
+  .hero-subrow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
   .left-nav {
     position: static;
     transform: none;
     flex-direction: row;
     margin-bottom: 12px;
   }
-  .left-nav button {
-    border-radius: 10px;
-    width: auto;
-  }
-  .left-nav button:empty {
-    width: 56px;
-    height: 56px;
-    padding: 0;
-  }
   .categories {
     position: static;
     background: transparent;
     padding: 0;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .tutorial-side-action {
     position: static;
@@ -1000,12 +857,12 @@ button.danger { background: var(--danger); }
     left: 10px;
     bottom: 10px;
   }
-  .skills-toolbar-note {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .admin-panel-grid { grid-template-columns: 1fr; }
-  .admin-add-form { grid-template-columns: 1fr; }
+.left-nav button { border-radius: 10px; width: auto; }
+.left-nav button:empty {
+  /* Keep the dock width/height consistent while hiding label text. */
+  width: 56px;
+  height: 56px;
+  padding: 0;
 }
 
 @media (max-width: 640px) {
@@ -1041,54 +898,11 @@ button.danger { background: var(--danger); }
     margin-left: 0;
     flex: 0 0 auto;
   }
-
-  .discover-shell {
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-
-  .search-panel,
-  .categories-panel {
-    padding: 16px;
-    border-radius: 18px;
-  }
-
-  .toolbar--search {
-    gap: 10px;
-    margin-bottom: 0;
-  }
-
-  .toolbar--search input {
-    min-width: 0;
-  }
-
-  .categories-panel-head {
-    align-items: flex-end;
-  }
-
-  .categories {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-  }
-
-  .category-chip {
-    min-height: 56px;
-    padding: 12px;
-    border-radius: 18px;
-  }
-
-  .category-chip-label {
-    font-size: 13px;
-  }
-
-  .category-toggle-btn {
-    padding: 8px 12px;
-    font-size: 12px;
-  }
 }
-
-@media (min-width: 520px) and (max-width: 768px) {
-  .categories {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .skills-toolbar-note {
+    flex-direction: column;
+    align-items: flex-start;
   }
+  .admin-panel-grid { grid-template-columns: 1fr; }
+  .admin-add-form { grid-template-columns: 1fr; }
 }
