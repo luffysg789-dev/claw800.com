@@ -866,6 +866,12 @@ button.danger { background: var(--danger); }
 }
 
 @media (max-width: 640px) {
+  .hero-subrow {
+    position: relative;
+    padding-top: 6px;
+    padding-right: 54px;
+  }
+
   .hero .lang-switch {
     gap: 10px;
   }
@@ -884,7 +890,10 @@ button.danger { background: var(--danger); }
   }
 
   .lang-menu {
-    margin-left: auto;
+    position: absolute;
+    right: 0;
+    top: -54px;
+    margin-left: 0;
     flex: 0 0 auto;
   }
 }
