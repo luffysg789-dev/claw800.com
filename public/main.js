@@ -187,6 +187,7 @@ let currentLang = normalizeLang(localStorage.getItem('claw800_lang'));
 let categoriesCache = [];
 let allSitesCache = [];
 let sitesRequestSeq = 0;
+let categoryRenderTaskId = 0;
 const HOME_INITIAL_SITE_LIMIT = 12;
 const translationCache = new Map(); // key: `${to}|${source}` -> translated
 const translationInflight = new Map(); // key: `${to}|${source}` -> Promise<string>
@@ -322,6 +323,9 @@ function renderHeroLogo() {
     heroLogoImageEl.removeAttribute('src');
     return;
   }
+  heroLogoImageEl.loading = 'lazy';
+  heroLogoImageEl.decoding = 'async';
+  heroLogoImageEl.setAttribute('fetchpriority', 'low');
   heroLogoImageEl.src = logo;
   heroLogoImageEl.classList.remove('hidden');
 }
@@ -579,6 +583,8 @@ function renderCategoryOptions() {
 }
 
 function renderCategories(items) {
+  categoryRenderTaskId += 1;
+  const taskId = categoryRenderTaskId;
   categoriesEl.innerHTML = '';
   const countMap = new Map(items.map((item) => [item.category, item.count]));
   const orderedItems = items.slice();
@@ -600,28 +606,36 @@ function renderCategories(items) {
   };
   categoriesEl.appendChild(allBtn);
 
-  for (const item of orderedItems) {
-    const category = String(item.category || '').trim();
-    const count = countMap.get(category) || 0;
-    const btn = document.createElement('button');
-    const label = categoryLabelForItem(item);
-    // Mark for on-demand translation when current language isn't Chinese.
-    if (to && label === category && hasCjk(category)) {
-      btn.innerHTML = `<span data-src="${escapeHtml(category)}">${escapeHtml(category)}</span> (${escapeHtml(count)})`;
-    } else {
-      btn.textContent = `${label} (${count})`;
+  const chunkSize = 12;
+  let index = 0;
+  const appendChunk = () => {
+    if (taskId !== categoryRenderTaskId) return;
+    const frag = document.createDocumentFragment();
+    const end = Math.min(index + chunkSize, orderedItems.length);
+    for (const item of orderedItems.slice(index, end)) {
+      const category = String(item.category || '').trim();
+      const count = countMap.get(category) || 0;
+      const btn = document.createElement('button');
+      const label = categoryLabelForItem(item);
+      if (to && label === category && hasCjk(category)) {
+        btn.innerHTML = `<span data-src="${escapeHtml(category)}">${escapeHtml(category)}</span> (${escapeHtml(count)})`;
+      } else {
+        btn.textContent = `${label} (${count})`;
+      }
+      btn.className = currentCategory === category ? 'active' : '';
+      btn.onclick = () => {
+        currentCategory = category;
+        renderCategories(items);
+        loadSites();
+      };
+      frag.appendChild(btn);
     }
-    btn.className = currentCategory === category ? 'active' : '';
-    btn.onclick = () => {
-      currentCategory = category;
-      renderCategories(items);
-      loadSites();
-    };
-    categoriesEl.appendChild(btn);
-  }
-
-  // Translate any newly added categories without a predefined EN mapping.
-  translateVisibleTextNodes();
+    categoriesEl.appendChild(frag);
+    translateVisibleTextNodes();
+    index = end;
+    if (index < orderedItems.length) requestAnimationFrame(appendChunk);
+  };
+  requestAnimationFrame(appendChunk);
 }
 
 function applyLanguage(markReady = true) {

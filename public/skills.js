@@ -16,6 +16,7 @@ const langState = {
 };
 let summaryLoaded = false;
 let skillRenderTaskId = 0;
+let skillsCategoryRenderTaskId = 0;
 
 function markPageReady() {
   document.documentElement.dataset.i18nReady = '1';
@@ -457,12 +458,22 @@ function renderCategories() {
   const allCount = summaryLoaded && !state.fullLoaded
     ? Object.values(state.categories || {}).reduce((sum, count) => sum + (Number(count) || 0), 0)
     : getSkills().length;
-  let html = `<button class="cat-btn ${activeCategory === 'all' ? 'active' : ''}" onclick="setCategory('all', this)">${t.allCat} <span class="count">${allCount}</span></button>`;
-  sorted.forEach(([cat, count]) => {
-    const label = currentLang === 'zh' ? (zhMap[cat] || cat) : cat;
-    html += `<button class="cat-btn ${activeCategory === cat ? 'active' : ''}" onclick="setCategory('${escAttr(cat)}', this)">${escHtml(label)} <span class="count">${count}</span></button>`;
-  });
-  wrap.innerHTML = html;
+  skillsCategoryRenderTaskId += 1;
+  const taskId = skillsCategoryRenderTaskId;
+  wrap.innerHTML = `<button class="cat-btn ${activeCategory === 'all' ? 'active' : ''}" onclick="setCategory('all', this)">${t.allCat} <span class="count">${allCount}</span></button>`;
+  const chunkSize = 10;
+  let index = 0;
+  const appendChunk = () => {
+    if (taskId !== skillsCategoryRenderTaskId) return;
+    const html = sorted.slice(index, index + chunkSize).map(([cat, count]) => {
+      const label = currentLang === 'zh' ? (zhMap[cat] || cat) : cat;
+      return `<button class="cat-btn ${activeCategory === cat ? 'active' : ''}" onclick="setCategory('${escAttr(cat)}', this)">${escHtml(label)} <span class="count">${count}</span></button>`;
+    }).join('');
+    wrap.insertAdjacentHTML('beforeend', html);
+    index += chunkSize;
+    if (index < sorted.length) requestAnimationFrame(appendChunk);
+  };
+  requestAnimationFrame(appendChunk);
   document.getElementById('cat-count').textContent = String(sorted.length);
 }
 
