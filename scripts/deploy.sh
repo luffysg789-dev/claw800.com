@@ -33,9 +33,9 @@ if command -v npm >/dev/null 2>&1; then
   fi
 fi
 
-if command -v node >/dev/null 2>&1; then
+if command -v bash >/dev/null 2>&1; then
   echo "[deploy] import Biteye crypto / prediction market skills"
-  node scripts/import-biteye-crypto-skills.js
+  bash scripts/sync-biteye-crypto.sh catalog
 fi
 
 if ! command -v pm2 >/dev/null 2>&1; then
