@@ -1287,6 +1287,9 @@ function renderSkillsAdminList(items) {
                   <label class="small">EN Category
                     <input id="skillCategoryEn-${skill.id}" type="text" value="${escapeHtml(skill.category_en || '')}" />
                   </label>
+                  <label class="small">${escapeHtml(t('sort'))}
+                    <input id="skillSort-${skill.id}" type="number" value="${Number(skill.sort_order || 0)}" />
+                  </label>
                   <label class="small">${escapeHtml(t('adminLabelDesc'))}
                     <textarea id="skillDesc-${skill.id}" rows="4">${escapeHtml(skill.description || '')}</textarea>
                   </label>
@@ -1297,7 +1300,8 @@ function renderSkillsAdminList(items) {
               : `<p><a href="${escapeHtml(skill.url || '')}" target="_blank" rel="noopener">${escapeHtml(skill.url || '')}</a></p>
                  <p>${escapeHtml(skill.description || '')}</p>
                  <p class="small">EN: ${escapeHtml(skill.description_en || '-')}</p>
-                 <p class="small">${escapeHtml(t('category'))}：${escapeHtml(skill.category || '-')} / EN：${escapeHtml(skill.category_en || '-')}</p>`
+                 <p class="small">${escapeHtml(t('category'))}：${escapeHtml(skill.category || '-')} / EN：${escapeHtml(skill.category_en || '-')}</p>
+                 <p class="small">${escapeHtml(t('sort'))}：${escapeHtml(String(Number(skill.sort_order || 0)))}</p>`
           }
           ${
             isEditing
@@ -1987,6 +1991,7 @@ window.saveSkillEdit = async function saveSkillEdit(id) {
     icon: String(document.getElementById(`skillIcon-${id}`)?.value || '').trim(),
     category: String(document.getElementById(`skillCategory-${id}`)?.value || '').trim(),
     categoryEn: String(document.getElementById(`skillCategoryEn-${id}`)?.value || '').trim(),
+    sortOrder: Number(document.getElementById(`skillSort-${id}`)?.value || 0) || 0,
     description: String(document.getElementById(`skillDesc-${id}`)?.value || '').trim(),
     descriptionEn: String(document.getElementById(`skillDescEn-${id}`)?.value || '').trim()
   };

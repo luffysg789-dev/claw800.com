@@ -271,11 +271,11 @@ const DEFAULT_SKILLS_PAGE_INSTALL_PROMPT_EN = 'You are an OpenClaw skill install
 const skillsCatalogCountStmt = db.prepare('SELECT COUNT(*) as c FROM skills_catalog');
 const skillsCatalogStagingCountStmt = db.prepare('SELECT COUNT(*) as c FROM skills_catalog_staging');
 const listSkillsCatalogStmt = db.prepare(`
-  SELECT id, name, name_en, url, description, description_en, category, category_en, icon, created_at, updated_at
+  SELECT id, name, name_en, url, description, description_en, category, category_en, icon, sort_order, created_at, updated_at
   FROM skills_catalog
   WHERE (? = '' OR category = ?)
     AND (? = '' OR name LIKE ? OR name_en LIKE ? OR description LIKE ? OR description_en LIKE ? OR category LIKE ? OR category_en LIKE ? OR url LIKE ?)
-  ORDER BY updated_at DESC, created_at DESC, id DESC
+  ORDER BY sort_order DESC, updated_at DESC, created_at DESC, id DESC
   LIMIT ?
 `);
 const listSkillsCatalogCategoriesStmt = db.prepare(`
@@ -297,15 +297,15 @@ const skillsCatalogSummaryStmt = db.prepare(`
   FROM skills_catalog
 `);
 const listAdminSkillsStmt = db.prepare(`
-  SELECT id, name, name_en, url, description, description_en, category, category_en, icon, created_at, updated_at
+  SELECT id, name, name_en, url, description, description_en, category, category_en, icon, sort_order, created_at, updated_at
   FROM skills_catalog
   WHERE (? = '' OR name LIKE ? OR name_en LIKE ? OR description LIKE ? OR description_en LIKE ? OR category LIKE ? OR category_en LIKE ? OR url LIKE ?)
-  ORDER BY updated_at DESC, created_at DESC, id DESC
+  ORDER BY sort_order DESC, updated_at DESC, created_at DESC, id DESC
 `);
 const selectSkillByUrlStmt = db.prepare('SELECT 1 FROM skills_catalog WHERE url = ? LIMIT 1');
 const upsertSkillCatalogStagingStmt = db.prepare(`
-  INSERT INTO skills_catalog_staging (name, name_en, url, description, description_en, category, category_en, icon, fetched_at, updated_at)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+  INSERT INTO skills_catalog_staging (name, name_en, url, description, description_en, category, category_en, icon, sort_order, fetched_at, updated_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
   ON CONFLICT(url) DO UPDATE SET
     name = COALESCE(NULLIF(excluded.name, ''), skills_catalog_staging.name),
     name_en = COALESCE(NULLIF(excluded.name_en, ''), skills_catalog_staging.name_en),
@@ -314,18 +314,19 @@ const upsertSkillCatalogStagingStmt = db.prepare(`
     category = COALESCE(NULLIF(excluded.category, ''), skills_catalog_staging.category),
     category_en = COALESCE(NULLIF(excluded.category_en, ''), skills_catalog_staging.category_en),
     icon = COALESCE(NULLIF(excluded.icon, ''), skills_catalog_staging.icon),
+    sort_order = excluded.sort_order,
     fetched_at = datetime('now'),
     updated_at = datetime('now')
 `);
 const listAdminStagingSkillsStmt = db.prepare(`
-  SELECT id, name, name_en, url, description, description_en, category, category_en, icon, fetched_at, updated_at
+  SELECT id, name, name_en, url, description, description_en, category, category_en, icon, sort_order, fetched_at, updated_at
   FROM skills_catalog_staging
   WHERE (? = '' OR name LIKE ? OR name_en LIKE ? OR description LIKE ? OR description_en LIKE ? OR category LIKE ? OR category_en LIKE ? OR url LIKE ?)
-  ORDER BY updated_at DESC, fetched_at DESC, id DESC
+  ORDER BY sort_order DESC, updated_at DESC, fetched_at DESC, id DESC
 `);
 const upsertSkillCatalogStmt = db.prepare(`
-  INSERT INTO skills_catalog (name, name_en, url, description, description_en, category, category_en, icon, created_at, updated_at)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+  INSERT INTO skills_catalog (name, name_en, url, description, description_en, category, category_en, icon, sort_order, created_at, updated_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
   ON CONFLICT(url) DO UPDATE SET
     name = COALESCE(NULLIF(excluded.name, ''), skills_catalog.name),
     name_en = COALESCE(NULLIF(excluded.name_en, ''), skills_catalog.name_en),
@@ -334,6 +335,7 @@ const upsertSkillCatalogStmt = db.prepare(`
     category = COALESCE(NULLIF(excluded.category, ''), skills_catalog.category),
     category_en = COALESCE(NULLIF(excluded.category_en, ''), skills_catalog.category_en),
     icon = COALESCE(NULLIF(excluded.icon, ''), skills_catalog.icon),
+    sort_order = excluded.sort_order,
     updated_at = datetime('now')
 `);
 
@@ -1322,7 +1324,7 @@ app.get('/api/skills.json', async (_req, res) => {
     .prepare(`
       SELECT name, name_en, url, description, description_en, category, category_en
       FROM skills_catalog
-      ORDER BY updated_at DESC, created_at DESC, id DESC
+      ORDER BY sort_order DESC, updated_at DESC, created_at DESC, id DESC
     `)
     .all();
 
@@ -1352,7 +1354,7 @@ app.get('/api/skills.zh.json', async (_req, res) => {
     .prepare(`
       SELECT name, name_en, url, description, description_en, category, category_en
       FROM skills_catalog
-      ORDER BY updated_at DESC, created_at DESC, id DESC
+      ORDER BY sort_order DESC, updated_at DESC, created_at DESC, id DESC
     `)
     .all();
 
@@ -1403,6 +1405,9 @@ function updateAdminSkill(req, res) {
   const category = String(req.body.category || '').trim();
   const categoryEn = String(req.body.categoryEn || req.body.category_en || '').trim();
   const icon = String(req.body.icon || '').trim();
+  const sortOrder = Number.isFinite(Number(req.body.sortOrder ?? req.body.sort_order))
+    ? Number(req.body.sortOrder ?? req.body.sort_order)
+    : 0;
 
   if (!name || !url) return res.status(400).json({ error: 'name 和 url 必填' });
   if (!isValidUrl(url)) return res.status(400).json({ error: 'url 格式不正确' });
@@ -1414,10 +1419,10 @@ function updateAdminSkill(req, res) {
     const result = db
       .prepare(`
         UPDATE skills_catalog
-        SET name = ?, name_en = ?, url = ?, description = ?, description_en = ?, category = ?, category_en = ?, icon = ?, updated_at = datetime('now')
+        SET name = ?, name_en = ?, url = ?, description = ?, description_en = ?, category = ?, category_en = ?, icon = ?, sort_order = ?, updated_at = datetime('now')
         WHERE id = ?
       `)
-      .run(name, nameEn, url, description, descriptionEn, category, categoryEn, icon, id);
+      .run(name, nameEn, url, description, descriptionEn, category, categoryEn, icon, sortOrder, id);
     if (!result.changes) return res.status(404).json({ error: '记录不存在' });
     res.json({ ok: true });
   } catch (err) {
@@ -2234,7 +2239,8 @@ function saveSkillsToCatalog(mergedItems) {
         String(item.descriptionEn || '').trim(),
         String(item.category || '').trim(),
         String(item.categoryEn || '').trim(),
-        String(item.icon || '').trim()
+        String(item.icon || '').trim(),
+        Number(item.sortOrder || 0) || 0
       );
       if (!existed) newCount += 1;
     }
@@ -2266,7 +2272,8 @@ async function fetchSkillsCatalogDraftOnce() {
         String(item.descriptionEn || '').trim(),
         String(item.category || '').trim(),
         String(item.categoryEn || '').trim(),
-        String(item.icon || '').trim()
+        String(item.icon || '').trim(),
+        Number(item.sortOrder || 0) || 0
       );
       newCount += 1;
       stagingTotal += 1;
@@ -2283,9 +2290,9 @@ async function fetchSkillsCatalogDraftOnce() {
 function uploadFetchedSkillsToCatalog() {
   const items = db
     .prepare(`
-      SELECT name, name_en, url, description, description_en, category, category_en, icon
+      SELECT name, name_en, url, description, description_en, category, category_en, icon, sort_order
       FROM skills_catalog_staging
-      ORDER BY updated_at DESC, fetched_at DESC, id DESC
+      ORDER BY sort_order DESC, updated_at DESC, fetched_at DESC, id DESC
     `)
     .all()
     .map((item) => ({
@@ -2296,7 +2303,8 @@ function uploadFetchedSkillsToCatalog() {
       descriptionEn: String(item.description_en || '').trim(),
       category: String(item.category || '').trim(),
       categoryEn: String(item.category_en || '').trim(),
-      icon: String(item.icon || '').trim()
+      icon: String(item.icon || '').trim(),
+      sortOrder: Number(item.sort_order || 0) || 0
     }));
   if (!items.length) {
     return { at: Date.now(), total: 0, newCount: 0 };

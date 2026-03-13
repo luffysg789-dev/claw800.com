@@ -160,6 +160,7 @@ db.exec(`
     category TEXT DEFAULT '',
     category_en TEXT DEFAULT '',
     icon TEXT DEFAULT '',
+    sort_order INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
@@ -176,10 +177,21 @@ db.exec(`
     category TEXT DEFAULT '',
     category_en TEXT DEFAULT '',
     icon TEXT DEFAULT '',
+    sort_order INTEGER NOT NULL DEFAULT 0,
     fetched_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
+
+const hasSkillsCatalogSortOrder = db.prepare("SELECT 1 FROM pragma_table_info('skills_catalog') WHERE name = 'sort_order'").get();
+if (!hasSkillsCatalogSortOrder) {
+  db.exec('ALTER TABLE skills_catalog ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0');
+}
+
+const hasSkillsCatalogStagingSortOrder = db.prepare("SELECT 1 FROM pragma_table_info('skills_catalog_staging') WHERE name = 'sort_order'").get();
+if (!hasSkillsCatalogStagingSortOrder) {
+  db.exec('ALTER TABLE skills_catalog_staging ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0');
+}
 
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_skills_catalog_category
