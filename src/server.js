@@ -282,7 +282,15 @@ const listSkillsCatalogCategoriesStmt = db.prepare(`
   SELECT category, category_en, COUNT(*) as count
   FROM skills_catalog
   GROUP BY category, category_en
-  ORDER BY count DESC, category ASC
+  ORDER BY
+    CASE
+      WHEN COALESCE(NULLIF(category, ''), category_en) = '加密交易/预测市场'
+        OR COALESCE(NULLIF(category_en, ''), category) = 'Crypto Trading / Prediction Markets'
+      THEN 1
+      ELSE 0
+    END ASC,
+    count DESC,
+    category ASC
 `);
 const skillsCatalogSummaryStmt = db.prepare(`
   SELECT COUNT(*) as total, COUNT(DISTINCT COALESCE(NULLIF(category, ''), '未分类')) as categoryCount

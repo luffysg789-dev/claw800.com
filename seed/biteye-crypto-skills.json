@@ -1,0 +1,146 @@
+[
+  {
+    "name": "XClaw",
+    "nameEn": "XClaw",
+    "groupZh": "信息流",
+    "groupEn": "Information Flow"
+  },
+  {
+    "name": "RootData",
+    "nameEn": "RootData",
+    "groupZh": "信息流",
+    "groupEn": "Information Flow"
+  },
+  {
+    "name": "CoinMarketCap",
+    "nameEn": "CoinMarketCap",
+    "groupZh": "信息流",
+    "groupEn": "Information Flow"
+  },
+  {
+    "name": "Crypto Price Skill",
+    "nameEn": "Crypto Price Skill",
+    "groupZh": "信息流",
+    "groupEn": "Information Flow"
+  },
+  {
+    "name": "Skill Vetter",
+    "nameEn": "Skill Vetter",
+    "groupZh": "安全",
+    "groupEn": "Security"
+  },
+  {
+    "name": "Bankr",
+    "nameEn": "Bankr",
+    "groupZh": "链上工具",
+    "groupEn": "Onchain Tools"
+  },
+  {
+    "name": "Uniswap AI Skills",
+    "nameEn": "Uniswap AI Skills",
+    "groupZh": "链上工具",
+    "groupEn": "Onchain Tools"
+  },
+  {
+    "name": "Minara AI",
+    "nameEn": "Minara AI",
+    "groupZh": "链上工具",
+    "groupEn": "Onchain Tools"
+  },
+  {
+    "name": "Almanak",
+    "nameEn": "Almanak",
+    "groupZh": "链上工具",
+    "groupEn": "Onchain Tools"
+  },
+  {
+    "name": "crypto-defi",
+    "nameEn": "crypto-defi",
+    "groupZh": "链上工具",
+    "groupEn": "Onchain Tools"
+  },
+  {
+    "name": "套利扫描工具",
+    "nameEn": "Arbitrage Scanner",
+    "groupZh": "链上工具",
+    "groupEn": "Onchain Tools"
+  },
+  {
+    "name": "Hyperliquid",
+    "nameEn": "Hyperliquid",
+    "groupZh": "链上工具",
+    "groupEn": "Onchain Tools"
+  },
+  {
+    "name": "Hyperliquid CLI",
+    "nameEn": "Hyperliquid CLI",
+    "groupZh": "链上工具",
+    "groupEn": "Onchain Tools"
+  },
+  {
+    "name": "Polymarket Analysis",
+    "nameEn": "Polymarket Analysis",
+    "groupZh": "预测市场",
+    "groupEn": "Prediction Markets"
+  },
+  {
+    "name": "PolyClaw",
+    "nameEn": "PolyClaw",
+    "groupZh": "预测市场",
+    "groupEn": "Prediction Markets"
+  },
+  {
+    "name": "Polymarket Agent",
+    "nameEn": "Polymarket Agent",
+    "groupZh": "预测市场",
+    "groupEn": "Prediction Markets"
+  },
+  {
+    "name": "Polymarket Odds",
+    "nameEn": "Polymarket Odds",
+    "groupZh": "预测市场",
+    "groupEn": "Prediction Markets"
+  },
+  {
+    "name": "Kalshi",
+    "nameEn": "Kalshi",
+    "groupZh": "预测市场",
+    "groupEn": "Prediction Markets"
+  },
+  {
+    "name": "Binance Skills Hub",
+    "nameEn": "Binance Skills Hub",
+    "groupZh": "CEX 官方 skill",
+    "groupEn": "CEX Official Skills"
+  },
+  {
+    "name": "OKX OnchainOS",
+    "nameEn": "OKX OnchainOS",
+    "groupZh": "CEX 官方 skill",
+    "groupEn": "CEX Official Skills"
+  },
+  {
+    "name": "Bitget",
+    "nameEn": "Bitget",
+    "groupZh": "CEX 官方 skill",
+    "groupEn": "CEX Official Skills"
+  },
+  {
+    "name": "GateClawi",
+    "nameEn": "GateClawi",
+    "groupZh": "CEX 官方 skill",
+    "groupEn": "CEX Official Skills"
+  },
+  {
+    "name": "复盘工具",
+    "nameEn": "Review Tool",
+    "groupZh": "其他",
+    "groupEn": "Others"
+  },
+  {
+    "name": "Proactive Agent",
+    "nameEn": "Proactive Agent",
+    "groupZh": "其他",
+    "groupEn": "Others"
+  }
+]

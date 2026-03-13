@@ -5,7 +5,9 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node src/server.js"
+    "dev": "node src/server.js",
+    "seed:biteye-crypto-skills": "node scripts/import-biteye-crypto-skills.js",
+    "seed:biteye-crypto-skills:staging": "node scripts/import-biteye-crypto-skills.js --staging"
   },
   "dependencies": {
     "better-sqlite3": "^11.8.1",

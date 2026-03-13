@@ -33,6 +33,11 @@ if command -v npm >/dev/null 2>&1; then
   fi
 fi
 
+if command -v node >/dev/null 2>&1; then
+  echo "[deploy] import Biteye crypto / prediction market skills"
+  node scripts/import-biteye-crypto-skills.js
+fi
+
 if ! command -v pm2 >/dev/null 2>&1; then
   echo "[deploy] ERROR: pm2 not found"
   exit 1
@@ -43,4 +48,3 @@ pm2 startOrReload ecosystem.config.cjs
 pm2 save
 
 echo "[deploy] done"
-
