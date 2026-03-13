@@ -22,7 +22,7 @@
         };
       })();
     </script>
-    <link rel="stylesheet" href="/styles.css?v=20260313-07" />
+    <link rel="stylesheet" href="/styles.css?v=20260313-08" />
   </head>
   <body>
     <header class="hero">
@@ -69,12 +69,32 @@
     <main class="container layout">
       <section>
         <div id="navView">
-          <div class="toolbar">
-            <input id="searchInput" type="text" placeholder="搜索网站名称 / URL / 简介" />
-            <button id="searchBtn">搜索</button>
+          <div class="discover-shell">
+            <div class="search-panel">
+              <div class="search-panel-head">
+                <div>
+                  <div class="discover-eyebrow" id="discoverEyebrow">AI 导航发现</div>
+                  <h2 class="discover-title" id="discoverTitle">搜索与分类</h2>
+                </div>
+              </div>
+              <div class="toolbar toolbar--search">
+                <input id="searchInput" type="text" placeholder="搜索网站名称 / URL / 简介" />
+                <button id="searchBtn">搜索</button>
+              </div>
+            </div>
+
+            <div class="categories-panel">
+              <div class="categories-panel-head">
+                <div>
+                  <div class="categories-title" id="categoriesTitle">分类导航</div>
+                  <p class="categories-subtitle" id="categoriesSubtitle">按领域快速筛选优质工具，移动端更适合点选浏览。</p>
+                </div>
+                <button id="categoryToggleBtn" type="button" class="category-toggle-btn hidden">展开更多</button>
+              </div>
+              <div id="categories" class="categories categories--collapsed"></div>
+            </div>
           </div>
 
-          <div id="categories" class="categories"></div>
           <div id="siteList" class="grid"></div>
         </div>
 
@@ -110,6 +130,6 @@
       </div>
     </footer>
 
-    <script src="/main.js?v=20260313-07"></script>
+    <script src="/main.js?v=20260313-08"></script>
   </body>
 </html>
