@@ -15,6 +15,7 @@ const langState = {
   en: { categories: {}, categoryZhMap: {}, lastSyncMs: 0, fullLoaded: false, fullPromise: null }
 };
 let summaryLoaded = false;
+let skillRenderTaskId = 0;
 
 function markPageReady() {
   document.documentElement.dataset.i18nReady = '1';
@@ -301,7 +302,10 @@ async function init() {
   applyLanguage(false);
   if (summaryLoaded || getSkills().length) {
     renderCategories();
-    filterSkills();
+    renderSkillsChunked(getSkills().slice(0, PAGE_SIZE));
+    markPageReady();
+  } else {
+    renderSkillSkeletons();
     markPageReady();
   }
   await Promise.all([loadSummaryFast(), loadPageConfig()]);
@@ -489,7 +493,7 @@ function filterSkills() {
 
   currentPage = 1;
   document.getElementById('search-count').textContent = (q || activeCategory !== 'all') ? t.foundCount(skills.length) : '';
-  renderSkills(skills);
+  renderSkillsChunked(skills);
   if ((q || activeCategory !== 'all') && !getLangState(currentLang).fullLoaded) {
     ensureFullPayload(currentLang, { silent: false });
   }
@@ -533,6 +537,82 @@ function renderSkills(skills) {
     </div>`;
   }).join('');
   renderPagination(totalPages);
+}
+
+function renderSkillSkeletons(count = PAGE_SIZE) {
+  const safeCount = Math.max(1, count);
+  const grid = document.getElementById('skills-grid');
+  const noResults = document.getElementById('no-results');
+  noResults.style.display = 'none';
+  grid.innerHTML = Array.from({ length: safeCount }, () => `
+    <div class="skill-card skill-card--skeleton" aria-hidden="true">
+      <span class="skill-skeleton-line title"></span>
+      <span class="skill-skeleton-line desc"></span>
+      <span class="skill-skeleton-line desc"></span>
+      <span class="skill-skeleton-line desc short"></span>
+      <div class="skill-skeleton-footer">
+        <span class="skill-skeleton-chip"></span>
+        <div style="display:flex;gap:10px;">
+          <span class="skill-skeleton-btn"></span>
+          <span class="skill-skeleton-btn"></span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderSkillsChunked(skills) {
+  const t = i18n[currentLang];
+  const grid = document.getElementById('skills-grid');
+  const noResults = document.getElementById('no-results');
+  noResults.textContent = t.noResults;
+  skillRenderTaskId += 1;
+  const taskId = skillRenderTaskId;
+
+  if (!skills.length) {
+    grid.innerHTML = '';
+    noResults.style.display = 'block';
+    renderPagination(0);
+    return;
+  }
+
+  noResults.style.display = 'none';
+  const totalPages = Math.max(1, Math.ceil(skills.length / PAGE_SIZE));
+  if (currentPage > totalPages) currentPage = totalPages;
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const end = start + PAGE_SIZE;
+  const display = skills.slice(start, end);
+  renderPagination(totalPages);
+  grid.innerHTML = '';
+
+  const chunkSize = 8;
+  let index = 0;
+  const appendChunk = () => {
+    if (taskId !== skillRenderTaskId) return;
+    const html = display.slice(index, index + chunkSize).map((skill) => {
+      const desc = currentLang === 'zh' && skill.description_zh ? skill.description_zh : skill.description;
+      const cat = currentLang === 'zh' && skill.category_zh ? skill.category_zh : skill.category;
+      const srcBadge = String(skill.url || '').includes('github.com')
+        ? `<span style="font-size:0.68rem;color:#9CA3AF;font-weight:400">GitHub</span>`
+        : `<span style="font-size:0.68rem;color:var(--accent);font-weight:400">ClawHub</span>`;
+
+      return `<div class="skill-card">
+        <div class="skill-name"><span>${escHtml(skill.name)}</span>${srcBadge}</div>
+        <div class="skill-desc" title="${escHtml(desc)}">${escHtml(desc)}</div>
+        <div class="skill-footer">
+          <span class="skill-cat" title="${escHtml(cat)}">${escHtml(cat)}</span>
+          <div class="skill-btns">
+            <a class="btn-detail" href="${escHtml(skill.url)}" target="_blank" rel="noopener">${t.detailBtn}</a>
+            <button class="btn-copy" onclick="copyInstall('${escAttr(skill.name)}', '${escAttr(desc)}', '${escAttr(skill.url)}', this)">${t.copyBtn}</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    grid.insertAdjacentHTML('beforeend', html);
+    index += chunkSize;
+    if (index < display.length) requestAnimationFrame(appendChunk);
+  };
+  requestAnimationFrame(appendChunk);
 }
 
 function buildPageItems(totalPages, page) {
@@ -590,7 +670,7 @@ function filterSkillsKeepPage() {
     );
   }
   document.getElementById('search-count').textContent = (q || activeCategory !== 'all') ? i18n[currentLang].foundCount(skills.length) : '';
-  renderSkills(skills);
+  renderSkillsChunked(skills);
 }
 
 let toastTimer = null;

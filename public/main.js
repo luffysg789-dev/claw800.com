@@ -193,6 +193,7 @@ const translationInflight = new Map(); // key: `${to}|${source}` -> Promise<stri
 const translatedTextNodes = new WeakMap(); // Node -> { to, source }
 let siteConfig = null; // { title, subtitleZh, subtitleEn }
 const BOOT_CACHE = window.__CLAW800_BOOT__ || {};
+let siteRenderTaskId = 0;
 
 if (BOOT_CACHE.siteConfig && typeof BOOT_CACHE.siteConfig === 'object') {
   siteConfig = BOOT_CACHE.siteConfig;
@@ -774,6 +775,95 @@ function renderSites(items) {
   translateVisibleTextNodes();
 }
 
+function renderSiteSkeletons(count = HOME_INITIAL_SITE_LIMIT) {
+  const safeCount = Math.max(1, count);
+  siteListEl.innerHTML = Array.from({ length: safeCount }, () => `
+    <article class="skeleton-card" aria-hidden="true">
+      <span class="skeleton-line title"></span>
+      <span class="skeleton-line url"></span>
+      <span class="skeleton-line desc"></span>
+      <span class="skeleton-line desc short"></span>
+    </article>
+  `).join('');
+}
+
+function renderSitesChunked(items) {
+  const siteItems = Array.isArray(items) ? items : [];
+  allSitesCache = siteItems;
+  siteRenderTaskId += 1;
+  const taskId = siteRenderTaskId;
+
+  if (!siteItems.length) {
+    siteListEl.innerHTML = `<p class="empty">${escapeHtml(t('empty'))}</p>`;
+    return;
+  }
+
+  const chunkSize = 12;
+  let index = 0;
+  siteListEl.innerHTML = '';
+
+  const appendChunk = () => {
+    if (taskId !== siteRenderTaskId) return;
+    const end = Math.min(index + chunkSize, siteItems.length);
+    const html = siteItems
+      .slice(index, end)
+      .map((site) => {
+        const zhName = String(site.name || '').trim();
+        const zhDesc = String(site.description || '').trim();
+        const enName = String(site.name_en || '').trim();
+        const enDesc = String(site.description_en || '').trim();
+
+        const enNameUsable = Boolean(enName) && !hasCjk(enName);
+        const enDescUsable = Boolean(enDesc) && !hasCjk(enDesc);
+
+        const displayName = currentLang === 'en' ? (enNameUsable ? enName : zhName) : zhName;
+        const displayDescRaw = currentLang === 'en' ? (enDescUsable ? enDesc : zhDesc) : zhDesc;
+
+        const to = getTranslateTarget();
+        const needsNameTranslate = Boolean(to) && currentLang !== 'zh' && hasCjk(zhName) && (currentLang !== 'en' || !enNameUsable);
+        const needsDescTranslate = Boolean(to) && currentLang !== 'zh' && hasCjk(zhDesc) && (currentLang !== 'en' || !enDescUsable);
+
+        const nameAttr = needsNameTranslate ? ` data-src="${escapeHtml(zhName)}"` : '';
+        const descAttr = needsDescTranslate ? ` data-src="${escapeHtml(zhDesc)}"` : '';
+        const descDisplay = descriptionLabel(displayDescRaw);
+        const isPinned = Number(site.is_pinned || 0) === 1;
+        const isHot = Number(site.is_hot || 0) === 1;
+        const isNew = isNewSite(site.created_at);
+        const badges = [];
+        if (isPinned) badges.push(`<div class="site-badge site-badge--pinned">${escapeHtml(t('pinnedBadge'))}</div>`);
+        if (isNew) badges.push(`<div class="site-badge site-badge--new">${escapeHtml(t('newBadge'))}</div>`);
+        if (isHot) badges.push(`<div class="site-badge site-badge--hot">${escapeHtml(t('hotBadge'))}</div>`);
+        const badgeHtml = badges.length ? `<div class="site-badge-stack">${badges.join('')}</div>` : '';
+        return `
+        <a class="site-card-link" href="${escapeHtml(site.url)}" target="_blank" rel="noopener">
+          <article class="site-card">
+            ${badgeHtml}
+            <div class="site-row">
+              <span class="site-value"${nameAttr}>${escapeHtml(displayName)}</span>
+            </div>
+            <div class="site-row">
+              <span class="site-value site-link">${escapeHtml(site.url)}</span>
+            </div>
+            <div class="site-row">
+              <span class="site-value"${descAttr}>${escapeHtml(descDisplay)}</span>
+            </div>
+          </article>
+        </a>
+      `;
+      })
+      .join('');
+
+    siteListEl.insertAdjacentHTML('beforeend', html);
+    translateVisibleTextNodes();
+    index = end;
+    if (index < siteItems.length) {
+      requestAnimationFrame(appendChunk);
+    }
+  };
+
+  requestAnimationFrame(appendChunk);
+}
+
 async function loadSites({ limit = 0, background = false } = {}) {
   const reqId = ++sitesRequestSeq;
   const q = searchInput.value.trim();
@@ -786,7 +876,7 @@ async function loadSites({ limit = 0, background = false } = {}) {
   const data = await res.json();
   if (reqId !== sitesRequestSeq) return;
 
-  renderSites(data.items);
+  renderSitesChunked(data.items);
   if (!q && !currentCategory) {
     try {
       localStorage.setItem('claw800_home_sites_cache', JSON.stringify(data.items || []));
@@ -810,7 +900,7 @@ function setLanguage(lang) {
   currentLang = normalizeLang(lang);
   localStorage.setItem('claw800_lang', currentLang);
   applyLanguage();
-  if (allSitesCache.length && !currentCategory && !searchInput.value.trim()) renderSites(allSitesCache);
+  if (allSitesCache.length && !currentCategory && !searchInput.value.trim()) renderSitesChunked(allSitesCache);
   else loadSites();
 }
 
@@ -914,7 +1004,9 @@ searchInput.addEventListener('keydown', (e) => {
     renderCategoryOptions();
   }
   if (allSitesCache.length) {
-    renderSites(allSitesCache);
+    renderSitesChunked(allSitesCache);
+  } else {
+    renderSiteSkeletons();
   }
   markPageReady();
   await Promise.all([loadSiteConfig(), loadCategories(), loadSites({ limit: HOME_INITIAL_SITE_LIMIT })]);
