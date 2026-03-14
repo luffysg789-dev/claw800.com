@@ -271,9 +271,7 @@ function favoriteButtonLabel() {
 }
 
 function favoriteSitesCount() {
-  const sourceItems = homeAllSitesCache.length ? homeAllSitesCache : allSitesCache;
-  if (!Array.isArray(sourceItems) || !sourceItems.length) return favoriteSiteUrls.size;
-  return sourceItems.filter((site) => isFavoriteSite(site)).length;
+  return favoriteSiteUrls.size;
 }
 
 function renderSiteCard(site) {
