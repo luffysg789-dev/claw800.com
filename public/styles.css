@@ -117,6 +117,13 @@ body {
   min-height: 40px;
 }
 
+button.hero-nav-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  font: inherit;
+  cursor: pointer;
+}
+
 .hero-nav-btn.active {
   background: #fff;
   color: var(--brand-2);

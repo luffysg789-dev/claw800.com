@@ -99,7 +99,7 @@ const texts = {
     searchPlaceholder: '搜索网站名称 / URL / 简介',
     searchBtn: '搜索',
     favoriteSitesBtn: '我的收藏',
-    navBtn: '导航',
+    homeBtn: '首页',
     skillsBtn: '技能大全',
     githubStarBtn: 'GitHub 加星',
     tutorialBtn: '教程',
@@ -143,7 +143,7 @@ const texts = {
     searchPlaceholder: 'Search by name / URL / description',
     searchBtn: 'Search',
     favoriteSitesBtn: 'My Favorites',
-    navBtn: 'Directory',
+    homeBtn: 'Home',
     skillsBtn: 'Skills',
     githubStarBtn: 'Star on GitHub',
     tutorialBtn: 'Tutorials',
@@ -205,6 +205,7 @@ let siteConfig = null; // { title, subtitleZh, subtitleEn }
 const BOOT_CACHE = window.__CLAW800_BOOT__ || {};
 let siteRenderTaskId = 0;
 let favoriteSiteUrls = loadFavoriteSiteUrls();
+let submitModalController = null;
 
 if (BOOT_CACHE.siteConfig && typeof BOOT_CACHE.siteConfig === 'object') {
   siteConfig = BOOT_CACHE.siteConfig;
@@ -704,6 +705,23 @@ function renderCategoryOptions() {
     .join('');
 }
 
+function getSubmitTexts() {
+  const dict = texts[currentLang];
+  return {
+    submitTitle: dict.submitTitle,
+    submitDesc: dict.submitDesc,
+    labelName: dict.labelName,
+    labelUrl: dict.labelUrl,
+    labelDesc: dict.labelDesc,
+    labelCategory: dict.labelCategory,
+    labelSubmitter: dict.labelSubmitter,
+    labelEmail: dict.labelEmail,
+    submitBtn: dict.submitBtn,
+    closeSubmit: dict.closeSubmit,
+    submitSuccess: currentLang === 'en' ? dict.submitSuccess : ''
+  };
+}
+
 function renderCategories(items) {
   categoryRenderTaskId += 1;
   const taskId = categoryRenderTaskId;
@@ -802,21 +820,12 @@ function applyLanguage(markReady = true) {
 
   searchInput.placeholder = dict.searchPlaceholder;
   searchBtn.textContent = dict.searchBtn;
-  if (homeNavBtn) homeNavBtn.textContent = dict.navBtn;
+  if (homeNavBtn) homeNavBtn.textContent = dict.homeBtn;
   if (skillsNavBtn) skillsNavBtn.textContent = dict.skillsBtn;
   if (githubStarBtn) githubStarBtn.textContent = dict.githubStarBtn;
   if (tutorialNavBtn) tutorialNavBtn.textContent = dict.tutorialBtn;
-  document.getElementById('submitTitle').textContent = dict.submitTitle;
-  document.getElementById('submitDesc').textContent = dict.submitDesc;
   openSubmitFormBtn.textContent = dict.openSubmit;
-  document.getElementById('labelName').childNodes[0].textContent = dict.labelName;
-  document.getElementById('labelUrl').childNodes[0].textContent = dict.labelUrl;
-  document.getElementById('labelDesc').childNodes[0].textContent = dict.labelDesc;
-  document.getElementById('labelCategory').childNodes[0].textContent = dict.labelCategory;
-  document.getElementById('labelSubmitter').childNodes[0].textContent = dict.labelSubmitter;
-  document.getElementById('labelEmail').childNodes[0].textContent = dict.labelEmail;
-  document.getElementById('submitBtn').textContent = dict.submitBtn;
-  closeSubmitModalBtn.textContent = dict.closeSubmit;
+  submitModalController?.setTexts();
 
   renderCategoryOptions();
   renderCategories(categoriesCache);
@@ -1016,46 +1025,12 @@ window.toggleSiteFavorite = function toggleSiteFavorite(key, url, buttonEl) {
   }
 };
 
-function openSubmitModal() {
-  submitModal.classList.remove('hidden');
-}
-
-function closeSubmitModal() {
-  submitModal.classList.add('hidden');
-}
-
-openSubmitFormBtn.addEventListener('click', openSubmitModal);
-closeSubmitModalBtn.addEventListener('click', closeSubmitModal);
-submitModalMask.addEventListener('click', closeSubmitModal);
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeSubmitModal();
-});
-
-submitForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  submitMessage.textContent = '';
-
-  const payload = Object.fromEntries(new FormData(submitForm).entries());
-  const res = await fetch('/api/submit', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-
-  const data = await res.json();
-
-  if (!res.ok) {
-    submitMessage.textContent = localizeApiError(data.error);
-    submitMessage.className = 'message error';
-    return;
-  }
-
-  submitMessage.textContent = currentLang === 'en' ? t('submitSuccess') : data.message;
-  submitMessage.className = 'message success';
-  submitForm.reset();
-  renderCategoryOptions();
-  closeSubmitModal();
-});
+submitModalController = window.initSubmitModal?.({
+  getTexts: getSubmitTexts,
+  getCategories: async () => categoriesCache,
+  categoryLabel: categoryLabelForItem,
+  localizeApiError
+}) || null;
 
 function openLangMenu() {
   if (!langMenuPopup || !langMenuBtn) return;

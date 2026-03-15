@@ -5,17 +5,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>教程 - claw800.com</title>
     <link rel="icon" href="/favicon.ico">
-    <link rel="stylesheet" href="/styles.css?v=20260312-02" />
+    <script>
+      (() => {
+        const lang = String(localStorage.getItem('claw800_lang') || '').trim() === 'en' ? 'en' : 'zh-CN';
+        document.documentElement.lang = lang;
+        document.documentElement.dataset.i18nReady = '1';
+        const parse = (key) => {
+          try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; }
+        };
+        window.__CLAW800_BOOT__ = {
+          lang,
+          siteConfig: parse('claw800_site_config_cache'),
+          homeCategories: parse('claw800_home_categories_cache')
+        };
+      })();
+    </script>
+    <link rel="stylesheet" href="/styles.css?v=20260315-01" />
   </head>
   <body>
     <header class="hero">
       <div class="container">
         <div class="hero-top">
-          <h1><a class="hero-logo" id="tutorialHeroLogo" href="/">claw800.com</a></h1>
+          <h1>
+            <a class="hero-logo" id="heroLogo" href="/">
+              <img id="heroLogoImage" class="hero-logo-image hidden" alt="site logo" loading="lazy" decoding="async" fetchpriority="low" />
+              <span id="heroLogoText">claw800.com</span>
+            </a>
+          </h1>
         </div>
         <div class="hero-subrow">
-          <p id="tutorialSubTitle">图文教程</p>
+          <p id="heroSubtitle">OpenClaw 生态导航，收录 AI 领域优质网站</p>
           <div class="lang-switch">
+            <a id="homeNavBtn" class="hero-nav-btn" href="/">首页</a>
+            <a id="skillsNavBtn" class="hero-nav-btn" href="/skills.html">技能大全</a>
+            <a
+              id="githubStarBtn"
+              class="hero-nav-btn"
+              href="https://github.com/luffysg789-dev/claw800.com"
+              target="_blank"
+              rel="noopener"
+            >GitHub 加星</a>
+            <button id="openSubmitFormBtn" class="hero-nav-btn" type="button">免费提交</button>
             <div class="lang-menu" id="langMenu" data-no-translate="true">
               <button id="langMenuBtn" type="button" class="lang-menu-btn" aria-haspopup="menu" aria-expanded="false" title="Language">
                 <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
@@ -36,9 +66,6 @@
     </header>
 
     <main class="container layout tutorial-layout">
-      <aside class="tutorial-side-action">
-        <button id="backHomeBtn" type="button">返回首页</button>
-      </aside>
       <aside class="tutorial-scroll-action">
         <button id="tutorialToTopBtn" type="button" title="到顶部">↑</button>
         <button id="tutorialToBottomBtn" type="button" title="到底部">↓</button>
@@ -59,13 +86,49 @@
       </div>
     </footer>
 
+    <div id="submitModal" class="submit-modal hidden">
+      <div class="submit-modal-mask" id="submitModalMask"></div>
+      <div class="submit-modal-card card" role="dialog" aria-modal="true" aria-labelledby="submitTitle">
+        <div class="submit-modal-head">
+          <h2 id="submitTitle">免费提交网站</h2>
+          <button id="closeSubmitModalBtn" type="button" class="submit-close-btn">关闭</button>
+        </div>
+        <p id="submitDesc">提交后进入审核，管理员通过后展示在首页。</p>
+        <form id="submitForm">
+          <label id="labelName">网站名称<input name="name" required /></label>
+          <label id="labelUrl">网站地址<input name="url" type="url" required placeholder="https://" /></label>
+          <label id="labelDesc">一句话简介<textarea name="description" rows="3"></textarea></label>
+          <label id="labelCategory">分类<select id="categorySelect" name="category"></select></label>
+          <label id="labelSubmitter">提交人<input name="submitterName" /></label>
+          <label id="labelEmail">邮箱<input name="submitterEmail" type="email" /></label>
+          <button id="submitBtn" type="submit">提交审核</button>
+        </form>
+        <p id="submitMessage" class="message"></p>
+      </div>
+    </div>
+
+    <script src="/submit-modal.js?v=20260315-01"></script>
     <script>
       const texts = {
         zh: {
           htmlLang: 'zh-CN',
           titlePrefix: '教程 - ',
-          subTitle: '图文教程',
-          backHome: '返回首页',
+          subTitle: 'OpenClaw 生态导航，收录 AI 领域优质网站',
+          homeBtn: '首页',
+          skillsBtn: '技能大全',
+          githubStarBtn: 'GitHub 加星',
+          openSubmit: '免费提交',
+          submitTitle: '免费提交网站',
+          submitDesc: '提交后进入审核，管理员通过后展示在首页。',
+          labelName: '网站名称',
+          labelUrl: '网站地址',
+          labelDesc: '一句话简介',
+          labelCategory: '分类',
+          labelSubmitter: '提交人',
+          labelEmail: '邮箱',
+          submitBtn: '提交审核',
+          closeSubmit: '关闭',
+          submitSuccess: '提交成功，等待管理员审核',
           loading: '加载中...',
           loadingFull: '正在加载全文...',
           translating: '翻译中...',
@@ -76,8 +139,22 @@
         en: {
           htmlLang: 'en',
           titlePrefix: 'Tutorial - ',
-          subTitle: 'Tutorial',
-          backHome: 'Back Home',
+          subTitle: 'OpenClaw ecosystem directory for AI websites',
+          homeBtn: 'Home',
+          skillsBtn: 'Skills',
+          githubStarBtn: 'Star on GitHub',
+          openSubmit: 'Submit for Free',
+          submitTitle: 'Submit a Website',
+          submitDesc: 'Submissions are reviewed by admins before they appear on the homepage.',
+          labelName: 'Website Name',
+          labelUrl: 'Website URL',
+          labelDesc: 'Short Description',
+          labelCategory: 'Category',
+          labelSubmitter: 'Submitted By',
+          labelEmail: 'Email',
+          submitBtn: 'Submit for Review',
+          closeSubmit: 'Close',
+          submitSuccess: 'Submitted successfully. Waiting for admin review.',
           loading: 'Loading...',
           loadingFull: 'Loading full content...',
           translating: 'Translating...',
@@ -96,8 +173,18 @@
       const translationInflight = new Map(); // key: `${to}|${source}` -> Promise<string>
       const translatedTextNodes = new WeakMap(); // Node -> { to, source }
       let tutorialLoadToken = 0;
-      let siteConfig = null;
+      let siteConfig = window.__CLAW800_BOOT__?.siteConfig || null;
+      let submitModalController = null;
+      let submitCategoriesCache = Array.isArray(window.__CLAW800_BOOT__?.homeCategories) ? window.__CLAW800_BOOT__.homeCategories : [];
       const faviconEl = document.getElementById('siteFavicon') || document.querySelector('link[rel~=\"icon\"]');
+      const heroLogoEl = document.getElementById('heroLogo');
+      const heroLogoImageEl = document.getElementById('heroLogoImage');
+      const heroLogoTextEl = document.getElementById('heroLogoText');
+      const heroSubtitleEl = document.getElementById('heroSubtitle');
+      const homeNavBtn = document.getElementById('homeNavBtn');
+      const skillsNavBtn = document.getElementById('skillsNavBtn');
+      const githubStarBtn = document.getElementById('githubStarBtn');
+      const openSubmitFormBtn = document.getElementById('openSubmitFormBtn');
       const langMenuBtn = document.getElementById('langMenuBtn');
       const langMenuPopup = document.getElementById('langMenuPopup');
       const footerCopyrightEl = document.getElementById('footerCopyright');
@@ -120,6 +207,61 @@
       function isProbablyEmail(text) {
         const s = String(text || '').trim();
         return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(s);
+      }
+
+      function localizeApiError(message) {
+        const raw = String(message || '').trim();
+        if (!raw) return currentLang === 'en' ? 'Submission failed' : '提交失败';
+        if (currentLang === 'en') return raw;
+        if (raw === 'name and url required') return '请填写网站名称和网址';
+        if (raw === 'invalid url') return '网址格式不正确';
+        return raw;
+      }
+
+      function getSubmitTexts() {
+        const dict = texts[currentLang];
+        return {
+          submitTitle: dict.submitTitle,
+          submitDesc: dict.submitDesc,
+          labelName: dict.labelName,
+          labelUrl: dict.labelUrl,
+          labelDesc: dict.labelDesc,
+          labelCategory: dict.labelCategory,
+          labelSubmitter: dict.labelSubmitter,
+          labelEmail: dict.labelEmail,
+          submitBtn: dict.submitBtn,
+          closeSubmit: dict.closeSubmit,
+          submitSuccess: dict.submitSuccess
+        };
+      }
+
+      async function loadSubmitCategories() {
+        try {
+          const res = await fetch('/api/categories', { cache: 'no-store' });
+          const data = await res.json().catch(() => ({}));
+          const items = Array.isArray(data.items) ? data.items : [];
+          if (items.length) {
+            submitCategoriesCache = items;
+            localStorage.setItem('claw800_home_categories_cache', JSON.stringify(items));
+            return items;
+          }
+        } catch {}
+        return submitCategoriesCache;
+      }
+
+      function renderHeroLogo() {
+        if (!heroLogoEl || !heroLogoTextEl || !heroLogoImageEl) return;
+        const title = String(siteConfig?.title || '').trim() || 'claw800.com';
+        const logo = String(siteConfig?.siteLogo || '').trim();
+        heroLogoEl.setAttribute('aria-label', title);
+        heroLogoTextEl.textContent = title;
+        if (logo) {
+          heroLogoImageEl.src = logo;
+          heroLogoImageEl.classList.remove('hidden');
+        } else {
+          heroLogoImageEl.removeAttribute('src');
+          heroLogoImageEl.classList.add('hidden');
+        }
       }
 
       function renderFooter() {
@@ -416,12 +558,13 @@
         const dict = texts[currentLang];
 
         document.documentElement.lang = dict.htmlLang;
-        document.getElementById('tutorialSubTitle').textContent = t('subTitle');
-        document.getElementById('backHomeBtn').textContent = t('backHome');
-        const titleFromConfig = String(siteConfig?.title || '').trim();
-        const safeTitle = titleFromConfig || 'claw800.com';
-        const logoEl = document.getElementById('tutorialHeroLogo');
-        if (logoEl) logoEl.textContent = safeTitle;
+        if (heroSubtitleEl) heroSubtitleEl.textContent = dict.subTitle;
+        if (homeNavBtn) homeNavBtn.textContent = dict.homeBtn;
+        if (skillsNavBtn) skillsNavBtn.textContent = dict.skillsBtn;
+        if (githubStarBtn) githubStarBtn.textContent = dict.githubStarBtn;
+        if (openSubmitFormBtn) openSubmitFormBtn.textContent = dict.openSubmit;
+        submitModalController?.setTexts();
+        renderHeroLogo();
         renderFooter();
         renderFavicon();
       }
@@ -539,9 +682,6 @@
         }
       }
 
-      document.getElementById('backHomeBtn').addEventListener('click', () => {
-        window.location.href = '/';
-      });
       document.getElementById('tutorialToTopBtn').addEventListener('click', () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       });
@@ -601,8 +741,15 @@
       });
 
       (async () => {
+        submitModalController = window.initSubmitModal?.({
+          getTexts: getSubmitTexts,
+          getCategories: loadSubmitCategories,
+          categoryLabel: (item) => String(item?.category || '').trim(),
+          localizeApiError
+        }) || null;
         await loadSiteConfig();
         applyLanguage();
+        submitModalController?.refreshCategories();
         loadTutorial();
       })();
     </script>

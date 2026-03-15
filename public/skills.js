@@ -12,6 +12,20 @@ const INITIAL_SKILLS_LIMIT = 30;
 const faviconEl = document.getElementById('siteFavicon') || document.querySelector('link[rel~="icon"]');
 const langMenuBtn = document.getElementById('langMenuBtn');
 const langMenuPopup = document.getElementById('langMenuPopup');
+const heroLogoEl = document.getElementById('heroLogo');
+const heroLogoImageEl = document.getElementById('heroLogoImage');
+const heroLogoTextEl = document.getElementById('heroLogoText');
+const heroSubtitleEl = document.getElementById('heroSubtitle');
+const homeNavBtn = document.getElementById('homeNavBtn');
+const skillsNavBtn = document.getElementById('skillsNavBtn');
+const githubStarBtn = document.getElementById('githubStarBtn');
+const openSubmitFormBtn = document.getElementById('openSubmitFormBtn');
+const submitForm = document.getElementById('submitForm');
+const closeSubmitModalBtn = document.getElementById('closeSubmitModalBtn');
+const submitModal = document.getElementById('submitModal');
+const submitModalMask = document.getElementById('submitModalMask');
+const submitMessage = document.getElementById('submitMessage');
+const categorySelect = document.getElementById('categorySelect');
 const BOOT_CACHE = window.__CLAW800_BOOT__ || {};
 const langState = {
   zh: { categories: {}, categoryZhMap: {}, lastSyncMs: 0, fullLoaded: false, fullPromise: null },
@@ -21,6 +35,8 @@ let summaryLoaded = false;
 let skillRenderTaskId = 0;
 let skillsCategoryRenderTaskId = 0;
 let summaryTotalCount = 0;
+let submitCategoriesCache = [];
+let submitModalController = null;
 const FAVORITES_KEY = 'claw800_skill_favorites_v1';
 let favoriteSkillUrls = loadFavoriteSkillUrls();
 
@@ -35,12 +51,26 @@ if (BOOT_CACHE.siteConfig && typeof BOOT_CACHE.siteConfig === 'object') {
 const i18n = {
   zh: {
     pageTitle: 'Claw800 龙虾技能大全 — OpenClaw 精选技能导航',
-    homeLink: '← 返回首页',
-    headerTitle: 'Claw800 龙虾技能大全',
-    headerSub: '同步 claw800.com 的 OpenClaw 精选技能目录，分类浏览，一键查看和复制安装提示词。',
+    headerTitle: 'claw800.com',
+    heroSubtitle: 'OpenClaw 生态导航，收录 AI 领域优质网站',
+    homeBtn: '首页',
+    skillsBtn: '技能大全',
+    githubStarBtn: 'GitHub 加星',
+    openSubmit: '免费提交',
+    submitTitle: '免费提交网站',
+    submitDesc: '提交后进入审核，管理员通过后展示在首页。',
+    labelName: '网站名称',
+    labelUrl: '网站地址',
+    labelDesc: '一句话简介',
+    labelCategory: '分类',
+    labelSubmitter: '提交人',
+    labelEmail: '邮箱',
+    submitBtn: '提交审核',
+    closeSubmit: '关闭',
+    submitSuccess: '提交成功，等待管理员审核',
+    submitFailed: '提交失败',
     labelSkills: '技能总数',
     labelCats: '分类数',
-    labelFavorites: '我的收藏',
     searchPlaceholder: '🔍 搜索技能名称 / 简介 / 分类...',
     botLabel: 'Bot 安装提示词 — 复制给你的 Bot，它就学会了：',
     botPrompt: 'claw800.com 是 OpenClaw 精选技能导航站，收录 5000+ 可信技能。请学会搜索这个网站里的技能目录，当主人需要某个技能时，优先先来这里查找。搜索：fetch https://claw800.com/api/skills.zh.json 获取完整技能列表，字段包括 name（技能名）、description_zh（中文描述）、category_zh（分类）、url（源地址）。当主人需要某个功能时，先搜索并筛选合适技能推荐给主人，经主人确认后再安装。不要一次性安装所有技能，按需查找、按需安装。',
@@ -65,12 +95,26 @@ const i18n = {
   },
   en: {
     pageTitle: 'Claw800 Skills Directory — OpenClaw Curated Skills',
-    homeLink: '← Back to Home',
-    headerTitle: 'Claw800 Skills Directory',
-    headerSub: 'Synced from claw800.com. Browse curated OpenClaw skills by category and copy install prompts in one click.',
+    headerTitle: 'claw800.com',
+    heroSubtitle: 'OpenClaw ecosystem directory for AI websites',
+    homeBtn: 'Home',
+    skillsBtn: 'Skills',
+    githubStarBtn: 'Star on GitHub',
+    openSubmit: 'Submit for Free',
+    submitTitle: 'Submit a Website',
+    submitDesc: 'Submissions are reviewed by admins before they appear on the homepage.',
+    labelName: 'Website Name',
+    labelUrl: 'Website URL',
+    labelDesc: 'Short Description',
+    labelCategory: 'Category',
+    labelSubmitter: 'Submitted By',
+    labelEmail: 'Email',
+    submitBtn: 'Submit for Review',
+    closeSubmit: 'Close',
+    submitSuccess: 'Submitted successfully. Waiting for admin review.',
+    submitFailed: 'Submission failed',
     labelSkills: 'Skills',
     labelCats: 'Categories',
-    labelFavorites: 'My Favorites',
     searchPlaceholder: '🔍 Search skills by name / description / category...',
     botLabel: 'Bot Install Prompt — copy this to your Bot and it will learn it:',
     botPrompt: 'claw800.com is a curated OpenClaw skills directory with 5000+ trusted skills. Learn how to search this site’s skill catalog so that when your user needs a skill, you check here first. Search by fetching https://claw800.com/api/skills.json to get the full skills list. The fields include name (skill name), description (English description), category (category), and url (source link). When your user needs a capability, first search and filter suitable skills, recommend the best options to the user, and install only after the user confirms. Do not install all skills at once — search on demand and install on demand.',
@@ -113,6 +157,104 @@ function persistFavoriteSkillUrls() {
   }
 }
 
+function localizeApiError(message) {
+  if (currentLang !== 'en') return message;
+  const map = {
+    'name 和 url 必填': 'Name and URL are required.',
+    'url 格式不正确': 'Invalid URL format.',
+    '这个网站已经存在，可能已收录或正在审核中': 'This website already exists or is pending review.',
+    '提交失败，请稍后再试': 'Submission failed, please try again later.'
+  };
+  return map[message] || message || i18n[currentLang].submitFailed;
+}
+
+function renderSubmitCategoryOptions() {
+  if (!categorySelect) return;
+  if (!submitCategoriesCache.length) return;
+  categorySelect.innerHTML = submitCategoriesCache
+    .map((item) => {
+      const category = String(item.category || '').trim();
+      return `<option value="${escHtml(category)}">${escHtml(category)}</option>`;
+    })
+    .join('');
+}
+
+function hydrateSubmitCategoriesFromSkills() {
+  const seen = new Set();
+  const fallback = [];
+
+  const pushCategory = (value) => {
+    const category = String(value || '').trim();
+    if (!category || seen.has(category)) return;
+    seen.add(category);
+    fallback.push({ category });
+  };
+
+  Object.keys(langState.zh.categoryZhMap || {}).forEach((key) => {
+    pushCategory(langState.zh.categoryZhMap[key] || key);
+  });
+  Object.keys(langState.en.categoryZhMap || {}).forEach((key) => {
+    pushCategory(langState.en.categoryZhMap[key] || key);
+  });
+  getSkills().forEach((skill) => {
+    pushCategory(skill.category_zh || skill.category);
+  });
+
+  if (fallback.length) {
+    submitCategoriesCache = fallback;
+    renderSubmitCategoryOptions();
+  }
+}
+
+async function loadSubmitCategories() {
+  try {
+    const res = await fetch(`/api/categories?_=${Date.now()}`, { cache: 'no-store' });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && Array.isArray(data.items) && data.items.length) {
+      submitCategoriesCache = data.items;
+      renderSubmitCategoryOptions();
+    }
+  } catch {
+    // ignore
+  }
+  if (!submitCategoriesCache.length) {
+    hydrateSubmitCategoriesFromSkills();
+  }
+}
+
+async function openSubmitModal() {
+  if (!submitCategoriesCache.length) {
+    await loadSubmitCategories();
+  }
+  if (!submitCategoriesCache.length) {
+    hydrateSubmitCategoriesFromSkills();
+  }
+  renderSubmitCategoryOptions();
+  if (!submitModal) return;
+  submitModal.classList.remove('hidden');
+}
+
+function closeSubmitModal() {
+  if (!submitModal) return;
+  submitModal.classList.add('hidden');
+}
+
+function getSubmitTexts() {
+  const dict = i18n[currentLang];
+  return {
+    submitTitle: dict.submitTitle,
+    submitDesc: dict.submitDesc,
+    labelName: dict.labelName,
+    labelUrl: dict.labelUrl,
+    labelDesc: dict.labelDesc,
+    labelCategory: dict.labelCategory,
+    labelSubmitter: dict.labelSubmitter,
+    labelEmail: dict.labelEmail,
+    submitBtn: dict.submitBtn,
+    closeSubmit: dict.closeSubmit,
+    submitSuccess: currentLang === 'en' ? dict.submitSuccess : ''
+  };
+}
 function isFavoriteSkill(skill) {
   return Boolean(skill && favoriteSkillUrls.has(String(skill.url || '').trim()));
 }
@@ -126,6 +268,22 @@ function updateFavoriteStat() {
   const allBtnEl = document.getElementById('all-skills-stat-btn');
   if (countEl) countEl.textContent = String(getFavoriteCount());
   if (allBtnEl) allBtnEl.classList.toggle('active', !favoriteOnly);
+}
+
+function renderHeroLogo() {
+  const title = String(pageConfig?.title || '').trim() || 'claw800.com';
+  if (heroLogoTextEl) heroLogoTextEl.textContent = title;
+  if (!heroLogoImageEl) return;
+  const logo = String(pageConfig?.logo || '').trim();
+  if (logo) {
+    heroLogoImageEl.src = logo;
+    heroLogoImageEl.classList.remove('hidden');
+    if (heroLogoEl) heroLogoEl.classList.add('has-logo');
+  } else {
+    heroLogoImageEl.removeAttribute('src');
+    heroLogoImageEl.classList.add('hidden');
+    if (heroLogoEl) heroLogoEl.classList.remove('has-logo');
+  }
 }
 
 function escHtml(s) {
@@ -345,9 +503,21 @@ function ensureFullPayload(lang = currentLang, { silent = true } = {}) {
 
 async function init() {
   currentLang = String(localStorage.getItem('claw800_lang') || '').trim() === 'en' ? 'en' : 'zh';
-  document.getElementById('btn-zh').addEventListener('click', () => setLang('zh'));
-  document.getElementById('btn-en').addEventListener('click', () => setLang('en'));
   document.getElementById('all-skills-stat-btn').addEventListener('click', showAllSkillsFromStat);
+  submitModalController = window.initSubmitModal?.({
+    getTexts: getSubmitTexts,
+    getCategories: async () => {
+      if (!submitCategoriesCache.length) {
+        await loadSubmitCategories();
+      }
+      if (!submitCategoriesCache.length) {
+        hydrateSubmitCategoriesFromSkills();
+      }
+      return submitCategoriesCache;
+    },
+    categoryLabel: (item) => String(item?.category || '').trim(),
+    localizeApiError
+  }) || null;
   if (langMenuBtn) {
     langMenuBtn.addEventListener('click', (e) => {
       e.preventDefault();
@@ -379,6 +549,7 @@ async function init() {
   if (currentLang === 'zh' && BOOT_CACHE.skillsInitialZh) hydrateInitialSkillsCache('zh', BOOT_CACHE.skillsInitialZh);
   if (currentLang === 'en' && BOOT_CACHE.skillsInitialEn) hydrateInitialSkillsCache('en', BOOT_CACHE.skillsInitialEn);
   applyLanguage(false);
+  submitModalController?.refreshCategories();
   if (summaryLoaded || getSkills().length) {
     renderCategories();
     renderSkillsChunked(getSkills().slice(0, PAGE_SIZE));
@@ -410,19 +581,12 @@ async function loadPageConfig() {
 function applyLanguage(markReady = true) {
   const t = i18n[currentLang];
   document.documentElement.lang = currentLang === 'zh' ? 'zh-CN' : 'en';
-  const headerTitle =
-    currentLang === 'zh'
-      ? String(pageConfig?.skillsPageTitleZh || '').trim() || t.headerTitle
-      : String(pageConfig?.skillsPageTitleEn || '').trim() || t.headerTitle;
-  document.title = headerTitle ? `${headerTitle} - claw800.com` : t.pageTitle;
-  document.getElementById('btn-zh').classList.toggle('active', currentLang === 'zh');
-  document.getElementById('btn-en').classList.toggle('active', currentLang === 'en');
-  const backHomeLink = document.getElementById('backHomeLink');
-  if (backHomeLink) backHomeLink.textContent = t.homeLink;
+  document.title = t.pageTitle;
+  renderHeroLogo();
   const headerSub =
     currentLang === 'zh'
-      ? String(pageConfig?.skillsPageSubtitleZh || '').trim() || t.headerSub
-      : String(pageConfig?.skillsPageSubtitleEn || '').trim() || t.headerSub;
+      ? String(pageConfig?.subtitleZh || '').trim() || t.heroSubtitle
+      : String(pageConfig?.subtitleEn || '').trim() || t.heroSubtitle;
   const botPrompt =
     currentLang === 'zh'
       ? String(pageConfig?.skillsPageBotPromptZh || '').trim() || t.botPrompt
@@ -431,8 +595,12 @@ function applyLanguage(markReady = true) {
     currentLang === 'zh'
       ? String(pageConfig?.skillsPageBotLabelZh || '').trim() || t.botLabel
       : String(pageConfig?.skillsPageBotLabelEn || '').trim() || t.botLabel;
-  document.getElementById('header-title').textContent = headerTitle;
-  document.getElementById('header-sub').textContent = headerSub;
+  if (heroSubtitleEl) heroSubtitleEl.textContent = headerSub;
+  if (homeNavBtn) homeNavBtn.textContent = t.homeBtn;
+  if (skillsNavBtn) skillsNavBtn.textContent = t.skillsBtn;
+  if (githubStarBtn) githubStarBtn.textContent = t.githubStarBtn;
+  if (openSubmitFormBtn) openSubmitFormBtn.textContent = t.openSubmit;
+  submitModalController?.setTexts();
   document.getElementById('label-skills').textContent = t.labelSkills;
   document.getElementById('label-cats').textContent = t.labelCats;
   document.getElementById('search').placeholder = t.searchPlaceholder;
@@ -444,6 +612,7 @@ function applyLanguage(markReady = true) {
   document.getElementById('no-results').textContent = t.noResults;
   document.getElementById('footer-note').textContent = t.footerNote;
   updateFavoriteStat();
+  submitModalController?.refreshCategories();
   if (faviconEl) {
     const icon = String(pageConfig?.icon || '').trim();
     faviconEl.href = icon || '/favicon.ico';
@@ -479,8 +648,6 @@ async function loadData() {
 async function setLang(lang) {
   currentLang = lang === 'en' ? 'en' : 'zh';
   localStorage.setItem('claw800_lang', currentLang);
-  document.getElementById('btn-zh').classList.toggle('active', currentLang === 'zh');
-  document.getElementById('btn-en').classList.toggle('active', currentLang === 'en');
   if (langMenuPopup) langMenuPopup.classList.add('hidden');
   if (langMenuBtn) langMenuBtn.setAttribute('aria-expanded', 'false');
   applyLanguage();
