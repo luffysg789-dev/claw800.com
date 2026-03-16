@@ -233,8 +233,6 @@ function renderBoard() {
     if (cell.revealed) {
       if (cell.mine) button.textContent = '💣';
       else if (cell.adjacent > 0) button.textContent = String(cell.adjacent);
-    } else if (cell.flagged) {
-      button.textContent = '❤';
     }
     button.addEventListener('click', () => handleCellAction(cell));
     button.addEventListener('contextmenu', (event) => {

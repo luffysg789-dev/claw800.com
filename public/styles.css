@@ -1213,6 +1213,7 @@ button.danger { background: var(--danger); }
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  position: relative;
   padding: 0;
   border: 1px solid rgba(46, 111, 64, 0.18);
   border-radius: 10px;
@@ -1234,8 +1235,31 @@ button.danger { background: var(--danger); }
 }
 
 .mine-cell.is-flagged {
-  color: #d9485f;
-  font-size: clamp(10px, calc(var(--cell-size) * 0.46), 14px);
+  color: transparent;
+}
+
+.mine-cell.is-flagged::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--cell-size) * 0.48);
+  top: calc(var(--cell-size) * 0.24);
+  width: max(1px, calc(var(--cell-size) * 0.08));
+  height: calc(var(--cell-size) * 0.46);
+  background: #37453a;
+  border-radius: 999px;
+  transform: translateX(-50%);
+}
+
+.mine-cell.is-flagged::after {
+  content: "";
+  position: absolute;
+  left: calc(var(--cell-size) * 0.48);
+  top: calc(var(--cell-size) * 0.2);
+  width: calc(var(--cell-size) * 0.26);
+  height: calc(var(--cell-size) * 0.2);
+  background: linear-gradient(135deg, #ff6b7b, #d9485f);
+  clip-path: polygon(0 0, 100% 28%, 0 100%);
+  border-radius: 2px;
 }
 
 .mine-cell.is-mine {
@@ -1268,9 +1292,42 @@ button.danger { background: var(--danger); }
     padding: 16px;
   }
 
+  .games-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
   .game-card {
     grid-template-columns: 1fr;
     align-items: flex-start;
+    gap: 12px;
+  }
+
+  .game-card__icon {
+    width: 48px;
+    height: 48px;
+    font-size: 22px;
+    border-radius: 14px;
+  }
+
+  .game-card h3 {
+    font-size: 20px;
+    margin-bottom: 6px;
+  }
+
+  .game-card p {
+    font-size: 0.92rem;
+    line-height: 1.45;
+  }
+
+  .game-card__meta {
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .game-card__meta li {
+    padding: 5px 8px;
+    font-size: 12px;
   }
 
   .game-card__actions {
@@ -1279,6 +1336,7 @@ button.danger { background: var(--danger); }
 
   .game-card__play {
     width: 100%;
+    min-width: 0;
   }
 
   .minesweeper-header,
@@ -1312,6 +1370,11 @@ button.danger { background: var(--danger); }
 }
 
 @media (max-width: 480px) {
+  .games-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
   .minesweeper-intro-row {
     gap: 8px;
   }
@@ -1356,5 +1419,11 @@ button.danger { background: var(--danger); }
   .minesweeper-difficulties button,
   .minesweeper-actions button {
     width: 100%;
+  }
+}
+
+@media (max-width: 360px) {
+  .games-grid {
+    grid-template-columns: 1fr;
   }
 }
