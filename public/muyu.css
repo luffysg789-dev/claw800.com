@@ -1,0 +1,452 @@
+:root {
+  --muyu-bg: #050505;
+  --muyu-ink: #ffffff;
+  --muyu-muted: rgba(255, 255, 255, 0.84);
+  --muyu-line: rgba(255, 235, 206, 0.16);
+  --muyu-panel: rgba(255, 255, 255, 0.06);
+  --muyu-gold: #f7d480;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "PingFang SC", "Noto Sans SC", sans-serif;
+  color: var(--muyu-ink);
+  background:
+    radial-gradient(circle at top, rgba(151, 104, 44, 0.18), transparent 24%),
+    linear-gradient(180deg, #060606 0%, #020202 100%);
+}
+
+.container {
+  width: min(1100px, 92vw);
+  margin: 0 auto;
+}
+
+.muyu-page {
+  min-height: 100vh;
+  padding: 14px 0 28px;
+}
+
+.muyu-shell {
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(188, 133, 63, 0.18), transparent 32%),
+    radial-gradient(circle at 85% 100%, rgba(139, 101, 47, 0.16), transparent 26%),
+    linear-gradient(180deg, rgba(14, 14, 14, 0.98), rgba(6, 6, 6, 0.99));
+  border: 1px solid rgba(255, 231, 194, 0.1);
+  border-radius: 24px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.38);
+}
+
+.muyu-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.muyu-header h2 {
+  margin: 0 0 8px;
+  font-size: 28px;
+  color: #fff;
+}
+
+.muyu-intro-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.muyu-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--muyu-line);
+  background: var(--muyu-panel);
+  color: #fff;
+  text-decoration: none;
+  flex-shrink: 0;
+  backdrop-filter: blur(8px);
+}
+
+.muyu-back svg {
+  width: 18px;
+  height: 18px;
+}
+
+.muyu-subtitle {
+  margin: 0;
+  color: var(--muyu-muted);
+  line-height: 1.65;
+}
+
+.muyu-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0 22px;
+  position: relative;
+}
+
+.muyu-meritboard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.muyu-meritboard strong {
+  display: block;
+  font-size: clamp(92px, 18vw, 180px);
+  line-height: 0.92;
+  color: #fff;
+  font-weight: 300;
+  letter-spacing: -0.04em;
+}
+
+.muyu-meritboard span {
+  display: block;
+  color: rgba(255, 255, 255, 0.24);
+  font-size: clamp(42px, 7vw, 78px);
+  line-height: 1;
+  font-weight: 700;
+}
+
+.muyu-wood {
+  position: relative;
+  width: min(400px, 80vw);
+  min-height: 300px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.muyu-impact-ripple,
+.muyu-impact-spark {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.muyu-impact-ripple {
+  width: 180px;
+  height: 180px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 209, 144, 0.42);
+  box-shadow: 0 0 0 8px rgba(255, 209, 144, 0.06);
+}
+
+.muyu-impact-ripple--late {
+  width: 220px;
+  height: 220px;
+}
+
+.muyu-impact-spark {
+  width: 84px;
+  height: 84px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(255, 234, 183, 0.95) 0%, rgba(255, 234, 183, 0.18) 38%, transparent 70%);
+  filter: blur(0.5px);
+}
+
+.muyu-wood__body {
+  position: relative;
+  width: min(188px, 42vw);
+  display: grid;
+  place-items: center;
+  margin-top: 42px;
+}
+
+.muyu-wood__image {
+  width: 100%;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.45)) saturate(1.03) brightness(0.98);
+}
+
+.muyu-wood__image[src=""],
+.muyu-mallet__image[src=""] {
+  visibility: hidden;
+}
+
+.muyu-mallet {
+  position: absolute;
+  right: 26px;
+  top: 176px;
+  width: min(90px, 17.64vw);
+  transform: rotate(22deg);
+  transform-origin: 82% 60%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.muyu-mallet__image {
+  width: 100%;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.38));
+}
+
+.muyu-wood__label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 10px;
+  color: rgba(255, 243, 222, 0.9);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.muyu-blessing-text {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translate(-50%, 20px) scale(0.92);
+  color: var(--muyu-gold);
+  font-size: clamp(16px, 3.2vw, 22px);
+  font-weight: 800;
+  white-space: nowrap;
+  text-shadow: 0 8px 20px rgba(247, 212, 128, 0.22);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.muyu-blessing-text.is-active {
+  animation: muyu-blessing-rise 1.15s ease-out forwards;
+}
+
+.muyu-wood.is-striking .muyu-wood__body {
+  transform: scale(0.97);
+}
+
+.muyu-wood.is-striking .muyu-mallet {
+  transform: rotate(8deg) translate(-12px, 20px);
+}
+
+.muyu-wood.is-striking .muyu-impact-ripple {
+  animation: muyu-ripple 0.55s ease-out;
+}
+
+.muyu-wood.is-striking .muyu-impact-ripple--late {
+  animation: muyu-ripple 0.55s ease-out 0.08s;
+}
+
+.muyu-wood.is-striking .muyu-impact-spark {
+  animation: muyu-spark 0.35s ease-out;
+}
+
+.muyu-hint {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 14px;
+  text-align: center;
+}
+
+.muyu-controls-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 18px;
+  align-items: stretch;
+}
+
+.muyu-stat-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 227, 184, 0.12);
+  border-radius: 22px;
+  padding: 18px;
+  backdrop-filter: blur(10px);
+}
+
+.muyu-control-item,
+.muyu-control-btn {
+  min-width: 0;
+}
+
+.muyu-stat-card span {
+  display: block;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.muyu-stat-card strong {
+  display: block;
+  font-size: 42px;
+  line-height: 1;
+  color: #fff;
+}
+
+.muyu-control-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  border-radius: 999px;
+  border: 1px solid var(--muyu-line);
+  background: var(--muyu-panel);
+  color: #fff;
+  padding: 0 18px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+}
+
+.muyu-control-btn.active {
+  background: rgba(217, 162, 95, 0.2);
+  border-color: rgba(255, 221, 167, 0.38);
+  color: #fff5e8;
+}
+
+@keyframes muyu-ripple {
+  0% { opacity: 0.95; transform: scale(0.5); }
+  100% { opacity: 0; transform: scale(1.3); }
+}
+
+@keyframes muyu-spark {
+  0% { opacity: 0.9; transform: scale(0.7); }
+  100% { opacity: 0; transform: scale(1.8); }
+}
+
+@keyframes muyu-blessing-rise {
+  0% { opacity: 0; transform: translate(-50%, 16px) scale(0.92); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -26px) scale(1.02); }
+}
+
+@media (max-width: 720px) {
+  .muyu-page {
+    padding: 10px 0 22px;
+  }
+
+  .muyu-shell {
+    border-radius: 18px;
+    padding: 16px;
+  }
+
+  .muyu-back {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    min-height: 34px;
+    padding: 0;
+    border-radius: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .muyu-page .container {
+    max-width: 420px;
+    margin: 0 auto;
+    padding: 0 12px;
+  }
+
+  .muyu-shell {
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .muyu-header h2 {
+    display: none;
+  }
+
+  .muyu-intro-row {
+    gap: 8px;
+    align-items: center;
+  }
+
+  .muyu-subtitle {
+    font-size: 0.82rem;
+    line-height: 1.25;
+  }
+
+  .muyu-wood {
+    width: min(300px, 84vw);
+    min-height: 258px;
+  }
+
+  .muyu-wood__body {
+    width: min(154px, 43.4vw);
+    margin-top: 34px;
+  }
+
+  .muyu-mallet {
+    right: 14px;
+    top: 190px;
+    width: min(63px, 15.19vw);
+    transform: rotate(20deg);
+  }
+
+  .muyu-meritboard strong {
+    font-size: clamp(74px, 24vw, 120px);
+  }
+
+  .muyu-meritboard span {
+    font-size: clamp(28px, 8vw, 52px);
+  }
+
+  .muyu-blessing-text {
+    top: -16px;
+    font-size: 14px;
+  }
+
+  .muyu-stat-card {
+    padding: 14px;
+  }
+
+  .muyu-stat-card strong {
+    font-size: 34px;
+  }
+
+  .muyu-controls-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .muyu-stat-card,
+  .muyu-control-btn {
+    border-radius: 16px;
+    min-height: 72px;
+    padding: 10px 8px;
+  }
+
+  .muyu-stat-card span {
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+
+  .muyu-stat-card strong {
+    font-size: 24px;
+  }
+
+  .muyu-control-btn {
+    font-size: 12px;
+    line-height: 1.2;
+    font-weight: 700;
+    text-align: center;
+    padding: 10px 6px;
+  }
+}

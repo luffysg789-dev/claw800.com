@@ -5,6 +5,19 @@ const todayCountEl = document.getElementById('muyuTodayCount');
 const heroCountEl = document.getElementById('muyuHeroCount');
 const hintEl = document.getElementById('muyuHint');
 const blessingTextEl = document.getElementById('muyuBlessingText');
+
+const GAME_SLUG = 'muyu';
+const GAME_CONFIG_CACHE_KEY = `claw800_game_config_cache_v1:${GAME_SLUG}`;
+const DEFAULT_GAME_CONFIG = {
+  slug: GAME_SLUG,
+  name: '敲木鱼',
+  description: '轻点木鱼一下，功德 +1。',
+  cover_image: '',
+  secondary_image: '',
+  sound_file: '',
+  background_music_file: ''
+};
+
 function shouldRestartHtmlAudio(audio) {
   if (!audio) return true;
   return Boolean(audio.paused || audio.ended);
@@ -27,14 +40,64 @@ let backgroundMusicAudio = null;
 let strikeAudioPrepared = false;
 let backgroundMusicPrepared = false;
 
+function readCachedGameConfig() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(GAME_CONFIG_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedGameConfig(config) {
+  if (typeof window === 'undefined' || !config) return;
+  try {
+    window.localStorage.setItem(GAME_CONFIG_CACHE_KEY, JSON.stringify(config));
+  } catch {}
+}
+
+function normalizeGameConfig(config) {
+  const source = config && typeof config === 'object' ? config : {};
+  return {
+    ...DEFAULT_GAME_CONFIG,
+    ...source,
+    slug: GAME_SLUG,
+    name: String(source.name || DEFAULT_GAME_CONFIG.name).trim(),
+    description: String(source.description || DEFAULT_GAME_CONFIG.description).trim(),
+    cover_image: String(source.cover_image || '').trim(),
+    secondary_image: String(source.secondary_image || '').trim(),
+    sound_file: String(source.sound_file || '').trim(),
+    background_music_file: String(source.background_music_file || '').trim()
+  };
+}
+
+async function fetchGameConfig() {
+  try {
+    const res = await fetch(`/api/games/${encodeURIComponent(GAME_SLUG)}?t=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.item ? normalizeGameConfig(data.item) : null;
+  } catch {
+    return null;
+  }
+}
+
 function syncGameConfig() {
-  const config = window.ClawGamesConfig?.getCurrentGameConfig?.() || window.__GAME_CONFIG__ || null;
-  const configuredSrc = String(config?.sound_file || '').trim();
-  const configuredBackgroundMusicSrc = String(config?.background_music_file || '').trim();
-  const fishImage = String(config?.cover_image || '').trim();
-  const malletImage = String(config?.secondary_image || '').trim();
+  const config = normalizeGameConfig(window.__GAME_CONFIG__);
+  const configuredSrc = config.sound_file;
+  const configuredBackgroundMusicSrc = config.background_music_file;
+  const fishImage = config.cover_image;
+  const malletImage = config.secondary_image;
+  const titleEl = document.getElementById('gamePageTitle');
+  const subtitleEl = document.getElementById('gamePageSubtitle');
   strikeAudioSrc = configuredSrc || DEFAULT_STRIKE_AUDIO_SRC;
   backgroundMusicSrc = configuredBackgroundMusicSrc;
+  if (titleEl) titleEl.textContent = config.name || DEFAULT_GAME_CONFIG.name;
+  if (subtitleEl) subtitleEl.textContent = config.description || DEFAULT_GAME_CONFIG.description;
+  document.title = `Claw800 ${config.name || DEFAULT_GAME_CONFIG.name}`;
   const fishImageEl = document.querySelector('.muyu-wood__image');
   const malletImageEl = document.querySelector('.muyu-mallet__image');
   if (fishImageEl) {
@@ -361,6 +424,7 @@ function toggleMusic() {
 
 renderState();
 syncAmbientMusic();
+window.__GAME_CONFIG__ = normalizeGameConfig(readCachedGameConfig() || DEFAULT_GAME_CONFIG);
 syncGameConfig();
 
 if (typeof window !== 'undefined') {
@@ -371,9 +435,15 @@ if (typeof window !== 'undefined') {
     prepareStrikeAudio();
     if (state.musicEnabled) prepareBackgroundMusic();
   });
+  schedule(async () => {
+    const config = await fetchGameConfig();
+    if (!config) return;
+    window.__GAME_CONFIG__ = config;
+    writeCachedGameConfig(config);
+    syncGameConfig();
+  });
 }
 
 strikeBtn?.addEventListener('click', strikeWood);
 resetBtn?.addEventListener('click', resetState);
 musicToggleBtn?.addEventListener('click', toggleMusic);
-window.addEventListener('game-config-ready', syncGameConfig);
