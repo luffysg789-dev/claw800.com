@@ -4,7 +4,39 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>教程 - claw800.com</title>
+    <meta
+      name="description"
+      id="metaDescription"
+      content="claw800.com 教程页面，提供 OpenClaw 相关图文教程与操作指南。"
+    />
+    <meta name="robots" content="index,follow,max-image-preview:large" />
+    <link rel="canonical" id="canonicalLink" href="https://claw800.com/tutorial.html" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" id="ogTitle" content="教程 - claw800.com" />
+    <meta
+      property="og:description"
+      id="ogDescription"
+      content="claw800.com 教程页面，提供 OpenClaw 相关图文教程与操作指南。"
+    />
+    <meta property="og:url" id="ogUrl" content="https://claw800.com/tutorial.html" />
+    <meta property="og:site_name" content="claw800.com" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" id="twitterTitle" content="教程 - claw800.com" />
+    <meta
+      name="twitter:description"
+      id="twitterDescription"
+      content="claw800.com 教程页面，提供 OpenClaw 相关图文教程与操作指南。"
+    />
     <link rel="icon" href="/favicon.ico">
+    <script type="application/ld+json" id="seoSchema">
+      {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": "教程 - claw800.com",
+        "url": "https://claw800.com/tutorial.html",
+        "description": "claw800.com 教程页面，提供 OpenClaw 相关图文教程与操作指南。"
+      }
+    </script>
     <script>
       (() => {
         const lang = String(localStorage.getItem('claw800_lang') || '').trim() === 'en' ? 'en' : 'zh-CN';
@@ -199,6 +231,14 @@
       const footerCopyrightEl = document.getElementById('footerCopyright');
       const footerLinksEl = document.getElementById('footerLinks');
       const footerContactEl = document.getElementById('footerContact');
+      const metaDescriptionEl = document.getElementById('metaDescription');
+      const canonicalLinkEl = document.getElementById('canonicalLink');
+      const ogTitleEl = document.getElementById('ogTitle');
+      const ogDescriptionEl = document.getElementById('ogDescription');
+      const ogUrlEl = document.getElementById('ogUrl');
+      const twitterTitleEl = document.getElementById('twitterTitle');
+      const twitterDescriptionEl = document.getElementById('twitterDescription');
+      const seoSchemaEl = document.getElementById('seoSchema');
 
       function getUiLang() {
         return currentLang;
@@ -206,6 +246,12 @@
 
       function getTranslateTarget() {
         return currentLang === 'en' ? 'en' : '';
+      }
+
+      function setSeoTag(el, value, attr = 'content') {
+        if (!el) return;
+        if (attr === 'href') el.setAttribute('href', value);
+        else el.setAttribute(attr, value);
       }
 
       function isProbablyUrl(text) {
@@ -579,6 +625,35 @@
         renderHeroLogo();
         renderFooter();
         renderFavicon();
+        updateSeoMeta();
+      }
+
+      function updateSeoMeta(tutorialItem = null) {
+        const desc =
+          tutorialItem?.title
+            ? `${tutorialItem.title} - ${currentLang === 'en' ? 'OpenClaw tutorial and guide on claw800.com.' : 'claw800.com 的 OpenClaw 图文教程与操作指南。'}`
+            : currentLang === 'en'
+              ? 'OpenClaw tutorials and guides on claw800.com.'
+              : 'claw800.com 教程页面，提供 OpenClaw 相关图文教程与操作指南。';
+        const canonical = tutorialItem?.id
+          ? `${window.location.origin}/tutorial.html?id=${tutorialItem.id}`
+          : `${window.location.origin}/tutorial.html`;
+        setSeoTag(metaDescriptionEl, desc);
+        setSeoTag(canonicalLinkEl, canonical, 'href');
+        setSeoTag(ogTitleEl, document.title);
+        setSeoTag(ogDescriptionEl, desc);
+        setSeoTag(ogUrlEl, canonical);
+        setSeoTag(twitterTitleEl, document.title);
+        setSeoTag(twitterDescriptionEl, desc);
+        if (seoSchemaEl) {
+          seoSchemaEl.textContent = JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': tutorialItem?.id ? 'Article' : 'WebPage',
+            headline: document.title,
+            url: canonical,
+            description: desc
+          });
+        }
       }
 
       async function loadSiteConfig() {
@@ -636,6 +711,7 @@
           document.title = `${t('titlePrefix')}${previewItem.title}`;
           titleEl.textContent = previewItem.title;
           metaEl.textContent = `${t('publishedAt')}：${formatDate(previewItem.created_at)}`;
+          updateSeoMeta(previewItem);
 
           const previewText = String(previewData.previewText || '').trim();
           if (previewText) {
@@ -672,6 +748,7 @@
                 if (translatedTitle && token === tutorialLoadToken) {
                   document.title = `${t('titlePrefix')}${translatedTitle}`;
                   titleEl.textContent = translatedTitle;
+                  updateSeoMeta({ ...item, title: translatedTitle });
                 }
                 if (token !== tutorialLoadToken) return;
                 await translateElementTextNodes(document.querySelector('main'));

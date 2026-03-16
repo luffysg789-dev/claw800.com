@@ -21,6 +21,14 @@ const heroLogoImageEl = document.getElementById('heroLogoImage');
 const heroLogoTextEl = document.getElementById('heroLogoText');
 const heroSubtitleEl = document.getElementById('heroSubtitle');
 const faviconEl = document.getElementById('siteFavicon') || document.querySelector('link[rel~="icon"]');
+const metaDescriptionEl = document.getElementById('metaDescription');
+const canonicalLinkEl = document.getElementById('canonicalLink');
+const ogTitleEl = document.getElementById('ogTitle');
+const ogDescriptionEl = document.getElementById('ogDescription');
+const ogUrlEl = document.getElementById('ogUrl');
+const twitterTitleEl = document.getElementById('twitterTitle');
+const twitterDescriptionEl = document.getElementById('twitterDescription');
+const seoSchemaEl = document.getElementById('seoSchema');
 const footerCopyrightEl = document.getElementById('footerCopyright');
 const footerLinksEl = document.getElementById('footerLinks');
 const footerContactEl = document.getElementById('footerContact');
@@ -453,6 +461,38 @@ function renderHeroLogo() {
   heroLogoImageEl.classList.remove('hidden');
 }
 
+function setSeoTag(el, value, attr = 'content') {
+  if (!el) return;
+  if (attr === 'href') el.setAttribute('href', value);
+  else el.setAttribute(attr, value);
+}
+
+function updateSeoMeta() {
+  const dict = t();
+  const subtitle =
+    currentLang === 'en'
+      ? String(siteConfig?.subtitleEn || '').trim() || dict.heroSubtitle
+      : String(siteConfig?.subtitleZh || '').trim() || dict.heroSubtitle;
+  const desc = `${subtitle}，支持分类浏览、技能大全与免费提交。`;
+  const canonical = `${window.location.origin}/`;
+  setSeoTag(metaDescriptionEl, desc);
+  setSeoTag(canonicalLinkEl, canonical, 'href');
+  setSeoTag(ogTitleEl, document.title);
+  setSeoTag(ogDescriptionEl, desc);
+  setSeoTag(ogUrlEl, canonical);
+  setSeoTag(twitterTitleEl, document.title);
+  setSeoTag(twitterDescriptionEl, desc);
+  if (seoSchemaEl) {
+    seoSchemaEl.textContent = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: String(siteConfig?.title || '').trim() || 'claw800.com',
+      url: canonical,
+      description: desc
+    });
+  }
+}
+
 function t(key) {
   const uiLang = getUiLang();
   return texts[uiLang][key];
@@ -834,6 +874,7 @@ function applyLanguage(markReady = true) {
   renderCategories(categoriesCache);
   renderFooter();
   renderFavicon();
+  updateSeoMeta();
   if (markReady) markPageReady();
 }
 

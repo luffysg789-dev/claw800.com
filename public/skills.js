@@ -26,6 +26,14 @@ const submitModal = document.getElementById('submitModal');
 const submitModalMask = document.getElementById('submitModalMask');
 const submitMessage = document.getElementById('submitMessage');
 const categorySelect = document.getElementById('categorySelect');
+const metaDescriptionEl = document.getElementById('metaDescription');
+const canonicalLinkEl = document.getElementById('canonicalLink');
+const ogTitleEl = document.getElementById('ogTitle');
+const ogDescriptionEl = document.getElementById('ogDescription');
+const ogUrlEl = document.getElementById('ogUrl');
+const twitterTitleEl = document.getElementById('twitterTitle');
+const twitterDescriptionEl = document.getElementById('twitterDescription');
+const seoSchemaEl = document.getElementById('seoSchema');
 const BOOT_CACHE = window.__CLAW800_BOOT__ || {};
 const langState = {
   zh: { categories: {}, categoryZhMap: {}, lastSyncMs: 0, fullLoaded: false, fullPromise: null },
@@ -42,6 +50,12 @@ let favoriteSkillUrls = loadFavoriteSkillUrls();
 
 function markPageReady() {
   document.documentElement.dataset.i18nReady = '1';
+}
+
+function setSeoTag(el, value, attr = 'content') {
+  if (!el) return;
+  if (attr === 'href') el.setAttribute('href', value);
+  else el.setAttribute(attr, value);
 }
 
 if (BOOT_CACHE.siteConfig && typeof BOOT_CACHE.siteConfig === 'object') {
@@ -283,6 +297,31 @@ function renderHeroLogo() {
     heroLogoImageEl.removeAttribute('src');
     heroLogoImageEl.classList.add('hidden');
     if (heroLogoEl) heroLogoEl.classList.remove('has-logo');
+  }
+}
+
+function updateSeoMeta() {
+  const title = document.title;
+  const description =
+    currentLang === 'zh'
+      ? String(pageConfig?.skillsPageSubtitleZh || '').trim() || 'Claw800 龙虾技能大全，收录 OpenClaw 精选技能，支持分类浏览、详情查看与一键复制安装提示词。'
+      : String(pageConfig?.skillsPageSubtitleEn || '').trim() || 'Claw800 Skills Directory with curated OpenClaw skills, category browsing, detail links, and one-click install prompt copying.';
+  const canonical = `${window.location.origin}/skills.html`;
+  setSeoTag(metaDescriptionEl, description);
+  setSeoTag(canonicalLinkEl, canonical, 'href');
+  setSeoTag(ogTitleEl, title);
+  setSeoTag(ogDescriptionEl, description);
+  setSeoTag(ogUrlEl, canonical);
+  setSeoTag(twitterTitleEl, title);
+  setSeoTag(twitterDescriptionEl, description);
+  if (seoSchemaEl) {
+    seoSchemaEl.textContent = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'CollectionPage',
+      name: title,
+      url: canonical,
+      description
+    });
   }
 }
 
@@ -620,6 +659,7 @@ function applyLanguage(markReady = true) {
     const icon = String(pageConfig?.icon || '').trim();
     faviconEl.href = icon || '/favicon.ico';
   }
+  updateSeoMeta();
   if (markReady) markPageReady();
   renderCategories();
   filterSkills();

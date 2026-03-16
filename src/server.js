@@ -155,6 +155,16 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
+app.get('/robots.txt', (req, res) => {
+  const configured = String(process.env.SITE_URL || '').trim();
+  const base =
+    configured && isValidUrl(configured)
+      ? configured.replace(/\/+$/, '')
+      : `${String(req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim() || 'https'}://${String(req.headers['x-forwarded-host'] || req.get('host') || 'claw800.com').split(',')[0].trim() || 'claw800.com'}`.replace(/\/+$/, '');
+  res.type('text/plain; charset=utf-8');
+  res.send(`User-agent: *\nAllow: /\n\nSitemap: ${base}/sitemap.xml\n`);
+});
+
 function isValidUrl(url) {
   try {
     const parsed = new URL(url);
@@ -533,6 +543,43 @@ app.get('/api/site-config', (_req, res) => {
     footerContactEn,
     footerLinks
   });
+});
+
+app.get('/sitemap.xml', (req, res) => {
+  const configured = String(process.env.SITE_URL || '').trim();
+  const base =
+    configured && isValidUrl(configured)
+      ? configured.replace(/\/+$/, '')
+      : `${String(req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim() || 'https'}://${String(req.headers['x-forwarded-host'] || req.get('host') || 'claw800.com').split(',')[0].trim() || 'claw800.com'}`.replace(/\/+$/, '');
+  const pages = [
+    { loc: `${base}/`, changefreq: 'daily', priority: '1.0', lastmod: '' },
+    { loc: `${base}/skills.html`, changefreq: 'daily', priority: '0.9', lastmod: '' },
+    { loc: `${base}/tutorial.html`, changefreq: 'weekly', priority: '0.7', lastmod: '' }
+  ];
+  const tutorials = db
+    .prepare(`
+      SELECT id, created_at, updated_at
+      FROM tutorials
+      WHERE status = 'published'
+      ORDER BY created_at DESC, id DESC
+    `)
+    .all()
+    .map((row) => ({
+      loc: `${base}/tutorial.html?id=${row.id}`,
+      lastmod: String(row.updated_at || row.created_at || '').trim(),
+      changefreq: 'weekly',
+      priority: '0.6'
+    }));
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...pages, ...tutorials]
+    .map((item) => {
+      const lastmod = item.lastmod ? `\n    <lastmod>${String(item.lastmod).replace(' ', 'T')}Z</lastmod>` : '';
+      return `  <url>\n    <loc>${item.loc}</loc>${lastmod}\n    <changefreq>${item.changefreq}</changefreq>\n    <priority>${item.priority}</priority>\n  </url>`;
+    })
+    .join('\n')}\n</urlset>\n`;
+
+  res.type('application/xml; charset=utf-8');
+  res.send(xml);
 });
 
 app.get('/api/admin/site-config', requireAdmin, (_req, res) => {
