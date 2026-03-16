@@ -13,6 +13,7 @@ const langMenuPopup = document.getElementById('langMenuPopup');
 const homeNavBtn = document.getElementById('homeNavBtn');
 const skillsNavBtn = document.getElementById('skillsNavBtn');
 const githubStarBtn = document.getElementById('githubStarBtn');
+const gamesNavBtn = document.getElementById('gamesNavBtn');
 const tutorialNavBtn = document.getElementById('tutorialNavBtn');
 const categorySelect = document.getElementById('categorySelect');
 const navView = document.getElementById('navView');
@@ -110,7 +111,8 @@ const texts = {
     searchBtn: '搜索',
     favoriteSitesBtn: '我的收藏',
     homeBtn: '首页',
-    skillsBtn: '技能大全',
+    skillsBtn: '技能',
+    gamesBtn: '游戏',
     githubStarBtn: 'GitHub 加星',
     tutorialBtn: '教程',
     allCategory: '全部',
@@ -155,6 +157,7 @@ const texts = {
     favoriteSitesBtn: 'My Favorites',
     homeBtn: 'Home',
     skillsBtn: 'Skills',
+    gamesBtn: 'Games',
     githubStarBtn: 'Star on GitHub',
     tutorialBtn: 'Tutorials',
     allCategory: 'All',
@@ -867,6 +870,7 @@ function applyLanguage(markReady = true) {
   searchBtn.textContent = dict.searchBtn;
   if (homeNavBtn) homeNavBtn.textContent = dict.homeBtn;
   if (skillsNavBtn) skillsNavBtn.textContent = dict.skillsBtn;
+  if (gamesNavBtn) gamesNavBtn.textContent = dict.gamesBtn;
   if (githubStarBtn) {
     githubStarBtn.setAttribute('aria-label', dict.githubStarBtn);
     githubStarBtn.setAttribute('title', dict.githubStarBtn);

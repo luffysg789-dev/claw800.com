@@ -20,6 +20,7 @@ const LEGACY_SUBTITLE_ZH = 'OpenClaw 生态导航，收录 AI 领域优质网站
 const CURRENT_SUBTITLE_ZH = '龙虾学习导航网，为你的龙虾赋能。';
 const homeNavBtn = document.getElementById('homeNavBtn');
 const skillsNavBtn = document.getElementById('skillsNavBtn');
+const gamesNavBtn = document.getElementById('gamesNavBtn');
 const githubStarBtn = document.getElementById('githubStarBtn');
 const openSubmitFormBtn = document.getElementById('openSubmitFormBtn');
 const submitForm = document.getElementById('submitForm');
@@ -73,7 +74,8 @@ const i18n = {
     headerTitle: 'claw800.com',
     heroSubtitle: CURRENT_SUBTITLE_ZH,
     homeBtn: '首页',
-    skillsBtn: '技能大全',
+    skillsBtn: '技能',
+    gamesBtn: '游戏',
     githubStarBtn: 'GitHub 加星',
     openSubmit: '免费提交',
     submitTitle: '免费提交网站',
@@ -118,6 +120,7 @@ const i18n = {
     heroSubtitle: 'OpenClaw ecosystem directory for AI websites',
     homeBtn: 'Home',
     skillsBtn: 'Skills',
+    gamesBtn: 'Games',
     githubStarBtn: 'Star on GitHub',
     openSubmit: 'Submit for Free',
     submitTitle: 'Submit a Website',
@@ -645,6 +648,7 @@ function applyLanguage(markReady = true) {
   if (heroSubtitleEl) heroSubtitleEl.textContent = headerSub;
   if (homeNavBtn) homeNavBtn.textContent = t.homeBtn;
   if (skillsNavBtn) skillsNavBtn.textContent = t.skillsBtn;
+  if (gamesNavBtn) gamesNavBtn.textContent = t.gamesBtn;
   if (githubStarBtn) {
     githubStarBtn.setAttribute('aria-label', t.githubStarBtn);
     githubStarBtn.setAttribute('title', t.githubStarBtn);

@@ -10,6 +10,9 @@ const doEl = document.getElementById('fortuneDo');
 const avoidEl = document.getElementById('fortuneAvoid');
 const adviceEl = document.getElementById('fortuneAdvice');
 let audioContext = null;
+let noiseBuffer = null;
+let customSoundSrc = '';
+let customSoundAvailable = false;
 
 const FORTUNES = [
   {
@@ -52,6 +55,28 @@ const FORTUNES = [
 
 let isDrawing = false;
 
+function syncGameConfig() {
+  const config = window.ClawGamesConfig?.getCurrentGameConfig?.() || window.__GAME_CONFIG__ || null;
+  const src = String(config?.sound_file || '').trim();
+  customSoundSrc = src;
+  customSoundAvailable = Boolean(src);
+}
+
+function playCustomSound() {
+  if (!customSoundAvailable || !customSoundSrc || typeof Audio === 'undefined') return false;
+  try {
+    const sound = new Audio(customSoundSrc);
+    sound.currentTime = 0;
+    sound.play().catch(() => {
+      customSoundAvailable = false;
+    });
+    return true;
+  } catch {
+    customSoundAvailable = false;
+    return false;
+  }
+}
+
 function getAudioContext() {
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
   if (!AudioContextClass) return null;
@@ -64,34 +89,71 @@ function getAudioContext() {
   return audioContext;
 }
 
+function getNoiseBuffer(context) {
+  if (noiseBuffer && noiseBuffer.sampleRate === context.sampleRate) return noiseBuffer;
+  const length = Math.floor(context.sampleRate * 0.18);
+  const buffer = context.createBuffer(1, length, context.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let index = 0; index < length; index += 1) {
+    data[index] = (Math.random() * 2 - 1) * (1 - index / length);
+  }
+  noiseBuffer = buffer;
+  return noiseBuffer;
+}
+
 function playShakeSound(pulses = 5, spacing = 0.09) {
+  if (playCustomSound()) return;
   const context = getAudioContext();
   if (!context) return;
 
   const startAt = context.currentTime + 0.01;
+  const buffer = getNoiseBuffer(context);
 
   for (let index = 0; index < pulses; index += 1) {
-    const oscillator = context.createOscillator();
-    const gainNode = context.createGain();
+    const noiseSource = context.createBufferSource();
+    const noiseGain = context.createGain();
+    const highpassFilter = context.createBiquadFilter();
+    const bandpassFilter = context.createBiquadFilter();
+    const clickOscillator = context.createOscillator();
+    const clickGain = context.createGain();
     const time = startAt + index * spacing;
 
-    oscillator.type = 'triangle';
-    oscillator.frequency.setValueAtTime(520 - index * 35, time);
-    oscillator.frequency.exponentialRampToValueAtTime(240 + index * 18, time + 0.06);
+    noiseSource.buffer = buffer;
+    highpassFilter.type = 'highpass';
+    highpassFilter.frequency.setValueAtTime(950, time);
+    bandpassFilter.type = 'bandpass';
+    bandpassFilter.frequency.setValueAtTime(2150 - index * 45, time);
+    bandpassFilter.Q.setValueAtTime(1.35, time);
 
-    gainNode.gain.setValueAtTime(0.0001, time);
-    gainNode.gain.exponentialRampToValueAtTime(0.055, time + 0.01);
-    gainNode.gain.exponentialRampToValueAtTime(0.0001, time + 0.075);
+    noiseGain.gain.setValueAtTime(0.0001, time);
+    noiseGain.gain.exponentialRampToValueAtTime(0.07, time + 0.004);
+    noiseGain.gain.exponentialRampToValueAtTime(0.0001, time + 0.038);
 
-    oscillator.connect(gainNode);
-    gainNode.connect(context.destination);
-    oscillator.start(time);
-    oscillator.stop(time + 0.08);
+    clickOscillator.type = 'square';
+    clickOscillator.frequency.setValueAtTime(1820 - index * 35, time);
+    clickOscillator.frequency.exponentialRampToValueAtTime(1180, time + 0.03);
+    clickGain.gain.setValueAtTime(0.0001, time);
+    clickGain.gain.exponentialRampToValueAtTime(0.014, time + 0.003);
+    clickGain.gain.exponentialRampToValueAtTime(0.0001, time + 0.028);
+
+    noiseSource.connect(highpassFilter);
+    highpassFilter.connect(bandpassFilter);
+    bandpassFilter.connect(noiseGain);
+    noiseGain.connect(context.destination);
+
+    clickOscillator.connect(clickGain);
+    clickGain.connect(context.destination);
+
+    noiseSource.start(time);
+    noiseSource.stop(time + 0.045);
+    clickOscillator.start(time);
+    clickOscillator.stop(time + 0.03);
   }
 }
 
 function playRevealSound() {
-  playShakeSound(3, 0.07);
+  if (playCustomSound()) return;
+  playShakeSound(3, 0.06);
 }
 
 function pickFortune() {
@@ -134,3 +196,5 @@ function startDraw() {
 
 drawBtn?.addEventListener('click', startDraw);
 retryBtn?.addEventListener('click', startDraw);
+syncGameConfig();
+window.addEventListener('game-config-ready', syncGameConfig);

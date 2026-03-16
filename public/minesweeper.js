@@ -5,7 +5,6 @@ const gameStatusEl = document.getElementById('gameStatus');
 const resetGameBtn = document.getElementById('resetGameBtn');
 const flagModeBtn = document.getElementById('flagModeBtn');
 const difficultyButtons = document.getElementById('difficultyButtons');
-
 const LEVELS = {
   beginner: { rows: 9, cols: 9, mines: 10 },
   intermediate: { rows: 14, cols: 14, mines: 28 },
@@ -21,6 +20,30 @@ let flagMode = false;
 let timer = 0;
 let timerHandle = null;
 let audioCtx = null;
+let customSoundSrc = '';
+let customSoundAvailable = false;
+
+function syncGameConfig() {
+  const config = window.ClawGamesConfig?.getCurrentGameConfig?.() || window.__GAME_CONFIG__ || null;
+  const src = String(config?.sound_file || '').trim();
+  customSoundSrc = src;
+  customSoundAvailable = Boolean(src);
+}
+
+function playCustomSound() {
+  if (!customSoundAvailable || !customSoundSrc || typeof Audio === 'undefined') return false;
+  try {
+    const sound = new Audio(customSoundSrc);
+    sound.currentTime = 0;
+    sound.play().catch(() => {
+      customSoundAvailable = false;
+    });
+    return true;
+  } catch {
+    customSoundAvailable = false;
+    return false;
+  }
+}
 
 function getAudioContext() {
   if (audioCtx) return audioCtx;
@@ -50,19 +73,23 @@ function playTone(frequency, duration, type = 'sine', gainValue = 0.03) {
 }
 
 function playRevealSound() {
+  if (playCustomSound()) return;
   playTone(540, 0.08, 'triangle', 0.025);
 }
 
 function playFlagSound() {
+  if (playCustomSound()) return;
   playTone(720, 0.06, 'square', 0.02);
 }
 
 function playLoseSound() {
+  if (playCustomSound()) return;
   playTone(180, 0.18, 'sawtooth', 0.05);
   window.setTimeout(() => playTone(120, 0.25, 'sawtooth', 0.045), 80);
 }
 
 function playWinSound() {
+  if (playCustomSound()) return;
   playTone(660, 0.08, 'triangle', 0.03);
   window.setTimeout(() => playTone(860, 0.1, 'triangle', 0.03), 90);
   window.setTimeout(() => playTone(1120, 0.14, 'triangle', 0.03), 200);
@@ -271,3 +298,5 @@ difficultyButtons?.addEventListener('click', (event) => {
   resetGame(button.dataset.level);
 });
 window.addEventListener('resize', renderBoard);
+syncGameConfig();
+window.addEventListener('game-config-ready', syncGameConfig);

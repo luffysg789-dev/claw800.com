@@ -6,14 +6,14 @@
     <title>Claw800 今日运势</title>
     <meta name="description" content="Claw800 今日运势小游戏，结合抽签氛围，给出今日财运签与建议。" />
     <link rel="icon" href="/favicon.ico" />
-    <link rel="stylesheet" href="/styles.css?v=20260316-01" />
+    <link rel="stylesheet" href="/styles.css?v=20260316-03" />
   </head>
   <body>
     <main class="fortune-page">
       <section class="container">
         <div class="fortune-shell">
           <div class="fortune-header">
-            <h2>今日运势</h2>
+            <h2 id="gamePageTitle">今日运势</h2>
             <div class="fortune-intro-row">
               <a class="fortune-back" href="/games.html" aria-label="返回游戏大全" title="返回游戏大全">
                 <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -23,7 +23,7 @@
                   />
                 </svg>
               </a>
-              <p class="fortune-subtitle">摇一摇签筒，抽出你今天的财运签。</p>
+              <p id="gamePageSubtitle" class="fortune-subtitle">摇一摇签筒，抽出你今天的财运签。</p>
             </div>
           </div>
 
@@ -65,6 +65,10 @@
       </section>
     </main>
 
-    <script src="/fortune.js?v=20260316-01"></script>
+    <script src="/games-config.js?v=20260316-01"></script>
+    <script>
+      window.ClawGamesConfig?.bootstrapGamePage?.('fortune');
+    </script>
+    <script src="/fortune.js?v=20260316-02"></script>
   </body>
 </html>

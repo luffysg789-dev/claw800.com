@@ -1004,13 +1004,22 @@ button.danger { background: var(--danger); }
 
 .games-page,
 .minesweeper-page,
-.fortune-page {
+.fortune-page,
+.muyu-page {
   padding: 14px 0 28px;
+}
+
+.muyu-page {
+  background:
+    radial-gradient(circle at top, rgba(151, 104, 44, 0.18), transparent 24%),
+    linear-gradient(180deg, #060606 0%, #020202 100%);
+  min-height: calc(100vh - 80px);
 }
 
 .games-hero-card,
 .minesweeper-shell,
-.fortune-shell {
+.fortune-shell,
+.muyu-shell {
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba(217, 225, 216, 0.92);
   border-radius: 24px;
@@ -1033,14 +1042,16 @@ button.danger { background: var(--danger); }
 
 .games-hero-card h2,
 .minesweeper-header h2,
-.fortune-header h2 {
+.fortune-header h2,
+.muyu-header h2 {
   margin: 0 0 8px;
   font-size: 28px;
 }
 
 .games-hero-card p:last-child,
 .minesweeper-subtitle,
-.fortune-subtitle {
+.fortune-subtitle,
+.muyu-subtitle {
   margin: 0;
   color: var(--muted);
   line-height: 1.65;
@@ -1048,14 +1059,15 @@ button.danger { background: var(--danger); }
 
 .games-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
 }
 
 .game-card {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 1fr;
   gap: 16px;
-  align-items: center;
+  align-items: start;
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba(217, 225, 216, 0.92);
   border-radius: 24px;
@@ -1071,6 +1083,27 @@ button.danger { background: var(--danger); }
   place-items: center;
   font-size: 28px;
   background: linear-gradient(135deg, rgba(46, 111, 64, 0.16), rgba(24, 61, 37, 0.08));
+}
+
+.game-card__cover {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(217, 225, 216, 0.92);
+  background: linear-gradient(135deg, rgba(46, 111, 64, 0.16), rgba(24, 61, 37, 0.08));
+}
+
+.game-card__cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.game-card__actions {
+  display: flex;
+  justify-content: flex-start;
 }
 
 .game-card h3 {
@@ -1127,10 +1160,21 @@ button.danger { background: var(--danger); }
   flex-shrink: 0;
 }
 
+@media (min-width: 1180px) {
+  .games-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 .minesweeper-intro-row {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.minesweeper-subtitle {
+  flex: 1;
+  min-width: 0;
 }
 
 .game-card__play {
@@ -1147,6 +1191,18 @@ button.danger { background: var(--danger); }
   padding: 24px;
 }
 
+.muyu-shell {
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(188, 133, 63, 0.18), transparent 32%),
+    radial-gradient(circle at 85% 100%, rgba(139, 101, 47, 0.16), transparent 26%),
+    linear-gradient(180deg, rgba(14, 14, 14, 0.98), rgba(6, 6, 6, 0.99));
+  border: 1px solid rgba(255, 231, 194, 0.1);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.38);
+}
+
 .fortune-header {
   display: flex;
   flex-direction: column;
@@ -1154,7 +1210,24 @@ button.danger { background: var(--danger); }
   margin-bottom: 18px;
 }
 
+.muyu-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.muyu-header h2 {
+  color: #fff;
+}
+
 .fortune-intro-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.muyu-intro-row {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1176,9 +1249,35 @@ button.danger { background: var(--danger); }
   flex-shrink: 0;
 }
 
+.muyu-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 235, 206, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  text-decoration: none;
+  flex-shrink: 0;
+  backdrop-filter: blur(8px);
+}
+
 .fortune-back svg {
   width: 18px;
   height: 18px;
+}
+
+.muyu-back svg {
+  width: 18px;
+  height: 18px;
+}
+
+.muyu-subtitle {
+  color: rgba(255, 255, 255, 0.84);
 }
 
 .fortune-stage {
@@ -1187,6 +1286,41 @@ button.danger { background: var(--danger); }
   align-items: center;
   gap: 12px;
   padding: 12px 0 18px;
+}
+
+.muyu-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0 22px;
+  position: relative;
+}
+
+.muyu-meritboard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.muyu-meritboard strong {
+  display: block;
+  font-size: clamp(92px, 18vw, 180px);
+  line-height: 0.92;
+  color: #fff;
+  font-weight: 300;
+  letter-spacing: -0.04em;
+}
+
+.muyu-meritboard span {
+  display: block;
+  color: rgba(255, 255, 255, 0.24);
+  font-size: clamp(42px, 7vw, 78px);
+  line-height: 1;
+  font-weight: 700;
 }
 
 .fortune-bucket {
@@ -1260,6 +1394,242 @@ button.danger { background: var(--danger); }
   margin: 0;
   color: var(--muted);
   font-size: 14px;
+}
+
+.muyu-wood {
+  position: relative;
+  width: min(400px, 80vw);
+  min-height: 300px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.muyu-impact-ripple,
+.muyu-impact-spark {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.muyu-impact-ripple {
+  width: 180px;
+  height: 180px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 209, 144, 0.42);
+  box-shadow: 0 0 0 8px rgba(255, 209, 144, 0.06);
+}
+
+.muyu-impact-ripple--late {
+  width: 220px;
+  height: 220px;
+}
+
+.muyu-impact-spark {
+  width: 84px;
+  height: 84px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, rgba(255, 234, 183, 0.95) 0%, rgba(255, 234, 183, 0.18) 38%, transparent 70%);
+  filter: blur(0.5px);
+}
+
+.muyu-wood__body {
+  position: relative;
+  width: min(188px, 42vw);
+  display: grid;
+  place-items: center;
+  margin-top: 42px;
+}
+
+.muyu-wood__image {
+  width: 100%;
+  height: auto;
+  display: block;
+  filter:
+    drop-shadow(0 14px 22px rgba(0, 0, 0, 0.45))
+    saturate(1.03)
+    brightness(0.98);
+}
+
+.muyu-wood__image[src=""],
+.muyu-mallet__image[src=""] {
+  visibility: hidden;
+}
+
+.muyu-mallet {
+  position: absolute;
+  right: 46px;
+  top: 56px;
+  width: min(129px, 25.2vw);
+  transform: rotate(22deg);
+  transform-origin: 82% 60%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.muyu-mallet__image {
+  width: 100%;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.38));
+}
+
+.muyu-wood__label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 10px;
+  color: rgba(255, 243, 222, 0.9);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.muyu-blessing-text {
+  position: absolute;
+  top: 36px;
+  left: 50%;
+  transform: translate(-50%, 20px) scale(0.92);
+  color: #f7d480;
+  font-size: clamp(16px, 3.2vw, 22px);
+  font-weight: 800;
+  white-space: nowrap;
+  text-shadow: 0 8px 20px rgba(247, 212, 128, 0.22);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.muyu-blessing-text.is-active {
+  animation: muyu-blessing-rise 1.15s ease-out forwards;
+}
+
+.muyu-wood.is-striking .muyu-wood__body {
+  transform: scale(0.97);
+}
+
+.muyu-wood.is-striking .muyu-mallet {
+  transform: rotate(8deg) translate(-12px, 20px);
+}
+
+.muyu-wood.is-striking .muyu-impact-ripple {
+  animation: muyu-ripple 0.55s ease-out;
+}
+
+.muyu-wood.is-striking .muyu-impact-ripple--late {
+  animation: muyu-ripple 0.55s ease-out 0.08s;
+}
+
+.muyu-wood.is-striking .muyu-impact-spark {
+  animation: muyu-spark 0.35s ease-out;
+}
+
+.muyu-hint {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 14px;
+  text-align: center;
+}
+
+.muyu-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.muyu-stat-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 227, 184, 0.12);
+  border-radius: 22px;
+  padding: 18px;
+  backdrop-filter: blur(10px);
+}
+
+.muyu-stat-card span {
+  display: block;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.muyu-stat-card strong {
+  display: block;
+  font-size: 42px;
+  line-height: 1;
+  color: #fff;
+}
+
+.muyu-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.muyu-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 235, 206, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  padding: 0 18px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+}
+
+.muyu-actions button.active {
+  background: rgba(217, 162, 95, 0.2);
+  border-color: rgba(255, 221, 167, 0.38);
+  color: #fff5e8;
+}
+
+@keyframes muyu-ripple {
+  0% {
+    opacity: 0.95;
+    transform: scale(0.5);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.3);
+  }
+}
+
+@keyframes muyu-spark {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.5);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.4);
+  }
+}
+
+@keyframes muyu-blessing-rise {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 24px) scale(0.92);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, 6px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -26px) scale(1.04);
+  }
+}
+
+  cursor: pointer;
 }
 
 .fortune-result {
@@ -1496,20 +1866,23 @@ button.danger { background: var(--danger); }
 @media (max-width: 720px) {
   .games-page,
   .minesweeper-page,
-  .fortune-page {
+  .fortune-page,
+  .muyu-page {
     padding: 10px 0 22px;
   }
 
   .games-hero-card,
   .game-card,
   .minesweeper-shell,
-  .fortune-shell {
+  .fortune-shell,
+  .muyu-shell {
     border-radius: 18px;
   }
 
   .games-hero-card,
   .minesweeper-shell,
   .fortune-shell,
+  .muyu-shell,
   .game-card {
     padding: 16px;
   }
@@ -1571,6 +1944,10 @@ button.danger { background: var(--danger); }
     grid-template-columns: 1fr;
   }
 
+  .muyu-stats {
+    grid-template-columns: 1fr;
+  }
+
   .minesweeper-header h2 {
     display: none;
   }
@@ -1581,7 +1958,8 @@ button.danger { background: var(--danger); }
     letter-spacing: -0.01em;
   }
 
-  .minesweeper-back {
+  .minesweeper-back,
+  .muyu-back {
     width: 34px;
     min-width: 34px;
     height: 34px;
@@ -1596,18 +1974,21 @@ button.danger { background: var(--danger); }
 }
 
 @media (max-width: 480px) {
-  .fortune-page .container {
+  .fortune-page .container,
+  .muyu-page .container {
     max-width: 420px;
     margin: 0 auto;
     padding: 0 12px;
   }
 
-  .fortune-shell {
+  .fortune-shell,
+  .muyu-shell {
     width: 100%;
     margin: 0 auto;
   }
 
-  .fortune-header h2 {
+  .fortune-header h2,
+  .muyu-header h2 {
     display: none;
   }
 
@@ -1616,11 +1997,15 @@ button.danger { background: var(--danger); }
     gap: 10px;
   }
 
-  .fortune-intro-row {
+  .fortune-intro-row,
+  .muyu-intro-row,
+  .minesweeper-intro-row {
     gap: 8px;
+    align-items: center;
   }
 
-  .fortune-subtitle {
+  .fortune-subtitle,
+  .muyu-subtitle {
     font-size: 0.82rem;
     line-height: 1.25;
   }
@@ -1639,8 +2024,42 @@ button.danger { background: var(--danger); }
     align-items: flex-start;
   }
 
-  .minesweeper-intro-row {
-    gap: 8px;
+  .muyu-wood {
+    width: min(300px, 84vw);
+    min-height: 258px;
+  }
+
+  .muyu-wood__body {
+    width: min(154px, 43.4vw);
+    margin-top: 34px;
+  }
+
+  .muyu-mallet {
+    right: 34px;
+    top: 70px;
+    width: min(90px, 21.7vw);
+    transform: rotate(20deg);
+  }
+
+  .muyu-meritboard strong {
+    font-size: clamp(74px, 24vw, 120px);
+  }
+
+  .muyu-meritboard span {
+    font-size: clamp(28px, 8vw, 52px);
+  }
+
+  .muyu-blessing-text {
+    top: 4px;
+    font-size: 14px;
+  }
+
+  .muyu-stat-card {
+    padding: 14px;
+  }
+
+  .muyu-stat-card strong {
+    font-size: 34px;
   }
 
   .minesweeper-difficulties {
@@ -1649,8 +2068,8 @@ button.danger { background: var(--danger); }
   }
 
   .minesweeper-subtitle {
-    font-size: 0.82rem;
-    line-height: 1.25;
+    font-size: 0.72rem;
+    line-height: 1.1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

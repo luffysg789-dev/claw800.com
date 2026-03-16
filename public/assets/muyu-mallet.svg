@@ -1,0 +1,29 @@
+<svg width="460" height="180" viewBox="0 0 460 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="handle" x1="56" y1="110" x2="374" y2="76" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F6D7A8"/>
+      <stop offset="0.28" stop-color="#D59A55"/>
+      <stop offset="0.64" stop-color="#A7682D"/>
+      <stop offset="1" stop-color="#7A461D"/>
+    </linearGradient>
+    <linearGradient id="head" x1="16" y1="72" x2="124" y2="110" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F9DDB4"/>
+      <stop offset="0.55" stop-color="#D79B56"/>
+      <stop offset="1" stop-color="#9D622A"/>
+    </linearGradient>
+    <radialGradient id="headShine" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(74 60) rotate(55) scale(64 96)">
+      <stop stop-color="white" stop-opacity="0.64"/>
+      <stop offset="1" stop-color="white" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="malletShadow" x="0" y="18" width="432" height="144" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#000" flood-opacity="0.24"/>
+    </filter>
+  </defs>
+  <g filter="url(#malletShadow)">
+    <path d="M102 70C153 58 221 55 301 58C339 59 374 64 405 77C414 81 415 95 406 100C373 116 333 124 291 123C212 121 148 117 102 108C82 104 73 74 102 70Z" fill="url(#handle)"/>
+    <path d="M112 74C169 65 229 64 303 67C334 68 364 72 391 81C398 84 398 93 391 96C365 107 332 111 299 110C227 109 173 105 118 98C103 96 97 77 112 74Z" fill="url(#headShine)"/>
+    <path d="M22 49C13 49 7 59 10 69L24 119C27 129 37 135 46 132L94 118C109 114 117 98 112 83L99 43C95 29 81 20 67 23L22 49Z" fill="url(#head)"/>
+    <path d="M20 47C29 34 49 23 73 27C90 29 104 43 107 61C108 67 103 70 97 68C77 61 56 60 30 65C22 66 15 56 20 47Z" fill="#FFF2DB" fill-opacity="0.52"/>
+    <path d="M22 50C13 50 8 60 10 69L24 119C25 124 29 128 34 130C51 101 73 74 100 50L99 43C95 29 81 20 67 23L22 50Z" fill="#C27A36" fill-opacity="0.24"/>
+  </g>
+</svg>

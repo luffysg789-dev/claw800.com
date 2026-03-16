@@ -55,8 +55,11 @@ const tutorialMessage = document.getElementById('tutorialMessage');
 const tutorialList = document.getElementById('tutorialList');
 const adminSkillsFetchSection = document.getElementById('adminSkillsFetchSection');
 const adminSkillsSection = document.getElementById('adminSkillsSection');
+const adminGamesSection = document.getElementById('adminGamesSection');
 const skillsList = document.getElementById('skillsList');
 const skillsMessage = document.getElementById('skillsMessage');
+const gamesList = document.getElementById('gamesList');
+const gamesMessage = document.getElementById('gamesMessage');
 const skillsFetchMessage = document.getElementById('skillsFetchMessage');
 const skillsStagingList = document.getElementById('skillsStagingList');
 const skillsSyncConfigForm = document.getElementById('skillsSyncConfigForm');
@@ -149,6 +152,11 @@ const DEFAULT_SITE_CONFIG = {
   footerContactZh: '',
   footerContactEn: ''
 };
+const GAME_ROUTE_MAP = {
+  minesweeper: '/minesweeper.html',
+  fortune: '/fortune.html',
+  muyu: '/muyu.html'
+};
 
 const texts = {
   zh: {
@@ -170,6 +178,7 @@ const texts = {
     navTutorialAdd: '新增教程',
     navSkillsFetch: '技能抓取',
     navSkills: '技能列表',
+    navGames: '游戏列表',
     navPassword: '修改密码',
     navPending: '等待审核',
     navApproved: '已上线',
@@ -264,6 +273,18 @@ const texts = {
     tutorialNoData: '暂无教程',
     skillsFetchTitle: '技能抓取',
     skillsListTitle: '技能列表',
+    gamesListTitle: '游戏列表',
+    gamesEmpty: '暂无游戏',
+    gameDeleteConfirm: '确定删除这个游戏吗？',
+    gameDeleted: '游戏已删除',
+    gameCoverLabel: '封面图',
+    gameSecondaryImageLabel: '第二张图',
+    gameSoundLabel: '音效文件',
+    gameBackgroundMusicLabel: '背景音乐',
+    gameEnabledLabel: '显示',
+    gameCoverTooLarge: '封面图过大（最大 1MB）',
+    gameSoundTooLarge: '音效过大（最大 2MB）',
+    gameSaveFailed: '保存游戏失败',
     skillsSyncConfigTitle: '技能抓取设置',
     skillsSyncEnabledLabel: '自动抓取',
     skillsSyncTimeLabel: '抓取时间',
@@ -381,6 +402,7 @@ const texts = {
     navTutorialAdd: 'New Tutorial',
     navSkillsFetch: 'Skill Fetch',
     navSkills: 'Skills',
+    navGames: 'Games',
     navPassword: 'Change Password',
     navPending: 'Pending',
     navApproved: 'Approved',
@@ -475,6 +497,18 @@ const texts = {
     tutorialNoData: 'No tutorials.',
     skillsFetchTitle: 'Skill Fetch',
     skillsListTitle: 'Skills',
+    gamesListTitle: 'Games',
+    gamesEmpty: 'No games.',
+    gameDeleteConfirm: 'Delete this game?',
+    gameDeleted: 'Game deleted.',
+    gameCoverLabel: 'Cover Image',
+    gameSecondaryImageLabel: 'Second Image',
+    gameSoundLabel: 'Sound File',
+    gameBackgroundMusicLabel: 'Background Music',
+    gameEnabledLabel: 'Visible',
+    gameCoverTooLarge: 'Cover image too large (max 1MB).',
+    gameSoundTooLarge: 'Sound file too large (max 2MB).',
+    gameSaveFailed: 'Failed to save game.',
     skillsSyncConfigTitle: 'Skill Fetch Settings',
     skillsSyncEnabledLabel: 'Auto Fetch',
     skillsSyncTimeLabel: 'Fetch Time',
@@ -587,6 +621,8 @@ let editingSiteId = null;
 let skillsItems = [];
 let skillsQuery = '';
 let editingSkillId = null;
+let gamesItems = [];
+let editingGameId = null;
 let skillsSyncConfigCache = null;
 let siteConfigCache = null;
 let visitStatsCache = null;
@@ -875,6 +911,7 @@ function applyLanguage() {
   document.getElementById('navTutorialAdd').textContent = dict.navTutorialAdd;
   document.getElementById('navSkillsFetch').textContent = dict.navSkillsFetch;
   document.getElementById('navSkills').textContent = dict.navSkills;
+  document.getElementById('navGames').textContent = dict.navGames;
   document.getElementById('navPassword').textContent = dict.navPassword;
   document.getElementById('navPending').textContent = dict.navPending;
   document.getElementById('navApproved').textContent = dict.navApproved;
@@ -931,6 +968,7 @@ function applyLanguage() {
   document.getElementById('tutorialListTitle').textContent = dict.tutorialListTitle;
   document.getElementById('skillsFetchTitle').textContent = dict.skillsFetchTitle;
   document.getElementById('skillsListTitle').textContent = dict.skillsListTitle;
+  document.getElementById('gamesListTitle').textContent = dict.gamesListTitle;
   document.getElementById('skillsSyncConfigTitle').textContent = dict.skillsSyncConfigTitle;
   document.getElementById('skillsSyncEnabledLabel').childNodes[0].textContent = dict.skillsSyncEnabledLabel;
   document.getElementById('skillsSyncTimeLabel').childNodes[0].textContent = dict.skillsSyncTimeLabel;
@@ -973,6 +1011,7 @@ function applyLanguage() {
   renderAdminCategoryOptions();
   renderCategoryList();
   renderTutorialList([]);
+  renderGamesAdminList(gamesItems);
   if (visitStatsCache) renderVisitStats(visitStatsCache);
   setView(currentView);
 }
@@ -990,6 +1029,7 @@ function setView(view) {
   adminTutorialListSection.classList.toggle('hidden', view !== 'tutorial-list');
   adminSkillsFetchSection.classList.toggle('hidden', view !== 'skills-fetch');
   adminSkillsSection.classList.toggle('hidden', view !== 'skills');
+  adminGamesSection.classList.toggle('hidden', view !== 'games');
   adminPasswordSection.classList.toggle('hidden', view !== 'password');
   adminListSection.classList.toggle('hidden', view !== 'pending' && view !== 'approved');
   adminSearchToolbar.classList.toggle('hidden', view !== 'approved');
@@ -1016,6 +1056,9 @@ function setView(view) {
   if (view === 'skills') {
     loadSkillsList();
   }
+  if (view === 'games') {
+    loadGamesList();
+  }
 
   if (view === 'pending') {
     currentQuery = '';
@@ -1027,6 +1070,252 @@ function setView(view) {
 
   syncVisitStatsTimer();
 }
+
+function formatAssetPreview(asset, kind) {
+  const value = String(asset || '').trim();
+  if (!value) return '';
+  if (kind === 'image') {
+    return `<div class="small"><img src="${escapeHtml(value)}" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:12px;border:1px solid var(--border);margin-top:8px;" /></div>`;
+  }
+  return `<div class="small" style="margin-top:8px;"><audio controls preload="none" src="${escapeHtml(value)}" style="max-width:100%;"></audio></div>`;
+}
+
+function gameCoverLabelText(game) {
+  return game?.slug === 'muyu' ? '木鱼图片' : t('gameCoverLabel');
+}
+
+function gameSecondaryImageLabelText(game) {
+  return game?.slug === 'muyu' ? '木槌图片' : t('gameSecondaryImageLabel');
+}
+
+function renderGamesAdminList(items) {
+  if (!gamesList) return;
+  if (!items.length) {
+    gamesList.innerHTML = `<p class="empty">${escapeHtml(t('gamesEmpty'))}</p>`;
+    return;
+  }
+
+  gamesList.innerHTML = items
+    .map((game) => {
+      const isEditing = editingGameId === game.id;
+      const route = escapeHtml(GAME_ROUTE_MAP[game.slug] || `/games/${encodeURIComponent(game.slug)}`);
+      return `
+        <article class="review-card">
+          ${isEditing ? `<h3>${escapeHtml(t('edit'))}</h3>` : `<h3>${escapeHtml(game.name || game.slug || '')}</h3>`}
+          ${
+            isEditing
+              ? `<div class="inline-edit-grid">
+                  <label class="small">Slug
+                    <input type="text" value="${escapeHtml(game.slug || '')}" disabled />
+                  </label>
+                  <label class="small">${escapeHtml(t('adminLabelName'))}
+                    <input id="gameName-${game.id}" type="text" value="${escapeHtml(game.name || '')}" />
+                  </label>
+                  <label class="small">${escapeHtml(t('adminLabelDesc'))}
+                    <textarea id="gameDesc-${game.id}" rows="4">${escapeHtml(game.description || '')}</textarea>
+                  </label>
+                  <label class="small">${escapeHtml(gameCoverLabelText(game))}
+                    <input id="gameCover-${game.id}" type="text" value="${escapeHtml(game.cover_image || '')}" placeholder="https://... 或 data:image/...base64" />
+                    <input id="gameCoverFile-${game.id}" type="file" accept="image/*" />
+                    ${formatAssetPreview(game.cover_image, 'image')}
+                  </label>
+                  <label class="small">${escapeHtml(gameSecondaryImageLabelText(game))}
+                    <input id="gameSecondaryImage-${game.id}" type="text" value="${escapeHtml(game.secondary_image || '')}" placeholder="https://... 或 data:image/...base64" />
+                    <input id="gameSecondaryImageFile-${game.id}" type="file" accept="image/*" />
+                    ${formatAssetPreview(game.secondary_image, 'image')}
+                  </label>
+                  <label class="small">${escapeHtml(t('gameSoundLabel'))}
+                    <input id="gameSound-${game.id}" type="text" value="${escapeHtml(game.sound_file || '')}" placeholder="https://... 或 data:audio/...base64" />
+                    <input id="gameSoundFile-${game.id}" type="file" accept="audio/*" />
+                    ${formatAssetPreview(game.sound_file, 'audio')}
+                  </label>
+                  <label class="small">${escapeHtml(t('gameBackgroundMusicLabel'))}
+                    <input id="gameBackgroundMusic-${game.id}" type="text" value="${escapeHtml(game.background_music_file || '')}" placeholder="https://... 或 data:audio/...base64" />
+                    <input id="gameBackgroundMusicFile-${game.id}" type="file" accept="audio/*" />
+                    ${formatAssetPreview(game.background_music_file, 'audio')}
+                  </label>
+                  <label class="small">${escapeHtml(t('gameEnabledLabel'))}
+                    <select id="gameEnabled-${game.id}">
+                      <option value="1" ${game.is_enabled ? 'selected' : ''}>${escapeHtml(t('enabledYes'))}</option>
+                      <option value="0" ${game.is_enabled ? '' : 'selected'}>${escapeHtml(t('enabledNo'))}</option>
+                    </select>
+                  </label>
+                  <label class="small">${escapeHtml(t('sort'))}
+                    <input id="gameSort-${game.id}" type="number" value="${Number(game.sort_order || 0)}" />
+                  </label>
+                </div>`
+              : `<p class="small">slug: ${escapeHtml(game.slug || '')}</p>
+                 <p class="small"><a href="${route}" target="_blank" rel="noopener">${route}</a></p>
+                 <p>${escapeHtml(game.description || '')}</p>
+                 <p class="small">${escapeHtml(t('sort'))}：${escapeHtml(String(Number(game.sort_order || 0)))}</p>
+                 <p class="small">${escapeHtml(t('gameEnabledLabel'))}：${escapeHtml(game.is_enabled ? t('enabledYes') : t('enabledNo'))}</p>
+                 ${formatAssetPreview(game.cover_image, 'image')}
+                 ${formatAssetPreview(game.secondary_image, 'image')}
+                 ${formatAssetPreview(game.sound_file, 'audio')}
+                 ${formatAssetPreview(game.background_music_file, 'audio')}`
+          }
+          ${
+            isEditing
+              ? `<div class="inline-edit-actions">
+                  <button type="button" onclick="saveGameEdit(${game.id})">${escapeHtml(t('save'))}</button>
+                  <button type="button" onclick="cancelGameEdit()">${escapeHtml(t('cancel'))}</button>
+                </div>`
+              : `<div class="review-actions">
+                  <button type="button" onclick="editGame(${game.id})">${escapeHtml(t('edit'))}</button>
+                </div>`
+          }
+        </article>
+      `;
+    })
+    .join('');
+}
+
+async function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function loadGamesList() {
+  if (!gamesList || !gamesMessage) return;
+  gamesMessage.textContent = '';
+  gamesMessage.className = 'message';
+  const result = await requestTutorialJson(['/api/admin/games'], { method: 'GET' });
+  if (!result.res) {
+    gamesMessage.textContent = '当前运行中的后端还没有响应游戏接口，请重启后端后再打开游戏列表。';
+    gamesMessage.className = 'message error';
+    return;
+  }
+  if (result.res.status === 401) {
+    showLogin();
+    return;
+  }
+  if (result.res.status === 404) {
+    gamesMessage.textContent = '当前运行中的后端还没有 /api/admin/games 接口，请重启后端加载最新代码。';
+    gamesMessage.className = 'message error';
+    gamesList.innerHTML = `<p class="empty">请重启后端后再查看和编辑游戏内容。</p>`;
+    return;
+  }
+  if (!result.res.ok) {
+    gamesMessage.textContent = localizeApiError(result.data?.error || t('operationFailed'));
+    gamesMessage.className = 'message error';
+    return;
+  }
+  gamesItems = Array.isArray(result.data?.items) ? result.data.items : [];
+  if (!gamesItems.length) {
+    gamesMessage.textContent = '当前还没有游戏数据，请先重启后端让默认游戏自动补齐。';
+    gamesMessage.className = 'message error';
+  }
+  renderGamesAdminList(gamesItems);
+}
+
+window.editGame = function editGame(id) {
+  editingGameId = id;
+  renderGamesAdminList(gamesItems);
+};
+
+window.cancelGameEdit = function cancelGameEdit() {
+  editingGameId = null;
+  renderGamesAdminList(gamesItems);
+};
+
+window.saveGameEdit = async function saveGameEdit(id) {
+  const game = gamesItems.find((item) => item.id === id);
+  if (!game) {
+    gamesMessage.textContent = t('gameSaveFailed');
+    gamesMessage.className = 'message error';
+    return;
+  }
+
+  const name = String(document.getElementById(`gameName-${id}`)?.value || '').trim();
+  const description = String(document.getElementById(`gameDesc-${id}`)?.value || '').trim();
+  const coverInput = document.getElementById(`gameCover-${id}`);
+  const secondaryImageInput = document.getElementById(`gameSecondaryImage-${id}`);
+  const soundInput = document.getElementById(`gameSound-${id}`);
+  const backgroundMusicInput = document.getElementById(`gameBackgroundMusic-${id}`);
+  const coverFile = document.getElementById(`gameCoverFile-${id}`)?.files?.[0];
+  const secondaryImageFile = document.getElementById(`gameSecondaryImageFile-${id}`)?.files?.[0];
+  const soundFile = document.getElementById(`gameSoundFile-${id}`)?.files?.[0];
+  const backgroundMusicFile = document.getElementById(`gameBackgroundMusicFile-${id}`)?.files?.[0];
+  const sortOrder = Number(document.getElementById(`gameSort-${id}`)?.value || 0);
+  const isEnabled = String(document.getElementById(`gameEnabled-${id}`)?.value || '1') === '1' ? 1 : 0;
+
+  let coverImage = String(coverInput?.value || '').trim();
+  let secondaryImage = String(secondaryImageInput?.value || '').trim();
+  let soundAsset = String(soundInput?.value || '').trim();
+  let backgroundMusicAsset = String(backgroundMusicInput?.value || '').trim();
+
+  try {
+    if (coverFile) {
+      if (coverFile.size > 1024 * 1024) {
+        throw new Error(t('gameCoverTooLarge'));
+      }
+      coverImage = await readFileAsDataUrl(coverFile);
+    }
+    if (secondaryImageFile) {
+      if (secondaryImageFile.size > 1024 * 1024) {
+        throw new Error(t('gameCoverTooLarge'));
+      }
+      secondaryImage = await readFileAsDataUrl(secondaryImageFile);
+    }
+    if (soundFile) {
+      if (soundFile.size > 2 * 1024 * 1024) {
+        throw new Error(t('gameSoundTooLarge'));
+      }
+      soundAsset = await readFileAsDataUrl(soundFile);
+    }
+    if (backgroundMusicFile) {
+      if (backgroundMusicFile.size > 4 * 1024 * 1024) {
+        throw new Error(t('gameSoundTooLarge'));
+      }
+      backgroundMusicAsset = await readFileAsDataUrl(backgroundMusicFile);
+    }
+  } catch (error) {
+    gamesMessage.textContent = error?.message || t('gameSaveFailed');
+    gamesMessage.className = 'message error';
+    return;
+  }
+
+  const payload = {
+    name,
+    description,
+    coverImage,
+    secondaryImage,
+    soundFile: soundAsset,
+    backgroundMusicFile: backgroundMusicAsset,
+    isEnabled,
+    sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0
+  };
+
+  gamesMessage.textContent = '';
+  gamesMessage.className = 'message';
+  const result = await requestTutorialJson([`/api/admin/games/${id}`], {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!result.res) {
+    gamesMessage.textContent = t('gameSaveFailed');
+    gamesMessage.className = 'message error';
+    return;
+  }
+  if (result.res.status === 401) {
+    showLogin();
+    return;
+  }
+  if (!result.res.ok) {
+    gamesMessage.textContent = localizeApiError(result.data?.error || t('gameSaveFailed'));
+    gamesMessage.className = 'message error';
+    return;
+  }
+  gamesMessage.textContent = t('editSaved');
+  gamesMessage.className = 'message success';
+  editingGameId = null;
+  await loadGamesList();
+};
 
 function formatTime(ms) {
   const n = Number(ms);
@@ -2637,6 +2926,7 @@ document.getElementById('navTutorialAdd').addEventListener('click', () => {
 });
 document.getElementById('navSkillsFetch').addEventListener('click', () => setView('skills-fetch'));
 document.getElementById('navSkills').addEventListener('click', () => setView('skills'));
+document.getElementById('navGames').addEventListener('click', () => setView('games'));
 document.getElementById('navPassword').addEventListener('click', () => setView('password'));
 document.getElementById('navPending').addEventListener('click', () => setView('pending'));
 document.getElementById('navApproved').addEventListener('click', () => setView('approved'));

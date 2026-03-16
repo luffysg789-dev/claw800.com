@@ -183,6 +183,95 @@ db.exec(`
   );
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS games_catalog (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    cover_image TEXT DEFAULT '',
+    secondary_image TEXT DEFAULT '',
+    sound_file TEXT DEFAULT '',
+    background_music_file TEXT DEFAULT '',
+    is_enabled INTEGER NOT NULL DEFAULT 1,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+const DEFAULT_GAMES_CATALOG = [
+  {
+    slug: 'minesweeper',
+    name: '扫雷',
+    description: '经典扫雷网页小游戏，支持手机版触控、插旗模式、难度切换和重新开始。',
+    cover_image: '',
+    secondary_image: '',
+    sound_file: '',
+    background_music_file: '',
+    is_enabled: 1,
+    sort_order: 0
+  },
+  {
+    slug: 'fortune',
+    name: '今日运势',
+    description: '结合东方抽签氛围的轻量小游戏，点击签筒摇一摇，抽出你今天的财运签。',
+    cover_image: '',
+    secondary_image: '',
+    sound_file: '',
+    background_music_file: '',
+    is_enabled: 1,
+    sort_order: 0
+  },
+  {
+    slug: 'muyu',
+    name: '敲木鱼',
+    description: '轻点木鱼一下，功德 +1。',
+    cover_image: '',
+    secondary_image: '',
+    sound_file: '',
+    background_music_file: '',
+    is_enabled: 1,
+    sort_order: 0
+  }
+];
+
+const hasGamesSecondaryImage = db.prepare("SELECT 1 FROM pragma_table_info('games_catalog') WHERE name = 'secondary_image'").get();
+if (!hasGamesSecondaryImage) {
+  db.exec("ALTER TABLE games_catalog ADD COLUMN secondary_image TEXT DEFAULT ''");
+}
+const hasGamesBackgroundMusic = db.prepare("SELECT 1 FROM pragma_table_info('games_catalog') WHERE name = 'background_music_file'").get();
+if (!hasGamesBackgroundMusic) {
+  db.exec("ALTER TABLE games_catalog ADD COLUMN background_music_file TEXT DEFAULT ''");
+}
+
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_games_catalog_enabled_sort
+  ON games_catalog(is_enabled DESC, sort_order DESC, updated_at DESC);
+`);
+
+function ensureDefaultGamesCatalog() {
+  const insertGame = db.prepare(`
+    INSERT OR IGNORE INTO games_catalog
+    (slug, name, description, cover_image, secondary_image, sound_file, background_music_file, is_enabled, sort_order, updated_at)
+    VALUES
+    (@slug, @name, @description, @cover_image, @secondary_image, @sound_file, @background_music_file, @is_enabled, @sort_order, datetime('now'))
+  `);
+  const tx = db.transaction((items) => {
+    for (const item of items) insertGame.run(item);
+  });
+  tx(DEFAULT_GAMES_CATALOG);
+}
+
+ensureDefaultGamesCatalog();
+
+db.prepare(`
+  UPDATE games_catalog
+  SET description = '轻点木鱼一下，功德 +1。', updated_at = datetime('now')
+  WHERE slug = 'muyu'
+    AND description = '轻点木鱼一下，功德 +1。保留简洁仪式感，支持手机触控、音效和自动保存。'
+`).run();
+
 const hasSkillsCatalogSortOrder = db.prepare("SELECT 1 FROM pragma_table_info('skills_catalog') WHERE name = 'sort_order'").get();
 if (!hasSkillsCatalogSortOrder) {
   db.exec('ALTER TABLE skills_catalog ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0');
@@ -508,4 +597,5 @@ function seedOpenClawSites() {
 
 seedOpenClawSites();
 
+db.ensureDefaultGamesCatalog = ensureDefaultGamesCatalog;
 module.exports = db;

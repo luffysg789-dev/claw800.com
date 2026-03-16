@@ -1,0 +1,30 @@
+<svg width="420" height="300" viewBox="0 0 420 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="body" x1="70" y1="48" x2="312" y2="248" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F9D9A6"/>
+      <stop offset="0.26" stop-color="#D79B56"/>
+      <stop offset="0.62" stop-color="#9E642A"/>
+      <stop offset="1" stop-color="#6E411C"/>
+    </linearGradient>
+    <linearGradient id="inner" x1="184" y1="84" x2="252" y2="165" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6B3F1D"/>
+      <stop offset="1" stop-color="#1D0F08"/>
+    </linearGradient>
+    <radialGradient id="shine" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(170 86) rotate(58) scale(118 168)">
+      <stop stop-color="white" stop-opacity="0.72"/>
+      <stop offset="1" stop-color="white" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="26" y="22" width="350" height="248" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="14" stdDeviation="12" flood-color="#000" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+  <ellipse cx="214" cy="246" rx="118" ry="20" fill="#3B230F" fill-opacity="0.35"/>
+  <g filter="url(#shadow)">
+    <path d="M77 192C46 149 58 93 117 65C176 36 281 45 332 93C364 123 356 169 314 201C273 233 219 240 164 232C124 226 97 220 77 192Z" fill="url(#body)"/>
+    <path d="M89 181C66 145 77 101 128 77C178 53 268 58 311 99C337 123 332 158 298 185C266 210 220 219 173 213C137 208 104 205 89 181Z" fill="url(#shine)"/>
+    <path d="M143 114C154 85 188 69 231 73C275 77 309 98 317 126C318 132 315 134 309 132C260 112 208 110 154 126C146 128 141 123 143 114Z" fill="#C27A36" fill-opacity="0.42"/>
+    <path d="M106 182C146 144 192 118 274 115C285 115 291 128 282 134C227 171 187 201 142 219C118 228 98 210 106 182Z" fill="url(#inner)"/>
+    <path d="M320 205C324 187 339 177 356 182C373 186 381 203 375 219C370 232 354 240 339 236C325 231 316 219 320 205Z" fill="#7A471E"/>
+    <path d="M329 206C332 194 344 189 354 194C364 199 367 211 360 220C353 229 340 230 332 223C328 219 326 212 329 206Z" fill="#8F5724"/>
+  </g>
+</svg>

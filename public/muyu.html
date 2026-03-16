@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Claw800 敲木鱼</title>
+    <meta name="description" content="Claw800 敲木鱼小游戏，轻点木鱼一下，功德 +1，支持手机网页与木鱼音效。" />
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="stylesheet" href="/styles.css?v=20260317-16" />
+  </head>
+  <body>
+    <main class="muyu-page">
+      <section class="container">
+        <div class="muyu-shell">
+          <div class="muyu-header">
+            <h2 id="gamePageTitle">敲木鱼</h2>
+            <div class="muyu-intro-row">
+              <a class="muyu-back" href="/games.html" aria-label="返回游戏大全" title="返回游戏大全">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    fill="currentColor"
+                    d="M15.7 5.3a1 1 0 010 1.4L10.41 12l5.29 5.3a1 1 0 01-1.42 1.4l-6-6a1 1 0 010-1.4l6-6a1 1 0 011.42 0z"
+                  />
+                </svg>
+              </a>
+              <p id="gamePageSubtitle" class="muyu-subtitle">轻点木鱼一下，功德 +1。</p>
+            </div>
+          </div>
+
+          <div class="muyu-stage">
+            <div class="muyu-meritboard" aria-live="polite">
+              <strong id="muyuHeroCount">0</strong>
+              <span>功德</span>
+            </div>
+            <button id="muyuStrikeBtn" type="button" class="muyu-wood" aria-label="敲木鱼">
+              <span class="muyu-impact-ripple" aria-hidden="true"></span>
+              <span class="muyu-impact-ripple muyu-impact-ripple--late" aria-hidden="true"></span>
+              <span class="muyu-impact-spark" aria-hidden="true"></span>
+              <span id="muyuBlessingText" class="muyu-blessing-text" aria-hidden="true">功德+1 佛祖保佑你</span>
+              <span class="muyu-wood__body" aria-hidden="true">
+                <img class="muyu-wood__image" src="" data-default-src="/assets/muyu-fish.svg" alt="" />
+              </span>
+              <span class="muyu-mallet" aria-hidden="true">
+                <img class="muyu-mallet__image" src="" data-default-src="/assets/muyu-mallet.svg" alt="" />
+              </span>
+              <span class="muyu-wood__label">敲一下，功德 +1</span>
+            </button>
+            <p id="muyuHint" class="muyu-hint">轻触木鱼，开始积功德。</p>
+          </div>
+
+          <div class="muyu-stats">
+            <div class="muyu-stat-card">
+              <span>总功德</span>
+              <strong id="muyuTotalCount">0</strong>
+            </div>
+            <div class="muyu-stat-card">
+              <span>今日功德</span>
+              <strong id="muyuTodayCount">0</strong>
+            </div>
+          </div>
+
+          <div class="muyu-actions">
+            <button id="muyuMusicToggleBtn" type="button">背景音乐：关</button>
+            <button id="muyuResetBtn" type="button">清零重来</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="/games-config.js?v=20260317-05"></script>
+    <script>
+      window.ClawGamesConfig?.bootstrapGamePage?.('muyu');
+    </script>
+    <script src="/muyu.js?v=20260317-11"></script>
+  </body>
+</html>

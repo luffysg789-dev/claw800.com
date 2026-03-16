@@ -1,0 +1,353 @@
+const strikeBtn = document.getElementById('muyuStrikeBtn');
+const resetBtn = document.getElementById('muyuResetBtn');
+const musicToggleBtn = document.getElementById('muyuMusicToggleBtn');
+const totalCountEl = document.getElementById('muyuTotalCount');
+const todayCountEl = document.getElementById('muyuTodayCount');
+const heroCountEl = document.getElementById('muyuHeroCount');
+const hintEl = document.getElementById('muyuHint');
+const blessingTextEl = document.getElementById('muyuBlessingText');
+
+const STORAGE_KEY = 'claw800_muyu_state_v1';
+const DEFAULT_STRIKE_AUDIO_SRC = '/audio/muyu-strike.mp3';
+const DEFAULT_FISH_IMAGE_SRC = '/assets/muyu-fish.svg';
+const DEFAULT_MALLET_IMAGE_SRC = '/assets/muyu-mallet.svg';
+
+let audioContext = null;
+let isStriking = false;
+let ambientNodes = null;
+let externalStrikeAudioAvailable = true;
+let externalBackgroundMusicAvailable = false;
+let strikeAudioSrc = DEFAULT_STRIKE_AUDIO_SRC;
+let strikeAudioProbe = null;
+let backgroundMusicSrc = '';
+let backgroundMusicAudio = null;
+
+function syncGameConfig() {
+  const config = window.ClawGamesConfig?.getCurrentGameConfig?.() || window.__GAME_CONFIG__ || null;
+  const configuredSrc = String(config?.sound_file || '').trim();
+  const configuredBackgroundMusicSrc = String(config?.background_music_file || '').trim();
+  const fishImage = String(config?.cover_image || '').trim();
+  const malletImage = String(config?.secondary_image || '').trim();
+  strikeAudioSrc = configuredSrc || DEFAULT_STRIKE_AUDIO_SRC;
+  backgroundMusicSrc = configuredBackgroundMusicSrc;
+  const fishImageEl = document.querySelector('.muyu-wood__image');
+  const malletImageEl = document.querySelector('.muyu-mallet__image');
+  if (fishImageEl) {
+    const fallbackFish = String(fishImageEl.dataset.defaultSrc || DEFAULT_FISH_IMAGE_SRC).trim() || DEFAULT_FISH_IMAGE_SRC;
+    fishImageEl.src = fishImage || fallbackFish;
+  }
+  if (malletImageEl) {
+    const fallbackMallet = String(malletImageEl.dataset.defaultSrc || DEFAULT_MALLET_IMAGE_SRC).trim() || DEFAULT_MALLET_IMAGE_SRC;
+    malletImageEl.src = malletImage || fallbackMallet;
+  }
+  externalStrikeAudioAvailable = true;
+  if (typeof Audio === 'undefined') return;
+  strikeAudioProbe = new Audio(strikeAudioSrc);
+  strikeAudioProbe.preload = 'auto';
+  strikeAudioProbe.addEventListener('error', () => {
+    externalStrikeAudioAvailable = false;
+  });
+  try {
+    strikeAudioProbe.load();
+  } catch {}
+
+  externalBackgroundMusicAvailable = false;
+  backgroundMusicAudio = null;
+  if (backgroundMusicSrc && typeof Audio !== 'undefined') {
+    backgroundMusicAudio = new Audio(backgroundMusicSrc);
+    backgroundMusicAudio.preload = 'auto';
+    backgroundMusicAudio.loop = true;
+    backgroundMusicAudio.volume = 0.42;
+    backgroundMusicAudio.addEventListener('canplaythrough', () => {
+      externalBackgroundMusicAvailable = true;
+      if (state.musicEnabled) {
+        stopAmbientMusic();
+        try {
+          backgroundMusicAudio.currentTime = 0;
+          backgroundMusicAudio.play().catch(() => {});
+        } catch {}
+      }
+    }, { once: true });
+    backgroundMusicAudio.addEventListener('error', () => {
+      externalBackgroundMusicAvailable = false;
+    });
+    try {
+      backgroundMusicAudio.load();
+    } catch {}
+  }
+  if (state.musicEnabled) {
+    stopAmbientMusic();
+    startAmbientMusic();
+  }
+}
+
+function getTodayKey() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = `${now.getMonth() + 1}`.padStart(2, '0');
+  const day = `${now.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getDefaultState() {
+  return {
+    total: 0,
+    today: 0,
+    dateKey: getTodayKey(),
+    musicEnabled: false
+  };
+}
+
+function loadState() {
+  const fallback = getDefaultState();
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return fallback;
+    if (parsed.dateKey !== fallback.dateKey) {
+      return { ...fallback, total: Number(parsed.total) || 0 };
+    }
+    return {
+      total: Number(parsed.total) || 0,
+      today: Number(parsed.today) || 0,
+      dateKey: parsed.dateKey || fallback.dateKey,
+      musicEnabled: Boolean(parsed.musicEnabled)
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+let state = loadState();
+
+function saveState() {
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function renderState() {
+  totalCountEl.textContent = `${state.total}`;
+  todayCountEl.textContent = `${state.today}`;
+  if (heroCountEl) heroCountEl.textContent = `${state.total}`;
+  if (musicToggleBtn) {
+    musicToggleBtn.textContent = `背景音乐：${state.musicEnabled ? '开' : '关'}`;
+    musicToggleBtn.classList.toggle('active', state.musicEnabled);
+  }
+}
+
+function getAudioContext() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return null;
+  if (!audioContext) {
+    audioContext = new AudioContextClass();
+  }
+  if (audioContext.state === 'suspended') {
+    audioContext.resume().catch(() => {});
+  }
+  return audioContext;
+}
+
+function playGeneratedWoodSound() {
+  const context = getAudioContext();
+  if (!context) return;
+
+  const startAt = context.currentTime + 0.01;
+  const bodyOsc = context.createOscillator();
+  const bodyGain = context.createGain();
+  const clickOsc = context.createOscillator();
+  const clickGain = context.createGain();
+  const resonantFilter = context.createBiquadFilter();
+
+  resonantFilter.type = 'bandpass';
+  resonantFilter.frequency.setValueAtTime(820, startAt);
+  resonantFilter.Q.setValueAtTime(5.5, startAt);
+
+  bodyOsc.type = 'triangle';
+  bodyOsc.frequency.setValueAtTime(430, startAt);
+  bodyOsc.frequency.exponentialRampToValueAtTime(185, startAt + 0.22);
+
+  bodyGain.gain.setValueAtTime(0.0001, startAt);
+  bodyGain.gain.exponentialRampToValueAtTime(0.08, startAt + 0.008);
+  bodyGain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.24);
+
+  clickOsc.type = 'square';
+  clickOsc.frequency.setValueAtTime(1380, startAt);
+  clickOsc.frequency.exponentialRampToValueAtTime(620, startAt + 0.05);
+
+  clickGain.gain.setValueAtTime(0.0001, startAt);
+  clickGain.gain.exponentialRampToValueAtTime(0.022, startAt + 0.002);
+  clickGain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.06);
+
+  bodyOsc.connect(resonantFilter);
+  resonantFilter.connect(bodyGain);
+  bodyGain.connect(context.destination);
+
+  clickOsc.connect(clickGain);
+  clickGain.connect(context.destination);
+
+  bodyOsc.start(startAt);
+  bodyOsc.stop(startAt + 0.25);
+  clickOsc.start(startAt);
+  clickOsc.stop(startAt + 0.07);
+}
+
+function playWoodSound() {
+  if (!externalStrikeAudioAvailable || typeof Audio === 'undefined') {
+    playGeneratedWoodSound();
+    return;
+  }
+
+  try {
+    const sound = strikeAudioProbe?.cloneNode ? strikeAudioProbe.cloneNode() : new Audio(strikeAudioSrc);
+    sound.currentTime = 0;
+    sound.play().catch(() => {
+      externalStrikeAudioAvailable = false;
+      playGeneratedWoodSound();
+    });
+  } catch {
+    externalStrikeAudioAvailable = false;
+    playGeneratedWoodSound();
+  }
+}
+
+function stopAmbientMusic() {
+  if (backgroundMusicAudio) {
+    try {
+      backgroundMusicAudio.pause();
+      backgroundMusicAudio.currentTime = 0;
+    } catch {}
+  }
+  if (!ambientNodes) return;
+  const { context, masterGain, nodes = [] } = ambientNodes;
+  const now = context.currentTime;
+  masterGain.gain.cancelScheduledValues(now);
+  masterGain.gain.setValueAtTime(masterGain.gain.value || 0.028, now);
+  masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+  nodes.forEach((node) => {
+    try {
+      node.stop(now + 0.4);
+    } catch {}
+  });
+  ambientNodes = null;
+}
+
+function startAmbientMusic() {
+  if (backgroundMusicAudio) {
+    try {
+      backgroundMusicAudio.currentTime = 0;
+      backgroundMusicAudio.play().catch(() => {
+        externalBackgroundMusicAvailable = false;
+        startAmbientMusic();
+      });
+      return;
+    } catch {
+      externalBackgroundMusicAvailable = false;
+    }
+  }
+  if (ambientNodes) return;
+  const context = getAudioContext();
+  if (!context) return;
+
+  const masterGain = context.createGain();
+  masterGain.gain.setValueAtTime(0.0001, context.currentTime);
+  masterGain.gain.exponentialRampToValueAtTime(0.028, context.currentTime + 0.6);
+  masterGain.connect(context.destination);
+
+  const droneOsc = context.createOscillator();
+  const droneGain = context.createGain();
+  const droneFilter = context.createBiquadFilter();
+  droneOsc.type = 'sine';
+  droneOsc.frequency.setValueAtTime(174.61, context.currentTime);
+  droneFilter.type = 'lowpass';
+  droneFilter.frequency.setValueAtTime(620, context.currentTime);
+  droneGain.gain.setValueAtTime(0.018, context.currentTime);
+  droneOsc.connect(droneFilter);
+  droneFilter.connect(droneGain);
+  droneGain.connect(masterGain);
+  droneOsc.start();
+
+  const shimmerOsc = context.createOscillator();
+  const shimmerGain = context.createGain();
+  const shimmerLfo = context.createOscillator();
+  const shimmerLfoGain = context.createGain();
+  shimmerOsc.type = 'triangle';
+  shimmerOsc.frequency.setValueAtTime(523.25, context.currentTime);
+  shimmerGain.gain.setValueAtTime(0.004, context.currentTime);
+  shimmerLfo.type = 'sine';
+  shimmerLfo.frequency.setValueAtTime(0.18, context.currentTime);
+  shimmerLfoGain.gain.setValueAtTime(0.003, context.currentTime);
+  shimmerLfo.connect(shimmerLfoGain);
+  shimmerLfoGain.connect(shimmerGain.gain);
+  shimmerOsc.connect(shimmerGain);
+  shimmerGain.connect(masterGain);
+  shimmerOsc.start();
+  shimmerLfo.start();
+
+  ambientNodes = {
+    context,
+    masterGain,
+    nodes: [droneOsc, shimmerOsc, shimmerLfo]
+  };
+}
+
+function syncAmbientMusic() {
+  if (state.musicEnabled) startAmbientMusic();
+  else stopAmbientMusic();
+}
+
+function strikeWood() {
+  if (isStriking) return;
+  isStriking = true;
+  if (state.musicEnabled) startAmbientMusic();
+  playWoodSound();
+
+  const todayKey = getTodayKey();
+  if (state.dateKey !== todayKey) {
+    state.dateKey = todayKey;
+    state.today = 0;
+  }
+
+  state.total += 1;
+  state.today += 1;
+  saveState();
+  renderState();
+
+  strikeBtn.classList.add('is-striking');
+  blessingTextEl?.classList.remove('is-active');
+  void blessingTextEl?.offsetWidth;
+  blessingTextEl?.classList.add('is-active');
+  hintEl.textContent = `功德 +1，今日已积 ${state.today}`;
+
+  window.setTimeout(() => {
+    strikeBtn.classList.remove('is-striking');
+    isStriking = false;
+  }, 180);
+  window.setTimeout(() => {
+    blessingTextEl?.classList.remove('is-active');
+  }, 1200);
+}
+
+function resetState() {
+  state = getDefaultState();
+  saveState();
+  renderState();
+  syncAmbientMusic();
+  hintEl.textContent = '已经清零，可以重新开始积功德。';
+}
+
+function toggleMusic() {
+  state.musicEnabled = !state.musicEnabled;
+  saveState();
+  renderState();
+  syncAmbientMusic();
+  hintEl.textContent = state.musicEnabled ? '背景音乐已开启，静心积功德。' : '背景音乐已关闭。';
+}
+
+renderState();
+syncAmbientMusic();
+syncGameConfig();
+
+strikeBtn?.addEventListener('click', strikeWood);
+resetBtn?.addEventListener('click', resetState);
+musicToggleBtn?.addEventListener('click', toggleMusic);
+window.addEventListener('game-config-ready', syncGameConfig);
