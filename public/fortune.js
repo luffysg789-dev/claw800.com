@@ -9,6 +9,7 @@ const summaryEl = document.getElementById('fortuneSummary');
 const doEl = document.getElementById('fortuneDo');
 const avoidEl = document.getElementById('fortuneAvoid');
 const adviceEl = document.getElementById('fortuneAdvice');
+let audioContext = null;
 
 const FORTUNES = [
   {
@@ -51,6 +52,45 @@ const FORTUNES = [
 
 let isDrawing = false;
 
+function getAudioContext() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return null;
+  if (!audioContext) {
+    audioContext = new AudioContextClass();
+  }
+  if (audioContext.state === 'suspended') {
+    audioContext.resume().catch(() => {});
+  }
+  return audioContext;
+}
+
+function playShakeSound() {
+  const context = getAudioContext();
+  if (!context) return;
+
+  const startAt = context.currentTime + 0.01;
+  const pulses = 5;
+
+  for (let index = 0; index < pulses; index += 1) {
+    const oscillator = context.createOscillator();
+    const gainNode = context.createGain();
+    const time = startAt + index * 0.09;
+
+    oscillator.type = 'triangle';
+    oscillator.frequency.setValueAtTime(520 - index * 35, time);
+    oscillator.frequency.exponentialRampToValueAtTime(240 + index * 18, time + 0.06);
+
+    gainNode.gain.setValueAtTime(0.0001, time);
+    gainNode.gain.exponentialRampToValueAtTime(0.055, time + 0.01);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, time + 0.075);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(context.destination);
+    oscillator.start(time);
+    oscillator.stop(time + 0.08);
+  }
+}
+
 function pickFortune() {
   const weights = [20, 30, 32, 18];
   const total = weights.reduce((sum, item) => sum + item, 0);
@@ -76,6 +116,7 @@ function renderFortune(item) {
 function startDraw() {
   if (isDrawing) return;
   isDrawing = true;
+  playShakeSound();
   resultEl.classList.add('hidden');
   drawBtn.classList.add('is-shaking');
   hintEl.textContent = '摇签中... 今日财运正在显现';
