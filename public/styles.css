@@ -1123,6 +1123,12 @@ button.danger { background: var(--danger); }
   flex-shrink: 0;
 }
 
+.minesweeper-intro-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .game-card__play {
   background: var(--brand);
   color: #fff;
@@ -1135,9 +1141,9 @@ button.danger { background: var(--danger); }
 
 .minesweeper-header {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
   margin-bottom: 14px;
 }
 
@@ -1163,7 +1169,7 @@ button.danger { background: var(--danger); }
 
 .minesweeper-stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 14px;
 }
@@ -1204,16 +1210,22 @@ button.danger { background: var(--danger); }
 .mine-cell {
   width: var(--cell-size);
   height: var(--cell-size);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   border: 1px solid rgba(46, 111, 64, 0.18);
   border-radius: 10px;
   background: linear-gradient(180deg, #fefefe, #eef5ed);
   color: var(--brand-2);
   font: inherit;
-  font-size: 15px;
+  font-size: clamp(10px, calc(var(--cell-size) * 0.52), 15px);
   font-weight: 800;
+  line-height: 1;
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
 }
 
 .mine-cell.is-revealed {
@@ -1223,11 +1235,13 @@ button.danger { background: var(--danger); }
 
 .mine-cell.is-flagged {
   color: #d9485f;
+  font-size: clamp(10px, calc(var(--cell-size) * 0.46), 14px);
 }
 
 .mine-cell.is-mine {
   background: #ffe7e9;
   border-color: rgba(217, 72, 95, 0.24);
+  font-size: clamp(10px, calc(var(--cell-size) * 0.46), 14px);
 }
 
 .minesweeper-help {
@@ -1273,11 +1287,6 @@ button.danger { background: var(--danger); }
     align-items: stretch;
   }
 
-  .minesweeper-header {
-    position: relative;
-    padding-left: 52px;
-  }
-
   .minesweeper-subtitle {
     font-size: 0.9rem;
     line-height: 1.35;
@@ -1285,30 +1294,24 @@ button.danger { background: var(--danger); }
   }
 
   .minesweeper-back {
-    position: absolute;
-    top: 0;
-    left: 0;
     width: 40px;
     min-width: 40px;
+    height: 40px;
     min-height: 40px;
     padding: 0;
     border-radius: 12px;
   }
 
-  .minesweeper-back span {
-    display: none;
-  }
-
   .minesweeper-stats {
     grid-template-columns: 1fr 1fr;
-  }
-
-  .minesweeper-stat:last-child {
-    grid-column: 1 / -1;
   }
 }
 
 @media (max-width: 480px) {
+  .minesweeper-intro-row {
+    gap: 10px;
+  }
+
   .minesweeper-difficulties {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1318,6 +1321,8 @@ button.danger { background: var(--danger); }
     font-size: 0.82rem;
     line-height: 1.25;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .minesweeper-actions {

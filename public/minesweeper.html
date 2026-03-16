@@ -13,19 +13,18 @@
       <section class="container">
         <div class="minesweeper-shell">
           <div class="minesweeper-header">
-            <div>
-              <h2>扫雷</h2>
+            <h2>扫雷</h2>
+            <div class="minesweeper-intro-row">
+              <a class="minesweeper-back" href="/games.html" aria-label="返回游戏大全" title="返回游戏大全">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    fill="currentColor"
+                    d="M15.7 5.3a1 1 0 010 1.4L10.41 12l5.29 5.3a1 1 0 01-1.42 1.4l-6-6a1 1 0 010-1.4l6-6a1 1 0 011.42 0z"
+                  />
+                </svg>
+              </a>
               <p class="minesweeper-subtitle">点开安全格子，标记地雷。手机版支持插旗模式。</p>
             </div>
-            <a class="minesweeper-back" href="/games.html" aria-label="返回游戏大全" title="返回游戏大全">
-              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path
-                  fill="currentColor"
-                  d="M15.7 5.3a1 1 0 010 1.4L10.41 12l5.29 5.3a1 1 0 01-1.42 1.4l-6-6a1 1 0 010-1.4l6-6a1 1 0 011.42 0z"
-                />
-              </svg>
-              <span>返回游戏大全</span>
-            </a>
           </div>
 
           <div class="minesweeper-board-wrap">
@@ -52,10 +51,6 @@
             <div class="minesweeper-stat">
               <span>用时</span>
               <strong id="timerCount">0s</strong>
-            </div>
-            <div class="minesweeper-stat">
-              <span>状态</span>
-              <strong id="gameStatus">准备开始</strong>
             </div>
           </div>
 

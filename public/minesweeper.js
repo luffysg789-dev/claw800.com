@@ -145,7 +145,7 @@ function updateStats() {
 }
 
 function setStatus(text) {
-  gameStatusEl.textContent = text;
+  if (gameStatusEl) gameStatusEl.textContent = text;
 }
 
 function toggleFlagMode() {
