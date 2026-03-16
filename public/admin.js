@@ -123,7 +123,7 @@ const TUTORIAL_MAX_BYTES = 5000000;
 const TUTORIAL_UPLOAD_CHUNK_SIZE = 100000;
 const DEFAULT_SITE_CONFIG = {
   title: 'claw800.com',
-  subtitleZh: 'OpenClaw 生态导航，收录 AI 领域优质网站',
+  subtitleZh: '龙虾学习导航网，为你的龙虾赋能。',
   subtitleEn: 'OpenClaw ecosystem directory for AI websites',
   htmlTitleZh: '',
   htmlTitleEn: '',

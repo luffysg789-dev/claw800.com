@@ -20,6 +20,8 @@ const heroLogoEl = document.getElementById('heroLogo');
 const heroLogoImageEl = document.getElementById('heroLogoImage');
 const heroLogoTextEl = document.getElementById('heroLogoText');
 const heroSubtitleEl = document.getElementById('heroSubtitle');
+const LEGACY_SUBTITLE_ZH = 'OpenClaw 生态导航，收录 AI 领域优质网站';
+const CURRENT_SUBTITLE_ZH = '龙虾学习导航网，为你的龙虾赋能。';
 const faviconEl = document.getElementById('siteFavicon') || document.querySelector('link[rel~="icon"]');
 const metaDescriptionEl = document.getElementById('metaDescription');
 const canonicalLinkEl = document.getElementById('canonicalLink');
@@ -103,7 +105,7 @@ const texts = {
   zh: {
     htmlLang: 'zh-CN',
     title: 'claw800.com - OpenClaw AI 导航',
-    heroSubtitle: 'OpenClaw 生态导航，收录 AI 领域优质网站',
+    heroSubtitle: CURRENT_SUBTITLE_ZH,
     searchPlaceholder: '搜索网站名称 / URL / 简介',
     searchBtn: '搜索',
     favoriteSitesBtn: '我的收藏',
@@ -217,6 +219,9 @@ let submitModalController = null;
 
 if (BOOT_CACHE.siteConfig && typeof BOOT_CACHE.siteConfig === 'object') {
   siteConfig = BOOT_CACHE.siteConfig;
+  if (String(siteConfig.subtitleZh || '').trim() === LEGACY_SUBTITLE_ZH) {
+    siteConfig = { ...siteConfig, subtitleZh: CURRENT_SUBTITLE_ZH };
+  }
 }
 if (Array.isArray(BOOT_CACHE.homeCategories)) {
   categoriesCache = BOOT_CACHE.homeCategories;
@@ -897,6 +902,9 @@ async function loadSiteConfig() {
         footerContactEn: String(data.footerContactEn || '').trim(),
         footerLinks: Array.isArray(data.footerLinks) ? data.footerLinks : []
       };
+      if (siteConfig.subtitleZh === LEGACY_SUBTITLE_ZH || !siteConfig.subtitleZh) {
+        siteConfig.subtitleZh = CURRENT_SUBTITLE_ZH;
+      }
       try {
         localStorage.setItem('claw800_site_config_cache', JSON.stringify(siteConfig));
       } catch {

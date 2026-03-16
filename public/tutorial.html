@@ -66,7 +66,7 @@
           </h1>
         </div>
         <div class="hero-subrow">
-          <p id="heroSubtitle">OpenClaw 生态导航，收录 AI 领域优质网站</p>
+          <p id="heroSubtitle">龙虾学习导航网，为你的龙虾赋能。</p>
           <div class="lang-switch">
             <a id="homeNavBtn" class="hero-nav-btn" href="/">首页</a>
             <a id="skillsNavBtn" class="hero-nav-btn" href="/skills.html">技能大全</a>
@@ -154,7 +154,7 @@
         zh: {
           htmlLang: 'zh-CN',
           titlePrefix: '教程 - ',
-          subTitle: 'OpenClaw 生态导航，收录 AI 领域优质网站',
+          subTitle: '龙虾学习导航网，为你的龙虾赋能。',
           homeBtn: '首页',
           skillsBtn: '技能大全',
           githubStarBtn: 'GitHub 加星',
@@ -209,12 +209,17 @@
         return String(input || '').trim() === 'en' ? 'en' : 'zh';
       }
 
+      const LEGACY_SUBTITLE_ZH = 'OpenClaw 生态导航，收录 AI 领域优质网站';
+      const CURRENT_SUBTITLE_ZH = '龙虾学习导航网，为你的龙虾赋能。';
       let currentLang = normalizeLang(localStorage.getItem('claw800_lang'));
       const translationCache = new Map(); // key: `${to}|${source}` -> translated
       const translationInflight = new Map(); // key: `${to}|${source}` -> Promise<string>
       const translatedTextNodes = new WeakMap(); // Node -> { to, source }
       let tutorialLoadToken = 0;
       let siteConfig = window.__CLAW800_BOOT__?.siteConfig || null;
+      if (siteConfig && String(siteConfig.subtitleZh || '').trim() === LEGACY_SUBTITLE_ZH) {
+        siteConfig = { ...siteConfig, subtitleZh: CURRENT_SUBTITLE_ZH };
+      }
       let submitModalController = null;
       let submitCategoriesCache = Array.isArray(window.__CLAW800_BOOT__?.homeCategories) ? window.__CLAW800_BOOT__.homeCategories : [];
       const faviconEl = document.getElementById('siteFavicon') || document.querySelector('link[rel~=\"icon\"]');
@@ -672,6 +677,9 @@
               footerContactEn: String(data.footerContactEn || '').trim(),
               footerLinks: Array.isArray(data.footerLinks) ? data.footerLinks : []
             };
+            if (siteConfig.subtitleZh === LEGACY_SUBTITLE_ZH || !siteConfig.subtitleZh) {
+              siteConfig.subtitleZh = CURRENT_SUBTITLE_ZH;
+            }
           } else {
             siteConfig = null;
           }

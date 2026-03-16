@@ -252,7 +252,10 @@ db.prepare(
 ).run('claw800.com');
 db.prepare(
   "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('site_subtitle_zh', ?, datetime('now'))"
-).run('OpenClaw 生态导航，收录 AI 领域优质网站');
+).run('龙虾学习导航网，为你的龙虾赋能。');
+db.prepare(
+  "UPDATE settings SET value = ?, updated_at = datetime('now') WHERE key = 'site_subtitle_zh' AND trim(value) = ?"
+).run('龙虾学习导航网，为你的龙虾赋能。', 'OpenClaw 生态导航，收录 AI 领域优质网站');
 db.prepare(
   "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('site_subtitle_en', ?, datetime('now'))"
 ).run('OpenClaw ecosystem directory for AI websites');

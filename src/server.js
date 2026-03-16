@@ -497,7 +497,7 @@ app.get('/api/site-config', (_req, res) => {
   res.setHeader('Expires', '0');
   res.setHeader('Surrogate-Control', 'no-store');
   const title = getSetting('site_title', 'claw800.com');
-  const subtitleZh = getSetting('site_subtitle_zh', 'OpenClaw 生态导航，收录 AI 领域优质网站');
+  const subtitleZh = getSetting('site_subtitle_zh', '龙虾学习导航网，为你的龙虾赋能。');
   const subtitleEn = getSetting('site_subtitle_en', 'OpenClaw ecosystem directory for AI websites');
   const htmlTitleZh = getSetting('site_html_title_zh', '');
   const htmlTitleEn = getSetting('site_html_title_en', '');
@@ -584,7 +584,7 @@ app.get('/sitemap.xml', (req, res) => {
 
 app.get('/api/admin/site-config', requireAdmin, (_req, res) => {
   const title = getSetting('site_title', 'claw800.com');
-  const subtitleZh = getSetting('site_subtitle_zh', 'OpenClaw 生态导航，收录 AI 领域优质网站');
+  const subtitleZh = getSetting('site_subtitle_zh', '龙虾学习导航网，为你的龙虾赋能。');
   const subtitleEn = getSetting('site_subtitle_en', 'OpenClaw ecosystem directory for AI websites');
   const htmlTitleZh = getSetting('site_html_title_zh', '');
   const htmlTitleEn = getSetting('site_html_title_en', '');

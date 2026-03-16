@@ -16,6 +16,8 @@ const heroLogoEl = document.getElementById('heroLogo');
 const heroLogoImageEl = document.getElementById('heroLogoImage');
 const heroLogoTextEl = document.getElementById('heroLogoText');
 const heroSubtitleEl = document.getElementById('heroSubtitle');
+const LEGACY_SUBTITLE_ZH = 'OpenClaw 生态导航，收录 AI 领域优质网站';
+const CURRENT_SUBTITLE_ZH = '龙虾学习导航网，为你的龙虾赋能。';
 const homeNavBtn = document.getElementById('homeNavBtn');
 const skillsNavBtn = document.getElementById('skillsNavBtn');
 const githubStarBtn = document.getElementById('githubStarBtn');
@@ -60,13 +62,16 @@ function setSeoTag(el, value, attr = 'content') {
 
 if (BOOT_CACHE.siteConfig && typeof BOOT_CACHE.siteConfig === 'object') {
   pageConfig = BOOT_CACHE.siteConfig;
+  if (String(pageConfig.subtitleZh || '').trim() === LEGACY_SUBTITLE_ZH) {
+    pageConfig = { ...pageConfig, subtitleZh: CURRENT_SUBTITLE_ZH };
+  }
 }
 
 const i18n = {
   zh: {
     pageTitle: 'Claw800 龙虾技能大全 — OpenClaw 精选技能导航',
     headerTitle: 'claw800.com',
-    heroSubtitle: 'OpenClaw 生态导航，收录 AI 领域优质网站',
+    heroSubtitle: CURRENT_SUBTITLE_ZH,
     homeBtn: '首页',
     skillsBtn: '技能大全',
     githubStarBtn: 'GitHub 加星',
@@ -608,6 +613,9 @@ async function loadPageConfig() {
     const data = await res.json().catch(() => ({}));
     const payload = data && typeof data === 'object' ? (data.data && typeof data.data === 'object' ? data.data : data) : null;
     if (res.ok && payload) {
+      if (String(payload.subtitleZh || '').trim() === LEGACY_SUBTITLE_ZH || !String(payload.subtitleZh || '').trim()) {
+        payload.subtitleZh = CURRENT_SUBTITLE_ZH;
+      }
       pageConfig = payload;
       writeLocalCache('claw800_site_config_cache', pageConfig);
       return;
