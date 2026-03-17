@@ -88,6 +88,8 @@ test('gomoku script includes ai profiles and winner handling', () => {
 
 test('gomoku mobile css keeps board flush and overlay compact', () => {
   const css = fs.readFileSync(cssPath, 'utf8');
+  assert.match(css, /\.gomoku-canvas-wrap\s*\{[\s\S]*?padding:\s*0;[\s\S]*?background:\s*transparent;[\s\S]*?\}/);
+  assert.match(css, /\.gomoku-board-overlay\s*\{[\s\S]*?inset:\s*0;[\s\S]*?\}/);
   assert.match(css, /@media \(max-width: 640px\)[\s\S]*?\.gomoku-canvas-wrap\s*\{[\s\S]*?padding:\s*0;[\s\S]*?background:\s*transparent;[\s\S]*?\}/);
   assert.match(css, /@media \(max-width: 640px\)[\s\S]*?\.gomoku-board-overlay__card\s*\{[\s\S]*?max-height:\s*calc\(100% - 8px\);[\s\S]*?overflow:\s*auto;[\s\S]*?\}/);
 });

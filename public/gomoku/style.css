@@ -251,10 +251,8 @@ body {
 .gomoku-canvas-wrap {
   position: relative;
   border-radius: 26px;
-  padding: 16px;
-  background:
-    linear-gradient(180deg, rgba(255, 249, 236, 0.78), rgba(235, 211, 172, 0.7)),
-    linear-gradient(180deg, #d3a968, #b57f42);
+  padding: 0;
+  background: transparent;
 }
 
 .gomoku-board {
@@ -268,7 +266,7 @@ body {
 
 .gomoku-board-overlay {
   position: absolute;
-  inset: 16px;
+  inset: 0;
   display: grid;
   place-items: center;
   border-radius: 20px;
