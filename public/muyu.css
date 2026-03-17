@@ -241,7 +241,7 @@ body {
 }
 
 .muyu-wood.is-striking .muyu-mallet {
-  transform: rotate(8deg) translate(-10px, 18px);
+  transform: rotate(8deg) translate(-10px, 22px);
 }
 
 .muyu-wood.is-striking .muyu-impact-ripple {
@@ -367,7 +367,7 @@ body {
 
   .muyu-mallet {
     right: 14%;
-    top: 12px;
+    top: 52px;
     width: clamp(108px, 26vw, 138px);
     transform: rotate(18deg);
   }
@@ -411,7 +411,7 @@ body {
 
   .muyu-mallet {
     right: 11%;
-    top: 18px;
+    top: 58px;
     width: clamp(118px, 31vw, 148px);
     transform: rotate(17deg);
   }

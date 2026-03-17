@@ -20,14 +20,14 @@ test('woodfish page no longer renders lower total merit card', () => {
 test('woodfish mobile mallet uses larger responsive sizing and higher placement', () => {
   assert.match(
     css,
-    /@media \(max-width: 720px\)[\s\S]*?\.muyu-mallet\s*\{[\s\S]*?right:\s*14%;[\s\S]*?top:\s*12px;[\s\S]*?width:\s*clamp\(108px,\s*26vw,\s*138px\);[\s\S]*?\}/
+    /@media \(max-width: 720px\)[\s\S]*?\.muyu-mallet\s*\{[\s\S]*?right:\s*14%;[\s\S]*?top:\s*52px;[\s\S]*?width:\s*clamp\(108px,\s*26vw,\s*138px\);[\s\S]*?\}/
   );
   assert.match(
     css,
-    /@media \(max-width: 480px\)[\s\S]*?\.muyu-mallet\s*\{[\s\S]*?right:\s*11%;[\s\S]*?top:\s*18px;[\s\S]*?width:\s*clamp\(118px,\s*31vw,\s*148px\);[\s\S]*?\}/
+    /@media \(max-width: 480px\)[\s\S]*?\.muyu-mallet\s*\{[\s\S]*?right:\s*11%;[\s\S]*?top:\s*58px;[\s\S]*?width:\s*clamp\(118px,\s*31vw,\s*148px\);[\s\S]*?\}/
   );
   assert.match(
     css,
-    /\.muyu-wood\.is-striking \.muyu-mallet\s*\{[\s\S]*?translate\(-10px,\s*18px\);[\s\S]*?\}/
+    /\.muyu-wood\.is-striking \.muyu-mallet\s*\{[\s\S]*?translate\(-10px,\s*22px\);[\s\S]*?\}/
   );
 });
