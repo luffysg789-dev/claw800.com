@@ -1787,7 +1787,6 @@ button.danger { background: var(--danger); }
 }
 
 .minesweeper-toolbar,
-.minesweeper-actions,
 .minesweeper-difficulties {
   display: flex;
   flex-wrap: wrap;
@@ -1800,8 +1799,7 @@ button.danger { background: var(--danger); }
   margin-bottom: 14px;
 }
 
-.minesweeper-difficulties button.active,
-.minesweeper-actions button.active {
+.minesweeper-difficulties button.active {
   background: var(--brand);
   color: #fff;
 }
@@ -2164,19 +2162,22 @@ button.danger { background: var(--danger); }
     height: 15px;
   }
 
-  .minesweeper-actions {
+  .minesweeper-difficulties button {
+    min-width: 0;
+    padding: 0 6px;
+    font-size: 0.82rem;
+    min-height: 38px;
+  }
+
+  .minesweeper-toolbar,
+  .minesweeper-difficulties {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+    align-items: stretch;
   }
 
   .minesweeper-difficulties button {
-    min-width: 0;
-    padding: 0 8px;
-    font-size: 0.9rem;
-  }
-
-  .minesweeper-difficulties button,
-  .minesweeper-actions button {
     width: 100%;
   }
 }

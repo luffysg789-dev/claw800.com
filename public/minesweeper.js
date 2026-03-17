@@ -177,8 +177,9 @@ function setStatus(text) {
 
 function toggleFlagMode() {
   flagMode = !flagMode;
-  flagModeBtn.textContent = `插旗模式：${flagMode ? '开' : '关'}`;
+  flagModeBtn.textContent = '插旗';
   flagModeBtn.classList.toggle('active', flagMode);
+  flagModeBtn?.setAttribute('aria-pressed', flagMode ? 'true' : 'false');
 }
 
 function revealCell(cell) {
@@ -289,6 +290,7 @@ function resetGame(nextLevel = currentLevel) {
 }
 
 resetGame();
+flagModeBtn?.setAttribute('aria-pressed', 'false');
 
 resetGameBtn?.addEventListener('click', () => resetGame());
 flagModeBtn?.addEventListener('click', toggleFlagMode);

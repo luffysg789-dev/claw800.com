@@ -8,12 +8,13 @@ const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'minesweeper.js'
 
 test('minesweeper mobile toolbar uses compact labels in html', () => {
   assert.match(html, /id="resetGameBtn">重新<\/button>/);
-  assert.match(html, />初<\/button>/);
-  assert.match(html, />中<\/button>/);
-  assert.match(html, />高<\/button>/);
+  assert.match(html, /data-level="beginner">初<\/button>/);
+  assert.match(html, /data-level="intermediate">中<\/button>/);
+  assert.match(html, /data-level="expert">高<\/button>/);
+  assert.match(html, /id="flagModeBtn">插旗<\/button>/);
 });
 
 test('minesweeper flag button uses compact label in script', () => {
-  assert.match(js, /flagModeBtn\.textContent = `插旗/);
+  assert.match(js, /flagModeBtn\.textContent = ['"`]插旗/);
   assert.doesNotMatch(js, /插旗模式：/);
 });
