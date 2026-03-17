@@ -520,8 +520,7 @@
       state.winner = player;
       state.winningLine = winningLine;
       state.phase = 'finished';
-      updateStatusText();
-      drawBoard();
+      render();
       showResultModal(`${playerLabel(player)}获胜`, `${playerLabel(player)}已经连成五子，本局结束。`);
       return true;
     }
@@ -529,15 +528,13 @@
     if (state.moveHistory.length === BOARD_SIZE * BOARD_SIZE) {
       state.isDraw = true;
       state.phase = 'finished';
-      updateStatusText();
-      drawBoard();
+      render();
       showResultModal('本局平局', '棋盘已满，双方都没有形成五连。');
       return true;
     }
 
     state.currentPlayer = otherPlayer(player);
-    updateStatusText();
-    drawBoard();
+    render();
 
     if (state.mode === 'ai' && state.currentPlayer === state.aiColor) {
       scheduleAiMove();
@@ -579,7 +576,7 @@
 
   function scheduleAiMove() {
     state.isAiThinking = true;
-    updateStatusText();
+    render();
     clearAiTimer();
 
     state.aiTimer = window.setTimeout(() => {
@@ -588,8 +585,7 @@
       if (move) {
         placeMove(move.row, move.col, state.aiColor);
       } else {
-        updateStatusText();
-        drawBoard();
+        render();
       }
     }, 320);
   }
