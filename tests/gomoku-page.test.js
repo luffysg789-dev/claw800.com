@@ -26,12 +26,14 @@ test('gomoku game is listed in games config', () => {
 test('gomoku is included in backend defaults and game page merges api items with defaults', () => {
   const config = fs.readFileSync(configPath, 'utf8');
   const db = fs.readFileSync(dbPath, 'utf8');
+  const server = fs.readFileSync(path.join(rootDir, 'src', 'server.js'), 'utf8');
 
   assert.match(
     config,
     /const mergedBySlug = new Map\(DEFAULT_GAMES\.map\(\(item\) => \[item\.slug, \{ \.\.\.item \}\]\)\);[\s\S]*?mergedBySlug\.set\(normalized\.slug, normalized\);[\s\S]*?Array\.from\(mergedBySlug\.values\(\)\)/
   );
   assert.match(db, /slug:\s*'gomoku'/);
+  assert.match(server, /gomoku:\s*'\/gomoku\/'/);
 });
 
 test('gomoku html includes setup controls and board canvas', () => {
