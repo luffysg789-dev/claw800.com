@@ -312,7 +312,7 @@
     ui.difficultyBadge.classList.toggle('is-hidden', state.mode !== 'ai');
 
     if (state.phase === 'idle') {
-      ui.statusTitle.textContent = '等待开始';
+      ui.statusTitle.textContent = '等待';
       ui.turnBadge.textContent = '黑棋先行';
       ui.hint.textContent = '点击“开始游戏”后即可落子，形成五连即可获胜。';
       return;
@@ -342,7 +342,8 @@
   }
 
   function resizeBoard() {
-    const displayWidth = Math.max(320, Math.min(ui.board.parentElement.clientWidth, 720));
+    const availableWidth = Math.min(ui.board.parentElement.clientWidth, 720);
+    const displayWidth = Math.max(220, Math.floor(availableWidth));
     const pixelRatio = window.devicePixelRatio || 1;
     ui.board.width = Math.round(displayWidth * pixelRatio);
     ui.board.height = Math.round(displayWidth * pixelRatio);

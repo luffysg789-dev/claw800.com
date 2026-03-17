@@ -442,7 +442,46 @@ body {
   }
 
   .gomoku-board-panel {
-    padding: 16px;
+    padding: 12px;
+  }
+
+  .gomoku-board-head {
+    margin-bottom: 10px;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .gomoku-board-head > div:first-child {
+    min-width: 0;
+    flex: 0 0 auto;
+  }
+
+  .gomoku-board-head h2 {
+    font-size: 18px;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .gomoku-section-eyebrow {
+    margin-bottom: 2px;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+  }
+
+  .gomoku-status-pills {
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .gomoku-status-pill {
+    min-height: 28px;
+    padding: 0 9px;
+    font-size: 12px;
+    white-space: nowrap;
   }
 
   .gomoku-side-panel {
@@ -454,11 +493,11 @@ body {
   }
 
   .gomoku-canvas-wrap {
-    padding: 10px;
+    padding: 6px;
   }
 
   .gomoku-board-overlay {
-    inset: 10px;
+    inset: 6px;
   }
 
   .gomoku-board-overlay__card {
