@@ -1476,6 +1476,22 @@ function formatGameRow(row = {}) {
   };
 }
 
+function formatGameBootstrapRow(row = {}) {
+  const slug = String(row.slug || '').trim();
+  return {
+    id: Number(row.id || 0) || 0,
+    slug,
+    name: String(row.name || '').trim(),
+    description: String(row.description || '').trim(),
+    cover_image: String(row.cover_image || '').trim(),
+    secondary_image: String(row.secondary_image || '').trim(),
+    is_enabled: Number(row.is_enabled || 0) ? 1 : 0,
+    sort_order: Number(row.sort_order || 0) || 0,
+    route: GAME_ROUTE_MAP[slug] || `/games/${encodeURIComponent(slug)}`,
+    icon: GAME_ICON_MAP[slug] || '🎮'
+  };
+}
+
 app.get('/api/games', (_req, res) => {
   const items = listPublicGamesCatalogStmt.all().map(formatGameRow);
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
@@ -1494,6 +1510,18 @@ app.get('/api/games/:slug', (req, res) => {
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
   res.json({ ok: true, item: formatGameRow(row) });
+});
+
+app.get('/api/games/:slug/bootstrap', (req, res) => {
+  const slug = String(req.params.slug || '').trim();
+  const row = selectGameBySlugStmt.get(slug);
+  if (!row || !Number(row.is_enabled || 0)) {
+    return res.status(404).json({ error: '游戏不存在' });
+  }
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.json({ ok: true, item: formatGameBootstrapRow(row) });
 });
 
 app.get('/api/admin/games', requireAdmin, (_req, res) => {

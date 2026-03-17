@@ -39,6 +39,7 @@ let backgroundMusicSrc = '';
 let backgroundMusicAudio = null;
 let strikeAudioPrepared = false;
 let backgroundMusicPrepared = false;
+let fullConfigLoaded = false;
 
 function readCachedGameConfig() {
   if (typeof window === 'undefined') return null;
@@ -74,15 +75,31 @@ function normalizeGameConfig(config) {
   };
 }
 
-async function fetchGameConfig() {
+async function fetchGameConfig(pathname = `/api/games/${encodeURIComponent(GAME_SLUG)}`) {
   try {
-    const res = await fetch(`/api/games/${encodeURIComponent(GAME_SLUG)}?t=${Date.now()}`, { cache: 'no-store' });
+    const res = await fetch(`${pathname}?t=${Date.now()}`, { cache: 'no-store' });
     if (!res.ok) return null;
     const data = await res.json();
     return data?.item ? normalizeGameConfig(data.item) : null;
   } catch {
     return null;
   }
+}
+
+async function fetchBootstrapConfig() {
+  return fetchGameConfig(`/api/games/${encodeURIComponent(GAME_SLUG)}/bootstrap`);
+}
+
+async function ensureFullConfigLoaded() {
+  if (fullConfigLoaded) return window.__GAME_CONFIG__;
+  const config = await fetchGameConfig(`/api/games/${encodeURIComponent(GAME_SLUG)}`);
+  if (config) {
+    fullConfigLoaded = true;
+    window.__GAME_CONFIG__ = config;
+    writeCachedGameConfig(config);
+    syncGameConfig();
+  }
+  return window.__GAME_CONFIG__;
 }
 
 function syncGameConfig() {
@@ -378,6 +395,9 @@ function syncAmbientMusic() {
 function strikeWood() {
   if (isStriking) return;
   isStriking = true;
+  if (!fullConfigLoaded) {
+    ensureFullConfigLoaded().catch(() => {});
+  }
   playWoodSound();
 
   const todayKey = getTodayKey();
@@ -418,8 +438,17 @@ function toggleMusic() {
   state.musicEnabled = !state.musicEnabled;
   saveState();
   renderState();
+  if (state.musicEnabled) {
+    ensureFullConfigLoaded()
+      .catch(() => {})
+      .finally(() => {
+        syncAmbientMusic();
+      });
+    hintEl.textContent = '背景音乐正在开启，静心积功德。';
+    return;
+  }
   syncAmbientMusic();
-  hintEl.textContent = state.musicEnabled ? '背景音乐已开启，静心积功德。' : '背景音乐已关闭。';
+  hintEl.textContent = '背景音乐已关闭。';
 }
 
 renderState();
@@ -436,7 +465,7 @@ if (typeof window !== 'undefined') {
     if (state.musicEnabled) prepareBackgroundMusic();
   });
   schedule(async () => {
-    const config = await fetchGameConfig();
+    const config = await fetchBootstrapConfig();
     if (!config) return;
     window.__GAME_CONFIG__ = config;
     writeCachedGameConfig(config);

@@ -191,8 +191,8 @@ body {
 
 .muyu-mallet {
   position: absolute;
-  right: 26px;
-  top: 176px;
+  right: 86px;
+  top: 76px;
   width: min(90px, 17.64vw);
   transform: rotate(22deg);
   transform-origin: 82% 60%;
@@ -393,8 +393,8 @@ body {
   }
 
   .muyu-mallet {
-    right: 14px;
-    top: 190px;
+    right: 74px;
+    top: 90px;
     width: min(63px, 15.19vw);
     transform: rotate(20deg);
   }

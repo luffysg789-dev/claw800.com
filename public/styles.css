@@ -2137,8 +2137,9 @@ button.danger { background: var(--danger); }
   }
 
   .minesweeper-difficulties {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    display: inline-grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(48px, auto);
   }
 
   .minesweeper-subtitle {
@@ -2162,23 +2163,26 @@ button.danger { background: var(--danger); }
     height: 15px;
   }
 
-  .minesweeper-difficulties button {
-    min-width: 0;
-    padding: 0 6px;
-    font-size: 0.82rem;
-    min-height: 38px;
+  .minesweeper-toolbar {
+    display: block;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
   }
 
-  .minesweeper-toolbar,
   .minesweeper-difficulties {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 6px;
     align-items: stretch;
+    width: max-content;
   }
 
   .minesweeper-difficulties button {
-    width: 100%;
+    min-width: 0;
+    padding: 0 10px;
+    font-size: 0.82rem;
+    min-height: 38px;
+    white-space: nowrap;
   }
 }
 
