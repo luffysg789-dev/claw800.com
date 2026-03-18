@@ -235,6 +235,11 @@ function renderState() {
   }
 }
 
+function syncMeritDisplay() {
+  todayCountEl.textContent = `${state.today}`;
+  if (heroCountEl) heroCountEl.textContent = `${state.total}`;
+}
+
 function runAfterNextPaint(callback) {
   if (typeof callback !== 'function') return;
   if (typeof window.requestAnimationFrame === 'function') {
@@ -501,6 +506,13 @@ function strikeWood() {
 }
 
 function applyTipMeritReward() {
+  runAfterNextPaint(() => {
+    window.alert('谢谢打赏，佛祖会保佑您,功德+100!');
+    commitTipMeritReward();
+  });
+}
+
+function commitTipMeritReward() {
   const todayKey = getTodayKey();
   if (state.dateKey !== todayKey) {
     state.dateKey = todayKey;
@@ -510,11 +522,19 @@ function applyTipMeritReward() {
   state.total += TIP_MERIT_REWARD;
   state.today += TIP_MERIT_REWARD;
   saveState();
+  syncMeritDisplay();
   renderState();
+  window.setTimeout(() => {
+    state = loadState();
+    syncMeritDisplay();
+    renderState();
+  }, 60);
+  window.setTimeout(() => {
+    state = loadState();
+    syncMeritDisplay();
+    renderState();
+  }, 220);
   hintEl.textContent = `谢谢打赏，佛祖会保佑您,功德+100! 今日已积 ${state.today}`;
-  runAfterNextPaint(() => {
-    window.alert('谢谢打赏，佛祖会保佑您,功德+100!');
-  });
 }
 
 function resetState() {
@@ -594,6 +614,20 @@ window.addEventListener('claw800:tip-success', (event) => {
 
 window.addEventListener('pageshow', () => {
   state = loadState();
+  syncMeritDisplay();
+  renderState();
+});
+
+window.addEventListener('focus', () => {
+  state = loadState();
+  syncMeritDisplay();
+  renderState();
+});
+
+window.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  state = loadState();
+  syncMeritDisplay();
   renderState();
 });
 
