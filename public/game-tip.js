@@ -43,14 +43,22 @@
     return document.querySelector('.gomoku-shell, .minesweeper-shell, .fortune-shell, .muyu-shell');
   }
 
+  function getPersistentStorage() {
+    try {
+      return window.localStorage;
+    } catch {
+      return window.sessionStorage;
+    }
+  }
+
   function loadCachedSession() {
     try {
-      const raw = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
+      const raw = getPersistentStorage().getItem(SESSION_STORAGE_KEY);
       if (!raw) return null;
       const parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== 'object') return null;
       if (parsed.expiresAt && Number(parsed.expiresAt) < Date.now()) {
-        window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
+        getPersistentStorage().removeItem(SESSION_STORAGE_KEY);
         return null;
       }
       if (!parsed.openId || !parsed.sessionKey) return null;
@@ -62,7 +70,13 @@
 
   function saveCachedSession(session) {
     try {
-      window.sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+      getPersistentStorage().setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+    } catch {}
+  }
+
+  function clearCachedSession() {
+    try {
+      getPersistentStorage().removeItem(SESSION_STORAGE_KEY);
     } catch {}
   }
 
@@ -187,9 +201,19 @@
 
     const json = await response.json().catch(() => null);
     if (!response.ok) {
-      throw new Error(String(json?.error || json?.message || '请求失败'));
+      const error = new Error(String(json?.error || json?.message || '请求失败'));
+      error.code = String(json?.code || '').trim();
+      error.statusCode = Number(response.status || 0) || 0;
+      throw error;
     }
     return json;
+  }
+
+  function isNexaSessionExpiredError(error) {
+    const code = String(error?.code || '').trim();
+    const statusCode = Number(error?.statusCode || 0) || 0;
+    const message = String(error?.message || '').trim();
+    return code === '4001' || statusCode === 401 || /未登录|登录已过期|重新登录/.test(message);
   }
 
   async function exchangeSessionFromUrlCode(game) {
@@ -218,10 +242,11 @@
       saveCachedSession(session);
       clearAuthCodeFromUrl();
       updateButtonState({ session });
-      setStatus('已连接 Nexa 账号，请再次点击按钮完成支付。', 'success');
+      setStatus('已连接 Nexa 账号，后续可直接打赏。', 'success');
       return true;
     } catch (error) {
       clearAuthCodeFromUrl();
+      clearCachedSession();
       updateButtonState();
       setStatus(error instanceof Error ? error.message : 'Nexa 登录失败，请重试。', 'error');
       return false;
@@ -261,6 +286,12 @@
       }
       setStatus('订单仍待支付，请在 Nexa 中完成支付后返回。', '');
     } catch (error) {
+      if (isNexaSessionExpiredError(error)) {
+        clearCachedSession();
+        clearPendingOrder();
+        setStatus('Nexa 登录已过期，请重新登录后再打赏。', 'error');
+        return;
+      }
       setStatus(error instanceof Error ? error.message : '支付结果确认失败，请稍后重试。', 'error');
     } finally {
       updateButtonState();
@@ -275,12 +306,22 @@
 
   async function beginPaymentFlow(game, session) {
     setStatus('正在创建订单...', '');
-    const orderResponse = await postJson('/api/nexa/tip/create', {
-      gameSlug: game.slug,
-      openId: session.openId,
-      sessionKey: session.sessionKey,
-      amount: TIP_AMOUNT
-    });
+    let orderResponse;
+    try {
+      orderResponse = await postJson('/api/nexa/tip/create', {
+        gameSlug: game.slug,
+        openId: session.openId,
+        sessionKey: session.sessionKey,
+        amount: TIP_AMOUNT
+      });
+    } catch (error) {
+      if (isNexaSessionExpiredError(error)) {
+        clearCachedSession();
+        setStatus('Nexa 登录已过期，请重新登录后再打赏。', 'error');
+        error.isHandled = true;
+      }
+      throw error;
+    }
 
     savePendingOrder({
       orderNo: orderResponse.orderNo,
@@ -311,7 +352,9 @@
       setStatus('正在准备打赏订单...', '');
       await beginPaymentFlow(game, session);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : '打赏失败，请稍后重试。', 'error');
+      if (!error?.isHandled) {
+        setStatus(error instanceof Error ? error.message : '打赏失败，请稍后重试。', 'error');
+      }
     } finally {
       updateButtonState();
     }
@@ -330,7 +373,7 @@
       <div class="game-tip__copy">
         <span class="game-tip__eyebrow">Nexa 打赏</span>
         <strong class="game-tip__title">喜欢这个小游戏？</strong>
-        <p class="game-tip__desc">第一次点击先登录 Nexa，登录后再次点击再用余额支付 0.1 USDT。</p>
+        <p class="game-tip__desc">首次登录 Nexa 后会记住状态，之后可直接用余额支付 0.1 USDT。</p>
       </div>
       <button type="button" class="game-tip__button" data-game-tip-button>${TIP_BUTTON_TEXT_PAY}</button>
       <p class="game-tip__status" data-game-tip-status aria-live="polite"></p>
