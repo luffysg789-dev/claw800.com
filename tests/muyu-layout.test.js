@@ -36,9 +36,12 @@ test('woodfish mobile mallet uses larger responsive sizing and higher placement'
 test('woodfish auto-strike button and timer logic exist', () => {
   const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'muyu.js'), 'utf8');
   assert.match(html, /自动敲击：关/);
-  assert.match(css, /\.muyu-auto-btn\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?top:\s*24px;[\s\S]*?right:\s*24px;/);
-  assert.match(css, /@media \(max-width: 720px\)[\s\S]*?\.muyu-auto-btn\s*\{[\s\S]*?top:\s*16px;[\s\S]*?right:\s*16px;/);
-  assert.match(css, /@media \(max-width: 480px\)[\s\S]*?\.muyu-auto-btn\s*\{[\s\S]*?top:\s*12px;[\s\S]*?right:\s*12px;/);
+  assert.match(html, /class="muyu-toolbar"[\s\S]*?class="muyu-back"[\s\S]*?id="muyuAutoToggleBtn"/);
+  assert.match(css, /\.muyu-toolbar\s*\{[\s\S]*?display:\s*flex;[\s\S]*?justify-content:\s*space-between;/);
+  assert.match(css, /\.muyu-back\s*\{[\s\S]*?width:\s*42px;[\s\S]*?height:\s*42px;/);
+  assert.match(css, /\.muyu-auto-btn\s*\{[\s\S]*?min-height:\s*42px;/);
+  assert.match(css, /@media \(max-width: 480px\)[\s\S]*?\.muyu-back\s*\{[\s\S]*?width:\s*36px;[\s\S]*?height:\s*36px;/);
+  assert.match(css, /@media \(max-width: 480px\)[\s\S]*?\.muyu-auto-btn\s*\{[\s\S]*?min-height:\s*36px;/);
   assert.match(js, /const AUTO_STRIKE_INTERVAL_MS = 1000;/);
   assert.match(js, /function toggleAutoStrike\(\)/);
   assert.match(js, /window\.setInterval\(\(\) => \{\s*strikeWood\(\);/);
