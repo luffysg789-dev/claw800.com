@@ -12,12 +12,13 @@ const {
   DEFAULT_NEXA_APP_SECRET,
   buildNexaAccessTokenPayload,
   buildNexaUserInfoPayload,
-  buildNexaPaymentCreatePayload,
   buildNexaPaymentCreatePayloadVariants,
+  prioritizeNexaPaymentCreateVariants,
   buildNexaPaymentQueryPayload,
   postNexaJson,
   unwrapNexaResult,
   isNexaSignatureError,
+  isNexaRateLimitError,
   extractSessionKey,
   extractOpenId
 } = require('./nexa-pay');
@@ -41,6 +42,7 @@ const TRUST_PROXY = String(process.env.TRUST_PROXY || 'loopback, linklocal, uniq
 const NEXA_TIP_AMOUNT = '0.10';
 const NEXA_TIP_CURRENCY = 'USDT';
 const nexaTipOrders = new Map();
+let preferredNexaPaymentVariantName = 'github-doc-order-signed';
 
 app.set('trust proxy', TRUST_PROXY);
 
@@ -279,24 +281,8 @@ async function createNexaTipOrder({ req, gameSlug, openId, sessionKey, amount = 
   const baseUrl = getPublicBaseUrl(req);
 
   const partnerOrderNo = `claw800_${normalizedSlug}_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
-  const payload = buildNexaPaymentCreatePayload({
-    apiKey,
-    appSecret,
-    orderNo: partnerOrderNo,
-    amount: normalizedAmount,
-    currency: NEXA_TIP_CURRENCY,
-    callbackUrl: `${baseUrl}${route}`,
-    subject: 'Claw800 打赏',
-    body: `打赏 ${gameName}`,
-    notifyUrl: `${baseUrl}/api/nexa/tip/notify`,
-    returnUrl: `${baseUrl}${route}`,
-    openId: String(openId || '').trim(),
-    sessionKey: String(sessionKey || '').trim()
-  });
-
-  let response = await postNexaJson('/partner/api/openapi/payment/create', payload);
-  if (isNexaSignatureError(response)) {
-    const variants = buildNexaPaymentCreatePayloadVariants({
+  const variants = prioritizeNexaPaymentCreateVariants(
+    buildNexaPaymentCreatePayloadVariants({
       apiKey,
       appSecret,
       orderNo: partnerOrderNo,
@@ -309,13 +295,45 @@ async function createNexaTipOrder({ req, gameSlug, openId, sessionKey, amount = 
       returnUrl: `${baseUrl}${route}`,
       openId: String(openId || '').trim(),
       sessionKey: String(sessionKey || '').trim()
-    });
-    for (const variant of variants) {
+    }),
+    preferredNexaPaymentVariantName
+  );
+
+  let response = null;
+  let lastSignatureResponse = null;
+  for (const variant of variants) {
+    try {
       response = await postNexaJson('/partner/api/openapi/payment/create', variant.payload);
-      if (!isNexaSignatureError(response)) {
-        break;
+    } catch (error) {
+      if (isNexaRateLimitError(error)) {
+        const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
+        rateLimitError.statusCode = 429;
+        throw rateLimitError;
       }
+      throw error;
     }
+
+    if (isNexaRateLimitError(response)) {
+      const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
+      rateLimitError.statusCode = 429;
+      throw rateLimitError;
+    }
+
+    if (isNexaSignatureError(response)) {
+      lastSignatureResponse = response;
+      continue;
+    }
+
+    preferredNexaPaymentVariantName = variant.name;
+    break;
+  }
+
+  if (!response) {
+    throw new Error('Nexa 下单失败');
+  }
+
+  if (isNexaSignatureError(response) && lastSignatureResponse) {
+    response = lastSignatureResponse;
   }
 
   const data = unwrapNexaResult(response, 'Nexa 下单失败');

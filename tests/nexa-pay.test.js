@@ -5,7 +5,9 @@ const {
   buildNexaSignature,
   buildNexaPaymentCreatePayload,
   buildNexaPaymentCreatePayloadVariants,
+  prioritizeNexaPaymentCreateVariants,
   isNexaSignatureError,
+  isNexaRateLimitError,
   buildNexaAccessTokenPayload,
   buildNexaUserInfoPayload
 } = require('../src/nexa-pay');
@@ -169,8 +171,43 @@ test('buildNexaPaymentCreatePayloadVariants covers both documented payment paylo
   assert.notEqual(variants[1].payload.signature, variants[2].payload.signature);
 });
 
+test('prioritizeNexaPaymentCreateVariants tries the preferred variant first and limits fallback attempts', () => {
+  const variants = buildNexaPaymentCreatePayloadVariants({
+    apiKey: 'testAppKey',
+    appSecret: 'testAppSecret',
+    orderNo: 'partner-order-001',
+    amount: '0.10',
+    currency: 'USDT',
+    subject: 'Claw800 打赏',
+    body: '打赏 五子棋',
+    callbackUrl: 'https://claw800.com/gomoku/',
+    notifyUrl: 'https://claw800.com/api/nexa/tip/notify',
+    returnUrl: 'https://claw800.com/gomoku/',
+    openId: 'open-id-123',
+    sessionKey: 'session-123',
+    nonce: 'nonce-3',
+    timestamp: '1615887873123'
+  });
+
+  const ordered = prioritizeNexaPaymentCreateVariants(variants, 'github-java-sample');
+
+  assert.deepEqual(
+    ordered.map((item) => item.name),
+    ['github-java-sample', 'github-doc-order-signed', 'github-doc-strict']
+  );
+});
+
 test('isNexaSignatureError detects common signature error responses', () => {
   assert.equal(isNexaSignatureError({ code: '10000002', message: '签名错误' }), true);
   assert.equal(isNexaSignatureError({ code: '1002', message: '签名验证失败' }), true);
   assert.equal(isNexaSignatureError({ code: '0', message: 'success' }), false);
+});
+
+test('isNexaRateLimitError detects http 429 errors without treating signature failures as rate limits', () => {
+  const err = new Error('Nexa 请求失败：HTTP 429');
+  err.statusCode = 429;
+
+  assert.equal(isNexaRateLimitError(err), true);
+  assert.equal(isNexaRateLimitError({ statusCode: 429 }), true);
+  assert.equal(isNexaRateLimitError({ code: '10000002', message: '签名错误' }), false);
 });

@@ -193,10 +193,47 @@ function buildNexaPaymentCreatePayloadVariants(options = {}) {
   ];
 }
 
+function prioritizeNexaPaymentCreateVariants(variants = [], preferredName = '') {
+  const byName = new Map();
+  for (const variant of variants) {
+    const name = String(variant?.name || '').trim();
+    if (!name || byName.has(name)) continue;
+    byName.set(name, variant);
+  }
+
+  const preferred = String(preferredName || '').trim();
+  const priority = [
+    preferred,
+    'github-doc-order-signed',
+    'github-doc-strict',
+    'github-java-sample'
+  ].filter(Boolean);
+
+  const ordered = [];
+  const seen = new Set();
+  for (const name of priority) {
+    if (seen.has(name)) continue;
+    const variant = byName.get(name);
+    if (!variant) continue;
+    ordered.push(variant);
+    seen.add(name);
+    if (ordered.length >= 3) break;
+  }
+
+  return ordered;
+}
+
 function isNexaSignatureError(response = {}) {
   const code = String(response?.code ?? '').trim();
   const message = String(response?.message || response?.error || '').trim();
   return code === '10000002' || code === '1002' || /签名/.test(message);
+}
+
+function isNexaRateLimitError(value = {}) {
+  const statusCode = Number(value?.statusCode || value?.status || 0) || 0;
+  const code = String(value?.code ?? '').trim();
+  const message = String(value?.message || value?.error || value?.details?.message || value || '').trim();
+  return statusCode === 429 || code === '429' || /(?:^|[^0-9])429(?:[^0-9]|$)/.test(message) || /too many requests/i.test(message);
 }
 
 function buildNexaPaymentQueryPayload({ apiKey = DEFAULT_NEXA_API_KEY, appSecret = DEFAULT_NEXA_APP_SECRET, orderNo, nonce, timestamp }) {
@@ -237,7 +274,10 @@ async function postNexaJson(endpointPath, payload, options = {}) {
 
     if (!response.ok) {
       const message = String(json?.message || json?.error || rawText || `HTTP ${response.status}`).trim();
-      throw new Error(`Nexa 请求失败：${message}`);
+      const error = new Error(`Nexa 请求失败：${message}`);
+      error.statusCode = response.status;
+      error.details = json || rawText;
+      throw error;
     }
 
     if (!json || typeof json !== 'object') {
@@ -282,10 +322,12 @@ module.exports = {
   buildNexaUserInfoPayload,
   buildNexaPaymentCreatePayload,
   buildNexaPaymentCreatePayloadVariants,
+  prioritizeNexaPaymentCreateVariants,
   buildNexaPaymentQueryPayload,
   postNexaJson,
   unwrapNexaResult,
   isNexaSignatureError,
+  isNexaRateLimitError,
   extractSessionKey,
   extractOpenId
 };
