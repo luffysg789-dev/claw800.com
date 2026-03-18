@@ -54,10 +54,40 @@ body {
   margin-bottom: 18px;
 }
 
+.muyu-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .muyu-header h2 {
   margin: 0 0 8px;
   font-size: 28px;
   color: #fff;
+}
+
+.muyu-auto-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--muyu-line);
+  background: var(--muyu-panel);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+}
+
+.muyu-auto-btn.active {
+  background: rgba(217, 162, 95, 0.2);
+  border-color: rgba(255, 221, 167, 0.38);
+  color: #fff5e8;
 }
 
 .muyu-intro-row {
@@ -341,9 +371,19 @@ body {
     padding: 10px 0 22px;
   }
 
+  .muyu-header-top {
+    align-items: flex-start;
+  }
+
   .muyu-shell {
     border-radius: 18px;
     padding: 16px;
+  }
+
+  .muyu-auto-btn {
+    min-height: 38px;
+    padding: 0 14px;
+    font-size: 13px;
   }
 
   .muyu-back {
@@ -380,9 +420,19 @@ body {
     padding: 0 12px;
   }
 
+  .muyu-header-top {
+    gap: 10px;
+  }
+
   .muyu-shell {
     width: 100%;
     margin: 0 auto;
+  }
+
+  .muyu-auto-btn {
+    min-height: 36px;
+    padding: 0 12px;
+    font-size: 12px;
   }
 
   .muyu-header h2 {

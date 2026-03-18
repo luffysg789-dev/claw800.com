@@ -210,7 +210,7 @@ const DEFAULT_GAMES_CATALOG = [
     sound_file: '',
     background_music_file: '',
     is_enabled: 1,
-    sort_order: 0
+    sort_order: 40
   },
   {
     slug: 'minesweeper',
@@ -221,7 +221,7 @@ const DEFAULT_GAMES_CATALOG = [
     sound_file: '',
     background_music_file: '',
     is_enabled: 1,
-    sort_order: 0
+    sort_order: 30
   },
   {
     slug: 'fortune',
@@ -232,7 +232,7 @@ const DEFAULT_GAMES_CATALOG = [
     sound_file: '',
     background_music_file: '',
     is_enabled: 1,
-    sort_order: 0
+    sort_order: 20
   },
   {
     slug: 'muyu',
@@ -243,7 +243,7 @@ const DEFAULT_GAMES_CATALOG = [
     sound_file: '',
     background_music_file: '',
     is_enabled: 1,
-    sort_order: 0
+    sort_order: 10
   }
 ];
 

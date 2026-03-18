@@ -1,6 +1,7 @@
 const strikeBtn = document.getElementById('muyuStrikeBtn');
 const resetBtn = document.getElementById('muyuResetBtn');
 const musicToggleBtn = document.getElementById('muyuMusicToggleBtn');
+const autoToggleBtn = document.getElementById('muyuAutoToggleBtn');
 const todayCountEl = document.getElementById('muyuTodayCount');
 const heroCountEl = document.getElementById('muyuHeroCount');
 const hintEl = document.getElementById('muyuHint');
@@ -28,9 +29,11 @@ const STORAGE_KEY = 'claw800_muyu_state_v1';
 const DEFAULT_STRIKE_AUDIO_SRC = '/audio/muyu-strike.mp3';
 const DEFAULT_FISH_IMAGE_SRC = '/assets/muyu-fish-fixed.webp';
 const DEFAULT_MALLET_IMAGE_SRC = '/assets/muyu-mallet-fixed.png';
+const AUTO_STRIKE_INTERVAL_MS = 1000 / 2;
 
 let audioContext = null;
 let isStriking = false;
+let autoStrikeTimer = null;
 let ambientNodes = null;
 let externalStrikeAudioAvailable = true;
 let externalBackgroundMusicAvailable = false;
@@ -164,7 +167,8 @@ function getDefaultState() {
     total: 0,
     today: 0,
     dateKey: getTodayKey(),
-    musicEnabled: false
+    musicEnabled: false,
+    autoStrikeEnabled: false
   };
 }
 
@@ -182,7 +186,8 @@ function loadState() {
       total: Number(parsed.total) || 0,
       today: Number(parsed.today) || 0,
       dateKey: parsed.dateKey || fallback.dateKey,
-      musicEnabled: Boolean(parsed.musicEnabled)
+      musicEnabled: Boolean(parsed.musicEnabled),
+      autoStrikeEnabled: Boolean(parsed.autoStrikeEnabled)
     };
   } catch {
     return fallback;
@@ -201,6 +206,10 @@ function renderState() {
   if (musicToggleBtn) {
     musicToggleBtn.textContent = `背景音乐：${state.musicEnabled ? '开' : '关'}`;
     musicToggleBtn.classList.toggle('active', state.musicEnabled);
+  }
+  if (autoToggleBtn) {
+    autoToggleBtn.textContent = `自动敲击：${state.autoStrikeEnabled ? '开' : '关'}`;
+    autoToggleBtn.classList.toggle('active', state.autoStrikeEnabled);
   }
 }
 
@@ -409,6 +418,20 @@ function syncAmbientMusic() {
   else stopAmbientMusic();
 }
 
+function stopAutoStrike() {
+  if (!autoStrikeTimer) return;
+  window.clearInterval(autoStrikeTimer);
+  autoStrikeTimer = null;
+}
+
+function syncAutoStrike() {
+  stopAutoStrike();
+  if (!state.autoStrikeEnabled) return;
+  autoStrikeTimer = window.setInterval(() => {
+    strikeWood();
+  }, AUTO_STRIKE_INTERVAL_MS);
+}
+
 function strikeWood() {
   if (isStriking) return;
   isStriking = true;
@@ -448,6 +471,7 @@ function resetState() {
   saveState();
   renderState();
   syncAmbientMusic();
+  syncAutoStrike();
   hintEl.textContent = '已经清零，可以重新开始积功德。';
 }
 
@@ -468,8 +492,19 @@ function toggleMusic() {
   hintEl.textContent = '背景音乐已关闭。';
 }
 
+function toggleAutoStrike() {
+  state.autoStrikeEnabled = !state.autoStrikeEnabled;
+  saveState();
+  renderState();
+  syncAutoStrike();
+  hintEl.textContent = state.autoStrikeEnabled
+    ? '自动敲击已开启，每秒自动敲击 2 下。'
+    : '自动敲击已关闭。';
+}
+
 renderState();
 syncAmbientMusic();
+syncAutoStrike();
 const initialCachedConfig = readCachedGameConfig();
 window.__GAME_CONFIG__ = normalizeGameConfig(initialCachedConfig || DEFAULT_GAME_CONFIG);
 syncGameConfig({
@@ -500,3 +535,8 @@ if (typeof window !== 'undefined') {
 strikeBtn?.addEventListener('click', strikeWood);
 resetBtn?.addEventListener('click', resetState);
 musicToggleBtn?.addEventListener('click', toggleMusic);
+autoToggleBtn?.addEventListener('click', toggleAutoStrike);
+
+window.addEventListener('beforeunload', () => {
+  stopAutoStrike();
+});

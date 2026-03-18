@@ -14,6 +14,7 @@ test('woodfish page no longer renders lower total merit card', () => {
   assert.doesNotMatch(html, /id="muyuTotalCount"/);
   assert.match(html, /id="muyuTodayCount"/);
   assert.match(html, /id="muyuMusicToggleBtn"/);
+  assert.match(html, /id="muyuAutoToggleBtn"/);
   assert.match(html, /id="muyuResetBtn"/);
 });
 
@@ -30,4 +31,13 @@ test('woodfish mobile mallet uses larger responsive sizing and higher placement'
     css,
     /\.muyu-wood\.is-striking \.muyu-mallet\s*\{[\s\S]*?translate\(-10px,\s*22px\);[\s\S]*?\}/
   );
+});
+
+test('woodfish auto-strike button and timer logic exist', () => {
+  const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'muyu.js'), 'utf8');
+  assert.match(html, /自动敲击：关/);
+  assert.match(css, /\.muyu-auto-btn/);
+  assert.match(js, /const AUTO_STRIKE_INTERVAL_MS = 1000 \/ 2;/);
+  assert.match(js, /function toggleAutoStrike\(\)/);
+  assert.match(js, /window\.setInterval\(\(\) => \{\s*strikeWood\(\);/);
 });
