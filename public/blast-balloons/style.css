@@ -459,16 +459,16 @@ body {
 
 @media (max-width: 720px) {
   .container {
-    width: min(100%, 96vw);
+    width: min(100%, 98vw);
   }
 
   .balloons-page {
-    padding: 8px 0 12px;
+    padding: 6px 0 10px;
   }
 
   .balloons-shell {
     border-radius: 18px;
-    padding: 10px;
+    padding: 8px;
   }
 
   .balloons-header {
@@ -510,28 +510,81 @@ body {
   }
 
   .balloons-board-wrap {
-    padding: 8px;
-    border-radius: 18px;
+    padding: 6px;
+    border-radius: 16px;
   }
 
   .balloons-board {
     grid-template-columns: repeat(10, minmax(0, 1fr));
-    gap: 6px;
+    gap: 5px;
     min-height: auto;
   }
 
+  .balloons-overlay {
+    align-items: start;
+    padding: 10px 8px;
+    background: rgba(235, 247, 255, 0.18);
+    backdrop-filter: blur(2px);
+  }
+
   .balloons-overlay__card {
-    width: min(360px, calc(100% - 24px));
-    padding: 20px 16px 16px;
-    border-radius: 20px;
+    width: min(280px, calc(100% - 104px));
+    padding: 14px 12px 12px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.84);
+    box-shadow: 0 10px 24px rgba(75, 113, 145, 0.12);
+  }
+
+  .balloons-overlay__eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.08em;
   }
 
   .balloons-overlay__title {
-    font-size: 28px;
+    margin: 6px 0;
+    font-size: 22px;
+  }
+
+  .balloons-overlay__desc {
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .balloons-setup {
+    gap: 8px;
+    margin: 10px 0;
+  }
+
+  .balloons-setup__value {
+    gap: 4px;
+  }
+
+  .balloons-setup__value span {
+    font-size: 11px;
   }
 
   .balloons-setup__value strong {
-    font-size: 38px;
+    font-size: 28px;
+  }
+
+  .balloons-setup__presets {
+    gap: 6px;
+  }
+
+  .balloons-chip {
+    min-height: 32px;
+    font-size: 12px;
+  }
+
+  .balloons-overlay__actions {
+    gap: 8px;
+  }
+
+  .balloons-primary-btn,
+  .balloons-secondary-btn {
+    min-height: 38px;
+    padding: 0 14px;
+    font-size: 13px;
   }
 }
 
@@ -551,7 +604,7 @@ body {
   }
 
   .balloons-board-wrap {
-    padding: 6px;
+    padding: 4px;
   }
 
   .balloons-stat {
@@ -563,11 +616,25 @@ body {
   }
 
   .balloons-overlay {
-    padding: 10px;
+    padding: 8px 6px;
   }
 
   .balloons-overlay__card {
-    width: min(340px, calc(100% - 12px));
+    width: min(250px, calc(100% - 118px));
+    padding: 12px 10px 10px;
+    border-radius: 16px;
+  }
+
+  .balloons-overlay__title {
+    font-size: 19px;
+  }
+
+  .balloons-overlay__desc {
+    font-size: 10px;
+  }
+
+  .balloons-setup__value strong {
+    font-size: 24px;
   }
 
   .balloons-setup__presets {
