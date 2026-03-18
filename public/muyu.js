@@ -29,7 +29,7 @@ const STORAGE_KEY = 'claw800_muyu_state_v1';
 const DEFAULT_STRIKE_AUDIO_SRC = '/audio/muyu-strike.mp3';
 const DEFAULT_FISH_IMAGE_SRC = '/assets/muyu-fish-fixed.webp';
 const DEFAULT_MALLET_IMAGE_SRC = '/assets/muyu-mallet-fixed.png';
-const AUTO_STRIKE_INTERVAL_MS = 1000 / 2;
+const AUTO_STRIKE_INTERVAL_MS = 1000;
 
 let audioContext = null;
 let isStriking = false;
@@ -498,7 +498,7 @@ function toggleAutoStrike() {
   renderState();
   syncAutoStrike();
   hintEl.textContent = state.autoStrikeEnabled
-    ? '自动敲击已开启，每秒自动敲击 2 下。'
+    ? '自动敲击已开启，每秒自动敲击 1 下。'
     : '自动敲击已关闭。';
 }
 
