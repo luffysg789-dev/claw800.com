@@ -501,13 +501,6 @@ function strikeWood() {
 }
 
 function applyTipMeritReward() {
-  runAfterNextPaint(() => {
-    window.alert('谢谢打赏，佛祖会保佑您,功德+100!');
-    commitTipMeritReward();
-  });
-}
-
-function commitTipMeritReward() {
   const todayKey = getTodayKey();
   if (state.dateKey !== todayKey) {
     state.dateKey = todayKey;
@@ -519,6 +512,9 @@ function commitTipMeritReward() {
   saveState();
   renderState();
   hintEl.textContent = `谢谢打赏，佛祖会保佑您,功德+100! 今日已积 ${state.today}`;
+  runAfterNextPaint(() => {
+    window.alert('谢谢打赏，佛祖会保佑您,功德+100!');
+  });
 }
 
 function resetState() {
