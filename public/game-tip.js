@@ -141,6 +141,26 @@
     return `${NEXA_PROTOCOL_ORDER_BASE}?${params.toString()}`;
   }
 
+  function launchNexaUrl(url) {
+    const targetUrl = String(url || '').trim();
+    if (!targetUrl) return;
+
+    const anchor = document.createElement('a');
+    anchor.href = targetUrl;
+    anchor.style.display = 'none';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = targetUrl;
+    document.body.appendChild(iframe);
+    window.setTimeout(() => iframe.remove(), 1500);
+
+    window.location.href = targetUrl;
+  }
+
   function extractAuthCodeFromUrl() {
     const params = new URLSearchParams(window.location.search);
     return (
@@ -250,7 +270,7 @@
   async function beginLoginFlow(game) {
     setStatus('正在打开 Nexa 登录授权...', '');
     window.sessionStorage.setItem('claw800_nexa_tip_login_game', game.slug);
-    window.location.href = buildNexaAuthorizeUrl(game);
+    launchNexaUrl(buildNexaAuthorizeUrl(game));
   }
 
   async function beginPaymentFlow(game, session) {
@@ -269,7 +289,7 @@
     });
 
     setStatus('请在 Nexa 中输入六位支付密码完成余额支付。', '');
-    window.location.href = buildNexaPaymentUrl(orderResponse.payment);
+    launchNexaUrl(buildNexaPaymentUrl(orderResponse.payment));
   }
 
   async function handleTipClick(event) {

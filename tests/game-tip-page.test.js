@@ -53,9 +53,10 @@ test('shared tip script uses explicit login-then-pay flow for Nexa app webview',
   assert.match(tipJs, /function updateButtonState\(/);
   assert.match(tipJs, /function buildNexaAuthorizeUrl\(/);
   assert.match(tipJs, /function buildNexaPaymentUrl\(/);
+  assert.match(tipJs, /function launchNexaUrl\(/);
   assert.match(tipJs, /if \(!shouldRenderTip\(\)\) return;/);
-  assert.match(tipJs, /window\.location\.href = buildNexaAuthorizeUrl\(/);
-  assert.match(tipJs, /window\.location\.href = buildNexaPaymentUrl\(/);
+  assert.match(tipJs, /launchNexaUrl\(buildNexaAuthorizeUrl\(/);
+  assert.match(tipJs, /launchNexaUrl\(buildNexaPaymentUrl\(/);
   assert.match(tipJs, /const session = loadCachedSession\(\);[\s\S]*?if \(!session\)[\s\S]*?await beginLoginFlow\(game\);[\s\S]*?return;/);
   assert.match(tipJs, /setStatus\('已连接 Nexa 账号，请再次点击按钮完成支付。', 'success'\);/);
   assert.match(tipJs, /setStatus\('请在 Nexa 中输入六位支付密码完成余额支付。', ''\);/);
