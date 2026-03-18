@@ -371,9 +371,8 @@
     section.setAttribute('data-game-tip', '1');
     section.innerHTML = `
       <div class="game-tip__copy">
-        <span class="game-tip__eyebrow">Nexa 打赏</span>
         <strong class="game-tip__title">喜欢这个小游戏？</strong>
-        <p class="game-tip__desc">首次登录 Nexa 后会记住状态，之后可直接用余额支付 0.1 USDT。</p>
+        <p class="game-tip__desc">首次需要授权登录,再次点击打赏即可.</p>
       </div>
       <button type="button" class="game-tip__button" data-game-tip-button>${TIP_BUTTON_TEXT_PAY}</button>
       <p class="game-tip__status" data-game-tip-status aria-live="polite"></p>
