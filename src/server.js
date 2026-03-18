@@ -296,7 +296,7 @@ async function createNexaTipOrder({ req, gameSlug, openId, sessionKey, amount = 
 
   let response = await postNexaJson('/partner/api/openapi/payment/create', payload);
   if (isNexaSignatureError(response)) {
-    const [, phpSamplePayload] = buildNexaPaymentCreatePayloadVariants({
+    const variants = buildNexaPaymentCreatePayloadVariants({
       apiKey,
       appSecret,
       orderNo: partnerOrderNo,
@@ -310,8 +310,12 @@ async function createNexaTipOrder({ req, gameSlug, openId, sessionKey, amount = 
       openId: String(openId || '').trim(),
       sessionKey: String(sessionKey || '').trim()
     });
-
-    response = await postNexaJson('/partner/api/openapi/payment/create', phpSamplePayload);
+    for (const variant of variants) {
+      response = await postNexaJson('/partner/api/openapi/payment/create', variant.payload);
+      if (!isNexaSignatureError(response)) {
+        break;
+      }
+    }
   }
 
   const data = unwrapNexaResult(response, 'Nexa 下单失败');

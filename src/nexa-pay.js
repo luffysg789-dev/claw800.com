@@ -132,19 +132,65 @@ function buildNexaPaymentCreatePayloadVariants(options = {}) {
     strictGithubPayload.orderNo = orderNo;
   }
 
-  const phpSamplePayload = withSignature(
+  const orderSignedPayload = withSignature(
     {
       ...common,
-      orderNo,
       openid: openId
     },
     appSecret
   );
   if (orderNo) {
-    phpSamplePayload.orderNo = orderNo;
+    orderSignedPayload.orderNo = orderNo;
+  }
+  orderSignedPayload.signature = buildNexaSignature(
+    {
+      ...common,
+      openid: openId,
+      orderNo
+    },
+    appSecret
+  );
+
+  const javaSamplePayload = withSignature(
+    {
+      apiKey: common.apiKey,
+      sessionKey: common.sessionKey,
+      amount: common.amount,
+      currency: common.currency,
+      subject: common.subject,
+      body: common.body,
+      openid: openId,
+      returnUrl: common.returnUrl,
+      notifyUrl: common.notifyUrl,
+      timestamp: common.timestamp,
+      nonce: common.nonce
+    },
+    appSecret
+  );
+  if (orderNo) {
+    javaSamplePayload.orderNo = orderNo;
   }
 
-  return [strictGithubPayload, phpSamplePayload];
+  const phpSamplePayload = withSignature(
+    {
+      apiKey: common.apiKey,
+      amount: common.amount,
+      currency: common.currency,
+      orderNo,
+      notifyUrl: common.notifyUrl,
+      returnUrl: common.returnUrl,
+      timestamp: common.timestamp,
+      nonce: common.nonce
+    },
+    appSecret
+  );
+
+  return [
+    { name: 'github-doc-strict', payload: strictGithubPayload },
+    { name: 'github-doc-order-signed', payload: orderSignedPayload },
+    { name: 'github-java-sample', payload: javaSamplePayload },
+    { name: 'github-php-sample', payload: phpSamplePayload }
+  ];
 }
 
 function isNexaSignatureError(response = {}) {

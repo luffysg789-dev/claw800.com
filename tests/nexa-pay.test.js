@@ -144,14 +144,29 @@ test('buildNexaPaymentCreatePayloadVariants covers both documented payment paylo
     timestamp: '1615887873123'
   });
 
-  assert.equal(variants.length, 2);
-  assert.equal(variants[0].openid, 'open-id-123');
-  assert.equal(variants[0].callbackUrl, 'https://claw800.com/gomoku/');
-  assert.equal(variants[0].orderNo, 'partner-order-001');
-  assert.equal(variants[1].openid, 'open-id-123');
-  assert.equal(variants[1].callbackUrl, 'https://claw800.com/gomoku/');
-  assert.equal(variants[1].orderNo, 'partner-order-001');
-  assert.notEqual(variants[0].signature, variants[1].signature);
+  assert.equal(variants.length, 4);
+  assert.equal(variants[0].name, 'github-doc-strict');
+  assert.equal(variants[0].payload.openid, 'open-id-123');
+  assert.equal(variants[0].payload.callbackUrl, 'https://claw800.com/gomoku/');
+  assert.equal(variants[0].payload.orderNo, 'partner-order-001');
+
+  assert.equal(variants[1].name, 'github-doc-order-signed');
+  assert.equal(variants[1].payload.openid, 'open-id-123');
+  assert.equal(variants[1].payload.callbackUrl, 'https://claw800.com/gomoku/');
+  assert.equal(variants[1].payload.orderNo, 'partner-order-001');
+
+  assert.equal(variants[2].name, 'github-java-sample');
+  assert.equal(variants[2].payload.openid, 'open-id-123');
+  assert.equal(variants[2].payload.callbackUrl, undefined);
+  assert.equal(variants[2].payload.orderNo, 'partner-order-001');
+
+  assert.equal(variants[3].name, 'github-php-sample');
+  assert.equal(variants[3].payload.openid, undefined);
+  assert.equal(variants[3].payload.sessionKey, undefined);
+  assert.equal(variants[3].payload.orderNo, 'partner-order-001');
+
+  assert.notEqual(variants[0].payload.signature, variants[1].payload.signature);
+  assert.notEqual(variants[1].payload.signature, variants[2].payload.signature);
 });
 
 test('isNexaSignatureError detects common signature error responses', () => {
