@@ -276,11 +276,14 @@ async function createNexaTipOrder({ req, gameSlug, openId, sessionKey, amount = 
   const route = getGameRouteBySlug(normalizedSlug);
   const baseUrl = getPublicBaseUrl(req);
 
+  const partnerOrderNo = `claw800_${normalizedSlug}_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
   const payload = buildNexaPaymentCreatePayload({
     apiKey,
     appSecret,
+    orderNo: partnerOrderNo,
     amount: normalizedAmount,
     currency: NEXA_TIP_CURRENCY,
+    callbackUrl: `${baseUrl}${route}`,
     subject: 'Claw800 打赏',
     body: `打赏 ${gameName}`,
     notifyUrl: `${baseUrl}/api/nexa/tip/notify`,
@@ -298,6 +301,7 @@ async function createNexaTipOrder({ req, gameSlug, openId, sessionKey, amount = 
 
   nexaTipOrders.set(orderNo, {
     orderNo,
+    partnerOrderNo,
     gameSlug: normalizedSlug,
     gameName,
     amount: normalizedAmount,
@@ -1844,7 +1848,7 @@ app.post('/api/nexa/tip/notify', (req, res) => {
       paidTime: String(req.body?.paidTime || req.body?.data?.paidTime || cached.paidTime || '')
     });
   }
-  res.json({ ok: true });
+  res.type('text/plain; charset=utf-8').send('success');
 });
 
 app.get('/api/admin/games', requireAdmin, (_req, res) => {

@@ -4,41 +4,33 @@
   const TIP_BUTTON_TEXT_LOGIN = 'Nexa 登录后打赏';
   const TIP_BUTTON_TEXT_PAY = '打赏 0.1 USDT';
   const TIP_BUTTON_TEXT_BUSY = '处理中...';
+  const NEXA_API_KEY = 'NEXA2033522880098676737';
+  const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth://oauth/authorize';
+  const NEXA_PROTOCOL_ORDER_BASE = 'nexaauth://order';
   const SESSION_STORAGE_KEY = 'claw800_nexa_tip_session_v1';
+  const PENDING_ORDER_STORAGE_KEY = 'claw800_nexa_tip_pending_order_v1';
   const QUERY_INTERVAL_MS = 2000;
   const QUERY_TIMEOUT_MS = 45000;
 
-  const AUTH_BRIDGE_CANDIDATES = [
-    ['NexaBridge', 'getAuthCode'],
-    ['NexaBridge', 'requestAuthCode'],
-    ['NexaPay', 'getAuthCode'],
-    ['NexaPay', 'requestAuthCode'],
-    ['NEXA', 'getAuthCode'],
-    ['NEXA', 'requestAuthCode'],
-    ['Nexa', 'getAuthCode'],
-    ['Nexa', 'requestAuthCode']
-  ];
-
-  const PAYMENT_BRIDGE_CANDIDATES = [
-    ['NexaBridge', 'requestPayment'],
-    ['NexaBridge', 'pay'],
-    ['NexaPay', 'requestPayment'],
-    ['NexaPay', 'pay'],
-    ['NEXA', 'requestPayment'],
-    ['NEXA', 'pay'],
-    ['Nexa', 'requestPayment'],
-    ['Nexa', 'pay']
-  ];
+  function shouldRenderTip() {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return true;
+    return window.matchMedia('(max-width: 720px)').matches;
+  }
 
   function getCurrentGame() {
     const config = window.ClawGamesConfig?.getCurrentGameConfig?.() || window.__GAME_CONFIG__ || {};
     const path = window.location.pathname || '/';
     const slugFromPath =
       String(config.slug || '').trim() ||
-      (path.startsWith('/gomoku/') ? 'gomoku' :
-        path.endsWith('/minesweeper.html') ? 'minesweeper' :
-        path.endsWith('/fortune.html') ? 'fortune' :
-        path.endsWith('/muyu.html') ? 'muyu' : 'game');
+      (path.startsWith('/gomoku/')
+        ? 'gomoku'
+        : path.endsWith('/minesweeper.html')
+          ? 'minesweeper'
+          : path.endsWith('/fortune.html')
+            ? 'fortune'
+            : path.endsWith('/muyu.html')
+              ? 'muyu'
+              : 'game');
 
     return {
       slug: slugFromPath,
@@ -74,6 +66,30 @@
     } catch {}
   }
 
+  function loadPendingOrder() {
+    try {
+      const raw = window.sessionStorage.getItem(PENDING_ORDER_STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object' || !parsed.orderNo) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  function savePendingOrder(order) {
+    try {
+      window.sessionStorage.setItem(PENDING_ORDER_STORAGE_KEY, JSON.stringify(order));
+    } catch {}
+  }
+
+  function clearPendingOrder() {
+    try {
+      window.sessionStorage.removeItem(PENDING_ORDER_STORAGE_KEY);
+    } catch {}
+  }
+
   function setStatus(message, tone) {
     const statusEl = document.querySelector('[data-game-tip-status]');
     if (!statusEl) return;
@@ -98,78 +114,46 @@
     button.textContent = session ? TIP_BUTTON_TEXT_PAY : TIP_BUTTON_TEXT_LOGIN;
   }
 
-  function normalizeBridgeResponse(value) {
-    if (value === null || value === undefined) return null;
-    if (typeof value === 'string') return value.trim();
-    if (typeof value === 'object') return value;
-    return String(value).trim();
-  }
-
-  function callBridge(targetName, methodName, payload) {
-    const target = window[targetName];
-    const handler = target && typeof target[methodName] === 'function' ? target[methodName] : null;
-    if (!handler) return null;
-
-    return new Promise((resolve, reject) => {
-      let settled = false;
-      const finish = (fn) => (value) => {
-        if (settled) return;
-        settled = true;
-        fn(value);
-      };
-      const onResolve = finish(resolve);
-      const onReject = finish((error) => reject(error instanceof Error ? error : new Error(String(error || '桥接调用失败'))));
-
-      try {
-        const maybeResult = handler.call(target, payload, onResolve, onReject);
-        if (maybeResult && typeof maybeResult.then === 'function') {
-          maybeResult.then(onResolve).catch(onReject);
-          return;
-        }
-        if (maybeResult !== undefined) {
-          onResolve(maybeResult);
-          return;
-        }
-        window.setTimeout(() => {
-          if (!settled) {
-            onReject(new Error(`${targetName}.${methodName} 超时`));
-          }
-        }, 8000);
-      } catch (error) {
-        onReject(error);
-      }
+  function buildCleanReturnUrl() {
+    const url = new URL(window.location.href);
+    ['code', 'authCode', 'state', 'nexa_tip_order', 'nexa_tip_status'].forEach((key) => {
+      url.searchParams.delete(key);
     });
+    return url.toString();
   }
 
-  async function requestAuthCodeFromBridge() {
-    for (const [targetName, methodName] of AUTH_BRIDGE_CANDIDATES) {
-      try {
-        const response = await callBridge(targetName, methodName, { scope: 'userinfo' });
-        const normalized = normalizeBridgeResponse(response);
-        if (normalized) return normalized;
-      } catch {}
-    }
-    throw new Error('当前 Nexa 小程序环境没有暴露授权接口，请在 Nexa 内置页面中打开。');
+  function buildNexaAuthorizeUrl() {
+    const redirectUri = buildCleanReturnUrl();
+    return `${NEXA_PROTOCOL_AUTH_BASE}?apikey=${encodeURIComponent(NEXA_API_KEY)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
   }
 
-  function extractAuthCode(result) {
-    if (!result) return '';
-    if (typeof result === 'string') return result.trim();
-    if (typeof result !== 'object') return '';
-    if (typeof result.authCode === 'string') return result.authCode.trim();
-    if (typeof result.code === 'string' && result.code !== '0') return '';
-    if (typeof result.data === 'string') return result.data.trim();
-    if (result.data && typeof result.data.authCode === 'string') return result.data.authCode.trim();
-    return '';
+  function buildNexaPaymentUrl(payment) {
+    const redirectUrl = buildCleanReturnUrl();
+    const params = new URLSearchParams({
+      orderNo: String(payment?.orderNo || '').trim(),
+      paySign: String(payment?.paySign || '').trim(),
+      signType: String(payment?.signType || 'MD5').trim(),
+      apiKey: String(payment?.apiKey || NEXA_API_KEY).trim(),
+      nonce: String(payment?.nonce || '').trim(),
+      timestamp: String(payment?.timestamp || '').trim(),
+      redirectUrl
+    });
+    return `${NEXA_PROTOCOL_ORDER_BASE}?${params.toString()}`;
   }
 
-  async function requestPaymentFromBridge(payment) {
-    for (const [targetName, methodName] of PAYMENT_BRIDGE_CANDIDATES) {
-      try {
-        return await callBridge(targetName, methodName, payment);
-      } catch {}
-    }
-    return null;
+  function extractAuthCodeFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    return (
+      String(params.get('code') || '').trim() ||
+      String(params.get('authCode') || '').trim() ||
+      String(params.get('auth_code') || '').trim()
+    );
+  }
+
+  function clearAuthCodeFromUrl() {
+    const url = new URL(window.location.href);
+    ['code', 'authCode', 'auth_code', 'state'].forEach((key) => url.searchParams.delete(key));
+    window.history.replaceState({}, document.title, url.toString());
   }
 
   async function postJson(url, body) {
@@ -188,34 +172,40 @@
     return json;
   }
 
-  async function ensureSession(game) {
-    const cached = loadCachedSession();
-    if (cached) return cached;
+  async function exchangeSessionFromUrlCode(game) {
+    const authCode = extractAuthCodeFromUrl();
+    if (!authCode) return false;
 
-    setStatus('正在向 Nexa 请求授权...', '');
-    const authBridgeResult = await requestAuthCodeFromBridge();
-    const authCode = extractAuthCode(authBridgeResult);
-    if (!authCode) {
-      throw new Error('没有拿到 Nexa 授权码，请稍后重试。');
+    updateButtonState({ busy: true, session: null });
+    setStatus('正在完成 Nexa 登录...', '');
+
+    try {
+      const response = await postJson('/api/nexa/tip/session', {
+        authCode,
+        gameSlug: game.slug
+      });
+
+      const session = {
+        openId: String(response.session?.openId || '').trim(),
+        sessionKey: String(response.session?.sessionKey || '').trim(),
+        expiresAt: Number(response.session?.expiresAt || 0) || Date.now() + 60 * 60 * 1000
+      };
+
+      if (!session.openId || !session.sessionKey) {
+        throw new Error('Nexa 会话创建失败，请重新登录。');
+      }
+
+      saveCachedSession(session);
+      clearAuthCodeFromUrl();
+      updateButtonState({ session });
+      setStatus('已连接 Nexa 账号，请再次点击按钮完成支付。', 'success');
+      return true;
+    } catch (error) {
+      clearAuthCodeFromUrl();
+      updateButtonState();
+      setStatus(error instanceof Error ? error.message : 'Nexa 登录失败，请重试。', 'error');
+      return false;
     }
-
-    const response = await postJson('/api/nexa/tip/session', {
-      authCode,
-      gameSlug: game.slug
-    });
-
-    const session = {
-      openId: String(response.session?.openId || '').trim(),
-      sessionKey: String(response.session?.sessionKey || '').trim(),
-      expiresAt: Number(response.session?.expiresAt || 0) || Date.now() + 60 * 60 * 1000
-    };
-
-    if (!session.openId || !session.sessionKey) {
-      throw new Error('Nexa 会话创建失败，请重新授权。');
-    }
-
-    saveCachedSession(session);
-    return session;
   }
 
   async function pollOrder(orderNo) {
@@ -230,17 +220,66 @@
     return 'PENDING';
   }
 
+  async function settlePendingOrder() {
+    const pendingOrder = loadPendingOrder();
+    if (!pendingOrder?.orderNo) return;
+
+    updateButtonState({ busy: true });
+    setStatus('正在确认支付结果...', '');
+
+    try {
+      const finalStatus = await pollOrder(pendingOrder.orderNo);
+      if (finalStatus === 'SUCCESS') {
+        clearPendingOrder();
+        setStatus('打赏成功，感谢支持。', 'success');
+        return;
+      }
+      if (finalStatus === 'FAILED' || finalStatus === 'CANCELED' || finalStatus === 'EXPIRED') {
+        clearPendingOrder();
+        setStatus(`支付未完成，当前状态：${finalStatus}`, 'error');
+        return;
+      }
+      setStatus('订单仍待支付，请在 Nexa 中完成支付后返回。', '');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '支付结果确认失败，请稍后重试。', 'error');
+    } finally {
+      updateButtonState();
+    }
+  }
+
+  async function beginLoginFlow(game) {
+    setStatus('正在打开 Nexa 登录授权...', '');
+    window.sessionStorage.setItem('claw800_nexa_tip_login_game', game.slug);
+    window.location.href = buildNexaAuthorizeUrl(game);
+  }
+
+  async function beginPaymentFlow(game, session) {
+    setStatus('正在创建订单...', '');
+    const orderResponse = await postJson('/api/nexa/tip/create', {
+      gameSlug: game.slug,
+      openId: session.openId,
+      sessionKey: session.sessionKey,
+      amount: TIP_AMOUNT
+    });
+
+    savePendingOrder({
+      orderNo: orderResponse.orderNo,
+      gameSlug: game.slug,
+      createdAt: Date.now()
+    });
+
+    setStatus('请在 Nexa 中输入六位支付密码完成余额支付。', '');
+    window.location.href = buildNexaPaymentUrl(orderResponse.payment);
+  }
+
   async function handleTipClick(event) {
-    const button = event.currentTarget;
     const game = getCurrentGame();
     const session = loadCachedSession();
     updateButtonState({ busy: true, session });
 
     try {
       if (!session) {
-        const nextSession = await ensureSession(game);
-        updateButtonState({ session: nextSession });
-        setStatus('已连接 Nexa 账号，请再次点击按钮完成支付。', 'success');
+        await beginLoginFlow(game);
         return;
       }
 
@@ -250,28 +289,7 @@
       }
 
       setStatus('正在准备打赏订单...', '');
-      setStatus('正在创建订单...', '');
-      const orderResponse = await postJson('/api/nexa/tip/create', {
-        gameSlug: game.slug,
-        openId: session.openId,
-        sessionKey: session.sessionKey,
-        amount: TIP_AMOUNT
-      });
-
-      setStatus('请在 Nexa 中输入六位支付密码完成余额支付。', '');
-      await requestPaymentFromBridge(orderResponse.payment);
-
-      setStatus('正在确认支付结果...', '');
-      const finalStatus = await pollOrder(orderResponse.orderNo);
-      if (finalStatus === 'SUCCESS') {
-        setStatus('打赏成功，感谢支持。', 'success');
-        return;
-      }
-      if (finalStatus === 'PENDING') {
-        setStatus('订单已创建，请在 Nexa 中完成支付后稍后刷新查看。', '');
-        return;
-      }
-      throw new Error(`支付未完成，当前状态：${finalStatus}`);
+      await beginPaymentFlow(game, session);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : '打赏失败，请稍后重试。', 'error');
     } finally {
@@ -280,6 +298,7 @@
   }
 
   function renderTipBar() {
+    if (!shouldRenderTip()) return;
     if (document.querySelector('[data-game-tip]')) return;
     const shell = getShell();
     if (!shell) return;
@@ -302,15 +321,45 @@
     updateButtonState();
   }
 
-  function boot() {
+  async function boot() {
+    const game = getCurrentGame();
     renderTipBar();
+    await exchangeSessionFromUrlCode(game);
+    await settlePendingOrder();
+  }
+
+  function syncTipVisibility() {
+    const existing = document.querySelector('[data-game-tip]');
+    if (!shouldRenderTip()) {
+      existing?.remove();
+      return;
+    }
+    renderTipBar();
+    updateButtonState();
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot, { once: true });
+    document.addEventListener('DOMContentLoaded', () => {
+      boot().catch(() => {});
+    }, { once: true });
   } else {
-    boot();
+    boot().catch(() => {});
   }
 
-  window.addEventListener('game-config-ready', boot);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && loadPendingOrder()) {
+      settlePendingOrder().catch(() => {});
+    }
+  });
+
+  window.addEventListener('focus', () => {
+    if (loadPendingOrder()) {
+      settlePendingOrder().catch(() => {});
+    }
+  });
+  window.addEventListener('game-config-ready', () => {
+    renderTipBar();
+    updateButtonState();
+  });
+  window.addEventListener('resize', syncTipVisibility);
 })();

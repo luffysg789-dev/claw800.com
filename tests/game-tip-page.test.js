@@ -47,8 +47,16 @@ test('server exposes nexa tip endpoints', () => {
 test('shared tip script uses explicit login-then-pay flow for Nexa app webview', () => {
   assert.match(tipJs, /const TIP_BUTTON_TEXT_LOGIN = 'Nexa 登录后打赏';/);
   assert.match(tipJs, /const TIP_BUTTON_TEXT_PAY = '打赏 0\.1 USDT';/);
+  assert.match(tipJs, /const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth:\/\/oauth\/authorize';/);
+  assert.match(tipJs, /const NEXA_PROTOCOL_ORDER_BASE = 'nexaauth:\/\/order';/);
+  assert.match(tipJs, /function shouldRenderTip\(\)/);
   assert.match(tipJs, /function updateButtonState\(/);
-  assert.match(tipJs, /const session = loadCachedSession\(\);[\s\S]*?if \(!session\)[\s\S]*?await ensureSession\(game\);[\s\S]*?return;/);
+  assert.match(tipJs, /function buildNexaAuthorizeUrl\(/);
+  assert.match(tipJs, /function buildNexaPaymentUrl\(/);
+  assert.match(tipJs, /if \(!shouldRenderTip\(\)\) return;/);
+  assert.match(tipJs, /window\.location\.href = buildNexaAuthorizeUrl\(/);
+  assert.match(tipJs, /window\.location\.href = buildNexaPaymentUrl\(/);
+  assert.match(tipJs, /const session = loadCachedSession\(\);[\s\S]*?if \(!session\)[\s\S]*?await beginLoginFlow\(game\);[\s\S]*?return;/);
   assert.match(tipJs, /setStatus\('已连接 Nexa 账号，请再次点击按钮完成支付。', 'success'\);/);
   assert.match(tipJs, /setStatus\('请在 Nexa 中输入六位支付密码完成余额支付。', ''\);/);
 });

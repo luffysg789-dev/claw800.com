@@ -1,6 +1,6 @@
 const crypto = require('node:crypto');
 
-const DEFAULT_NEXA_API_BASE_URL = String(process.env.NEXA_API_BASE_URL || 'https://nexaexworthcn.super.site').trim();
+const DEFAULT_NEXA_API_BASE_URL = String(process.env.NEXA_API_BASE_URL || 'https://merchantapi.nexaexworth.com').trim();
 const DEFAULT_NEXA_API_KEY = String(process.env.NEXA_API_KEY || 'NEXA2033522880098676737').trim();
 const DEFAULT_NEXA_APP_SECRET = String(process.env.NEXA_APP_SECRET || '0eebb98fa14d403d8567f0bf5bb5dd80TOSPAMDN').trim();
 const DEFAULT_NEXA_CURRENCY = 'USDT';
@@ -67,8 +67,10 @@ function buildNexaUserInfoPayload({ apiKey = DEFAULT_NEXA_API_KEY, appSecret = D
 function buildNexaPaymentCreatePayload({
   apiKey = DEFAULT_NEXA_API_KEY,
   appSecret = DEFAULT_NEXA_APP_SECRET,
+  orderNo,
   amount,
   currency = DEFAULT_NEXA_CURRENCY,
+  callbackUrl,
   subject,
   body,
   notifyUrl,
@@ -78,22 +80,27 @@ function buildNexaPaymentCreatePayload({
   nonce,
   timestamp
 }) {
-  return withSignature(
+  const payload = withSignature(
     {
       apiKey: String(apiKey || '').trim(),
       amount: String(amount || '').trim(),
+      sessionKey: String(sessionKey || '').trim(),
       currency: String(currency || DEFAULT_NEXA_CURRENCY).trim(),
-      subject: String(subject || '').trim(),
-      body: String(body || '').trim(),
+      callbackUrl: String(callbackUrl || '').trim(),
       notifyUrl: String(notifyUrl || '').trim(),
       returnUrl: String(returnUrl || '').trim(),
-      openId: String(openId || '').trim(),
-      sessionKey: String(sessionKey || '').trim(),
+      subject: String(subject || '').trim(),
+      body: String(body || '').trim(),
+      openid: String(openId || '').trim(),
       timestamp: String(timestamp || Date.now()).trim(),
       nonce: String(nonce || createNonce()).trim()
     },
     appSecret
   );
+  if (orderNo) {
+    payload.orderNo = String(orderNo).trim();
+  }
+  return payload;
 }
 
 function buildNexaPaymentQueryPayload({ apiKey = DEFAULT_NEXA_API_KEY, appSecret = DEFAULT_NEXA_APP_SECRET, orderNo, nonce, timestamp }) {
