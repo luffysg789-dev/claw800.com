@@ -11,6 +11,8 @@
   const PENDING_ORDER_STORAGE_KEY = 'claw800_nexa_tip_pending_order_v1';
   const QUERY_INTERVAL_MS = 2000;
   const QUERY_TIMEOUT_MS = 45000;
+  const RESET_STATUS_DELAY_MS = 3000;
+  let resetStatusTimer = 0;
 
   function shouldRenderTip() {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return true;
@@ -110,6 +112,15 @@
     statusEl.textContent = String(message || '');
     statusEl.classList.toggle('is-error', tone === 'error');
     statusEl.classList.toggle('is-success', tone === 'success');
+  }
+
+  function scheduleStatusReset() {
+    window.clearTimeout(resetStatusTimer);
+    resetStatusTimer = window.setTimeout(() => {
+      clearPendingOrder();
+      setStatus('', '');
+      updateButtonState();
+    }, RESET_STATUS_DELAY_MS);
   }
 
   function syncTipCopy(session = loadCachedSession()) {
@@ -280,18 +291,16 @@
     setStatus('正在确认支付结果...', '');
 
     try {
-      const finalStatus = await pollOrder(pendingOrder.orderNo);
+      const response = await postJson('/api/nexa/tip/query', { orderNo: pendingOrder.orderNo });
+      const finalStatus = String(response.status || '').trim().toUpperCase();
       if (finalStatus === 'SUCCESS') {
         clearPendingOrder();
         setStatus('打赏成功，感谢支持。', 'success');
         return;
       }
-      if (finalStatus === 'FAILED' || finalStatus === 'CANCELED' || finalStatus === 'EXPIRED') {
-        clearPendingOrder();
-        setStatus(`支付未完成，当前状态：${finalStatus}`, 'error');
-        return;
-      }
-      setStatus('订单仍待支付，请在 Nexa 中完成支付后返回。', '');
+      clearPendingOrder();
+      setStatus('支付失败', 'error');
+      scheduleStatusReset();
     } catch (error) {
       if (isNexaSessionExpiredError(error)) {
         clearCachedSession();
@@ -299,7 +308,9 @@
         setStatus('Nexa 登录已过期，请重新登录后再打赏。', 'error');
         return;
       }
-      setStatus(error instanceof Error ? error.message : '支付结果确认失败，请稍后重试。', 'error');
+      clearPendingOrder();
+      setStatus('支付失败', 'error');
+      scheduleStatusReset();
     } finally {
       updateButtonState();
     }
