@@ -178,7 +178,7 @@ function renderFortune(item) {
   resultEl.classList.remove('hidden');
 }
 
-function startDraw() {
+function startDraw(forcedFortune = null) {
   if (isDrawing) return;
   isDrawing = true;
   playShakeSound();
@@ -187,7 +187,7 @@ function startDraw() {
   hintEl.textContent = '摇签中... 今日财运正在显现';
   window.setTimeout(() => {
     drawBtn.classList.remove('is-shaking');
-    renderFortune(pickFortune());
+    renderFortune(forcedFortune || pickFortune());
     playRevealSound();
     hintEl.textContent = '今日财运已揭晓';
     isDrawing = false;
@@ -198,3 +198,8 @@ drawBtn?.addEventListener('click', startDraw);
 retryBtn?.addEventListener('click', startDraw);
 syncGameConfig();
 window.addEventListener('game-config-ready', syncGameConfig);
+window.addEventListener('claw800:tip-success', (event) => {
+  if (String(event.detail?.gameSlug || '').trim() !== 'fortune') return;
+  window.alert('谢谢打赏，您今天一定行大运发大财!');
+  startDraw(FORTUNES[0]);
+});

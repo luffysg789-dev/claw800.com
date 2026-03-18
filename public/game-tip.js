@@ -123,6 +123,17 @@
     }, RESET_STATUS_DELAY_MS);
   }
 
+  function notifyTipSuccess(gameSlug, orderNo) {
+    window.dispatchEvent(new CustomEvent('claw800:tip-success', {
+      detail: {
+        gameSlug: String(gameSlug || '').trim(),
+        amount: TIP_AMOUNT,
+        currency: TIP_CURRENCY,
+        orderNo: String(orderNo || '').trim()
+      }
+    }));
+  }
+
   function syncTipCopy(session = loadCachedSession()) {
     const descEl = document.querySelector('[data-game-tip-desc]');
     if (!descEl) return;
@@ -295,6 +306,7 @@
       const finalStatus = String(response.status || '').trim().toUpperCase();
       if (finalStatus === 'SUCCESS') {
         clearPendingOrder();
+        notifyTipSuccess(pendingOrder.gameSlug, pendingOrder.orderNo);
         setStatus('打赏成功，感谢支持。', 'success');
         return;
       }

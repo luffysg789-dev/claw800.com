@@ -51,3 +51,14 @@ test('woodfish auto-strike button and timer logic exist', () => {
   assert.match(js, /function toggleAutoStrike\(\)/);
   assert.match(js, /window\.setInterval\(\(\) => \{\s*strikeWood\(\);/);
 });
+
+test('woodfish listens for tip success and adds 100 merit to total and today', () => {
+  const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'muyu.js'), 'utf8');
+  assert.match(js, /const TIP_MERIT_REWARD = 100;/);
+  assert.match(js, /function applyTipMeritReward\(/);
+  assert.match(js, /state\.total \+= TIP_MERIT_REWARD;/);
+  assert.match(js, /state\.today \+= TIP_MERIT_REWARD;/);
+  assert.match(js, /alert\('谢谢打赏，功德\+100'\);/);
+  assert.match(js, /window\.addEventListener\('claw800:tip-success'/);
+  assert.match(js, /if \(String\(event\.detail\?\.gameSlug \|\| ''\)\.trim\(\) !== GAME_SLUG\) return;/);
+});

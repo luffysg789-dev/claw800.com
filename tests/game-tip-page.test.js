@@ -8,6 +8,7 @@ const serverJs = fs.readFileSync(path.join(rootDir, 'src', 'server.js'), 'utf8')
 const tipJsPath = path.join(rootDir, 'public', 'game-tip.js');
 const tipCssPath = path.join(rootDir, 'public', 'game-tip.css');
 const tipJs = fs.readFileSync(tipJsPath, 'utf8');
+const fortuneJs = fs.readFileSync(path.join(rootDir, 'public', 'fortune.js'), 'utf8');
 
 const pages = [
   path.join(rootDir, 'public', 'gomoku', 'index.html'),
@@ -73,6 +74,7 @@ test('shared tip script uses explicit login-then-pay flow for Nexa app webview',
   assert.match(tipJs, /const RESET_STATUS_DELAY_MS = 3000;/);
   assert.match(tipJs, /setStatus\('支付失败', 'error'\);/);
   assert.match(tipJs, /window\.setTimeout\(\(\) => \{[\s\S]*?clearPendingOrder\(\);[\s\S]*?setStatus\('', ''\);[\s\S]*?updateButtonState\(\);[\s\S]*?\}, RESET_STATUS_DELAY_MS\);/);
+  assert.match(tipJs, /window\.dispatchEvent\(new CustomEvent\('claw800:tip-success'/);
   assert.doesNotMatch(tipJs, /game-tip__eyebrow">Nexa 打赏/);
   assert.match(tipJs, /喜欢这个小游戏？/);
   assert.match(tipJs, /首次需要授权登录,再次点击打赏即可\./);
@@ -80,4 +82,13 @@ test('shared tip script uses explicit login-then-pay flow for Nexa app webview',
   assert.match(tipJs, /setStatus\('已连接 Nexa 账号，后续可直接打赏。', 'success'\);/);
   assert.match(tipJs, /setStatus\('请在 Nexa 中输入六位支付密码完成余额支付。', ''\);/);
   assert.match(tipJs, /if \(isNexaSessionExpiredError\(error\)\) \{[\s\S]*?clearCachedSession\(\);[\s\S]*?setStatus\('Nexa 登录已过期，请重新登录后再打赏。', 'error'\);/);
+});
+
+test('fortune game shows a success alert after tip payment succeeds', () => {
+  assert.match(fortuneJs, /function startDraw\(forcedFortune = null\)/);
+  assert.match(fortuneJs, /renderFortune\(forcedFortune \|\| pickFortune\(\)\);/);
+  assert.match(fortuneJs, /window\.addEventListener\('claw800:tip-success'/);
+  assert.match(fortuneJs, /if \(String\(event\.detail\?\.gameSlug \|\| ''\)\.trim\(\) !== 'fortune'\) return;/);
+  assert.match(fortuneJs, /window\.alert\('谢谢打赏，您今天一定行大运发大财!'\);/);
+  assert.match(fortuneJs, /startDraw\(FORTUNES\[0\]\);/);
 });

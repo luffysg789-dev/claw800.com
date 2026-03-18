@@ -30,6 +30,7 @@ const DEFAULT_STRIKE_AUDIO_SRC = '/audio/muyu-strike.mp3';
 const DEFAULT_FISH_IMAGE_SRC = '/assets/muyu-fish-fixed.webp';
 const DEFAULT_MALLET_IMAGE_SRC = '/assets/muyu-mallet-fixed.png';
 const AUTO_STRIKE_INTERVAL_MS = 1000;
+const TIP_MERIT_REWARD = 100;
 const DESKTOP_BACKGROUND_MUSIC_VOLUME = 0.22;
 const MOBILE_BACKGROUND_MUSIC_VOLUME = 0.015;
 const DESKTOP_AMBIENT_MASTER_GAIN = 0.014;
@@ -488,6 +489,21 @@ function strikeWood() {
   }, 1200);
 }
 
+function applyTipMeritReward() {
+  const todayKey = getTodayKey();
+  if (state.dateKey !== todayKey) {
+    state.dateKey = todayKey;
+    state.today = 0;
+  }
+
+  state.total += TIP_MERIT_REWARD;
+  state.today += TIP_MERIT_REWARD;
+  saveState();
+  renderState();
+  hintEl.textContent = `谢谢打赏，功德+100，今日已积 ${state.today}`;
+  window.alert('谢谢打赏，功德+100');
+}
+
 function resetState() {
   state = getDefaultState();
   saveState();
@@ -558,6 +574,10 @@ strikeBtn?.addEventListener('click', strikeWood);
 resetBtn?.addEventListener('click', resetState);
 musicToggleBtn?.addEventListener('click', toggleMusic);
 autoToggleBtn?.addEventListener('click', toggleAutoStrike);
+window.addEventListener('claw800:tip-success', (event) => {
+  if (String(event.detail?.gameSlug || '').trim() !== GAME_SLUG) return;
+  applyTipMeritReward();
+});
 
 window.addEventListener('beforeunload', () => {
   stopAutoStrike();
