@@ -140,6 +140,8 @@ body {
   grid-template-columns: repeat(10, minmax(0, 1fr));
   gap: 10px;
   min-height: 560px;
+  overflow: hidden;
+  isolation: isolate;
 }
 
 .balloons-board.has-bomb-flash {
@@ -522,6 +524,29 @@ body {
     margin: 0 auto;
     gap: 5px;
     min-height: auto;
+    border-radius: 18px;
+    overflow: hidden;
+  }
+
+  .balloons-board.has-bomb-flash::before {
+    inset: 6px;
+    border-radius: 16px;
+  }
+
+  .balloons-board.has-bomb-flash::after {
+    inset: 12px;
+    font-size: 15px;
+    line-height: 1.65;
+    letter-spacing: 0.06em;
+  }
+
+  .balloon-cell__bomb {
+    font-size: 20px;
+  }
+
+  .balloon-cell.is-bomb-hit::after {
+    width: 116%;
+    height: 116%;
   }
 
   .balloons-overlay {
@@ -606,6 +631,21 @@ body {
   .balloons-board {
     width: min(100%, 286px);
     gap: 4px;
+  }
+
+  .balloons-board.has-bomb-flash::after {
+    inset: 10px;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .balloon-cell__bomb {
+    font-size: 17px;
+  }
+
+  .balloon-cell.is-bomb-hit::after {
+    width: 108%;
+    height: 108%;
   }
 
   .balloons-board-wrap {
