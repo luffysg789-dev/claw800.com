@@ -31,9 +31,11 @@ const DEFAULT_FISH_IMAGE_SRC = '/assets/muyu-fish-fixed.webp';
 const DEFAULT_MALLET_IMAGE_SRC = '/assets/muyu-mallet-fixed.png';
 const AUTO_STRIKE_INTERVAL_MS = 1000;
 const DESKTOP_BACKGROUND_MUSIC_VOLUME = 0.22;
-const MOBILE_BACKGROUND_MUSIC_VOLUME = 0.06;
+const MOBILE_BACKGROUND_MUSIC_VOLUME = 0.03;
 const DESKTOP_AMBIENT_MASTER_GAIN = 0.014;
-const MOBILE_AMBIENT_MASTER_GAIN = 0.004;
+const MOBILE_AMBIENT_MASTER_GAIN = 0.002;
+const STRIKE_BODY_GAIN = 0.12;
+const STRIKE_CLICK_GAIN = 0.033;
 
 let audioContext = null;
 let isStriking = false;
@@ -264,7 +266,7 @@ function playGeneratedWoodSound() {
   bodyOsc.frequency.exponentialRampToValueAtTime(185, startAt + 0.22);
 
   bodyGain.gain.setValueAtTime(0.0001, startAt);
-  bodyGain.gain.exponentialRampToValueAtTime(0.08, startAt + 0.008);
+  bodyGain.gain.exponentialRampToValueAtTime(STRIKE_BODY_GAIN, startAt + 0.008);
   bodyGain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.24);
 
   clickOsc.type = 'square';
@@ -272,7 +274,7 @@ function playGeneratedWoodSound() {
   clickOsc.frequency.exponentialRampToValueAtTime(620, startAt + 0.05);
 
   clickGain.gain.setValueAtTime(0.0001, startAt);
-  clickGain.gain.exponentialRampToValueAtTime(0.022, startAt + 0.002);
+  clickGain.gain.exponentialRampToValueAtTime(STRIKE_CLICK_GAIN, startAt + 0.002);
   clickGain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.06);
 
   bodyOsc.connect(resonantFilter);
@@ -298,6 +300,7 @@ function playWoodSound() {
   try {
     const sound = strikeAudioProbe?.cloneNode ? strikeAudioProbe.cloneNode() : new Audio(strikeAudioSrc);
     sound.currentTime = 0;
+    sound.volume = 1;
     sound.play().catch(() => {
       externalStrikeAudioAvailable = false;
       playGeneratedWoodSound();
