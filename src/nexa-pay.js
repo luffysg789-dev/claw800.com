@@ -103,6 +103,56 @@ function buildNexaPaymentCreatePayload({
   return payload;
 }
 
+function buildNexaPaymentCreatePayloadVariants(options = {}) {
+  const common = {
+    apiKey: String(options.apiKey || DEFAULT_NEXA_API_KEY).trim(),
+    amount: String(options.amount || '').trim(),
+    sessionKey: String(options.sessionKey || '').trim(),
+    currency: String(options.currency || DEFAULT_NEXA_CURRENCY).trim(),
+    notifyUrl: String(options.notifyUrl || '').trim(),
+    returnUrl: String(options.returnUrl || '').trim(),
+    subject: String(options.subject || '').trim(),
+    body: String(options.body || '').trim(),
+    timestamp: String(options.timestamp || Date.now()).trim(),
+    nonce: String(options.nonce || createNonce()).trim()
+  };
+  const appSecret = String(options.appSecret || DEFAULT_NEXA_APP_SECRET).trim();
+  const orderNo = String(options.orderNo || '').trim();
+  const openId = String(options.openId || '').trim();
+  const callbackUrl = String(options.callbackUrl || '').trim();
+
+  const siteDocPayload = withSignature(
+    {
+      ...common,
+      openId
+    },
+    appSecret
+  );
+  if (orderNo) {
+    siteDocPayload.orderNo = orderNo;
+  }
+
+  const githubDocPayload = withSignature(
+    {
+      ...common,
+      callbackUrl,
+      openid: openId
+    },
+    appSecret
+  );
+  if (orderNo) {
+    githubDocPayload.orderNo = orderNo;
+  }
+
+  return [siteDocPayload, githubDocPayload];
+}
+
+function isNexaSignatureError(response = {}) {
+  const code = String(response?.code ?? '').trim();
+  const message = String(response?.message || response?.error || '').trim();
+  return code === '10000002' || code === '1002' || /签名/.test(message);
+}
+
 function buildNexaPaymentQueryPayload({ apiKey = DEFAULT_NEXA_API_KEY, appSecret = DEFAULT_NEXA_APP_SECRET, orderNo, nonce, timestamp }) {
   return withSignature(
     {
@@ -185,9 +235,11 @@ module.exports = {
   buildNexaAccessTokenPayload,
   buildNexaUserInfoPayload,
   buildNexaPaymentCreatePayload,
+  buildNexaPaymentCreatePayloadVariants,
   buildNexaPaymentQueryPayload,
   postNexaJson,
   unwrapNexaResult,
+  isNexaSignatureError,
   extractSessionKey,
   extractOpenId
 };

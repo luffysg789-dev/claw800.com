@@ -13,9 +13,11 @@ const {
   buildNexaAccessTokenPayload,
   buildNexaUserInfoPayload,
   buildNexaPaymentCreatePayload,
+  buildNexaPaymentCreatePayloadVariants,
   buildNexaPaymentQueryPayload,
   postNexaJson,
   unwrapNexaResult,
+  isNexaSignatureError,
   extractSessionKey,
   extractOpenId
 } = require('./nexa-pay');
@@ -292,7 +294,26 @@ async function createNexaTipOrder({ req, gameSlug, openId, sessionKey, amount = 
     sessionKey: String(sessionKey || '').trim()
   });
 
-  const response = await postNexaJson('/partner/api/openapi/payment/create', payload);
+  let response = await postNexaJson('/partner/api/openapi/payment/create', payload);
+  if (isNexaSignatureError(response)) {
+    const [siteDocPayload, githubDocPayload] = buildNexaPaymentCreatePayloadVariants({
+      apiKey,
+      appSecret,
+      orderNo: partnerOrderNo,
+      amount: normalizedAmount,
+      currency: NEXA_TIP_CURRENCY,
+      callbackUrl: `${baseUrl}${route}`,
+      subject: 'Claw800 打赏',
+      body: `打赏 ${gameName}`,
+      notifyUrl: `${baseUrl}/api/nexa/tip/notify`,
+      returnUrl: `${baseUrl}${route}`,
+      openId: String(openId || '').trim(),
+      sessionKey: String(sessionKey || '').trim()
+    });
+
+    response = await postNexaJson('/partner/api/openapi/payment/create', siteDocPayload);
+  }
+
   const data = unwrapNexaResult(response, 'Nexa 下单失败');
   const orderNo = String(data.orderNo || '').trim();
   if (!orderNo) {
