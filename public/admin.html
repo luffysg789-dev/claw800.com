@@ -118,8 +118,8 @@
                 <label id="skillsPageBotLabelEnLabel">技能页 Bot 标题（英文）<input name="skillsPageBotLabelEn" /></label>
                 <label id="skillsPageBotPromptZhLabel">技能页 Bot 提示词（中文）<textarea name="skillsPageBotPromptZh" rows="6"></textarea></label>
                 <label id="skillsPageBotPromptEnLabel">技能页 Bot 提示词（英文）<textarea name="skillsPageBotPromptEn" rows="6"></textarea></label>
-                <label id="skillsPageInstallPromptZhLabel">技能页安装提示词模板（中文，支持 {{name}} {{description}} {{url}}）<textarea name="skillsPageInstallPromptZh" rows="8"></textarea></label>
-                <label id="skillsPageInstallPromptEnLabel">技能页安装提示词模板（英文，支持 {{name}} {{description}} {{url}}）<textarea name="skillsPageInstallPromptEn" rows="8"></textarea></label>
+                <label id="skillsPageInstallPromptZhLabel">技能页安装提示词模板（中文，支持 {{name}} {{description}} {{category}} {{url}}）<textarea name="skillsPageInstallPromptZh" rows="8"></textarea></label>
+                <label id="skillsPageInstallPromptEnLabel">技能页安装提示词模板（英文，支持 {{name}} {{description}} {{category}} {{url}}）<textarea name="skillsPageInstallPromptEn" rows="8"></textarea></label>
                 <label id="siteFooterCopyrightZhLabel">版权说明（中文）<textarea name="footerCopyrightZh" rows="2"></textarea></label>
                 <label id="siteFooterCopyrightEnLabel">版权说明（英文）<textarea name="footerCopyrightEn" rows="2"></textarea></label>
                 <label id="siteFooterLinksLabel"
@@ -251,6 +251,18 @@
 
             <div id="adminSkillsSection" class="hidden">
               <h2 id="skillsListTitle">技能列表</h2>
+              <div id="adminSkillsCreateSection" class="review-card">
+                <h3 id="skillsCreateTitle">手动新增技能</h3>
+                <form id="adminSkillsCreateForm" class="admin-add-form">
+                  <label id="skillsCreateNameLabel">项目名称<input name="name" required /></label>
+                  <label id="skillsCreateDescLabel">简介<textarea name="description" rows="2"></textarea></label>
+                  <label id="skillsCreateCategoryLabel">分类<input name="category" list="adminSkillsCategoryOptions" /></label>
+                  <label id="skillsCreateUrlLabel">网址<input name="url" type="url" required placeholder="https://" /></label>
+                  <button id="skillsCreateBtn" type="submit">新增技能</button>
+                </form>
+                <datalist id="adminSkillsCategoryOptions"></datalist>
+                <p id="skillsCreateMessage" class="message"></p>
+              </div>
               <div class="toolbar">
                 <input id="skillsSearchInput" type="text" placeholder="搜索技能名称 / URL / 简介 / 分类" />
                 <button id="skillsSearchBtn" type="button">搜索</button>

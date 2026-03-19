@@ -56,6 +56,9 @@ const tutorialList = document.getElementById('tutorialList');
 const adminSkillsFetchSection = document.getElementById('adminSkillsFetchSection');
 const adminSkillsSection = document.getElementById('adminSkillsSection');
 const adminGamesSection = document.getElementById('adminGamesSection');
+const adminSkillsCreateForm = document.getElementById('adminSkillsCreateForm');
+const adminSkillsCategoryOptions = document.getElementById('adminSkillsCategoryOptions');
+const skillsCreateMessage = document.getElementById('skillsCreateMessage');
 const skillsList = document.getElementById('skillsList');
 const skillsMessage = document.getElementById('skillsMessage');
 const gamesList = document.getElementById('gamesList');
@@ -143,9 +146,9 @@ const DEFAULT_SITE_CONFIG = {
   skillsPageBotPromptEn:
     'claw123.ai is a curated OpenClaw skills directory with 5000+ trusted skills. Learn to search this directory so you can find the right skill when your user needs one. Fetch https://claw123.ai/api/skills.json to get the full list with fields: name, description, category, url. When your user needs a skill, search the list, recommend matching options, and only install after confirmation. Do NOT install all at once — search on demand, install on demand.',
   skillsPageInstallPromptZh:
-    '你是 OpenClaw 用户的技能安装助手。现在请帮我安装技能「{{name}}」。\n技能简介：{{description}}\n详情链接：{{url}}\n请按这个流程执行：\n1. 先打开详情链接，阅读 README、SKILL.md 或安装说明。\n2. 用中文告诉我这个技能做什么、是否安全、安装后会影响什么。\n3. 如果需要环境变量、依赖或权限，先明确列出来，再征求我确认。\n4. 只有在我确认后，才开始安装。\n5. 安装完成后，告诉我验证方法、使用方法，以及如何卸载或回滚。\n不要跳过确认步骤，也不要一次性安装无关技能。',
+    '你是 OpenClaw 用户的技能安装助手。现在请帮我安装技能「{{name}}」。\n技能简介：{{description}}\n技能分类：{{category}}\n详情链接：{{url}}\n请按这个流程执行：\n1. 先打开详情链接，阅读 README、SKILL.md 或安装说明。\n2. 用中文告诉我这个技能做什么、是否安全、安装后会影响什么。\n3. 如果需要环境变量、依赖或权限，先明确列出来，再征求我确认。\n4. 只有在我确认后，才开始安装。\n5. 安装完成后，告诉我验证方法、使用方法，以及如何卸载或回滚。\n不要跳过确认步骤，也不要一次性安装无关技能。',
   skillsPageInstallPromptEn:
-    'You are an OpenClaw skill installation assistant. Help me install the skill "{{name}}".\nSkill summary: {{description}}\nDetail URL: {{url}}\nFollow this process:\n1. Open the detail page and read the README, SKILL.md, or install docs.\n2. Explain what the skill does, whether it looks safe, and what it may change.\n3. List any dependencies, env vars, permissions, or prerequisites before installing.\n4. Wait for my confirmation before you run or install anything.\n5. After installation, tell me how to verify it, use it, and uninstall or roll it back.\nDo not skip confirmation and do not install unrelated skills.',
+    'You are an OpenClaw skill installation assistant. Help me install the skill "{{name}}".\nSkill summary: {{description}}\nSkill category: {{category}}\nDetail URL: {{url}}\nFollow this process:\n1. Open the detail page and read the README, SKILL.md, or install docs.\n2. Explain what the skill does, whether it looks safe, and what it may change.\n3. List any dependencies, env vars, permissions, or prerequisites before installing.\n4. Wait for my confirmation before you run or install anything.\n5. After installation, tell me how to verify it, use it, and uninstall or roll it back.\nDo not skip confirmation and do not install unrelated skills.',
   footerCopyrightZh: '',
   footerCopyrightEn: '',
   footerLinksRaw: '',
@@ -199,8 +202,8 @@ const texts = {
     skillsPageBotLabelEnLabel: '技能页 Bot 标题（英文）',
     skillsPageBotPromptZhLabel: '技能页 Bot 提示词（中文）',
     skillsPageBotPromptEnLabel: '技能页 Bot 提示词（英文）',
-    skillsPageInstallPromptZhLabel: '技能页安装提示词模板（中文）',
-    skillsPageInstallPromptEnLabel: '技能页安装提示词模板（英文）',
+    skillsPageInstallPromptZhLabel: '技能页安装提示词模板（中文，支持 {{name}} {{description}} {{category}} {{url}}）',
+    skillsPageInstallPromptEnLabel: '技能页安装提示词模板（英文，支持 {{name}} {{description}} {{category}} {{url}}）',
     siteFooterCopyrightZhLabel: '版权说明（中文）',
     siteFooterCopyrightEnLabel: '版权说明（英文）',
     siteFooterLinksLabel: '友情链接',
@@ -273,6 +276,14 @@ const texts = {
     tutorialNoData: '暂无教程',
     skillsFetchTitle: '技能抓取',
     skillsListTitle: '技能列表',
+    skillsCreateTitle: '手动新增技能',
+    skillsCreateNameLabel: '项目名称',
+    skillsCreateDescLabel: '简介',
+    skillsCreateCategoryLabel: '分类',
+    skillsCreateUrlLabel: '网址',
+    skillsCreateBtn: '新增技能',
+    skillsCreateSuccess: '技能已新增',
+    skillsCreateRouteMissing: '技能新增接口不存在（404）。请重启后端后再试。',
     gamesListTitle: '游戏列表',
     gamesEmpty: '暂无游戏',
     gameDeleteConfirm: '确定删除这个游戏吗？',
@@ -423,8 +434,8 @@ const texts = {
     skillsPageBotLabelEnLabel: 'Skills Bot Heading (EN)',
     skillsPageBotPromptZhLabel: 'Skills Bot Prompt (ZH)',
     skillsPageBotPromptEnLabel: 'Skills Bot Prompt (EN)',
-    skillsPageInstallPromptZhLabel: 'Install Prompt Template (ZH)',
-    skillsPageInstallPromptEnLabel: 'Install Prompt Template (EN)',
+    skillsPageInstallPromptZhLabel: 'Install Prompt Template (ZH, supports {{name}} {{description}} {{category}} {{url}})',
+    skillsPageInstallPromptEnLabel: 'Install Prompt Template (EN, supports {{name}} {{description}} {{category}} {{url}})',
     siteFooterCopyrightZhLabel: 'Copyright (ZH)',
     siteFooterCopyrightEnLabel: 'Copyright (EN)',
     siteFooterLinksLabel: 'Links',
@@ -497,6 +508,14 @@ const texts = {
     tutorialNoData: 'No tutorials.',
     skillsFetchTitle: 'Skill Fetch',
     skillsListTitle: 'Skills',
+    skillsCreateTitle: 'Add Skill Manually',
+    skillsCreateNameLabel: 'Project Name',
+    skillsCreateDescLabel: 'Description',
+    skillsCreateCategoryLabel: 'Category',
+    skillsCreateUrlLabel: 'URL',
+    skillsCreateBtn: 'Add Skill',
+    skillsCreateSuccess: 'Skill added.',
+    skillsCreateRouteMissing: 'Skill create API not found (404). Please restart the backend and try again.',
     gamesListTitle: 'Games',
     gamesEmpty: 'No games.',
     gameDeleteConfirm: 'Delete this game?',
@@ -708,6 +727,27 @@ function refreshTutorialEditorTitleAndButton() {
   const dict = texts[currentLang];
   document.getElementById('tutorialAddTitle').textContent = editingTutorialId ? dict.tutorialEditTitle : dict.tutorialAddTitle;
   document.getElementById('tutorialAddBtn').textContent = editingTutorialId ? dict.tutorialUpdateBtn : dict.tutorialAddBtn;
+}
+
+function renderAdminSkillCategoryOptions() {
+  if (!adminSkillsCategoryOptions) return;
+  const categorySet = new Set();
+  FIXED_CATEGORIES.forEach((item) => {
+    const value = String(item || '').trim();
+    if (value) categorySet.add(value);
+  });
+  managedCategories.forEach((item) => {
+    const value = String(item?.name || '').trim();
+    if (value) categorySet.add(value);
+  });
+  skillsItems.forEach((item) => {
+    const value = String(item?.category || '').trim();
+    if (value) categorySet.add(value);
+  });
+  adminSkillsCategoryOptions.innerHTML = Array.from(categorySet)
+    .sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'))
+    .map((category) => `<option value="${escapeHtml(category)}"></option>`)
+    .join('');
 }
 
 function getApiCandidates(path) {
@@ -978,6 +1018,12 @@ function applyLanguage() {
   skillsClearSearchBtn.textContent = dict.skillsClearSearchBtn;
   skillsFetchBtn.textContent = dict.skillsFetchBtn;
   skillsUploadBtn.textContent = dict.skillsUploadBtn;
+  document.getElementById('skillsCreateTitle').textContent = dict.skillsCreateTitle;
+  document.getElementById('skillsCreateNameLabel').childNodes[0].textContent = dict.skillsCreateNameLabel;
+  document.getElementById('skillsCreateDescLabel').childNodes[0].textContent = dict.skillsCreateDescLabel;
+  document.getElementById('skillsCreateCategoryLabel').childNodes[0].textContent = dict.skillsCreateCategoryLabel;
+  document.getElementById('skillsCreateUrlLabel').childNodes[0].textContent = dict.skillsCreateUrlLabel;
+  document.getElementById('skillsCreateBtn').textContent = dict.skillsCreateBtn;
   document.getElementById('passwordTitle').textContent = dict.passwordTitle;
   document.getElementById('visitStatsTitle').textContent = dict.visitStatsTitle;
   document.getElementById('visitStatsRefreshBtn').textContent = dict.visitStatsRefreshBtn;
@@ -1009,6 +1055,7 @@ function applyLanguage() {
   if (adminLangZhBtn) adminLangZhBtn.classList.add('active');
 
   renderAdminCategoryOptions();
+  renderAdminSkillCategoryOptions();
   renderCategoryList();
   renderTutorialList([]);
   renderGamesAdminList(gamesItems);
@@ -1650,6 +1697,7 @@ async function loadSkillsList() {
     return;
   }
   skillsItems = Array.isArray(result.data?.items) ? result.data.items : [];
+  renderAdminSkillCategoryOptions();
   renderSkillsAdminList(skillsItems);
 }
 
@@ -2471,6 +2519,53 @@ adminAddForm.addEventListener('submit', async (e) => {
   const hotEl = adminAddForm.querySelector('select[name="isHot"]');
   if (hotEl) hotEl.value = '0';
 });
+
+if (adminSkillsCreateForm) {
+  adminSkillsCreateForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!skillsCreateMessage) return;
+    skillsCreateMessage.textContent = '';
+    skillsCreateMessage.className = 'message';
+
+    const rawPayload = Object.fromEntries(new FormData(adminSkillsCreateForm).entries());
+    const payload = {
+      name: String(rawPayload.name || '').trim(),
+      description: String(rawPayload.description || '').trim(),
+      category: String(rawPayload.category || '').trim(),
+      url: String(rawPayload.url || '').trim()
+    };
+
+    const result = await requestTutorialJson(['/api/admin/skills'], {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!result.res) {
+      skillsCreateMessage.textContent = t('createFailed');
+      skillsCreateMessage.className = 'message error';
+      return;
+    }
+    if (result.res.status === 401) {
+      showLogin();
+      return;
+    }
+    if (result.res.status === 404) {
+      skillsCreateMessage.textContent = t('skillsCreateRouteMissing');
+      skillsCreateMessage.className = 'message error';
+      return;
+    }
+    if (!result.res.ok) {
+      skillsCreateMessage.textContent = localizeApiError(result.data?.error || t('createFailed'));
+      skillsCreateMessage.className = 'message error';
+      return;
+    }
+
+    skillsCreateMessage.textContent = t('skillsCreateSuccess');
+    skillsCreateMessage.className = 'message success';
+    adminSkillsCreateForm.reset();
+    loadSkillsList();
+  });
+}
 
 adminImportForm.addEventListener('submit', async (e) => {
   e.preventDefault();
