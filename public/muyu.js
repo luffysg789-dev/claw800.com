@@ -41,6 +41,7 @@ const STRIKE_BODY_GAIN = 0.18;
 const STRIKE_CLICK_GAIN = 0.05;
 const TIP_RECEIPT_SYNC_WINDOW_MS = 20000;
 const TIP_RECEIPT_SYNC_INTERVAL_MS = 800;
+const TIP_SUCCESS_ALERT_DELAY_MS = 420;
 
 let audioContext = null;
 let isStriking = false;
@@ -535,9 +536,11 @@ function applyTipMeritReward() {
   saveState();
   renderState();
   hintEl.textContent = `谢谢打赏，佛祖会保佑您,功德+100! 今日已积 ${state.today}`;
-  runAfterNextPaint(() => {
-    window.alert('谢谢打赏，佛祖会保佑您,功德+100!');
-  });
+  window.setTimeout(() => {
+    runAfterNextPaint(() => {
+      window.alert('谢谢打赏，佛祖会保佑您,功德+100!');
+    });
+  }, TIP_SUCCESS_ALERT_DELAY_MS);
 }
 
 function readTipSuccessReceipt() {
