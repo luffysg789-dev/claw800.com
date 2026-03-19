@@ -901,11 +901,15 @@ function renderSkills(skills) {
     const badgeHtml = badges.length ? `<div class="site-badge-stack">${badges.join('')}</div>` : '';
 
     return `<div class="skill-card">
-      ${badgeHtml}
-      <button class="skill-favorite-btn ${isFavoriteSkill(skill) ? 'active' : ''}" type="button" onclick="toggleFavoriteSkill('${escAttr(skill.url)}', this)" aria-label="${escHtml(t.labelFavorites)}">
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-      </button>
-      <div class="skill-name"><span>${escHtml(skill.name)}</span></div>
+      <div class="skill-card-top">
+        <div class="skill-name"><span>${escHtml(skill.name)}</span></div>
+        <div class="skill-card-actions">
+          <div class="skill-card-badges">${badgeHtml}</div>
+          <button class="skill-favorite-btn ${isFavoriteSkill(skill) ? 'active' : ''}" type="button" onclick="toggleFavoriteSkill('${escAttr(skill.url)}', this)" aria-label="${escHtml(t.labelFavorites)}">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          </button>
+        </div>
+      </div>
       <div class="skill-desc" title="${escHtml(desc)}">${escHtml(desc)}</div>
       <div class="skill-footer">
         <span class="skill-cat" title="${escHtml(cat)}">${escHtml(cat)}</span>
@@ -984,11 +988,15 @@ function renderSkillsChunked(skills) {
       const badgeHtml = badges.length ? `<div class="site-badge-stack">${badges.join('')}</div>` : '';
 
       return `<div class="skill-card">
-        ${badgeHtml}
-        <button class="skill-favorite-btn ${isFavoriteSkill(skill) ? 'active' : ''}" type="button" onclick="toggleFavoriteSkill('${escAttr(skill.url)}', this)" aria-label="${escHtml(t.labelFavorites)}">
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-        </button>
-        <div class="skill-name"><span>${escHtml(skill.name)}</span></div>
+        <div class="skill-card-top">
+          <div class="skill-name"><span>${escHtml(skill.name)}</span></div>
+          <div class="skill-card-actions">
+            <div class="skill-card-badges">${badgeHtml}</div>
+            <button class="skill-favorite-btn ${isFavoriteSkill(skill) ? 'active' : ''}" type="button" onclick="toggleFavoriteSkill('${escAttr(skill.url)}', this)" aria-label="${escHtml(t.labelFavorites)}">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+            </button>
+          </div>
+        </div>
         <div class="skill-desc" title="${escHtml(desc)}">${escHtml(desc)}</div>
         <div class="skill-footer">
           <span class="skill-cat" title="${escHtml(cat)}">${escHtml(cat)}</span>

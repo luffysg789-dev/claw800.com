@@ -246,10 +246,30 @@
       position: relative;
     }
 
+    .skill-card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .skill-card-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+      margin-left: auto;
+    }
+
+    .skill-card-badges {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+    }
+
     .skill-favorite-btn {
-      position: absolute;
-      top: 12px;
-      right: 12px;
+      position: static;
       width: 34px;
       height: 34px;
       padding: 0;
@@ -263,7 +283,6 @@
       cursor: pointer;
       box-shadow: 0 6px 18px rgba(21, 49, 28, 0.08);
       transition: all 0.2s ease;
-      z-index: 2;
     }
 
     .skill-favorite-btn:hover {

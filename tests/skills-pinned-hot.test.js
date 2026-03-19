@@ -38,3 +38,9 @@ test('skills frontend renders pinned and hot badges', () => {
   assert.match(skillsJs, /site-badge site-badge--pinned/);
   assert.match(skillsJs, /site-badge site-badge--hot/);
 });
+
+test('skills frontend groups badges and favorite button in the same top row', () => {
+  assert.match(skillsJs, /skill-card-top/);
+  assert.match(skillsJs, /skill-card-actions/);
+  assert.match(skillsJs, /skill-card-badges/);
+});
