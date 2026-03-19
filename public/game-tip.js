@@ -98,7 +98,7 @@
 
   function loadPendingOrder() {
     try {
-      const raw = window.sessionStorage.getItem(PENDING_ORDER_STORAGE_KEY);
+      const raw = getPersistentStorage().getItem(PENDING_ORDER_STORAGE_KEY);
       if (!raw) return null;
       const parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== 'object' || !parsed.orderNo) return null;
@@ -110,13 +110,13 @@
 
   function savePendingOrder(order) {
     try {
-      window.sessionStorage.setItem(PENDING_ORDER_STORAGE_KEY, JSON.stringify(order));
+      getPersistentStorage().setItem(PENDING_ORDER_STORAGE_KEY, JSON.stringify(order));
     } catch {}
   }
 
   function clearPendingOrder() {
     try {
-      window.sessionStorage.removeItem(PENDING_ORDER_STORAGE_KEY);
+      getPersistentStorage().removeItem(PENDING_ORDER_STORAGE_KEY);
     } catch {}
   }
 

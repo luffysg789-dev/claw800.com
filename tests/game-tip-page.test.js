@@ -60,6 +60,9 @@ test('shared tip script uses explicit login-then-pay flow for Nexa app webview',
   assert.match(tipJs, /function getPersistentStorage\(\)/);
   assert.match(tipJs, /const TIP_SUCCESS_STORAGE_KEY = 'claw800_nexa_tip_last_success_v1';/);
   assert.match(tipJs, /function saveTipSuccessReceipt\(/);
+  assert.match(tipJs, /getPersistentStorage\(\)\.getItem\(PENDING_ORDER_STORAGE_KEY\)/);
+  assert.match(tipJs, /getPersistentStorage\(\)\.setItem\(PENDING_ORDER_STORAGE_KEY,/);
+  assert.match(tipJs, /getPersistentStorage\(\)\.removeItem\(PENDING_ORDER_STORAGE_KEY\)/);
   assert.match(tipJs, /function isNexaAppEnvironment\(\)/);
   assert.match(tipJs, /function shouldRenderTip\(\)/);
   assert.match(tipJs, /function clearCachedSession\(\)/);
