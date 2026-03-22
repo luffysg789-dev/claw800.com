@@ -705,3 +705,52 @@ test('challenger confirm rematch reuses same room settings and freezes stake aga
     harness.cleanup();
   }
 });
+
+test('challenger can re-enter a finished room by room code after host requests rematch', async () => {
+  const harness = createHarness();
+  const creatorUserId = seedUser(harness.db, { openid: 'rematch-reenter-creator', availableBalance: '30.00' });
+  const joinerUserId = seedUser(harness.db, { openid: 'rematch-reenter-joiner', availableBalance: '30.00' });
+
+  try {
+    const createResponse = await harness.request('POST', '/api/xiangqi/rooms/create', {
+      userId: creatorUserId,
+      stakeAmount: '5.00',
+      timeControlMinutes: 15
+    });
+    const roomCode = createResponse.body.roomCode;
+
+    await harness.request('POST', '/api/xiangqi/rooms/join', {
+      userId: joinerUserId,
+      roomCode
+    });
+    await harness.request('POST', `/api/xiangqi/rooms/${roomCode}/start`, {
+      userId: creatorUserId
+    });
+    await harness.request('POST', `/api/xiangqi/matches/${getMatchByRoomId(harness.db, getRoomByCode(harness.db, roomCode).id).id}/resign`, {
+      userId: joinerUserId
+    });
+
+    await harness.request('POST', `/api/xiangqi/rooms/${roomCode}/rematch/request`, {
+      userId: creatorUserId
+    });
+
+    const response = await harness.request('POST', '/api/xiangqi/rooms/join', {
+      userId: joinerUserId,
+      roomCode
+    });
+
+    const room = getRoomByCode(harness.db, roomCode);
+    const match = getMatchByRoomId(harness.db, room.id);
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.body, {
+      ok: true,
+      status: 'reentered',
+      roomCode,
+      matchId: match.id
+    });
+    assert.equal(getWallet(harness.db, joinerUserId).available_balance, '25.00');
+    assert.equal(getWallet(harness.db, joinerUserId).frozen_balance, '0.00');
+  } finally {
+    harness.cleanup();
+  }
+});

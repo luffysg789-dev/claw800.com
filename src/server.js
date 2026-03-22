@@ -3151,33 +3151,43 @@ const createXiangqiRoom = db.transaction((payload) => {
 });
 
 const joinXiangqiRoom = db.transaction((payload) => {
-  if (!ensureUserHasNoActiveXiangqiSeat(payload.userId)) {
-    return { kind: 'user_already_active' };
-  }
-
   const room = selectXiangqiRoomByCodeStmt.get(payload.roomCode);
   if (!room) return { kind: 'room_not_found' };
-  if (String(room.status || '') !== 'WAITING') return { kind: 'room_not_joinable' };
-  if (Number(room.creator_user_id) === Number(payload.userId)) {
+
+  const requesterUserId = Number(payload.userId);
+  const isCreator = Number(room.creator_user_id) === requesterUserId;
+  const isJoiner = Number(room.joiner_user_id || 0) === requesterUserId;
+  if (isCreator || isJoiner) {
+    const existingMatch = selectXiangqiMatchByRoomIdStmt.get(room.id);
+    return {
+      kind: 'reentered',
+      roomCode: room.room_code,
+      roomId: Number(room.id),
+      matchId: existingMatch ? Number(existingMatch.id) : null
+    };
+  }
+
+  if (!ensureUserHasNoActiveXiangqiSeat(requesterUserId)) {
     return { kind: 'user_already_active' };
   }
+  if (String(room.status || '') !== 'WAITING') return { kind: 'room_not_joinable' };
 
   const stakeAmountCents = parseMoneyToCents(room.stake_amount);
   updateWalletFrozenStake({
-    userId: payload.userId,
+    userId: requesterUserId,
     amountCents: stakeAmountCents,
     direction: 'freeze',
     relatedId: room.id,
     remark: 'room join freeze'
   });
 
-  updateXiangqiRoomReadyStmt.run(payload.userId, room.id);
+  updateXiangqiRoomReadyStmt.run(requesterUserId, room.id);
   const timeLeftMs = Number(room.time_control_minutes) * 60 * 1000;
   const initialState = serializeXiangqiState(createInitialXiangqiState());
   const matchResult = insertXiangqiMatchStmt.run(
     room.id,
     room.creator_user_id,
-    payload.userId,
+    requesterUserId,
     initialState,
     timeLeftMs,
     timeLeftMs
@@ -4070,13 +4080,13 @@ app.post('/api/xiangqi/rooms/join', (req, res) => {
     }
 
     const room = selectXiangqiRoomByCodeStmt.get(result.roomCode);
-    const match = selectXiangqiMatchDetailStmt.get(result.matchId);
+    const match = result.matchId ? selectXiangqiMatchDetailStmt.get(result.matchId) : null;
     emitXiangqiRoomEvent(result.roomCode, 'room.updated', {
       room: formatXiangqiRoomItem(room, match)
     });
     return res.json({
       ok: true,
-      status: 'ready',
+      status: result.kind === 'reentered' ? 'reentered' : 'ready',
       roomCode: result.roomCode,
       matchId: result.matchId
     });

@@ -438,6 +438,18 @@ select {
   text-shadow: 0 2px 8px rgba(36, 25, 15, 0.28);
 }
 
+.xiangqi-board-overlay__detail.is-rematch-waiting {
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #d93c33 0%, #b91f18 100%);
+  color: #fff;
+  font-size: 19px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-shadow: none;
+  box-shadow: 0 12px 24px rgba(137, 33, 22, 0.22);
+}
+
 .xiangqi-board-overlay__start {
   min-width: 136px;
   min-height: 54px;
@@ -557,6 +569,15 @@ select {
   font-size: 34px;
   font-weight: 900;
   color: #1f5cff;
+}
+
+.xiangqi-match-pill span#xiangqiRoomBadge .xiangqi-room-badge__value {
+  display: inline-block;
+  font-size: 34px !important;
+  font-weight: 900 !important;
+  color: #1f5cff !important;
+  line-height: 1;
+  letter-spacing: 0.08em;
 }
 
 .xiangqi-match-pill {
@@ -1129,6 +1150,11 @@ select {
     font-size: 14px;
   }
 
+  .xiangqi-board-overlay__detail.is-rematch-waiting {
+    padding: 9px 14px;
+    font-size: 17px;
+  }
+
   .xiangqi-board-overlay__start {
     min-width: 108px;
     min-height: 46px;
@@ -1200,6 +1226,12 @@ select {
     font-size: 26px;
     font-weight: 900;
     color: #1f5cff;
+  }
+
+  .xiangqi-match-pill span#xiangqiRoomBadge .xiangqi-room-badge__value {
+    font-size: 26px !important;
+    font-weight: 900 !important;
+    color: #1f5cff !important;
   }
 
   .xiangqi-board {

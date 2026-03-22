@@ -179,7 +179,8 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /utterance\.text = cue === 'check' \? '将军' : '吃';/);
   assert.match(js, /红方胜利/);
   assert.match(js, /黑方胜利/);
-  assert.match(js, /和棋/);
+  assert.match(js, /本局和棋/);
+  assert.match(js, /等待房主再来一局/);
   assert.match(js, /new Audio\(XIANGQI_MOVE_AUDIO_SRC\)/);
   assert.match(js, /function syncRoomUrl\(/);
   assert.match(js, /function syncTimePresetButtons\(/);
@@ -208,6 +209,7 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /function getRoomOverlayState\(/);
   assert.match(js, /function renderBoardOverlay\(/);
   assert.match(js, /overlayState\.detail/);
+  assert.match(js, /ui\.boardOverlayDetail\.classList\.toggle\('is-rematch-waiting', overlayState\.detail === '等待房主再来'\);/);
   assert.match(js, /function getFinishedMatchOverlayCopy\(/);
   assert.match(js, /赢得押金/);
   assert.match(js, /押金已退回/);
@@ -303,6 +305,7 @@ test('xiangqi css delivers a distinctive mobile-first room layout', () => {
   assert.match(css, /\.xiangqi-board-overlay\s*\{/);
   assert.match(css, /\.xiangqi-board-overlay__message\s*\{/);
   assert.match(css, /\.xiangqi-board-overlay__detail\s*\{/);
+  assert.match(css, /\.xiangqi-board-overlay__detail\.is-rematch-waiting\s*\{[\s\S]*?background:\s*linear-gradient\(180deg,\s*#d93c33 0%,\s*#b91f18 100%\);[\s\S]*?color:\s*#fff;[\s\S]*?font-size:\s*19px;[\s\S]*?font-weight:\s*900;/);
   assert.match(css, /\.xiangqi-board-overlay__start\s*\{/);
   assert.match(css, /\.xiangqi-board-overlay__actions\s*\{/);
   assert.match(css, /\.xiangqi-player-card--footer\s*\{/);

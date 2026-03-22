@@ -357,8 +357,10 @@ function speakFinishedMatchResult(match) {
     text = '红方胜利';
   } else if (result === 'BLACK_WIN') {
     text = '黑方胜利';
-  } else if (result === 'DRAW' || result === 'TIMEOUT_DRAW') {
-    text = '和棋';
+  } else if (result === 'DRAW') {
+    text = '本局和棋';
+  } else if (result === 'TIMEOUT_DRAW') {
+    text = '超时和棋';
   }
   if (!text) return;
   try {
@@ -370,7 +372,25 @@ function speakFinishedMatchResult(match) {
     utterance.pitch = 1;
     utterance.volume = 1;
     window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
+    window.setTimeout(() => {
+      try {
+        window.speechSynthesis.speak(utterance);
+        const isCreator = isCurrentUserRoomCreator();
+        if (!isCreator && (result === 'RED_WIN' || result === 'BLACK_WIN')) {
+          const followUp = new window.SpeechSynthesisUtterance();
+          followUp.lang = 'zh-CN';
+          followUp.text = '等待房主再来一局';
+          followUp.rate = 1;
+          followUp.pitch = 1;
+          followUp.volume = 1;
+          window.setTimeout(() => {
+            try {
+              window.speechSynthesis.speak(followUp);
+            } catch {}
+          }, 1400);
+        }
+      } catch {}
+    }, 80);
   } catch {}
 }
 
@@ -881,6 +901,7 @@ function renderBoardOverlay() {
   ui.boardOverlayMessage.textContent = overlayState.message;
   ui.boardOverlayDetail.textContent = overlayState.detail;
   ui.boardOverlayDetail.hidden = !overlayState.detail;
+  ui.boardOverlayDetail.classList.toggle('is-rematch-waiting', overlayState.detail === '等待房主再来');
   ui.startMatchBtn.hidden = !overlayState.showStart;
   if (ui.rematchBtn) ui.rematchBtn.hidden = !overlayState.showRematch;
   if (ui.confirmRematchBtn) ui.confirmRematchBtn.hidden = !overlayState.showConfirmRematch;
