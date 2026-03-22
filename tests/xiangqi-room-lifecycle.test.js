@@ -253,6 +253,41 @@ test('create room freezes stake and stores room details', async () => {
   }
 });
 
+test('create room falls back to 5-digit room codes when all 4-digit codes are occupied', async () => {
+  const harness = createHarness();
+  const fillerUserId = seedUser(harness.db, { openid: 'room-code-filler', availableBalance: '0.00' });
+  const userId = seedUser(harness.db, { openid: 'creator-five-digit', availableBalance: '20.00' });
+
+  try {
+    const insertRoom = harness.db.prepare(`
+      INSERT INTO xiangqi_rooms (
+        room_code,
+        creator_user_id,
+        joiner_user_id,
+        stake_amount,
+        time_control_minutes,
+        status
+      ) VALUES (?, ?, NULL, '1.00', 10, 'DISBANDED')
+    `);
+
+    for (let index = 0; index < 10000; index += 1) {
+      insertRoom.run(String(index).padStart(4, '0'), fillerUserId);
+    }
+
+    const response = await harness.request('POST', '/api/xiangqi/rooms/create', {
+      userId,
+      stakeAmount: '5.00',
+      timeControlMinutes: 15
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.ok, true);
+    assert.match(response.body.roomCode, /^\d{5}$/);
+  } finally {
+    harness.cleanup();
+  }
+});
+
 test('join room rejects when balance is insufficient', async () => {
   const harness = createHarness();
   const creatorUserId = seedUser(harness.db, { openid: 'join-creator', availableBalance: '20.00' });

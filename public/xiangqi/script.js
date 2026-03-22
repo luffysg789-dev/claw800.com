@@ -10,6 +10,8 @@ const XIANGQI_USER_STORAGE_KEY = 'claw800_xiangqi_user_v1';
 const XIANGQI_PENDING_DEPOSIT_KEY = 'claw800_xiangqi_pending_deposit_v1';
 const XIANGQI_PENDING_ACTION_KEY = 'claw800_xiangqi_pending_action_v1';
 const XIANGQI_BROWSER_LOCAL_OPEN_ID = 'xiangqi-browser-local';
+const XIANGQI_MIN_ROOM_CODE_LENGTH = 4;
+const XIANGQI_MAX_ROOM_CODE_LENGTH = 5;
 const PIECE_LABELS = {
   RED: {
     rook: '车',
@@ -113,7 +115,8 @@ const state = {
   lastRematchPromptKey: '',
   rematchExpireSubmitting: false,
   joinRoomSubmitting: false,
-  lastAutoJoinRoomCode: ''
+  lastAutoJoinRoomCode: '',
+  joinRoomAutoJoinTimer: 0
 };
 
 function buildPreviewPieces() {
@@ -258,6 +261,21 @@ function clearPendingAction() {
 function syncJoinRoomClearButton() {
   if (!ui.joinRoomClearBtn || !ui.joinRoomCode) return;
   ui.joinRoomClearBtn.hidden = !String(ui.joinRoomCode.value || '').trim();
+}
+
+function scheduleAutoJoinRoom(roomCode) {
+  window.clearTimeout(state.joinRoomAutoJoinTimer);
+  state.joinRoomAutoJoinTimer = window.setTimeout(() => {
+    const currentDigits = String(ui.joinRoomCode?.value || '').replace(/\D+/g, '');
+    if (currentDigits !== roomCode) return;
+    if (state.room?.roomCode || state.joinRoomSubmitting || state.lastAutoJoinRoomCode === roomCode) return;
+    state.lastAutoJoinRoomCode = roomCode;
+    joinRoom(roomCode).catch((error) => {
+      const message = getFriendlyXiangqiErrorMessage(error, 'join_room');
+      showJoinRoomAlert(message);
+      setStatus(message);
+    });
+  }, roomCode.length === XIANGQI_MAX_ROOM_CODE_LENGTH ? 0 : 280);
 }
 
 function buildCleanReturnUrl() {
@@ -471,6 +489,9 @@ function getFriendlyXiangqiErrorMessage(error, context = '') {
   }
   if (code === 'ROOM_NOT_FOUND') {
     return '房间号不存在';
+  }
+  if (code === 'ROOM_NOT_FINISHED') {
+    return '房间已解散';
   }
   if (code === 'ILLEGAL_MOVE') {
     return '不能这么移动';
@@ -1723,7 +1744,7 @@ function bindActions() {
     setStatus(message);
   }));
   ui.joinRoomCode?.addEventListener('input', () => {
-    const digitsOnly = String(ui.joinRoomCode.value || '').replace(/\D+/g, '').slice(0, 4);
+    const digitsOnly = String(ui.joinRoomCode.value || '').replace(/\D+/g, '').slice(0, XIANGQI_MAX_ROOM_CODE_LENGTH);
     if (ui.joinRoomCode.value !== digitsOnly) {
       ui.joinRoomCode.value = digitsOnly;
     }
@@ -1732,23 +1753,19 @@ function bindActions() {
     }
     syncJoinRoomClearButton();
     if (
-      digitsOnly.length === 4
-      && !state.room?.roomCode
-      && !state.joinRoomSubmitting
-      && state.lastAutoJoinRoomCode !== digitsOnly
+      digitsOnly.length >= XIANGQI_MIN_ROOM_CODE_LENGTH
+      && digitsOnly.length <= XIANGQI_MAX_ROOM_CODE_LENGTH
     ) {
-      state.lastAutoJoinRoomCode = digitsOnly;
-      joinRoom(digitsOnly).catch((error) => {
-        const message = getFriendlyXiangqiErrorMessage(error, 'join_room');
-        showJoinRoomAlert(message);
-        setStatus(message);
-      });
+      scheduleAutoJoinRoom(digitsOnly);
+    } else {
+      window.clearTimeout(state.joinRoomAutoJoinTimer);
     }
   });
   ui.joinRoomClearBtn?.addEventListener('click', () => {
     if (!ui.joinRoomCode) return;
     ui.joinRoomCode.value = '';
     state.lastAutoJoinRoomCode = '';
+    window.clearTimeout(state.joinRoomAutoJoinTimer);
     syncJoinRoomClearButton();
     ui.joinRoomCode.focus();
   });

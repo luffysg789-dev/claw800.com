@@ -2029,7 +2029,8 @@ function respondXiangqiRoomNotImplemented(res) {
 
 const XIANGQI_MIN_STAKE_CENTS = 10n;
 const XIANGQI_MAX_STAKE_CENTS = 100000n;
-const XIANGQI_ROOM_CODE_LENGTH = 4;
+const XIANGQI_PRIMARY_ROOM_CODE_LENGTH = 4;
+const XIANGQI_FALLBACK_ROOM_CODE_LENGTH = 5;
 const XIANGQI_ACTIVE_ROOM_STATUSES = ['WAITING', 'READY', 'PLAYING'];
 const XIANGQI_ALLOWED_TIME_CONTROLS = new Set([10, 15, 30]);
 const XIANGQI_SETTLEMENT_RESULTS = new Set(['RED_WIN', 'BLACK_WIN', 'DRAW', 'TIMEOUT_DRAW']);
@@ -2906,17 +2907,27 @@ function applyWalletMatchSettlement({
   );
 }
 
-function generateUniqueXiangqiRoomCode() {
+function generateUniqueXiangqiRoomCodeOfLength(length) {
   for (let attempt = 0; attempt < 20; attempt += 1) {
-    const bytes = crypto.randomBytes(XIANGQI_ROOM_CODE_LENGTH);
+    const bytes = crypto.randomBytes(length);
     let roomCode = '';
-    for (let index = 0; index < XIANGQI_ROOM_CODE_LENGTH; index += 1) {
+    for (let index = 0; index < length; index += 1) {
       roomCode += String(bytes[index] % 10);
     }
     if (!selectXiangqiRoomByCodeStmt.get(roomCode)) {
       return roomCode;
     }
   }
+
+  return '';
+}
+
+function generateUniqueXiangqiRoomCode() {
+  const primaryRoomCode = generateUniqueXiangqiRoomCodeOfLength(XIANGQI_PRIMARY_ROOM_CODE_LENGTH);
+  if (primaryRoomCode) return primaryRoomCode;
+
+  const fallbackRoomCode = generateUniqueXiangqiRoomCodeOfLength(XIANGQI_FALLBACK_ROOM_CODE_LENGTH);
+  if (fallbackRoomCode) return fallbackRoomCode;
 
   throw new Error('ROOM_CODE_GENERATION_FAILED');
 }

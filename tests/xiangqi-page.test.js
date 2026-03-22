@@ -78,8 +78,8 @@ test('xiangqi html includes mobile wallet, room, and board sections', () => {
   assert.match(html, /id="xiangqiJoinRoomCode"/);
   assert.match(html, /id="xiangqiJoinRoomCode"[^>]*inputmode="numeric"/);
   assert.match(html, /id="xiangqiJoinRoomCode"[^>]*pattern="\[0-9\]\*"/);
-  assert.match(html, /id="xiangqiJoinRoomCode"[^>]*maxlength="4"/);
-  assert.match(html, /id="xiangqiJoinRoomCode"[^>]*placeholder="输入 4 位房间号"/);
+  assert.match(html, /id="xiangqiJoinRoomCode"[^>]*maxlength="5"/);
+  assert.match(html, /id="xiangqiJoinRoomCode"[^>]*placeholder="输入房间号"/);
   assert.match(html, /class="xiangqi-room-input-wrap"[\s\S]*?id="xiangqiJoinRoomCode"[\s\S]*?id="xiangqiJoinRoomClearBtn"/);
   assert.match(html, /id="xiangqiJoinRoomBtn"/);
   assert.doesNotMatch(html, /查看本局 stake 与局时/);
@@ -116,6 +116,8 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth:\/\/oauth\/authorize';/);
   assert.match(js, /const XIANGQI_MOVE_AUDIO_SRC = '\/audio\/muyu-strike\.mp3';/);
   assert.match(js, /const XIANGQI_BROWSER_LOCAL_OPEN_ID = 'xiangqi-browser-local';/);
+  assert.match(js, /const XIANGQI_MIN_ROOM_CODE_LENGTH = 4;/);
+  assert.match(js, /const XIANGQI_MAX_ROOM_CODE_LENGTH = 5;/);
   assert.doesNotMatch(js, /XIANGQI_DEMO_OPEN_ID/);
   assert.doesNotMatch(js, /XIANGQI_DEMO_STARTING_BALANCE/);
   assert.match(js, /function isLocalDevelopmentHost\(/);
@@ -183,6 +185,7 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /if \(normalizedStatus === 'READY'\) return '等待开始';/);
   assert.match(js, /if \(normalizedStatus === 'PLAYING'\) return '对局中';/);
   assert.match(js, /if \(normalizedStatus === 'FINISHED'\) return '已结束';/);
+  assert.match(js, /if \(code === 'ROOM_NOT_FINISHED'\) \{\s*return '房间已解散';\s*\}/);
   assert.match(js, /setStatus\('请在 Nexa 内充值。'\);\s*return;/);
   assert.match(js, /savePendingAction\(\{\s*type:\s*'deposit',\s*amount/);
   assert.match(js, /setStatus\('请先完成 Nexa 登录授权。'\);\s*beginLoginFlow\(\);\s*return;/);
@@ -325,11 +328,11 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /ui\.rematchBtn\?\.addEventListener\('click', \(\) => startRematch\(\)\.catch/);
   assert.match(js, /ui\.returnLobbyBtn\?\.addEventListener\('click', \(\) => returnToLobby\(\)\.catch/);
   assert.match(js, /ui\.joinRoomCode\?\.addEventListener\('input', \(\) => \{/);
-  assert.match(js, /replace\(\/\\D\+\/g, ''\)\.slice\(0, 4\)/);
+  assert.match(js, /replace\(\/\\D\+\/g, ''\)\.slice\(0, XIANGQI_MAX_ROOM_CODE_LENGTH\)/);
   assert.match(js, /if \(digitsOnly !== state\.lastAutoJoinRoomCode\) \{[\s\S]*?state\.lastAutoJoinRoomCode = '';/);
-  assert.match(js, /digitsOnly\.length === 4/);
-  assert.match(js, /state\.lastAutoJoinRoomCode !== digitsOnly/);
-  assert.match(js, /joinRoom\(digitsOnly\)\.catch/);
+  assert.match(js, /digitsOnly\.length >= XIANGQI_MIN_ROOM_CODE_LENGTH/);
+  assert.match(js, /scheduleAutoJoinRoom\(digitsOnly\);/);
+  assert.match(js, /function scheduleAutoJoinRoom\(roomCode\) \{/);
   assert.match(js, /ui\.joinRoomClearBtn\?\.addEventListener\('click', \(\) => \{/);
   assert.match(js, /state\.lastAutoJoinRoomCode = '';/);
   assert.match(js, /document\.addEventListener\(eventName,\s*\(\) => \{\s*unlockMoveSound\(\)\.catch\(\(\) => \{\}\);\s*\},\s*\{ once: true, passive: true \}\);/);
