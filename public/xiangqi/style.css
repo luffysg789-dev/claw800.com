@@ -453,9 +453,9 @@ select {
 }
 
 #xiangqiRoomBadge {
-  font-size: 24px;
-  font-weight: 900;
-  color: #2b62df;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--xiangqi-muted);
   letter-spacing: 0.02em;
 }
 
@@ -774,8 +774,9 @@ select {
   }
 
   .xiangqi-board-head {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr);
     display: grid;
+    gap: 10px;
   }
 
   .xiangqi-board-stage {
@@ -891,6 +892,31 @@ select {
   .xiangqi-board-stage {
     margin-bottom: 14px;
     padding: 0 6px;
+  }
+
+  .xiangqi-board-head {
+    grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+    gap: 8px;
+  }
+
+  .xiangqi-player-card,
+  .xiangqi-match-pill {
+    padding: 12px 12px;
+    border-radius: 18px;
+  }
+
+  .xiangqi-player-card strong,
+  .xiangqi-match-pill strong {
+    font-size: 16px;
+  }
+
+  .xiangqi-player-card p,
+  .xiangqi-match-pill span {
+    font-size: 12px;
+  }
+
+  #xiangqiRoomBadge {
+    font-size: 12px;
   }
 
   .xiangqi-board {
