@@ -184,7 +184,9 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /function startCountdownLoop\(/);
   assert.match(js, /state\.countdown = \{/);
   assert.match(js, /anchorAt:\s*Date\.now\(\)/);
-  assert.match(js, /const graceMs = 350;/);
+  assert.match(js, /graceMs:\s*previousPhaseKey && previousPhaseKey !== nextPhaseKey \? 900 : 0/);
+  assert.match(js, /const previousPhaseKey = state\.countdown\.matchId[\s\S]*?\$\{state\.countdown\.matchId\}:\$\{state\.countdown\.status\}:\$\{state\.countdown\.turnSide\}[\s\S]*?: '';/);
+  assert.match(js, /const nextPhaseKey = `\$\{Number\(state\.match\.id \|\| 0\)\}:\$\{String\(state\.match\.status \|\| ''\)\.toUpperCase\(\)\}:\$\{String\(state\.match\.turnSide \|\| ''\)\.toUpperCase\(\)\}`;/);
   assert.match(js, /const elapsedMs = Math\.max\(0,\s*Date\.now\(\) - state\.countdown\.anchorAt - graceMs\);/);
   assert.doesNotMatch(js, /state\.match\.redTimeLeftMs = Math\.max\(0, Number\(state\.match\.redTimeLeftMs \|\| 0\) - 1000\)/);
   assert.doesNotMatch(js, /state\.match\.blackTimeLeftMs = Math\.max\(0, Number\(state\.match\.blackTimeLeftMs \|\| 0\) - 1000\)/);

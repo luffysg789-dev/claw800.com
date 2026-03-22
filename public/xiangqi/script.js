@@ -91,6 +91,7 @@ const state = {
     redTimeLeftMs: 0,
     blackTimeLeftMs: 0,
     anchorAt: 0,
+    graceMs: 0,
     syncKey: ''
   },
   timeoutSubmitting: false,
@@ -508,11 +509,16 @@ function syncCountdownStateFromMatch() {
       redTimeLeftMs: 0,
       blackTimeLeftMs: 0,
       anchorAt: 0,
+      graceMs: 0,
       syncKey: ''
     };
     return;
   }
 
+  const previousPhaseKey = state.countdown.matchId
+    ? `${state.countdown.matchId}:${state.countdown.status}:${state.countdown.turnSide}`
+    : '';
+  const nextPhaseKey = `${Number(state.match.id || 0)}:${String(state.match.status || '').toUpperCase()}:${String(state.match.turnSide || '').toUpperCase()}`;
   const nextSyncKey = [
     Number(state.match.id || 0),
     String(state.match.status || '').toUpperCase(),
@@ -530,6 +536,7 @@ function syncCountdownStateFromMatch() {
     redTimeLeftMs: Number(state.match.redTimeLeftMs || 0),
     blackTimeLeftMs: Number(state.match.blackTimeLeftMs || 0),
     anchorAt: Date.now(),
+    graceMs: previousPhaseKey && previousPhaseKey !== nextPhaseKey ? 900 : 0,
     syncKey: nextSyncKey
   };
 }
@@ -544,7 +551,7 @@ function getDisplayedCountdownState() {
 
   let redTimeLeftMs = Number(state.countdown.redTimeLeftMs || 0);
   let blackTimeLeftMs = Number(state.countdown.blackTimeLeftMs || 0);
-  const graceMs = 350;
+  const graceMs = Number(state.countdown.graceMs || 0);
   const elapsedMs = Math.max(0, Date.now() - state.countdown.anchorAt - graceMs);
 
   if (state.countdown.status === 'PLAYING') {
