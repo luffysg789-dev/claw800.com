@@ -104,7 +104,6 @@ test('buildNexaWithdrawalCreatePayload exposes the Nexa withdrawal create payloa
     timestamp: '1615887873123',
     signature: buildNexaSignature(
       {
-        orderNo: 'withdraw-001',
         apiKey: 'testAppKey',
         amount: '12.34',
         currency: 'USDT',
@@ -180,7 +179,6 @@ test('buildNexaPaymentCreatePayload uses official payment fields for a 0.10 USDT
     signature: buildNexaSignature(
       {
         apiKey: 'testAppKey',
-        orderNo: 'partner-order-001',
         amount: '0.10',
         sessionKey: 'session-123',
         currency: 'USDT',
@@ -196,6 +194,46 @@ test('buildNexaPaymentCreatePayload uses official payment fields for a 0.10 USDT
       'testAppSecret'
     )
   });
+});
+
+test('buildNexaPaymentCreatePayload excludes orderNo from signature per Nexa docs', () => {
+  const payload = buildNexaPaymentCreatePayload({
+    apiKey: 'testAppKey',
+    appSecret: 'testAppSecret',
+    orderNo: 'partner-order-001',
+    amount: '0.10',
+    currency: 'USDT',
+    subject: 'Claw800 打赏',
+    body: '打赏 五子棋',
+    callbackUrl: 'https://claw800.com/gomoku/',
+    notifyUrl: 'https://claw800.com/api/nexa/tip/notify',
+    returnUrl: 'https://claw800.com/gomoku/',
+    openId: 'open-id-123',
+    sessionKey: 'session-123',
+    nonce: 'nonce-3',
+    timestamp: '1615887873123'
+  });
+
+  const withOrderNo = buildNexaSignature(
+    {
+      apiKey: 'testAppKey',
+      orderNo: 'partner-order-001',
+      amount: '0.10',
+      sessionKey: 'session-123',
+      currency: 'USDT',
+      callbackUrl: 'https://claw800.com/gomoku/',
+      notifyUrl: 'https://claw800.com/api/nexa/tip/notify',
+      returnUrl: 'https://claw800.com/gomoku/',
+      subject: 'Claw800 打赏',
+      body: '打赏 五子棋',
+      openid: 'open-id-123',
+      timestamp: '1615887873123',
+      nonce: 'nonce-3'
+    },
+    'testAppSecret'
+  );
+
+  assert.notEqual(payload.signature, withOrderNo);
 });
 
 test('buildNexaPaymentCreatePayloadVariants covers both documented payment payload styles', () => {

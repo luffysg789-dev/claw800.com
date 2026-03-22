@@ -18,25 +18,31 @@ function normalizeSignatureValue(value) {
   return String(value).trim();
 }
 
-function buildNexaSignature(input, appSecret = DEFAULT_NEXA_APP_SECRET) {
+function buildNexaSignature(input, appSecret = DEFAULT_NEXA_APP_SECRET, excludedKeys = []) {
   const secret = String(appSecret || '').trim();
   if (!secret) {
     throw new Error('Nexa app secret 未配置');
   }
 
+  const excluded = new Set(
+    Array.isArray(excludedKeys)
+      ? excludedKeys.map((key) => String(key || '').trim()).filter(Boolean)
+      : []
+  );
+
   const pairs = Object.entries(input || {})
     .map(([key, value]) => [String(key || '').trim(), normalizeSignatureValue(value)])
-    .filter(([key, value]) => key && value !== '' && key !== 'signature')
+    .filter(([key, value]) => key && value !== '' && key !== 'signature' && !excluded.has(key))
     .sort(([left], [right]) => left.localeCompare(right, 'en'));
 
   const source = `${pairs.map(([key, value]) => `${key}=${value}`).join('&')}&key=${secret}`;
   return crypto.createHash('sha256').update(source).digest('hex').toUpperCase();
 }
 
-function withSignature(payload, appSecret) {
+function withSignature(payload, appSecret, excludedKeys = []) {
   return {
     ...payload,
-    signature: buildNexaSignature(payload, appSecret)
+    signature: buildNexaSignature(payload, appSecret, excludedKeys)
   };
 }
 
@@ -96,7 +102,8 @@ function buildNexaPaymentCreatePayload({
       timestamp: String(timestamp || Date.now()).trim(),
       nonce: String(nonce || createNonce()).trim()
     },
-    appSecret
+    appSecret,
+    ['orderNo']
   );
 }
 
@@ -124,7 +131,8 @@ function buildNexaPaymentCreatePayloadVariants(options = {}) {
       orderNo,
       openid: openId
     },
-    appSecret
+    appSecret,
+    ['orderNo']
   );
 
   const orderSignedPayload = withSignature(
@@ -133,7 +141,8 @@ function buildNexaPaymentCreatePayloadVariants(options = {}) {
       orderNo,
       openid: openId
     },
-    appSecret
+    appSecret,
+    ['orderNo']
   );
 
   const javaSamplePayload = withSignature(
@@ -255,7 +264,8 @@ function buildNexaWithdrawalCreatePayload({
       timestamp: String(timestamp || Date.now()).trim(),
       nonce: String(nonce || createNonce()).trim()
     },
-    appSecret
+    appSecret,
+    ['orderNo']
   );
 }
 
