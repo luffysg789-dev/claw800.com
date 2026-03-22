@@ -207,6 +207,8 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /xiangqi-board__palace-lines/);
   assert.match(js, /xiangqi-board__river-text/);
   assert.match(js, /function getPlayerCardsViewModel\(/);
+  assert.match(js, /if \(matchStatus !== 'PLAYING' && matchStatus !== 'FINISHED'\) return '';/);
+  assert.match(js, /label: '待分边'/);
   assert.match(js, /function renderRoomSummary\(/);
   assert.match(js, /状态 \$\{getRoomStatusLabel\(state\.room\.status\)\}。/);
   assert.doesNotMatch(js, /状态 \$\{state\.room\.status\}。/);
@@ -222,8 +224,9 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /speakStartPrompt\(\);/);
   assert.match(js, /function maybeSpeakRedFirstTurnPrompt\(/);
   assert.match(js, /speakRedFirstTurnPrompt\(\);/);
+  assert.match(js, /state\.room\?\.startedAt/);
   assert.match(js, /overlayState\.detail/);
-  assert.match(js, /ui\.boardOverlayDetail\.classList\.toggle\('is-rematch-waiting', overlayState\.detail === '等待房主再来'\);/);
+  assert.match(js, /ui\.boardOverlayDetail\.classList\.toggle\([\s\S]*?is-rematch-waiting[\s\S]*?startsWith\('等待房主再来'\)[\s\S]*?startsWith\('等待挑战者确认再来'\)/);
   assert.match(js, /function maybeSpeakRematchConfirmationPrompt\(/);
   assert.match(js, /function getFinishedMatchOverlayCopy\(/);
   assert.match(js, /赢得押金/);
@@ -235,7 +238,7 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /showFinishedActions:\s*true/);
   assert.match(js, /等待房主再来/);
   assert.match(js, /确认再来\(\$\{getRematchCountdownSeconds\(\)\}s\)/);
-  assert.match(js, /等待挑战者确认再来/);
+  assert.match(js, /等待挑战者确认再来\(\$\{getRematchCountdownSeconds\(\)\}s\)/);
   assert.match(js, /确认再来/);
   assert.match(js, /async function maybeExpireRematchRequest\(/);
   assert.match(js, /\/api\/xiangqi\/rooms\/\$\{encodeURIComponent\(state\.room\.roomCode\)\}\/rematch\/expire/);
@@ -336,6 +339,7 @@ test('xiangqi css delivers a distinctive mobile-first room layout', () => {
   assert.match(css, /\.xiangqi-board-foot \.xiangqi-player-card--footer\s*\{[\s\S]*?margin-top:\s*0;/);
   assert.match(css, /\.xiangqi-player-card--red\s*\{/);
   assert.match(css, /\.xiangqi-player-card--black\s*\{/);
+  assert.match(css, /\.xiangqi-player-card p\s*\{[\s\S]*?color:\s*#c62828;[\s\S]*?font-weight:\s*900;/);
   assert.match(css, /\.xiangqi-board-head\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*0\.9fr\)\s+minmax\(0,\s*1\.1fr\);/);
   assert.match(css, /#xiangqiRoomBadge\s*\{[\s\S]*?font-size:\s*14px;[\s\S]*?color:\s*var\(--xiangqi-muted\);/);
   assert.match(css, /#xiangqiRoomBadge\s+\.xiangqi-room-badge__value\s*\{[\s\S]*?font-size:\s*34px;[\s\S]*?font-weight:\s*900;[\s\S]*?color:\s*#1f5cff;/);

@@ -544,8 +544,16 @@ select {
 .xiangqi-match-pill span {
   margin: 6px 0 0;
   font-size: 16px;
-  color: var(--xiangqi-muted);
   font-weight: 700;
+}
+
+.xiangqi-player-card p {
+  color: #c62828;
+  font-weight: 900;
+}
+
+.xiangqi-match-pill span {
+  color: var(--xiangqi-muted);
 }
 
 #xiangqiRoomBadge {
@@ -1210,6 +1218,11 @@ select {
   .xiangqi-player-card p,
   .xiangqi-match-pill span {
     font-size: 12px;
+  }
+
+  .xiangqi-player-card p {
+    color: #c62828;
+    font-weight: 900;
   }
 
   #xiangqiRoomBadge {

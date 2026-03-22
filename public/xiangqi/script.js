@@ -629,6 +629,8 @@ function updateLoginButtonState() {
 
 function getCurrentUserSide() {
   if (!state.user || !state.match) return '';
+  const matchStatus = String(state.match.status || '').toUpperCase();
+  if (matchStatus !== 'PLAYING' && matchStatus !== 'FINISHED') return '';
   if (Number(state.user.userId) === Number(state.match.redUserId)) return 'RED';
   if (Number(state.user.userId) === Number(state.match.blackUserId)) return 'BLACK';
   return '';
@@ -734,8 +736,9 @@ function getPlayerCardsViewModel() {
   const room = state.room;
   const match = state.match;
   const currentUserId = Number(state.user?.userId || 0);
+  const matchStatus = String(match?.status || '').toUpperCase();
   const currentUserSide = getCurrentUserSide();
-  if (match && currentUserId > 0 && currentUserSide) {
+  if (match && currentUserId > 0 && currentUserSide && (matchStatus === 'PLAYING' || matchStatus === 'FINISHED')) {
     const topSeat = currentUserSide === 'BLACK'
       ? {
           side: 'RED',
@@ -775,21 +778,11 @@ function getPlayerCardsViewModel() {
   const isRedSeat = currentUserId > 0 && currentUserId === creatorUserId;
 
   const topSeat = isBlackSeat
-    ? { side: 'RED', label: '红方', name: '房主', userId: creatorUserId }
-    : { side: 'BLACK', label: '黑方', name: joinerUserId ? '挑战者' : '挑战者', userId: joinerUserId || null };
+    ? { side: '', label: '待分边', name: '房主', userId: creatorUserId }
+    : { side: '', label: '待分边', name: joinerUserId ? '挑战者' : '挑战者', userId: joinerUserId || null };
   const bottomSeat = isBlackSeat
-    ? { side: 'BLACK', label: '黑方', name: '你', userId: joinerUserId || currentUserId || null }
-    : { side: 'RED', label: '红方', name: isRedSeat ? '你' : '房主', userId: creatorUserId || null };
-
-  if (match) {
-    if (topSeat.side === 'RED') {
-      topSeat.name = Number(match.redUserId) === currentUserId ? '你' : '房主';
-      bottomSeat.name = Number(match.blackUserId) === currentUserId ? '你' : '挑战者';
-    } else {
-      topSeat.name = Number(match.blackUserId) === currentUserId ? '你' : '挑战者';
-      bottomSeat.name = Number(match.redUserId) === currentUserId ? '你' : '房主';
-    }
-  }
+    ? { side: '', label: '待分边', name: '你', userId: joinerUserId || currentUserId || null }
+    : { side: '', label: '待分边', name: isRedSeat ? '你' : '房主', userId: creatorUserId || null };
 
   return {
     top: topSeat,
@@ -935,7 +928,7 @@ function getRoomOverlayState() {
       visible: true,
       message: finishedCopy.message,
       detail: isCreator
-        ? (rematchRequested ? '等待挑战者确认再来' : finishedCopy.detail)
+        ? (rematchRequested ? `等待挑战者确认再来(${getRematchCountdownSeconds()}s)` : finishedCopy.detail)
         : (rematchRequested ? '房主邀请再来一局' : '等待房主再来'),
       showStart: false,
       showFinishedActions: true,
@@ -973,7 +966,11 @@ function renderBoardOverlay() {
   ui.boardOverlayMessage.textContent = overlayState.message;
   ui.boardOverlayDetail.textContent = overlayState.detail;
   ui.boardOverlayDetail.hidden = !overlayState.detail;
-  ui.boardOverlayDetail.classList.toggle('is-rematch-waiting', overlayState.detail === '等待房主再来');
+  ui.boardOverlayDetail.classList.toggle(
+    'is-rematch-waiting',
+    String(overlayState.detail || '').startsWith('等待房主再来')
+    || String(overlayState.detail || '').startsWith('等待挑战者确认再来')
+  );
   ui.startMatchBtn.hidden = !overlayState.showStart;
   if (ui.rematchBtn) ui.rematchBtn.hidden = !overlayState.showRematch;
   if (ui.confirmRematchBtn) {
@@ -996,18 +993,20 @@ function renderBoardOverlay() {
 }
 
 function maybeSpeakRedFirstTurnPrompt() {
+  if (!state.match || !state.room?.roomCode) {
+    state.lastRedFirstTurnPromptKey = '';
+    return;
+  }
   const currentUserSide = getCurrentUserSide();
   const promptKey = state.match
     && String(state.match.status || '').toUpperCase() === 'PLAYING'
     && String(state.match.turnSide || '').toUpperCase() === 'RED'
     && currentUserSide === 'RED'
-    ? `${Number(state.match.id || 0)}:${Number(state.match.redUserId || 0)}:${Number(state.match.blackUserId || 0)}:${String(state.match.status || '')}:${String(state.match.turnSide || '')}`
+    ? `${String(state.room.roomCode || '')}:${Number(state.match.id || 0)}:${String(state.room?.startedAt || '')}:${Number(state.match.redUserId || 0)}:${Number(state.match.blackUserId || 0)}`
     : '';
   if (promptKey && state.lastRedFirstTurnPromptKey !== promptKey) {
     state.lastRedFirstTurnPromptKey = promptKey;
     speakRedFirstTurnPrompt();
-  } else if (!promptKey) {
-    state.lastRedFirstTurnPromptKey = '';
   }
 }
 
