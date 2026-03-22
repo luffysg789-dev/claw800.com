@@ -461,15 +461,15 @@ select {
 }
 
 .xiangqi-room-badge__value {
-  font-size: 26px;
+  font-size: 30px;
   font-weight: 900;
-  color: #2b62df;
-  letter-spacing: 0.06em;
+  color: #1f5cff;
+  letter-spacing: 0.08em;
 }
 
 .xiangqi-match-pill {
   min-width: 170px;
-  text-align: center;
+  text-align: left;
 }
 
 #xiangqiMatchStake {
@@ -932,6 +932,11 @@ select {
 
   #xiangqiRoomBadge {
     font-size: 12px;
+  }
+
+  .xiangqi-room-badge__value {
+    font-size: 22px;
+    color: #1f5cff;
   }
 
   .xiangqi-board {
