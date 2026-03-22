@@ -130,7 +130,7 @@ function buildNexaLegacyPaymentCreatePayload({
       body: String(body || '').trim(),
       notifyUrl: String(notifyUrl || '').trim(),
       returnUrl: String(returnUrl || '').trim(),
-      openId: String(openId || '').trim(),
+      openid: String(openId || '').trim(),
       sessionKey: String(sessionKey || '').trim(),
       timestamp: String(timestamp || Date.now()).trim(),
       nonce: String(nonce || createNonce()).trim()

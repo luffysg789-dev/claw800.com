@@ -319,7 +319,7 @@ async function createNexaTipOrder({ req, gameSlug, openId, sessionKey, amount = 
     baseUrl,
     gameSlug: normalizedSlug,
     amount: normalizedAmount,
-    legacyField: 'openId',
+    legacyField: 'openid',
     fallbackVariants: fallbackVariants.map((item) => item.name)
   };
 

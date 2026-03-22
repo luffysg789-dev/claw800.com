@@ -261,7 +261,7 @@ test('buildNexaLegacyPaymentCreatePayload matches the old working tip payload sh
     body: '打赏 五子棋',
     notifyUrl: 'https://claw800.com/api/nexa/tip/notify',
     returnUrl: 'https://claw800.com/gomoku/',
-    openId: 'open-id-legacy',
+    openid: 'open-id-legacy',
     sessionKey: 'session-123',
     nonce: 'nonce-legacy',
     timestamp: '1615887873123',
@@ -274,7 +274,7 @@ test('buildNexaLegacyPaymentCreatePayload matches the old working tip payload sh
         body: '打赏 五子棋',
         notifyUrl: 'https://claw800.com/api/nexa/tip/notify',
         returnUrl: 'https://claw800.com/gomoku/',
-        openId: 'open-id-legacy',
+        openid: 'open-id-legacy',
         sessionKey: 'session-123',
         nonce: 'nonce-legacy',
         timestamp: '1615887873123'
