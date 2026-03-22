@@ -193,7 +193,9 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /\/api\/xiangqi\/rooms\/\$\{encodeURIComponent\(state\.room\.roomCode\)\}\/start/);
   assert.match(js, /等待房主开始/);
   assert.match(js, /await postJson\(`\/api\/xiangqi\/matches\/\$\{state\.match\.id\}\/move`, \{/);
+  assert.match(js, /if \(response\.match\) \{\s*state\.match = response\.match;\s*renderMatch\(\);\s*\}/);
   assert.match(js, /playMoveSound\(\);\s*speakXiangqiCue\(response\.audioCue\);[\s\S]*?if \(response\.status === 'finished'\)/);
+  assert.match(js, /else if \(!response\.match\) \{\s*await refreshMatch\(state\.match\.id\);\s*\}/);
   assert.match(js, /unlockMoveSound\(\)\.catch\(\(\) => \{\}\);/);
   assert.match(js, /if \(payload\.audioCue && payload\.actorUserId !== Number\(state\.user\?\.userId \|\| 0\)\) \{[\s\S]*?speakXiangqiCue\(payload\.audioCue\);[\s\S]*?playMoveSound\(\);[\s\S]*?\}/);
   assert.match(js, /function bindActions\(/);

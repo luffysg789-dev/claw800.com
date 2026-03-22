@@ -1181,12 +1181,17 @@ async function handleBoardTap(file, rank) {
       from,
       to: { file, rank }
     });
+    if (response.match) {
+      state.match = response.match;
+      renderMatch();
+    }
     playMoveSound();
     speakXiangqiCue(response.audioCue);
     if (response.status === 'finished') {
       await refreshWallet();
+    } else if (!response.match) {
+      await refreshMatch(state.match.id);
     }
-    await refreshMatch(state.match.id);
   } catch (error) {
     setStatus(String(error?.message || '走子失败'));
   }

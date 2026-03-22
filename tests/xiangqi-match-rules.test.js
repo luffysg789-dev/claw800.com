@@ -234,13 +234,23 @@ test('legal moves update stored state', async () => {
     const matchResponse = await harness.request('GET', `/api/xiangqi/matches/${context.matchId}`);
 
     assert.equal(moveResponse.statusCode, 200);
-    assert.deepEqual(moveResponse.body, {
-      ok: true,
-      status: 'playing',
-      turnSide: 'BLACK',
-      moveNo: 1,
-      audioCue: ''
-    });
+    assert.equal(moveResponse.body.ok, true);
+    assert.equal(moveResponse.body.status, 'playing');
+    assert.equal(moveResponse.body.turnSide, 'BLACK');
+    assert.equal(moveResponse.body.moveNo, 1);
+    assert.equal(moveResponse.body.audioCue, '');
+    assert.equal(moveResponse.body.match.id, context.matchId);
+    assert.equal(moveResponse.body.match.status, 'PLAYING');
+    assert.equal(moveResponse.body.match.result, '');
+    assert.equal(moveResponse.body.match.winnerUserId, null);
+    assert.equal(moveResponse.body.match.roomId > 0, true);
+    assert.equal(moveResponse.body.match.redUserId, context.redUserId);
+    assert.equal(moveResponse.body.match.blackUserId, context.blackUserId);
+    assert.equal(moveResponse.body.match.turnSide, 'BLACK');
+    assert.equal(moveResponse.body.match.redTimeLeftMs > 0, true);
+    assert.equal(moveResponse.body.match.blackTimeLeftMs > 0, true);
+    assert.equal(moveResponse.body.match.pendingDrawOfferSide, null);
+    assert.equal(Array.isArray(moveResponse.body.match.pieces), true);
     assert.equal(matchResponse.statusCode, 200);
     assert.equal(matchResponse.body.item.turnSide, 'BLACK');
     assert.equal(matchResponse.body.item.pieces.some((piece) => piece.side === 'RED' && piece.type === 'pawn' && piece.file === 0 && piece.rank === 5), true);
@@ -366,11 +376,14 @@ test('capturing the opposing king ends the match immediately', async () => {
     const matchResponse = await harness.request('GET', `/api/xiangqi/matches/${context.matchId}`);
 
     assert.equal(response.statusCode, 200);
-    assert.deepEqual(response.body, {
-      ok: true,
-      status: 'finished',
-      result: 'BLACK_WIN'
-    });
+    assert.equal(response.body.ok, true);
+    assert.equal(response.body.status, 'finished');
+    assert.equal(response.body.result, 'BLACK_WIN');
+    assert.equal(response.body.match.id, context.matchId);
+    assert.equal(response.body.match.status, 'FINISHED');
+    assert.equal(response.body.match.result, 'BLACK_WIN');
+    assert.equal(response.body.match.winnerUserId, context.blackUserId);
+    assert.equal(Array.isArray(response.body.match.pieces), true);
     assert.equal(matchResponse.statusCode, 200);
     assert.equal(matchResponse.body.item.status, 'FINISHED');
     assert.equal(matchResponse.body.item.result, 'BLACK_WIN');
@@ -419,13 +432,23 @@ test('capturing a piece returns the capture audio cue', async () => {
     });
 
     assert.equal(response.statusCode, 200);
-    assert.deepEqual(response.body, {
-      ok: true,
-      status: 'playing',
-      turnSide: 'BLACK',
-      moveNo: 1,
-      audioCue: 'capture'
-    });
+    assert.equal(response.body.ok, true);
+    assert.equal(response.body.status, 'playing');
+    assert.equal(response.body.turnSide, 'BLACK');
+    assert.equal(response.body.moveNo, 1);
+    assert.equal(response.body.audioCue, 'capture');
+    assert.equal(response.body.match.id, context.matchId);
+    assert.equal(response.body.match.status, 'PLAYING');
+    assert.equal(response.body.match.result, '');
+    assert.equal(response.body.match.winnerUserId, null);
+    assert.equal(response.body.match.roomId > 0, true);
+    assert.equal(response.body.match.redUserId, context.redUserId);
+    assert.equal(response.body.match.blackUserId, context.blackUserId);
+    assert.equal(response.body.match.turnSide, 'BLACK');
+    assert.equal(response.body.match.redTimeLeftMs > 0, true);
+    assert.equal(response.body.match.blackTimeLeftMs > 0, true);
+    assert.equal(response.body.match.pendingDrawOfferSide, null);
+    assert.equal(Array.isArray(response.body.match.pieces), true);
   } finally {
     harness.cleanup();
   }
@@ -452,13 +475,23 @@ test('checking the opposing king returns the check audio cue', async () => {
     });
 
     assert.equal(response.statusCode, 200);
-    assert.deepEqual(response.body, {
-      ok: true,
-      status: 'playing',
-      turnSide: 'BLACK',
-      moveNo: 1,
-      audioCue: 'check'
-    });
+    assert.equal(response.body.ok, true);
+    assert.equal(response.body.status, 'playing');
+    assert.equal(response.body.turnSide, 'BLACK');
+    assert.equal(response.body.moveNo, 1);
+    assert.equal(response.body.audioCue, 'check');
+    assert.equal(response.body.match.id, context.matchId);
+    assert.equal(response.body.match.status, 'PLAYING');
+    assert.equal(response.body.match.result, '');
+    assert.equal(response.body.match.winnerUserId, null);
+    assert.equal(response.body.match.roomId > 0, true);
+    assert.equal(response.body.match.redUserId, context.redUserId);
+    assert.equal(response.body.match.blackUserId, context.blackUserId);
+    assert.equal(response.body.match.turnSide, 'BLACK');
+    assert.equal(response.body.match.redTimeLeftMs > 0, true);
+    assert.equal(response.body.match.blackTimeLeftMs > 0, true);
+    assert.equal(response.body.match.pendingDrawOfferSide, null);
+    assert.equal(Array.isArray(response.body.match.pieces), true);
   } finally {
     harness.cleanup();
   }

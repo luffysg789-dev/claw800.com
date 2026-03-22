@@ -4208,18 +4208,20 @@ app.post('/api/xiangqi/matches/:id/move', (req, res) => {
   if (result.kind === 'settled') {
     const match = selectXiangqiMatchDetailStmt.get(matchId);
     const room = match ? selectXiangqiRoomCodeByIdStmt.get(match.room_id) : null;
+    const matchItem = match ? formatXiangqiMatchItem(match) : null;
     if (room?.room_code) {
       emitXiangqiRoomEvent(room.room_code, 'match.finished', {
-        match: formatXiangqiMatchItem(match)
+        match: matchItem
       });
     }
-    return res.json({ ok: true, status: 'finished', result: result.result });
+    return res.json({ ok: true, status: 'finished', result: result.result, match: matchItem });
   }
 
   const room = selectXiangqiRoomCodeByIdStmt.get(result.match.room_id);
+  const matchItem = formatXiangqiMatchItem(result.match);
   if (room?.room_code) {
     emitXiangqiRoomEvent(room.room_code, 'match.updated', {
-      match: formatXiangqiMatchItem(result.match),
+      match: matchItem,
       audioCue: result.audioCue,
       actorUserId: result.actorUserId
     });
@@ -4229,7 +4231,8 @@ app.post('/api/xiangqi/matches/:id/move', (req, res) => {
     status: 'playing',
     turnSide: result.turnSide,
     moveNo: result.moveNo,
-    audioCue: result.audioCue
+    audioCue: result.audioCue,
+    match: matchItem
   });
 });
 
