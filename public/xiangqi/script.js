@@ -476,15 +476,7 @@ function buildBoardMarkup() {
       `);
     }
   }
-
-  const fileCoords = FILE_LABELS.map((label, index) => {
-    return `<span class="xiangqi-board__coord" style="left:calc(${(index / 8) * 100}% + 10px);bottom:4px;">${label}</span>`;
-  });
-  const rankCoords = RANK_LABELS.map((label, index) => {
-    return `<span class="xiangqi-board__coord" style="left:4px;top:calc(${(index / 9) * 100}% + 8px);">${label}</span>`;
-  });
-
-  ui.board.innerHTML = `${cells.join('')}${fileCoords.join('')}${rankCoords.join('')}`;
+  ui.board.innerHTML = cells.join('');
 }
 
 function renderMatch() {

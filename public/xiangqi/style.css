@@ -398,7 +398,7 @@ select {
 
 .xiangqi-board-wrap {
   display: none;
-  padding: 22px;
+  padding: 14px;
 }
 
 .xiangqi-board-head {
@@ -461,14 +461,16 @@ select {
   grid-template-rows: repeat(10, minmax(0, 1fr));
   width: 100%;
   aspect-ratio: 9 / 10;
-  padding: 18px;
-  border-radius: 24px;
+  overflow: hidden;
+  padding: 10px;
+  border-radius: 22px;
   background:
+    radial-gradient(circle at 28% 18%, rgba(255, 247, 218, 0.26), transparent 34%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent),
-    var(--xiangqi-board-bg);
+    linear-gradient(180deg, #b48d57 0%, #9b7747 100%);
   box-shadow:
-    inset 0 0 0 5px #c4873e,
-    inset 0 0 0 11px #8a4c18,
+    inset 0 0 0 4px #cc944a,
+    inset 0 0 0 10px #91531c,
     0 20px 34px rgba(66, 41, 18, 0.2);
 }
 
@@ -503,18 +505,21 @@ select {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: min(58px, 82%);
-  height: min(58px, 82%);
+  width: min(66px, 94%);
+  height: min(66px, 94%);
   transform: translate(-50%, -50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  border: 2px solid rgba(83, 52, 24, 0.34);
-  background: radial-gradient(circle at 32% 28%, #f0e8dc 0%, #cbc0b1 100%);
-  font-size: clamp(18px, 3vw, 25px);
+  border: 2px solid rgba(131, 88, 38, 0.48);
+  background:
+    radial-gradient(circle at 32% 28%, #fff6dc 0%, #e8c784 40%, #cd9855 100%);
+  font-size: clamp(24px, 4.4vw, 32px);
   font-weight: 900;
-  box-shadow: 0 6px 12px rgba(38, 26, 17, 0.18);
+  box-shadow:
+    inset 0 2px 2px rgba(255, 255, 255, 0.36),
+    0 6px 12px rgba(38, 26, 17, 0.2);
   cursor: pointer;
   z-index: 2;
 }
@@ -534,24 +539,18 @@ select {
   box-shadow: 0 0 0 5px rgba(244, 0, 9, 0.13), 0 8px 16px rgba(38, 26, 17, 0.22);
 }
 
-.xiangqi-board__coord {
-  position: absolute;
-  font-size: 11px;
-  color: rgba(67, 48, 29, 0.42);
-}
-
 .xiangqi-board__river {
-  margin-top: -50%;
+  margin-top: -50.5%;
   position: relative;
   z-index: 1;
   display: flex;
   justify-content: space-between;
-  padding: 0 21%;
+  padding: 0 20%;
   pointer-events: none;
-  color: rgba(46, 34, 23, 0.9);
+  color: rgba(70, 46, 23, 0.72);
   font-family: "STKaiti", "Kaiti SC", serif;
-  font-size: clamp(30px, 4vw, 42px);
-  letter-spacing: 0.08em;
+  font-size: clamp(34px, 5vw, 46px);
+  letter-spacing: 0.14em;
 }
 
 .xiangqi-action-bar {
@@ -748,12 +747,12 @@ select {
   }
 
   .xiangqi-board {
-    padding: 14px;
+    padding: 8px;
   }
 
   .xiangqi-board__river {
-    padding: 0 19%;
-    font-size: 32px;
+    padding: 0 18%;
+    font-size: 34px;
   }
 
   .xiangqi-action-bar {
@@ -846,6 +845,26 @@ select {
   .xiangqi-room-card {
     padding: 16px;
     gap: 10px;
+  }
+
+  .xiangqi-board-wrap {
+    padding: 8px;
+  }
+
+  .xiangqi-board {
+    padding: 6px;
+    border-radius: 20px;
+  }
+
+  .xiangqi-board__piece {
+    width: min(68px, 98%);
+    height: min(68px, 98%);
+    font-size: 25px;
+  }
+
+  .xiangqi-board__river {
+    padding: 0 17%;
+    font-size: 36px;
   }
 
   .xiangqi-room-card__title {
