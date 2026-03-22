@@ -545,7 +545,8 @@ function renderMatch() {
     Number(state.user?.userId) === Number(state.room.creatorUserId)
   );
   if (ui.roomBadge) {
-    ui.roomBadge.textContent = state.room?.roomCode ? String(state.room.roomCode) : '000000';
+    const roomCode = state.room?.roomCode ? String(state.room.roomCode) : '000000';
+    ui.roomBadge.innerHTML = `房间号: <span class="xiangqi-room-badge__value">${roomCode}</span>`;
   }
   if (ui.matchStake) {
     ui.matchStake.textContent = `押金 ${state.room?.stakeAmount || '0.00'} USDT`;

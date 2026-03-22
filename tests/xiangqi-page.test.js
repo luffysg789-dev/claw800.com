@@ -75,7 +75,7 @@ test('xiangqi html includes mobile wallet, room, and board sections', () => {
   assert.match(html, /id="xiangqiBoard"/);
   assert.match(html, /class="xiangqi-board-head"[\s\S]*?xiangqi-player-card--black[\s\S]*?xiangqi-match-pill/);
   assert.match(html, /class="xiangqi-board-head"[\s\S]*?id="xiangqiBlackPlayer"[\s\S]*?id="xiangqiRoomBadge"[\s\S]*?id="xiangqiMatchStatus"/);
-  assert.match(html, /id="xiangqiRoomBadge">000000</);
+  assert.match(html, /id="xiangqiRoomBadge">房间号:\s*<span class="xiangqi-room-badge__value">000000<\/span><\/span>/);
   assert.match(html, /class="xiangqi-action-bar"[\s\S]*?id="xiangqiCancelRoomBtn"[\s\S]*?xiangqi-player-card--footer/);
   assert.doesNotMatch(html, /id="xiangqiActiveRoomCard"/);
   assert.doesNotMatch(html, /id="xiangqiMyRoomBtn"/);
@@ -177,7 +177,8 @@ test('xiangqi css delivers a distinctive mobile-first room layout', () => {
   assert.match(css, /\.xiangqi-board-stage\s*\{[\s\S]*?position:\s*relative;/);
   assert.match(css, /\.xiangqi-player-card--footer\s*\{/);
   assert.match(css, /\.xiangqi-board-head\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*0\.9fr\)\s+minmax\(0,\s*1\.1fr\);/);
-  assert.match(css, /#xiangqiRoomBadge\s*\{[\s\S]*?font-size:\s*26px;[\s\S]*?color:\s*#2b62df;/);
+  assert.match(css, /#xiangqiRoomBadge\s*\{[\s\S]*?font-size:\s*14px;[\s\S]*?color:\s*var\(--xiangqi-muted\);/);
+  assert.match(css, /\.xiangqi-room-badge__value\s*\{[\s\S]*?font-size:\s*26px;[\s\S]*?font-weight:\s*900;[\s\S]*?color:\s*#2b62df;/);
   assert.match(css, /#xiangqiMatchStake\s*\{[\s\S]*?margin-top:\s*8px;/);
   assert.match(css, /\.xiangqi-board__svg-wrap,\s*[\s\S]*?\.xiangqi-board__hit-area\s*\{/);
   assert.match(css, /\.xiangqi-board__grid-lines line,\s*[\s\S]*?\.xiangqi-board__palace-lines line\s*\{/);
