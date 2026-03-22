@@ -460,7 +460,7 @@ select {
   letter-spacing: 0.02em;
 }
 
-.xiangqi-room-badge__value {
+#xiangqiRoomBadge .xiangqi-room-badge__value {
   display: inline-block;
   font-size: 34px;
   font-weight: 900;
@@ -936,7 +936,7 @@ select {
     font-size: 12px;
   }
 
-  .xiangqi-room-badge__value {
+  #xiangqiRoomBadge .xiangqi-room-badge__value {
     font-size: 26px;
     color: #1f5cff;
   }
