@@ -563,12 +563,15 @@ select {
   margin-top: 10px;
 }
 
+.xiangqi-board-foot > * {
+  min-height: 122px;
+}
+
 .xiangqi-board-status-pill {
   display: flex;
   align-items: center;
   justify-content: flex-start;
   align-self: stretch;
-  min-height: 100%;
   border-radius: 24px;
   padding: 16px 18px;
   background: #faf7f3;
@@ -582,6 +585,10 @@ select {
   font-weight: 800;
   color: var(--xiangqi-text);
   line-height: 1.35;
+}
+
+.xiangqi-board-foot .xiangqi-player-card--footer {
+  margin-top: 0;
 }
 
 .xiangqi-match-pill span:first-child {
@@ -1049,6 +1056,10 @@ select {
   .xiangqi-board-foot {
     grid-template-columns: minmax(0, 1fr) minmax(0, 0.96fr);
     gap: 8px;
+  }
+
+  .xiangqi-board-foot > * {
+    min-height: 112px;
   }
 
   .xiangqi-board-status-pill {

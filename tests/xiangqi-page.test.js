@@ -236,7 +236,9 @@ test('xiangqi css delivers a distinctive mobile-first room layout', () => {
   assert.match(css, /\.xiangqi-board-overlay__start\s*\{/);
   assert.match(css, /\.xiangqi-player-card--footer\s*\{/);
   assert.match(css, /\.xiangqi-board-foot\s*\{/);
+  assert.match(css, /\.xiangqi-board-foot > \* \s*\{[\s\S]*?min-height:\s*122px;/);
   assert.match(css, /\.xiangqi-board-status-pill\s*\{/);
+  assert.match(css, /\.xiangqi-board-foot \.xiangqi-player-card--footer\s*\{[\s\S]*?margin-top:\s*0;/);
   assert.match(css, /\.xiangqi-player-card--red\s*\{/);
   assert.match(css, /\.xiangqi-player-card--black\s*\{/);
   assert.match(css, /\.xiangqi-board-head\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*0\.9fr\)\s+minmax\(0,\s*1\.1fr\);/);
