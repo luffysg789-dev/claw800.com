@@ -330,6 +330,30 @@ function speakXiangqiCue(cue) {
   } catch {}
 }
 
+function speakFinishedMatchResult(match) {
+  const result = String(match?.result || '').trim().toUpperCase();
+  let text = '';
+  if (result === 'RED_WIN') {
+    text = '红方胜利';
+  } else if (result === 'BLACK_WIN') {
+    text = '黑方胜利';
+  } else if (result === 'DRAW' || result === 'TIMEOUT_DRAW') {
+    text = '和棋';
+  }
+  if (!text) return;
+  try {
+    if (!window.speechSynthesis || typeof window.SpeechSynthesisUtterance !== 'function') return;
+    const utterance = new window.SpeechSynthesisUtterance();
+    utterance.lang = 'zh-CN';
+    utterance.text = text;
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  } catch {}
+}
+
 function extractAuthCodeFromUrl() {
   const params = new URLSearchParams(window.location.search);
   return (
@@ -378,6 +402,9 @@ function getFriendlyXiangqiErrorMessage(error, context = '') {
   if (code === 'INSUFFICIENT_BALANCE') {
     return context === 'create_room' ? '余额不足，无法创建房间。' : '余额不足，无法加入房间。';
   }
+  if (code === 'ROOM_NOT_FOUND') {
+    return '房间号不存在';
+  }
   return String(error?.message || '操作失败，请稍后再试。');
 }
 
@@ -385,6 +412,13 @@ function showCreateRoomInsufficientBalanceAlert(message) {
   if (message !== '余额不足，无法创建房间。') return;
   if (typeof window.alert === 'function') {
     window.alert('余额不足，无法创建房间。');
+  }
+}
+
+function showJoinRoomNotFoundAlert(message) {
+  if (message !== '房间号不存在') return;
+  if (typeof window.alert === 'function') {
+    window.alert('房间号不存在');
   }
 }
 
@@ -605,6 +639,15 @@ function getFinishedMatchOverlayCopy() {
   };
 }
 
+function getFinishedMatchStatusLabel(result) {
+  const normalizedResult = String(result || '').toUpperCase();
+  if (normalizedResult === 'RED_WIN') return '红方胜';
+  if (normalizedResult === 'BLACK_WIN') return '黑方胜';
+  if (normalizedResult === 'TIMEOUT_DRAW') return '超时和棋';
+  if (normalizedResult === 'DRAW') return '和棋';
+  return '已结束';
+}
+
 function getRoomOverlayState() {
   const roomStatus = String(state.room?.status || '').toUpperCase();
   const matchStatus = String(state.match?.status || '').toUpperCase();
@@ -759,7 +802,7 @@ function renderMatch() {
   if (state.match) {
     const side = getCurrentUserSide();
     const turnText = state.match.status === 'FINISHED'
-      ? `本局结果 ${state.match.result || '已结束'}`
+      ? `本局结果 ${getFinishedMatchStatusLabel(state.match.result)}`
       : String(state.match.status || '').toUpperCase() === 'READY'
         ? '双方已进入房间，等待点击开始'
         : `轮到 ${state.match.turnSide === 'RED' ? '红方' : '黑方'} 行棋${side ? `，你是${side === 'RED' ? '红方' : '黑方'}` : ''}`;
@@ -941,9 +984,11 @@ function connectRoomEvents(roomCode) {
     if (payload.match) {
       state.match = payload.match;
       renderMatch();
-      if (payload.audioCue && payload.actorUserId !== Number(state.user?.userId || 0)) {
-        speakXiangqiCue(payload.audioCue);
+      if (payload.actorUserId !== Number(state.user?.userId || 0)) {
         playMoveSound();
+        if (payload.audioCue) {
+          speakXiangqiCue(payload.audioCue);
+        }
       }
     }
   });
@@ -952,6 +997,7 @@ function connectRoomEvents(roomCode) {
     if (payload.match) {
       state.match = payload.match;
       renderMatch();
+      speakFinishedMatchResult(payload.match);
       refreshWallet().catch(() => {});
     }
   });
@@ -1188,6 +1234,7 @@ async function handleBoardTap(file, rank) {
     playMoveSound();
     speakXiangqiCue(response.audioCue);
     if (response.status === 'finished') {
+      speakFinishedMatchResult(response.match);
       await refreshWallet();
     } else if (!response.match) {
       await refreshMatch(state.match.id);
@@ -1235,7 +1282,11 @@ function bindActions() {
     showCreateRoomInsufficientBalanceAlert(message);
     setStatus(message);
   }));
-  ui.joinRoomBtn?.addEventListener('click', () => joinRoom().catch((error) => setStatus(getFriendlyXiangqiErrorMessage(error, 'join_room'))));
+  ui.joinRoomBtn?.addEventListener('click', () => joinRoom().catch((error) => {
+    const message = getFriendlyXiangqiErrorMessage(error, 'join_room');
+    showJoinRoomNotFoundAlert(message);
+    setStatus(message);
+  }));
   ui.startMatchBtn?.addEventListener('click', () => startReadyMatch().catch((error) => setStatus(error.message)));
   ui.cancelRoomBtn?.addEventListener('click', () => cancelWaitingRoom().catch((error) => setStatus(error.message)));
   ui.stakePresetButtons.forEach((button) => {
