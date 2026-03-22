@@ -545,7 +545,7 @@ function renderMatch() {
     Number(state.user?.userId) === Number(state.room.creatorUserId)
   );
   if (ui.roomBadge) {
-    ui.roomBadge.textContent = state.room?.roomCode ? `房间号 ${state.room.roomCode}` : '房间号 ----';
+    ui.roomBadge.textContent = state.room?.roomCode ? String(state.room.roomCode) : '000000';
   }
   if (ui.matchStake) {
     ui.matchStake.textContent = `押金 ${state.room?.stakeAmount || '0.00'} USDT`;

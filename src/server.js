@@ -2681,13 +2681,11 @@ function applyWalletMatchSettlement({
 }
 
 function generateUniqueXiangqiRoomCode() {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-
   for (let attempt = 0; attempt < 20; attempt += 1) {
     const bytes = crypto.randomBytes(XIANGQI_ROOM_CODE_LENGTH);
     let roomCode = '';
     for (let index = 0; index < XIANGQI_ROOM_CODE_LENGTH; index += 1) {
-      roomCode += alphabet[bytes[index] % alphabet.length];
+      roomCode += String(bytes[index] % 10);
     }
     if (!selectXiangqiRoomByCodeStmt.get(roomCode)) {
       return roomCode;

@@ -453,15 +453,22 @@ select {
 }
 
 #xiangqiRoomBadge {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--xiangqi-muted);
-  letter-spacing: 0.02em;
+  display: block;
+  font-size: 26px;
+  font-weight: 900;
+  color: #2b62df;
+  letter-spacing: 0.06em;
 }
 
 .xiangqi-match-pill {
   min-width: 170px;
   text-align: center;
+}
+
+#xiangqiMatchStake {
+  display: block;
+  margin-top: 8px;
+  font-size: 14px;
 }
 
 .xiangqi-player-card--footer {
