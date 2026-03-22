@@ -78,6 +78,8 @@ test('xiangqi html includes mobile wallet, room, and board sections', () => {
   assert.match(html, /id="xiangqiJoinRoomCode"/);
   assert.match(html, /id="xiangqiJoinRoomCode"[^>]*inputmode="numeric"/);
   assert.match(html, /id="xiangqiJoinRoomCode"[^>]*pattern="\[0-9\]\*"/);
+  assert.match(html, /id="xiangqiJoinRoomCode"[^>]*maxlength="4"/);
+  assert.match(html, /id="xiangqiJoinRoomCode"[^>]*placeholder="输入 4 位房间号"/);
   assert.match(html, /class="xiangqi-room-input-wrap"[\s\S]*?id="xiangqiJoinRoomCode"[\s\S]*?id="xiangqiJoinRoomClearBtn"/);
   assert.match(html, /id="xiangqiJoinRoomBtn"/);
   assert.doesNotMatch(html, /查看本局 stake 与局时/);
@@ -93,7 +95,7 @@ test('xiangqi html includes mobile wallet, room, and board sections', () => {
   assert.match(html, /xiangqi-player-card--footer/);
   assert.match(html, /id="xiangqiBoard"/);
   assert.match(html, /class="xiangqi-board-head"[\s\S]*?id="xiangqiTopSide"[\s\S]*?id="xiangqiTopPlayer"[\s\S]*?id="xiangqiRoomBadge"/);
-  assert.match(html, /id="xiangqiRoomBadge">房间号:\s*<span class="xiangqi-room-badge__value">000000<\/span><\/span>/);
+  assert.match(html, /id="xiangqiRoomBadge">房间号:\s*<span class="xiangqi-room-badge__value">0000<\/span><\/span>/);
   assert.match(html, /class="xiangqi-board-foot"[\s\S]*?id="xiangqiMatchStatus"[\s\S]*?id="xiangqiBottomSide"[\s\S]*?id="xiangqiBottomPlayer"/);
   assert.match(html, /class="xiangqi-action-bar"[\s\S]*?id="xiangqiCancelRoomBtn"[\s\S]*?id="xiangqiBottomSide"[\s\S]*?id="xiangqiBottomPlayer"/);
   assert.doesNotMatch(html, /id="xiangqiActiveRoomCard"/);
@@ -323,9 +325,9 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /ui\.rematchBtn\?\.addEventListener\('click', \(\) => startRematch\(\)\.catch/);
   assert.match(js, /ui\.returnLobbyBtn\?\.addEventListener\('click', \(\) => returnToLobby\(\)\.catch/);
   assert.match(js, /ui\.joinRoomCode\?\.addEventListener\('input', \(\) => \{/);
-  assert.match(js, /replace\(\/\\D\+\/g, ''\)\.slice\(0, 6\)/);
+  assert.match(js, /replace\(\/\\D\+\/g, ''\)\.slice\(0, 4\)/);
   assert.match(js, /if \(digitsOnly !== state\.lastAutoJoinRoomCode\) \{[\s\S]*?state\.lastAutoJoinRoomCode = '';/);
-  assert.match(js, /digitsOnly\.length === 6/);
+  assert.match(js, /digitsOnly\.length === 4/);
   assert.match(js, /state\.lastAutoJoinRoomCode !== digitsOnly/);
   assert.match(js, /joinRoom\(digitsOnly\)\.catch/);
   assert.match(js, /ui\.joinRoomClearBtn\?\.addEventListener\('click', \(\) => \{/);

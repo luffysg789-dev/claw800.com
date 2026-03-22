@@ -216,7 +216,7 @@ test('create room freezes stake and stores room details', async () => {
     assert.equal(response.statusCode, 200);
     assert.equal(response.body.ok, true);
     assert.equal(response.body.status, 'waiting');
-    assert.match(response.body.roomCode, /^\d{6}$/);
+    assert.match(response.body.roomCode, /^\d{4}$/);
 
     const room = getRoomByCode(harness.db, response.body.roomCode);
     assert.deepEqual(

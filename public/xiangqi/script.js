@@ -1184,7 +1184,7 @@ function renderMatch() {
     Number(state.user?.userId) === Number(state.room.creatorUserId)
   );
   if (ui.roomBadge) {
-    const roomCode = state.room?.roomCode ? String(state.room.roomCode) : '000000';
+    const roomCode = state.room?.roomCode ? String(state.room.roomCode) : '0000';
     ui.roomBadge.innerHTML = `房间号: <span class="xiangqi-room-badge__value">${roomCode}</span>`;
   }
   if (ui.matchStake) {
@@ -1723,7 +1723,7 @@ function bindActions() {
     setStatus(message);
   }));
   ui.joinRoomCode?.addEventListener('input', () => {
-    const digitsOnly = String(ui.joinRoomCode.value || '').replace(/\D+/g, '').slice(0, 6);
+    const digitsOnly = String(ui.joinRoomCode.value || '').replace(/\D+/g, '').slice(0, 4);
     if (ui.joinRoomCode.value !== digitsOnly) {
       ui.joinRoomCode.value = digitsOnly;
     }
@@ -1732,7 +1732,7 @@ function bindActions() {
     }
     syncJoinRoomClearButton();
     if (
-      digitsOnly.length === 6
+      digitsOnly.length === 4
       && !state.room?.roomCode
       && !state.joinRoomSubmitting
       && state.lastAutoJoinRoomCode !== digitsOnly
