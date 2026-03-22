@@ -252,6 +252,25 @@ function buildNexaAuthorizeUrl() {
 function launchNexaUrl(url) {
   const targetUrl = String(url || '').trim();
   if (!targetUrl) return;
+
+  try {
+    const link = document.createElement('a');
+    link.href = targetUrl;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    window.setTimeout(() => {
+      window.location.href = targetUrl;
+    }, 40);
+    window.setTimeout(() => {
+      window.location.replace(targetUrl);
+    }, 180);
+    window.setTimeout(() => {
+      link.remove();
+    }, 260);
+    return;
+  } catch {}
+
   window.location.href = targetUrl;
 }
 
@@ -296,6 +315,14 @@ function formatTime(ms) {
   const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
   const seconds = String(totalSeconds % 60).padStart(2, '0');
   return `${minutes}:${seconds}`;
+}
+
+function getFriendlyXiangqiErrorMessage(error, context = '') {
+  const code = String(error?.message || error?.error || '').trim().toUpperCase();
+  if (code === 'INSUFFICIENT_BALANCE') {
+    return context === 'create_room' ? '余额不足，无法创建房间。' : '余额不足，无法加入房间。';
+  }
+  return String(error?.message || '操作失败，请稍后再试。');
 }
 
 function setStatus(message) {
@@ -894,8 +921,8 @@ function startCountdownLoop() {
 function bindActions() {
   ui.depositBtn?.addEventListener('click', () => beginDepositFlow().catch((error) => setStatus(error.message)));
   ui.withdrawBtn?.addEventListener('click', () => beginWithdrawFlow().catch((error) => setStatus(error.message)));
-  ui.createRoomBtn?.addEventListener('click', () => createRoom().catch((error) => setStatus(error.message)));
-  ui.joinRoomBtn?.addEventListener('click', () => joinRoom().catch((error) => setStatus(error.message)));
+  ui.createRoomBtn?.addEventListener('click', () => createRoom().catch((error) => setStatus(getFriendlyXiangqiErrorMessage(error, 'create_room'))));
+  ui.joinRoomBtn?.addEventListener('click', () => joinRoom().catch((error) => setStatus(getFriendlyXiangqiErrorMessage(error, 'join_room'))));
   ui.cancelRoomBtn?.addEventListener('click', () => cancelWaitingRoom().catch((error) => setStatus(error.message)));
   ui.stakePresetButtons.forEach((button) => {
     button.addEventListener('click', () => {

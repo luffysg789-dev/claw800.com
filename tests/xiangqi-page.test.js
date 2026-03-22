@@ -89,6 +89,10 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /return hostname === 'localhost' \|\| hostname === '127\.0\.0\.1';/);
   assert.match(js, /function buildNexaAuthorizeUrl\(/);
   assert.match(js, /function buildNexaPaymentUrl\(/);
+  assert.match(js, /function launchNexaUrl\(/);
+  assert.match(js, /document\.createElement\('a'\)/);
+  assert.match(js, /window\.location\.href = targetUrl;/);
+  assert.match(js, /window\.location\.replace\(targetUrl\);/);
   assert.match(js, /function exchangeSessionFromUrlCode\(/);
   assert.match(js, /function beginLoginFlow\(/);
   assert.match(js, /async function ensureAuthorizedForRoomAction\(/);
@@ -123,6 +127,8 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /syncRoomUrl\(null\)/);
   assert.match(js, /function buildBoardMarkup\(/);
   assert.match(js, /function renderRoomSummary\(/);
+  assert.match(js, /function getFriendlyXiangqiErrorMessage\(/);
+  assert.match(js, /if \(code === 'INSUFFICIENT_BALANCE'\) \{\s*return context === 'create_room' \? '余额不足，无法创建房间。' : '余额不足，无法加入房间。';\s*\}/);
   assert.match(js, /else if \(state\.room\) \{\s*setStatus\('等待对手加入'\);\s*\}/);
   assert.match(js, /function applyShellMode\(/);
   assert.match(js, /classList\.toggle\('is-room-mode'/);
@@ -134,6 +140,7 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /state\.room && !state\.match/);
   assert.doesNotMatch(js, /function renderActiveRoomCard\(/);
   assert.match(js, /function bindActions\(/);
+  assert.match(js, /ui\.createRoomBtn\?\.addEventListener\('click', \(\) => createRoom\(\)\.catch\(\(error\) => setStatus\(getFriendlyXiangqiErrorMessage\(error, 'create_room'\)\)\)\);/);
   assert.match(js, /window\.prompt\('输入要提现回 Nexa 的 USDT 金额', ''\)/);
   assert.match(js, /setStatus\('请在 Nexa App 内提现吗。'\);/);
   assert.match(js, /timePresetButtons: Array\.from\(document\.querySelectorAll\('\[data-time-preset\]'\)\)/);
