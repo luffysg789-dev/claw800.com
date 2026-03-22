@@ -2143,7 +2143,7 @@ const markXiangqiWithdrawalFailedStmt = db.prepare(`
   WHERE partner_order_no = ?
 `);
 const selectXiangqiRoomByCodeStmt = db.prepare(`
-  SELECT id, room_code, creator_user_id, joiner_user_id, stake_amount, time_control_minutes, status, started_at
+  SELECT id, room_code, creator_user_id, joiner_user_id, stake_amount, time_control_minutes, status, rematch_requested_by, rematch_requested_at, started_at, finished_at
   FROM xiangqi_rooms
   WHERE room_code = ?
 `);
@@ -2178,6 +2178,20 @@ const updateXiangqiRoomPlayingStmt = db.prepare(`
   SET status = 'PLAYING', started_at = datetime('now')
   WHERE id = ?
 `);
+const markXiangqiRoomRematchRequestedStmt = db.prepare(`
+  UPDATE xiangqi_rooms
+  SET rematch_requested_by = ?, rematch_requested_at = datetime('now')
+  WHERE id = ?
+`);
+const resetXiangqiRoomForRematchStmt = db.prepare(`
+  UPDATE xiangqi_rooms
+  SET status = 'READY',
+      rematch_requested_by = NULL,
+      rematch_requested_at = '',
+      started_at = '',
+      finished_at = ''
+  WHERE id = ?
+`);
 const insertXiangqiMatchStmt = db.prepare(`
   INSERT INTO xiangqi_matches (
     room_id,
@@ -2198,6 +2212,19 @@ const updateXiangqiMatchPlayingStmt = db.prepare(`
   UPDATE xiangqi_matches
   SET status = 'PLAYING',
       last_move_at = strftime('%Y-%m-%d %H:%M:%f', 'now')
+  WHERE id = ?
+`);
+const resetXiangqiMatchForRematchStmt = db.prepare(`
+  UPDATE xiangqi_matches
+  SET current_fen = ?,
+      turn_side = 'RED',
+      red_time_left_ms = ?,
+      black_time_left_ms = ?,
+      status = 'READY',
+      result = '',
+      winner_user_id = NULL,
+      last_move_at = '',
+      finished_at = ''
   WHERE id = ?
 `);
 const selectXiangqiMatchDetailStmt = db.prepare(`
@@ -2238,6 +2265,9 @@ const insertXiangqiMoveStmt = db.prepare(`
   INSERT INTO xiangqi_moves (match_id, move_no, side, from_pos, to_pos, fen_after)
   VALUES (?, ?, ?, ?, ?, ?)
 `);
+const deleteXiangqiMovesByMatchStmt = db.prepare(
+  'DELETE FROM xiangqi_moves WHERE match_id = ?'
+);
 const selectXiangqiMoveCountStmt = db.prepare(
   'SELECT COUNT(*) AS count FROM xiangqi_moves WHERE match_id = ?'
 );
@@ -2679,6 +2709,8 @@ function formatXiangqiRoomItem(room, match = null) {
     stakeAmount: String(room.stake_amount || '0.00'),
     timeControlMinutes: Number(room.time_control_minutes || 0),
     status: String(room.status || '').toUpperCase(),
+    rematchRequestedBy: room.rematch_requested_by == null ? null : Number(room.rematch_requested_by),
+    rematchRequestedAt: String(room.rematch_requested_at || '').trim(),
     startedAt: String(room.started_at || '').trim(),
     match: match ? formatXiangqiMatchItem(match) : null
   };
@@ -3178,6 +3210,89 @@ const startXiangqiRoom = db.transaction((payload) => {
 
   return {
     kind: 'started',
+    roomCode: room.room_code,
+    roomId: Number(room.id),
+    matchId: Number(match.id)
+  };
+});
+
+const requestXiangqiRoomRematch = db.transaction((payload) => {
+  const room = selectXiangqiRoomByCodeStmt.get(payload.roomCode);
+  if (!room) return { kind: 'room_not_found' };
+  if (String(room.status || '').toUpperCase() !== 'FINISHED') return { kind: 'room_not_finished' };
+  if (room.joiner_user_id == null) return { kind: 'room_not_rematchable' };
+
+  const requesterUserId = Number(payload.userId);
+  if (requesterUserId !== Number(room.creator_user_id)) {
+    return { kind: 'room_forbidden' };
+  }
+
+  if (Number(room.rematch_requested_by || 0) === requesterUserId) {
+    return { kind: 'already_requested' };
+  }
+
+  const match = selectXiangqiMatchByRoomIdStmt.get(room.id);
+  if (!match) return { kind: 'match_not_found' };
+  if (String(match.status || '').toUpperCase() !== 'FINISHED') {
+    return { kind: 'match_not_finished' };
+  }
+
+  markXiangqiRoomRematchRequestedStmt.run(requesterUserId, room.id);
+  return {
+    kind: 'requested',
+    roomCode: room.room_code,
+    roomId: Number(room.id),
+    matchId: Number(match.id)
+  };
+});
+
+const confirmXiangqiRoomRematch = db.transaction((payload) => {
+  const room = selectXiangqiRoomByCodeStmt.get(payload.roomCode);
+  if (!room) return { kind: 'room_not_found' };
+  if (String(room.status || '').toUpperCase() !== 'FINISHED') return { kind: 'room_not_finished' };
+
+  const requesterUserId = Number(payload.userId);
+  if (requesterUserId !== Number(room.joiner_user_id || 0)) {
+    return { kind: 'room_forbidden' };
+  }
+  if (Number(room.rematch_requested_by || 0) !== Number(room.creator_user_id)) {
+    return { kind: 'rematch_not_requested' };
+  }
+
+  const match = selectXiangqiMatchByRoomIdStmt.get(room.id);
+  if (!match) return { kind: 'match_not_found' };
+  if (String(match.status || '').toUpperCase() !== 'FINISHED') {
+    return { kind: 'match_not_finished' };
+  }
+
+  const stakeAmountCents = parseMoneyToCents(room.stake_amount);
+  updateWalletFrozenStake({
+    userId: Number(room.creator_user_id),
+    amountCents: stakeAmountCents,
+    direction: 'freeze',
+    relatedId: room.id,
+    remark: 'room rematch freeze'
+  });
+  updateWalletFrozenStake({
+    userId: Number(room.joiner_user_id),
+    amountCents: stakeAmountCents,
+    direction: 'freeze',
+    relatedId: room.id,
+    remark: 'room rematch freeze'
+  });
+
+  const timeLeftMs = Number(room.time_control_minutes) * 60 * 1000;
+  resetXiangqiRoomForRematchStmt.run(room.id);
+  resetXiangqiMatchForRematchStmt.run(
+    serializeXiangqiState(createInitialXiangqiState()),
+    timeLeftMs,
+    timeLeftMs,
+    match.id
+  );
+  deleteXiangqiMovesByMatchStmt.run(match.id);
+
+  return {
+    kind: 'confirmed',
     roomCode: room.room_code,
     roomId: Number(room.id),
     matchId: Number(match.id)
@@ -4024,6 +4139,109 @@ app.post('/api/xiangqi/rooms/:roomCode/start', (req, res) => {
     roomCode: result.roomCode,
     matchId: result.matchId
   });
+});
+
+app.post('/api/xiangqi/rooms/:roomCode/rematch/request', (req, res) => {
+  if (!shouldHandleXiangqiRoomBody(req)) {
+    return respondXiangqiRoomNotImplemented(res);
+  }
+
+  const userId = Number(req.body.userId);
+  const roomCode = String(req.params.roomCode || '').trim().toUpperCase();
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return res.status(400).json({ ok: false, error: 'INVALID_USER_ID' });
+  }
+  if (!roomCode) {
+    return res.status(400).json({ ok: false, error: 'INVALID_ROOM_CODE' });
+  }
+
+  const result = requestXiangqiRoomRematch({ userId, roomCode });
+  if (result.kind === 'room_not_found') {
+    return res.status(404).json({ ok: false, error: 'ROOM_NOT_FOUND' });
+  }
+  if (result.kind === 'room_not_finished' || result.kind === 'match_not_finished') {
+    return res.status(409).json({ ok: false, error: 'ROOM_NOT_FINISHED' });
+  }
+  if (result.kind === 'room_not_rematchable') {
+    return res.status(409).json({ ok: false, error: 'ROOM_NOT_REMATCHABLE' });
+  }
+  if (result.kind === 'room_forbidden') {
+    return res.status(403).json({ ok: false, error: 'ROOM_FORBIDDEN' });
+  }
+  if (result.kind === 'already_requested') {
+    return res.status(409).json({ ok: false, error: 'REMATCH_ALREADY_REQUESTED' });
+  }
+  if (result.kind === 'match_not_found') {
+    return res.status(404).json({ ok: false, error: 'MATCH_NOT_FOUND' });
+  }
+
+  const room = selectXiangqiRoomByCodeStmt.get(result.roomCode);
+  const match = selectXiangqiMatchDetailStmt.get(result.matchId);
+  emitXiangqiRoomEvent(result.roomCode, 'room.updated', {
+    room: formatXiangqiRoomItem(room, match)
+  });
+  return res.json({
+    ok: true,
+    status: 'rematch_requested',
+    roomCode: result.roomCode
+  });
+});
+
+app.post('/api/xiangqi/rooms/:roomCode/rematch/confirm', (req, res) => {
+  if (!shouldHandleXiangqiRoomBody(req)) {
+    return respondXiangqiRoomNotImplemented(res);
+  }
+
+  const userId = Number(req.body.userId);
+  const roomCode = String(req.params.roomCode || '').trim().toUpperCase();
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return res.status(400).json({ ok: false, error: 'INVALID_USER_ID' });
+  }
+  if (!roomCode) {
+    return res.status(400).json({ ok: false, error: 'INVALID_ROOM_CODE' });
+  }
+
+  try {
+    const result = confirmXiangqiRoomRematch({ userId, roomCode });
+    if (result.kind === 'room_not_found') {
+      return res.status(404).json({ ok: false, error: 'ROOM_NOT_FOUND' });
+    }
+    if (result.kind === 'room_not_finished' || result.kind === 'match_not_finished') {
+      return res.status(409).json({ ok: false, error: 'ROOM_NOT_FINISHED' });
+    }
+    if (result.kind === 'room_forbidden') {
+      return res.status(403).json({ ok: false, error: 'ROOM_FORBIDDEN' });
+    }
+    if (result.kind === 'rematch_not_requested') {
+      return res.status(409).json({ ok: false, error: 'REMATCH_NOT_REQUESTED' });
+    }
+    if (result.kind === 'match_not_found') {
+      return res.status(404).json({ ok: false, error: 'MATCH_NOT_FOUND' });
+    }
+
+    const room = selectXiangqiRoomByCodeStmt.get(result.roomCode);
+    const match = selectXiangqiMatchDetailStmt.get(result.matchId);
+    emitXiangqiRoomEvent(result.roomCode, 'room.updated', {
+      room: formatXiangqiRoomItem(room, match)
+    });
+    emitXiangqiRoomEvent(result.roomCode, 'match.updated', {
+      match: formatXiangqiMatchItem(match)
+    });
+    return res.json({
+      ok: true,
+      status: 'ready',
+      roomCode: result.roomCode,
+      matchId: result.matchId
+    });
+  } catch (error) {
+    if (error?.code === 'WALLET_NOT_FOUND') {
+      return res.status(404).json({ ok: false, error: 'WALLET_NOT_FOUND' });
+    }
+    if (error?.code === 'INSUFFICIENT_BALANCE') {
+      return res.status(409).json({ ok: false, error: 'INSUFFICIENT_BALANCE' });
+    }
+    throw error;
+  }
 });
 
 app.post('/api/xiangqi/rooms/cancel', (req, res) => {

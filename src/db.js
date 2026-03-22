@@ -300,6 +300,8 @@ db.exec(`
     stake_amount TEXT NOT NULL,
     time_control_minutes INTEGER NOT NULL,
     status TEXT NOT NULL DEFAULT 'WAITING',
+    rematch_requested_by INTEGER DEFAULT NULL,
+    rematch_requested_at TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     started_at TEXT NOT NULL DEFAULT '',
     finished_at TEXT NOT NULL DEFAULT '',
@@ -307,6 +309,14 @@ db.exec(`
     FOREIGN KEY(joiner_user_id) REFERENCES game_users(id)
   );
 `);
+const hasXiangqiRoomRematchRequestedBy = db.prepare("SELECT 1 FROM pragma_table_info('xiangqi_rooms') WHERE name = 'rematch_requested_by'").get();
+if (!hasXiangqiRoomRematchRequestedBy) {
+  db.exec("ALTER TABLE xiangqi_rooms ADD COLUMN rematch_requested_by INTEGER DEFAULT NULL");
+}
+const hasXiangqiRoomRematchRequestedAt = db.prepare("SELECT 1 FROM pragma_table_info('xiangqi_rooms') WHERE name = 'rematch_requested_at'").get();
+if (!hasXiangqiRoomRematchRequestedAt) {
+  db.exec("ALTER TABLE xiangqi_rooms ADD COLUMN rematch_requested_at TEXT NOT NULL DEFAULT ''");
+}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS xiangqi_matches (

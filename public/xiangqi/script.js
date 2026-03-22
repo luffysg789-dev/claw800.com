@@ -63,6 +63,7 @@ const ui = {
   boardOverlayDetail: document.getElementById('xiangqiBoardOverlayDetail'),
   startMatchBtn: document.getElementById('xiangqiStartMatchBtn'),
   rematchBtn: document.getElementById('xiangqiRematchBtn'),
+  confirmRematchBtn: document.getElementById('xiangqiConfirmRematchBtn'),
   returnLobbyBtn: document.getElementById('xiangqiReturnLobbyBtn'),
   createStake: document.getElementById('xiangqiCreateStake'),
   createTimeControl: document.getElementById('xiangqiCreateTimeControl'),
@@ -416,6 +417,15 @@ function formatTime(ms) {
   return `${minutes}:${seconds}`;
 }
 
+function getRoomStatusLabel(status) {
+  const normalizedStatus = String(status || '').trim().toUpperCase();
+  if (normalizedStatus === 'WAITING') return '等待加入';
+  if (normalizedStatus === 'READY') return '等待开始';
+  if (normalizedStatus === 'PLAYING') return '对局中';
+  if (normalizedStatus === 'FINISHED') return '已结束';
+  return '未开始';
+}
+
 function getFriendlyXiangqiErrorMessage(error, context = '') {
   const code = String(error?.message || error?.error || '').trim().toUpperCase();
   if (code === 'INSUFFICIENT_BALANCE') {
@@ -683,7 +693,7 @@ function renderRoomSummary() {
   }
   ui.roomSummary.innerHTML = `
     <strong>房间号 ${state.room.roomCode}</strong>
-    <p>本局押金 ${state.room.stakeAmount} USDT，局时 ${state.room.timeControlMinutes} 分钟，状态 ${state.room.status}。</p>
+    <p>本局押金 ${state.room.stakeAmount} USDT，局时 ${state.room.timeControlMinutes} 分钟，状态 ${getRoomStatusLabel(state.room.status)}。</p>
   `;
 }
 
@@ -810,6 +820,10 @@ function getFinishedMatchOverlayCopy() {
   };
 }
 
+function isCurrentUserRoomCreator() {
+  return Number(state.user?.userId || 0) === Number(state.room?.creatorUserId || state.match?.redUserId || 0);
+}
+
 function getFinishedMatchStatusLabel(result) {
   const normalizedResult = String(result || '').toUpperCase();
   if (normalizedResult === 'RED_WIN') return '红方胜';
@@ -824,16 +838,25 @@ function getRoomOverlayState() {
   const matchStatus = String(state.match?.status || '').toUpperCase();
   if (matchStatus === 'FINISHED') {
     const finishedCopy = getFinishedMatchOverlayCopy();
+    const isCreator = isCurrentUserRoomCreator();
+    const rematchRequestedBy = Number(state.room?.rematchRequestedBy || 0);
+    const creatorUserId = Number(state.room?.creatorUserId || state.match?.redUserId || 0);
+    const rematchRequested = rematchRequestedBy > 0 && rematchRequestedBy === creatorUserId;
     return {
       visible: true,
       message: finishedCopy.message,
-      detail: finishedCopy.detail,
+      detail: isCreator
+        ? (rematchRequested ? '等待挑战者确认再来' : finishedCopy.detail)
+        : (rematchRequested ? '房主邀请再来一局' : '等待房主再来'),
       showStart: false,
-      showFinishedActions: true
+      showFinishedActions: true,
+      showRematch: isCreator && !rematchRequested,
+      showConfirmRematch: !isCreator && rematchRequested,
+      showReturnLobby: true
     };
   }
   if (roomStatus === 'WAITING') {
-    return { visible: true, message: '等待对手加入', detail: '', showStart: false, showFinishedActions: false };
+    return { visible: true, message: '等待对手加入', detail: '', showStart: false, showFinishedActions: false, showRematch: false, showConfirmRematch: false, showReturnLobby: false };
   }
   if (roomStatus === 'READY' || matchStatus === 'READY') {
     const isCreator = Number(state.user?.userId || 0) === Number(state.room?.creatorUserId || state.match?.redUserId || 0);
@@ -842,10 +865,13 @@ function getRoomOverlayState() {
       message: isCreator ? '双方已到齐，点击开始' : '等待房主开始',
       detail: '',
       showStart: isCreator,
-      showFinishedActions: false
+      showFinishedActions: false,
+      showRematch: false,
+      showConfirmRematch: false,
+      showReturnLobby: false
     };
   }
-  return { visible: false, message: '', detail: '', showStart: false, showFinishedActions: false };
+  return { visible: false, message: '', detail: '', showStart: false, showFinishedActions: false, showRematch: false, showConfirmRematch: false, showReturnLobby: false };
 }
 
 function renderBoardOverlay() {
@@ -856,8 +882,9 @@ function renderBoardOverlay() {
   ui.boardOverlayDetail.textContent = overlayState.detail;
   ui.boardOverlayDetail.hidden = !overlayState.detail;
   ui.startMatchBtn.hidden = !overlayState.showStart;
-  if (ui.rematchBtn) ui.rematchBtn.hidden = !overlayState.showFinishedActions;
-  if (ui.returnLobbyBtn) ui.returnLobbyBtn.hidden = !overlayState.showFinishedActions;
+  if (ui.rematchBtn) ui.rematchBtn.hidden = !overlayState.showRematch;
+  if (ui.confirmRematchBtn) ui.confirmRematchBtn.hidden = !overlayState.showConfirmRematch;
+  if (ui.returnLobbyBtn) ui.returnLobbyBtn.hidden = !overlayState.showReturnLobby;
   const overlayActions = ui.rematchBtn?.parentElement;
   if (overlayActions) {
     overlayActions.hidden = !overlayState.showFinishedActions;
@@ -1244,7 +1271,7 @@ async function resumePendingAction() {
 
 async function beginDepositFlow(prefilledAmount = '') {
   if (!isNexaAppEnvironment()) {
-    setStatus('请在 Nexa App 内充值。');
+    setStatus('请在 Nexa 内充值。');
     return;
   }
 
@@ -1286,7 +1313,7 @@ async function beginDepositFlow(prefilledAmount = '') {
 
 async function beginWithdrawFlow() {
   if (!isNexaAppEnvironment()) {
-    setStatus('请在 Nexa App 内提现吗。');
+    setStatus('请在 Nexa 内提现吗。');
     return;
   }
   if (!state.user?.userId) {
@@ -1365,17 +1392,20 @@ async function startReadyMatch() {
 }
 
 async function startRematch() {
-  if (!state.room?.stakeAmount || !state.user?.userId) return;
-  const response = await postJson('/api/xiangqi/rooms/create', {
-    userId: state.user.userId,
-    stakeAmount: String(state.room?.stakeAmount || '').trim(),
-    timeControlMinutes: Number(state.room?.timeControlMinutes || 15)
+  if (!state.room?.roomCode || !state.user?.userId) return;
+  await postJson(`/api/xiangqi/rooms/${encodeURIComponent(state.room.roomCode)}/rematch/request`, {
+    userId: state.user.userId
   });
+  await refreshRoom(state.room.roomCode);
+}
 
+async function confirmRematch() {
+  if (!state.room?.roomCode || !state.user?.userId) return;
+  const response = await postJson(`/api/xiangqi/rooms/${encodeURIComponent(state.room.roomCode)}/rematch/confirm`, {
+    userId: state.user.userId
+  });
   await refreshWallet();
   await refreshRoom(response.roomCode);
-  syncRoomUrl(response.roomCode);
-  connectRoomEvents(response.roomCode);
 }
 
 async function returnToLobby() {
@@ -1491,6 +1521,7 @@ function bindActions() {
   }));
   ui.startMatchBtn?.addEventListener('click', () => startReadyMatch().catch((error) => setStatus(error.message)));
   ui.rematchBtn?.addEventListener('click', () => startRematch().catch((error) => setStatus(error.message)));
+  ui.confirmRematchBtn?.addEventListener('click', () => confirmRematch().catch((error) => setStatus(error.message)));
   ui.returnLobbyBtn?.addEventListener('click', () => returnToLobby().catch((error) => setStatus(error.message)));
   ui.cancelRoomBtn?.addEventListener('click', () => cancelWaitingRoom().catch((error) => setStatus(error.message)));
   ui.stakePresetButtons.forEach((button) => {

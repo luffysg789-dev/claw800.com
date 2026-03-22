@@ -78,6 +78,7 @@ test('xiangqi html includes mobile wallet, room, and board sections', () => {
   assert.match(html, /id="xiangqiJoinRoomCode"[^>]*inputmode="numeric"/);
   assert.match(html, /id="xiangqiJoinRoomCode"[^>]*pattern="\[0-9\]\*"/);
   assert.match(html, /id="xiangqiJoinRoomBtn"/);
+  assert.doesNotMatch(html, /查看本局 stake 与局时/);
   assert.doesNotMatch(html, /提现回 Nexa/);
   assert.match(html, /class="xiangqi-board-stage"/);
   assert.match(html, /id="xiangqiBoardOverlay"/);
@@ -85,6 +86,7 @@ test('xiangqi html includes mobile wallet, room, and board sections', () => {
   assert.match(html, /id="xiangqiBoardOverlayDetail"/);
   assert.match(html, /id="xiangqiStartMatchBtn"/);
   assert.match(html, /id="xiangqiRematchBtn"/);
+  assert.match(html, /id="xiangqiConfirmRematchBtn"/);
   assert.match(html, /id="xiangqiReturnLobbyBtn"/);
   assert.match(html, /xiangqi-player-card--footer/);
   assert.match(html, /id="xiangqiBoard"/);
@@ -139,6 +141,7 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /ledgerList: document\.getElementById\('xiangqiLedgerList'\)/);
   assert.match(js, /drawConfirmModal: document\.getElementById\('xiangqiDrawConfirmModal'\)/);
   assert.match(js, /rematchBtn: document\.getElementById\('xiangqiRematchBtn'\)/);
+  assert.match(js, /confirmRematchBtn: document\.getElementById\('xiangqiConfirmRematchBtn'\)/);
   assert.match(js, /returnLobbyBtn: document\.getElementById\('xiangqiReturnLobbyBtn'\)/);
   assert.match(js, /drawConfirmAcceptBtn: document\.getElementById\('xiangqiDrawConfirmAcceptBtn'\)/);
   assert.match(js, /drawConfirmRejectBtn: document\.getElementById\('xiangqiDrawConfirmRejectBtn'\)/);
@@ -150,12 +153,18 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /async function openLedgerModal\(/);
   assert.match(js, /function closeLedgerModal\(/);
   assert.match(js, /async function startRematch\(/);
+  assert.match(js, /async function confirmRematch\(/);
   assert.match(js, /async function returnToLobby\(/);
   assert.match(js, /\/api\/xiangqi\/wallet\/ledger\?userId=/);
   assert.match(js, /function openDrawConfirmModal\(/);
   assert.match(js, /function closeDrawConfirmModal\(/);
   assert.match(js, /function requestAmount\(/);
-  assert.match(js, /setStatus\('请在 Nexa App 内充值。'\);\s*return;/);
+  assert.match(js, /function getRoomStatusLabel\(/);
+  assert.match(js, /if \(normalizedStatus === 'WAITING'\) return '等待加入';/);
+  assert.match(js, /if \(normalizedStatus === 'READY'\) return '等待开始';/);
+  assert.match(js, /if \(normalizedStatus === 'PLAYING'\) return '对局中';/);
+  assert.match(js, /if \(normalizedStatus === 'FINISHED'\) return '已结束';/);
+  assert.match(js, /setStatus\('请在 Nexa 内充值。'\);\s*return;/);
   assert.match(js, /savePendingAction\(\{\s*type:\s*'deposit',\s*amount/);
   assert.match(js, /setStatus\('请先完成 Nexa 登录授权。'\);\s*beginLoginFlow\(\);\s*return;/);
   assert.match(js, /launchNexaUrl\(buildNexaPaymentUrl\(response\.payment\)\)/);
@@ -192,6 +201,9 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /xiangqi-board__river-text/);
   assert.match(js, /function getPlayerCardsViewModel\(/);
   assert.match(js, /function renderRoomSummary\(/);
+  assert.match(js, /状态 \$\{getRoomStatusLabel\(state\.room\.status\)\}。/);
+  assert.doesNotMatch(js, /状态 \$\{state\.room\.status\}。/);
+  assert.doesNotMatch(js, /stake 与局时/);
   assert.doesNotMatch(js, /function renderDrawActionState\(/);
   assert.match(js, /function getRoomOverlayState\(/);
   assert.match(js, /function renderBoardOverlay\(/);
@@ -204,6 +216,9 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /黑方胜/);
   assert.match(js, /if \(matchStatus === 'FINISHED'\)/);
   assert.match(js, /showFinishedActions:\s*true/);
+  assert.match(js, /等待房主再来/);
+  assert.match(js, /等待挑战者确认再来/);
+  assert.match(js, /确认再来/);
   assert.match(js, /function shouldFlipBoardPerspective\(/);
   assert.match(js, /function syncCountdownStateFromMatch\(/);
   assert.match(js, /function getDisplayedCountdownState\(/);
@@ -240,9 +255,10 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.doesNotMatch(js, /function renderActiveRoomCard\(/);
   assert.match(js, /async function startReadyMatch\(/);
   assert.match(js, /async function startRematch\(/);
+  assert.match(js, /async function confirmRematch\(/);
   assert.match(js, /\/api\/xiangqi\/rooms\/\$\{encodeURIComponent\(state\.room\.roomCode\)\}\/start/);
-  assert.match(js, /stakeAmount:\s*String\(state\.room\?\.stakeAmount \|\| ''\)\.trim\(\)/);
-  assert.match(js, /timeControlMinutes:\s*Number\(state\.room\?\.timeControlMinutes \|\| 15\)/);
+  assert.match(js, /\/api\/xiangqi\/rooms\/\$\{encodeURIComponent\(state\.room\.roomCode\)\}\/rematch\/request/);
+  assert.match(js, /\/api\/xiangqi\/rooms\/\$\{encodeURIComponent\(state\.room\.roomCode\)\}\/rematch\/confirm/);
   assert.match(js, /等待房主开始/);
   assert.match(js, /await postJson\(`\/api\/xiangqi\/matches\/\$\{state\.match\.id\}\/move`, \{/);
   assert.match(js, /if \(response\.match\) \{\s*state\.match = response\.match;\s*renderMatch\(\);\s*\}/);
@@ -258,6 +274,7 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /source\.addEventListener\('match\.draw-offer',[\s\S]*?openDrawConfirmModal\(\);/);
   assert.match(js, /function bindActions\(/);
   assert.match(js, /ui\.startMatchBtn\?\.addEventListener\('click', \(\) => startReadyMatch\(\)\.catch/);
+  assert.match(js, /ui\.confirmRematchBtn\?\.addEventListener\('click', \(\) => confirmRematch\(\)\.catch/);
   assert.match(js, /ui\.rematchBtn\?\.addEventListener\('click', \(\) => startRematch\(\)\.catch/);
   assert.match(js, /ui\.returnLobbyBtn\?\.addEventListener\('click', \(\) => returnToLobby\(\)\.catch/);
   assert.match(js, /document\.addEventListener\(eventName,\s*\(\) => \{\s*unlockMoveSound\(\)\.catch\(\(\) => \{\}\);\s*\},\s*\{ once: true, passive: true \}\);/);
@@ -269,7 +286,7 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /ui\.drawConfirmRejectBtn\?\.addEventListener\('click', async \(\) => \{/);
   assert.match(js, /await requestAmount\('输入要充值到游戏账户的 USDT 金额'\)/);
   assert.match(js, /await requestAmount\('输入要提现回 Nexa 的 USDT 金额'\)/);
-  assert.match(js, /setStatus\('请在 Nexa App 内提现吗。'\);/);
+  assert.match(js, /setStatus\('请在 Nexa 内提现吗。'\);/);
   assert.match(js, /timePresetButtons: Array\.from\(document\.querySelectorAll\('\[data-time-preset\]'\)\)/);
   assert.match(js, /syncRoomUrl\(null\);[\s\S]*?await refreshWallet\(\);[\s\S]*?renderMatch\(\);/);
 });

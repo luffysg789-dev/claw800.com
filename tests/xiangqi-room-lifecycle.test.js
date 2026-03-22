@@ -142,6 +142,10 @@ function getMatchByRoomId(db, roomId) {
   return db.prepare('SELECT * FROM xiangqi_matches WHERE room_id = ?').get(roomId);
 }
 
+function getMoveCount(db, matchId) {
+  return db.prepare('SELECT COUNT(*) AS count FROM xiangqi_moves WHERE match_id = ?').get(matchId).count;
+}
+
 function getLedgerByRelated(db, relatedType, relatedId) {
   return db
     .prepare(
@@ -580,6 +584,122 @@ test('cancel is rejected after a room has been joined', async () => {
     assert.equal(getWallet(harness.db, creatorUserId).available_balance, '15.00');
     assert.equal(getWallet(harness.db, creatorUserId).frozen_balance, '5.00');
     assert.equal(getWallet(harness.db, joinerUserId).available_balance, '15.00');
+    assert.equal(getWallet(harness.db, joinerUserId).frozen_balance, '5.00');
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('only the room creator can request a rematch after a finished game', async () => {
+  const harness = createHarness();
+  const creatorUserId = seedUser(harness.db, { openid: 'rematch-creator', availableBalance: '20.00' });
+  const joinerUserId = seedUser(harness.db, { openid: 'rematch-joiner', availableBalance: '20.00' });
+
+  try {
+    const createResponse = await harness.request('POST', '/api/xiangqi/rooms/create', {
+      userId: creatorUserId,
+      stakeAmount: '5.00',
+      timeControlMinutes: 15
+    });
+    const roomCode = createResponse.body.roomCode;
+    const joinResponse = await harness.request('POST', '/api/xiangqi/rooms/join', {
+      userId: joinerUserId,
+      roomCode
+    });
+    await harness.request('POST', `/api/xiangqi/rooms/${roomCode}/start`, {
+      userId: creatorUserId
+    });
+    await harness.request('POST', `/api/xiangqi/matches/${joinResponse.body.matchId}/resign`, {
+      userId: joinerUserId
+    });
+
+    const blockedResponse = await harness.request('POST', `/api/xiangqi/rooms/${roomCode}/rematch/request`, {
+      userId: joinerUserId
+    });
+
+    assert.equal(blockedResponse.statusCode, 403);
+    assert.deepEqual(blockedResponse.body, {
+      ok: false,
+      error: 'ROOM_FORBIDDEN'
+    });
+
+    const requestResponse = await harness.request('POST', `/api/xiangqi/rooms/${roomCode}/rematch/request`, {
+      userId: creatorUserId
+    });
+
+    assert.equal(requestResponse.statusCode, 200);
+    assert.deepEqual(requestResponse.body, {
+      ok: true,
+      status: 'rematch_requested',
+      roomCode
+    });
+
+    const room = getRoomByCode(harness.db, roomCode);
+    assert.equal(room.status, 'FINISHED');
+    assert.equal(room.rematch_requested_by, creatorUserId);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('challenger confirm rematch reuses same room settings and freezes stake again', async () => {
+  const harness = createHarness();
+  const creatorUserId = seedUser(harness.db, { openid: 'rematch-confirm-creator', availableBalance: '20.00' });
+  const joinerUserId = seedUser(harness.db, { openid: 'rematch-confirm-joiner', availableBalance: '20.00' });
+
+  try {
+    const createResponse = await harness.request('POST', '/api/xiangqi/rooms/create', {
+      userId: creatorUserId,
+      stakeAmount: '5.00',
+      timeControlMinutes: 15
+    });
+    const roomCode = createResponse.body.roomCode;
+    const joinResponse = await harness.request('POST', '/api/xiangqi/rooms/join', {
+      userId: joinerUserId,
+      roomCode
+    });
+    await harness.request('POST', `/api/xiangqi/rooms/${roomCode}/start`, {
+      userId: creatorUserId
+    });
+    await harness.request('POST', `/api/xiangqi/matches/${joinResponse.body.matchId}/resign`, {
+      userId: joinerUserId
+    });
+
+    assert.equal(getWallet(harness.db, creatorUserId).available_balance, '25.00');
+    assert.equal(getWallet(harness.db, joinerUserId).available_balance, '15.00');
+    assert.equal(getWallet(harness.db, creatorUserId).frozen_balance, '0.00');
+    assert.equal(getWallet(harness.db, joinerUserId).frozen_balance, '0.00');
+
+    await harness.request('POST', `/api/xiangqi/rooms/${roomCode}/rematch/request`, {
+      userId: creatorUserId
+    });
+
+    const response = await harness.request('POST', `/api/xiangqi/rooms/${roomCode}/rematch/confirm`, {
+      userId: joinerUserId
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.body, {
+      ok: true,
+      status: 'ready',
+      roomCode,
+      matchId: joinResponse.body.matchId
+    });
+
+    const room = getRoomByCode(harness.db, roomCode);
+    const match = getMatchByRoomId(harness.db, room.id);
+    assert.equal(room.status, 'READY');
+    assert.equal(room.rematch_requested_by, null);
+    assert.equal(match.status, 'READY');
+    assert.equal(match.result, '');
+    assert.equal(match.winner_user_id, null);
+    assert.equal(match.turn_side, 'RED');
+    assert.equal(match.red_time_left_ms, 900000);
+    assert.equal(match.black_time_left_ms, 900000);
+    assert.equal(getMoveCount(harness.db, match.id), 0);
+    assert.equal(getWallet(harness.db, creatorUserId).available_balance, '20.00');
+    assert.equal(getWallet(harness.db, creatorUserId).frozen_balance, '5.00');
+    assert.equal(getWallet(harness.db, joinerUserId).available_balance, '10.00');
     assert.equal(getWallet(harness.db, joinerUserId).frozen_balance, '5.00');
   } finally {
     harness.cleanup();
