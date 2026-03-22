@@ -406,12 +406,15 @@ select {
 
 .xiangqi-board-stage {
   position: relative;
+  margin-bottom: 18px;
+  padding: 0 10px;
 }
 
 .xiangqi-board-head {
   display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  align-items: stretch;
   gap: 14px;
-  margin-top: 18px;
   margin-bottom: 18px;
 }
 
@@ -424,28 +427,6 @@ select {
 
 .xiangqi-player-card {
   flex: 1 1 0;
-}
-
-.xiangqi-player-card--overlay {
-  position: absolute;
-  z-index: 3;
-  min-width: 128px;
-  max-width: 42%;
-  padding: 12px 14px;
-  background: rgba(250, 247, 243, 0.96);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 10px 22px rgba(31, 22, 16, 0.16);
-}
-
-.xiangqi-player-card--top-left {
-  top: 10px;
-  left: 10px;
-}
-
-.xiangqi-player-card--bottom-right {
-  right: 10px;
-  bottom: 10px;
-  text-align: right;
 }
 
 .xiangqi-side {
@@ -481,6 +462,10 @@ select {
 .xiangqi-match-pill {
   min-width: 170px;
   text-align: center;
+}
+
+.xiangqi-player-card--footer {
+  text-align: right;
 }
 
 .xiangqi-match-pill span:first-child {
@@ -793,9 +778,9 @@ select {
     display: grid;
   }
 
-  .xiangqi-player-card--overlay {
-    min-width: 118px;
-    padding: 10px 12px;
+  .xiangqi-board-stage {
+    margin-bottom: 16px;
+    padding: 0 8px;
   }
 
   .xiangqi-board {
@@ -903,30 +888,9 @@ select {
     padding: 8px;
   }
 
-  .xiangqi-player-card--overlay {
-    min-width: 104px;
-    max-width: 46%;
-    padding: 9px 10px;
-    border-radius: 18px;
-  }
-
-  .xiangqi-player-card--top-left {
-    top: 8px;
-    left: 8px;
-  }
-
-  .xiangqi-player-card--bottom-right {
-    right: 8px;
-    bottom: 8px;
-  }
-
-  .xiangqi-player-card--overlay strong {
-    font-size: 16px;
-  }
-
-  .xiangqi-player-card--overlay p,
-  .xiangqi-player-card--overlay .xiangqi-side {
-    font-size: 11px;
+  .xiangqi-board-stage {
+    margin-bottom: 14px;
+    padding: 0 6px;
   }
 
   .xiangqi-board {

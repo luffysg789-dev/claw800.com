@@ -71,11 +71,11 @@ test('xiangqi html includes mobile wallet, room, and board sections', () => {
   assert.match(html, /id="xiangqiJoinRoomBtn"/);
   assert.doesNotMatch(html, /提现回 Nexa/);
   assert.match(html, /class="xiangqi-board-stage"/);
-  assert.match(html, /xiangqi-player-card--top-left/);
-  assert.match(html, /xiangqi-player-card--bottom-right/);
+  assert.match(html, /xiangqi-player-card--footer/);
   assert.match(html, /id="xiangqiBoard"/);
-  assert.match(html, /class="xiangqi-board-stage"[\s\S]*?xiangqi-player-card--top-left[\s\S]*?id="xiangqiBoard"[\s\S]*?xiangqi-player-card--bottom-right/);
-  assert.match(html, /class="xiangqi-board-stage"[\s\S]*?class="xiangqi-board-head"/);
+  assert.match(html, /class="xiangqi-board-head"[\s\S]*?xiangqi-player-card--black[\s\S]*?xiangqi-match-pill/);
+  assert.match(html, /class="xiangqi-board-head"[\s\S]*?id="xiangqiBlackPlayer"[\s\S]*?id="xiangqiRoomBadge"[\s\S]*?id="xiangqiMatchStatus"/);
+  assert.match(html, /class="xiangqi-action-bar"[\s\S]*?id="xiangqiCancelRoomBtn"[\s\S]*?xiangqi-player-card--footer/);
   assert.doesNotMatch(html, /id="xiangqiActiveRoomCard"/);
   assert.doesNotMatch(html, /id="xiangqiMyRoomBtn"/);
   assert.match(html, /id="xiangqiCancelRoomBtn"/);
@@ -174,9 +174,8 @@ test('xiangqi css delivers a distinctive mobile-first room layout', () => {
   assert.match(css, /\.xiangqi-board\s*\{[\s\S]*?aspect-ratio:\s*9 \/ 10;/);
   assert.match(css, /\.xiangqi-board\s*\{[\s\S]*?overflow:\s*hidden;/);
   assert.match(css, /\.xiangqi-board-stage\s*\{[\s\S]*?position:\s*relative;/);
-  assert.match(css, /\.xiangqi-player-card--overlay\s*\{[\s\S]*?position:\s*absolute;/);
-  assert.match(css, /\.xiangqi-player-card--top-left\s*\{/);
-  assert.match(css, /\.xiangqi-player-card--bottom-right\s*\{/);
+  assert.match(css, /\.xiangqi-player-card--footer\s*\{/);
+  assert.match(css, /\.xiangqi-board-head\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*0\.9fr\)\s+minmax\(0,\s*1\.1fr\);/);
   assert.match(css, /\.xiangqi-board__svg-wrap,\s*[\s\S]*?\.xiangqi-board__hit-area\s*\{/);
   assert.match(css, /\.xiangqi-board__grid-lines line,\s*[\s\S]*?\.xiangqi-board__palace-lines line\s*\{/);
   assert.match(css, /\.xiangqi-board__river-text text\s*\{/);

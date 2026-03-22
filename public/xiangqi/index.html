@@ -78,23 +78,12 @@
         </section>
 
         <section class="xiangqi-board-wrap">
-          <div class="xiangqi-board-stage">
-            <div class="xiangqi-player-card xiangqi-player-card--black xiangqi-player-card--overlay xiangqi-player-card--top-left">
+          <div class="xiangqi-board-head">
+            <div class="xiangqi-player-card xiangqi-player-card--black">
               <span class="xiangqi-side">黑方</span>
               <strong id="xiangqiBlackPlayer">挑战者</strong>
               <p id="xiangqiBlackTime">15:00</p>
             </div>
-
-            <section id="xiangqiBoard" class="xiangqi-board" aria-label="中国象棋棋盘"></section>
-
-            <div class="xiangqi-player-card xiangqi-player-card--red xiangqi-player-card--overlay xiangqi-player-card--bottom-right">
-              <span class="xiangqi-side">红方</span>
-              <strong id="xiangqiRedPlayer">房主</strong>
-              <p id="xiangqiRedTime">15:00</p>
-            </div>
-          </div>
-
-          <div class="xiangqi-board-head">
             <div class="xiangqi-match-pill">
               <span id="xiangqiRoomBadge">房间号 ----</span>
               <span id="xiangqiMatchStake">押金 1.00 USDT</span>
@@ -102,11 +91,21 @@
             </div>
           </div>
 
+          <div class="xiangqi-board-stage">
+            <section id="xiangqiBoard" class="xiangqi-board" aria-label="中国象棋棋盘"></section>
+          </div>
+
           <div class="xiangqi-action-bar">
             <button id="xiangqiActionResignBtn" class="xiangqi-danger-btn" type="button">认输</button>
             <button id="xiangqiActionDrawBtn" class="xiangqi-secondary-btn" type="button">求和</button>
             <button id="xiangqiActionCopyRoomBtn" class="xiangqi-secondary-btn" type="button">复制房号</button>
             <button id="xiangqiCancelRoomBtn" class="xiangqi-secondary-btn xiangqi-secondary-btn--cancel-room" type="button" disabled>解除房间</button>
+          </div>
+
+          <div class="xiangqi-player-card xiangqi-player-card--footer xiangqi-player-card--red">
+            <span class="xiangqi-side">红方</span>
+            <strong id="xiangqiRedPlayer">房主</strong>
+            <p id="xiangqiRedTime">15:00</p>
           </div>
         </section>
       </section>
