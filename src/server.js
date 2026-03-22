@@ -312,6 +312,13 @@ async function createNexaTipOrder({ req, gameSlug, openId, sessionKey, amount = 
     }),
     preferredNexaPaymentVariantName
   ).slice(0, 1);
+  const debugMeta = {
+    baseUrl,
+    gameSlug: normalizedSlug,
+    amount: normalizedAmount,
+    legacyField: 'openId',
+    fallbackVariants: fallbackVariants.map((item) => item.name)
+  };
 
   let response = null;
   let lastSignatureResponse = null;
@@ -327,12 +334,20 @@ async function createNexaTipOrder({ req, gameSlug, openId, sessionKey, amount = 
   }
 
   if (isNexaRateLimitError(response)) {
+    console.error('[nexa-tip-create] rate-limited on legacy payload', {
+      ...debugMeta,
+      response
+    });
     const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
     rateLimitError.statusCode = 429;
     throw rateLimitError;
   }
 
   if (isNexaSignatureError(response)) {
+    console.error('[nexa-tip-create] legacy payload signature failure', {
+      ...debugMeta,
+      response
+    });
     lastSignatureResponse = response;
     response = null;
   }
@@ -350,12 +365,22 @@ async function createNexaTipOrder({ req, gameSlug, openId, sessionKey, amount = 
     }
 
     if (isNexaRateLimitError(response)) {
+      console.error('[nexa-tip-create] rate-limited on fallback payload', {
+        ...debugMeta,
+        variant: variant.name,
+        response
+      });
       const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
       rateLimitError.statusCode = 429;
       throw rateLimitError;
     }
 
     if (isNexaSignatureError(response)) {
+      console.error('[nexa-tip-create] fallback payload signature failure', {
+        ...debugMeta,
+        variant: variant.name,
+        response
+      });
       lastSignatureResponse = response;
       continue;
     }
@@ -370,6 +395,13 @@ async function createNexaTipOrder({ req, gameSlug, openId, sessionKey, amount = 
 
   if (isNexaSignatureError(response) && lastSignatureResponse) {
     response = lastSignatureResponse;
+  }
+
+  if (String(response?.code ?? '') !== '0') {
+    console.error('[nexa-tip-create] final failure response', {
+      ...debugMeta,
+      response
+    });
   }
 
   const data = unwrapNexaResult(response, 'Nexa 下单失败');
