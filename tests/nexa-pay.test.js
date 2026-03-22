@@ -330,6 +330,7 @@ test('prioritizeNexaPaymentCreateVariants prefers github-doc-strict by default',
 test('isNexaSignatureError detects common signature error responses', () => {
   assert.equal(isNexaSignatureError({ code: '10000002', message: '签名错误' }), true);
   assert.equal(isNexaSignatureError({ code: '1002', message: '签名验证失败' }), true);
+  assert.equal(isNexaSignatureError({ code: '500', message: 'signature error' }), true);
   assert.equal(isNexaSignatureError({ code: '0', message: 'success' }), false);
 });
 

@@ -218,7 +218,7 @@ function prioritizeNexaPaymentCreateVariants(variants = [], preferredName = '') 
 function isNexaSignatureError(response = {}) {
   const code = String(response?.code ?? '').trim();
   const message = String(response?.message || response?.error || '').trim();
-  return code === '10000002' || code === '1002' || /签名/.test(message);
+  return code === '10000002' || code === '1002' || /签名/.test(message) || /signature/i.test(message);
 }
 
 function isNexaRateLimitError(value = {}) {
