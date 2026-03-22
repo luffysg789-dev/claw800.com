@@ -38,6 +38,8 @@ test('xiangqi html includes mobile wallet, room, and board sections', () => {
   assert.match(html, /games-config\.js\?v=/);
   assert.doesNotMatch(html, /id="xiangqiLoginBtn"/);
   assert.doesNotMatch(html, /id="xiangqiWelcomeName"/);
+  assert.match(html, />象棋在线余额</);
+  assert.doesNotMatch(html, />我的余额</);
   assert.match(html, /id="xiangqiWalletAvailable"/);
   assert.match(html, /id="xiangqiWalletFrozen"/);
   assert.match(html, /id="xiangqiDepositBtn"/);
@@ -95,6 +97,7 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /async function resumePendingAction\(/);
   assert.match(js, /function restoreActiveRoom\(/);
   assert.match(js, /function updateLoginButtonState\(/);
+  assert.match(js, /if \(ui\.withdrawBtn\) \{\s*ui\.withdrawBtn\.disabled = !isNexaAppEnvironment\(\);\s*\}/);
   assert.match(js, /launchNexaUrl\(buildNexaAuthorizeUrl\(\)\)/);
   assert.match(js, /window\.prompt\('输入要充值到游戏账户的 USDT 金额', '10\.00'\)/);
   assert.match(js, /launchNexaUrl\(buildNexaPaymentUrl\(response\.payment\)\)/);
@@ -105,17 +108,24 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /if \(!await ensureAuthorizedForRoomAction\(\)\) return;/);
   assert.match(js, /savePendingAction\(\{\s*type:\s*'join'/);
   assert.match(js, /savePendingAction\(\{\s*type:\s*'create'/);
+  assert.match(js, /clearPendingAction\(\);\s*await refreshWallet\(\);\s*await refreshRoom\(response\.roomCode\);/);
+  assert.match(js, /clearPendingAction\(\);\s*await refreshWallet\(\);\s*await refreshRoom\(roomCode\);/);
   assert.match(js, /await resumePendingAction\(\)\.catch\(\(\) => \{\}\);/);
   assert.match(js, /syncRoomUrl\(null\)/);
   assert.match(js, /function buildBoardMarkup\(/);
   assert.match(js, /function renderRoomSummary\(/);
+  assert.match(js, /else if \(state\.room\) \{\s*setStatus\('等待对手加入'\);\s*\}/);
   assert.match(js, /function applyShellMode\(/);
   assert.match(js, /classList\.toggle\('is-room-mode'/);
   assert.match(js, /state\.session = loadCachedNexaSession\(\);/);
+  assert.match(js, /const cachedUser = loadCachedUser\(\);/);
+  assert.match(js, /if \(!isNexaAppEnvironment\(\) && cachedUser\?\.userId\) \{/);
+  assert.match(js, /await refreshWallet\(\);/);
   assert.match(js, /\/api\/xiangqi\/rooms\/active\?userId=/);
   assert.match(js, /state\.room && !state\.match/);
   assert.doesNotMatch(js, /function renderActiveRoomCard\(/);
   assert.match(js, /function bindActions\(/);
+  assert.match(js, /setStatus\('请在 Nexa App 内提现吗。'\);/);
   assert.match(js, /timePresetButtons: Array\.from\(document\.querySelectorAll\('\[data-time-preset\]'\)\)/);
 });
 

@@ -299,7 +299,11 @@ function setStatus(message) {
   }
 }
 
-function updateLoginButtonState() {}
+function updateLoginButtonState() {
+  if (ui.withdrawBtn) {
+    ui.withdrawBtn.disabled = !isNexaAppEnvironment();
+  }
+}
 
 function getCurrentUserSide() {
   if (!state.user || !state.match) return '';
@@ -444,6 +448,10 @@ function renderMatch() {
       ? `本局结果 ${state.match.result || '已结束'}`
       : `轮到 ${state.match.turnSide === 'RED' ? '红方' : '黑方'} 行棋${side ? `，你是${side === 'RED' ? '红方' : '黑方'}` : ''}`;
     setStatus(turnText);
+  } else if (state.room) {
+    setStatus('等待对手加入');
+  } else {
+    setStatus('');
   }
 }
 
@@ -451,6 +459,12 @@ async function syncSessionAndWallet() {
   state.session = loadCachedNexaSession();
   updateLoginButtonState();
   if (!state.session?.openId || !state.session?.sessionKey) {
+    const cachedUser = loadCachedUser();
+    if (!isNexaAppEnvironment() && cachedUser?.userId) {
+      state.user = cachedUser;
+      await refreshWallet();
+      return;
+    }
     state.user = null;
     state.wallet = {
       availableBalance: '0.00',
@@ -701,6 +715,10 @@ async function beginDepositFlow() {
 }
 
 async function beginWithdrawFlow() {
+  if (!isNexaAppEnvironment()) {
+    setStatus('请在 Nexa App 内提现吗。');
+    return;
+  }
   if (!state.user?.userId) {
     setStatus('请先登录后再提现吗。');
     return;
@@ -738,6 +756,7 @@ async function createRoom() {
     timeControlMinutes
   });
 
+  clearPendingAction();
   await refreshWallet();
   await refreshRoom(response.roomCode);
   syncRoomUrl(response.roomCode);
@@ -760,6 +779,7 @@ async function joinRoom() {
     roomCode
   });
 
+  clearPendingAction();
   await refreshWallet();
   await refreshRoom(roomCode);
   syncRoomUrl(roomCode);
