@@ -84,6 +84,15 @@ const state = {
   selected: null,
   roomEventSource: null,
   countdownTimer: 0,
+  countdown: {
+    matchId: 0,
+    status: '',
+    turnSide: '',
+    redTimeLeftMs: 0,
+    blackTimeLeftMs: 0,
+    anchorAt: 0,
+    syncKey: ''
+  },
   timeoutSubmitting: false,
   amountRequest: null,
   moveAudio: null,
@@ -490,6 +499,65 @@ function getCurrentUserSide() {
   return '';
 }
 
+function syncCountdownStateFromMatch() {
+  if (!state.match) {
+    state.countdown = {
+      matchId: 0,
+      status: '',
+      turnSide: '',
+      redTimeLeftMs: 0,
+      blackTimeLeftMs: 0,
+      anchorAt: 0,
+      syncKey: ''
+    };
+    return;
+  }
+
+  const nextSyncKey = [
+    Number(state.match.id || 0),
+    String(state.match.status || '').toUpperCase(),
+    String(state.match.turnSide || '').toUpperCase(),
+    Number(state.match.redTimeLeftMs || 0),
+    Number(state.match.blackTimeLeftMs || 0)
+  ].join(':');
+
+  if (state.countdown.syncKey === nextSyncKey) return;
+
+  state.countdown = {
+    matchId: Number(state.match.id || 0),
+    status: String(state.match.status || '').toUpperCase(),
+    turnSide: String(state.match.turnSide || '').toUpperCase(),
+    redTimeLeftMs: Number(state.match.redTimeLeftMs || 0),
+    blackTimeLeftMs: Number(state.match.blackTimeLeftMs || 0),
+    anchorAt: Date.now(),
+    syncKey: nextSyncKey
+  };
+}
+
+function getDisplayedCountdownState() {
+  if (!state.countdown.matchId) {
+    return {
+      redTimeLeftMs: Number(state.match?.redTimeLeftMs || 0),
+      blackTimeLeftMs: Number(state.match?.blackTimeLeftMs || 0)
+    };
+  }
+
+  let redTimeLeftMs = Number(state.countdown.redTimeLeftMs || 0);
+  let blackTimeLeftMs = Number(state.countdown.blackTimeLeftMs || 0);
+  const graceMs = 350;
+  const elapsedMs = Math.max(0, Date.now() - state.countdown.anchorAt - graceMs);
+
+  if (state.countdown.status === 'PLAYING') {
+    if (state.countdown.turnSide === 'RED') {
+      redTimeLeftMs = Math.max(0, redTimeLeftMs - elapsedMs);
+    } else if (state.countdown.turnSide === 'BLACK') {
+      blackTimeLeftMs = Math.max(0, blackTimeLeftMs - elapsedMs);
+    }
+  }
+
+  return { redTimeLeftMs, blackTimeLeftMs };
+}
+
 function renderWallet() {
   if (ui.walletAvailable) ui.walletAvailable.textContent = state.wallet.availableBalance;
   if (ui.walletFrozen) ui.walletFrozen.textContent = `${state.wallet.frozenBalance} USDT`;
@@ -565,17 +633,22 @@ function applyPlayerCardTone(element, side) {
 
 function renderPlayers() {
   const viewModel = getPlayerCardsViewModel();
+  const displayedCountdown = getDisplayedCountdownState();
   applyPlayerCardTone(ui.topCard, viewModel.top.side);
   applyPlayerCardTone(ui.bottomCard, viewModel.bottom.side);
   if (ui.topSide) ui.topSide.textContent = viewModel.top.label;
   if (ui.topPlayer) ui.topPlayer.textContent = viewModel.top.name;
   if (ui.topTime) {
-    ui.topTime.textContent = viewModel.top.side === 'RED' ? viewModel.redTime : viewModel.blackTime;
+    ui.topTime.textContent = viewModel.top.side === 'RED'
+      ? formatTime(displayedCountdown.redTimeLeftMs)
+      : formatTime(displayedCountdown.blackTimeLeftMs);
   }
   if (ui.bottomSide) ui.bottomSide.textContent = viewModel.bottom.label;
   if (ui.bottomPlayer) ui.bottomPlayer.textContent = viewModel.bottom.name;
   if (ui.bottomTime) {
-    ui.bottomTime.textContent = viewModel.bottom.side === 'RED' ? viewModel.redTime : viewModel.blackTime;
+    ui.bottomTime.textContent = viewModel.bottom.side === 'RED'
+      ? formatTime(displayedCountdown.redTimeLeftMs)
+      : formatTime(displayedCountdown.blackTimeLeftMs);
   }
 }
 
@@ -788,6 +861,7 @@ function buildBoardMarkup() {
 
 function renderMatch() {
   applyShellMode();
+  syncCountdownStateFromMatch();
   renderRoomSummary();
   renderPlayers();
   renderDrawActionState();
@@ -1259,17 +1333,12 @@ function startCountdownLoop() {
   window.clearInterval(state.countdownTimer);
   state.countdownTimer = window.setInterval(async () => {
     if (!state.match || state.match.status !== 'PLAYING') return;
-
-    if (state.match.turnSide === 'RED') {
-      state.match.redTimeLeftMs = Math.max(0, Number(state.match.redTimeLeftMs || 0) - 1000);
-    } else {
-      state.match.blackTimeLeftMs = Math.max(0, Number(state.match.blackTimeLeftMs || 0) - 1000);
-    }
+    const displayedCountdown = getDisplayedCountdownState();
     renderPlayers();
 
     if (
       !state.timeoutSubmitting &&
-      (state.match.redTimeLeftMs <= 0 || state.match.blackTimeLeftMs <= 0)
+      (displayedCountdown.redTimeLeftMs <= 0 || displayedCountdown.blackTimeLeftMs <= 0)
     ) {
       state.timeoutSubmitting = true;
       try {

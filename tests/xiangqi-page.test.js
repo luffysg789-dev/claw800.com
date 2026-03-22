@@ -179,8 +179,15 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /黑方胜/);
   assert.match(js, /if \(matchStatus === 'FINISHED'\)/);
   assert.match(js, /function shouldFlipBoardPerspective\(/);
+  assert.match(js, /function syncCountdownStateFromMatch\(/);
+  assert.match(js, /function getDisplayedCountdownState\(/);
   assert.match(js, /function startCountdownLoop\(/);
-  assert.match(js, /if \(state\.match\.turnSide === 'RED'\) \{\s*state\.match\.redTimeLeftMs = Math\.max\(0, Number\(state\.match\.redTimeLeftMs \|\| 0\) - 1000\);\s*\} else \{\s*state\.match\.blackTimeLeftMs = Math\.max\(0, Number\(state\.match\.blackTimeLeftMs \|\| 0\) - 1000\);\s*\}/);
+  assert.match(js, /state\.countdown = \{/);
+  assert.match(js, /anchorAt:\s*Date\.now\(\)/);
+  assert.match(js, /const graceMs = 350;/);
+  assert.match(js, /const elapsedMs = Math\.max\(0,\s*Date\.now\(\) - state\.countdown\.anchorAt - graceMs\);/);
+  assert.doesNotMatch(js, /state\.match\.redTimeLeftMs = Math\.max\(0, Number\(state\.match\.redTimeLeftMs \|\| 0\) - 1000\)/);
+  assert.doesNotMatch(js, /state\.match\.blackTimeLeftMs = Math\.max\(0, Number\(state\.match\.blackTimeLeftMs \|\| 0\) - 1000\)/);
   assert.match(js, /const shouldFlip = shouldFlipBoardPerspective\(\);/);
   assert.match(js, /const boardFile = shouldFlip \? 8 - file : file;/);
   assert.match(js, /const boardRank = shouldFlip \? 9 - rank : rank;/);
