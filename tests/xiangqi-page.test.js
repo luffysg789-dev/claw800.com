@@ -284,6 +284,7 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /const actualFile = shouldFlip \? 8 - file : file;/);
   assert.match(js, /const actualRank = shouldFlip \? 9 - rank : rank;/);
   assert.match(js, /function getFriendlyXiangqiErrorMessage\(/);
+  assert.match(js, /function setFriendlyStatusFromError\(error, context = ''\) \{/);
   assert.match(js, /if \(code === 'INSUFFICIENT_BALANCE'\) \{\s*return context === 'create_room' \? '余额不足，无法创建房间。' : '余额不足，无法加入房间。';\s*\}/);
   assert.match(js, /if \(code === 'ROOM_NOT_FOUND'\) \{\s*return '房间号不存在';\s*\}/);
   assert.match(js, /if \(code === 'ILLEGAL_MOVE'\) \{\s*return '不能这么移动';\s*\}/);
@@ -323,7 +324,7 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /source\.addEventListener\('room\.updated',[\s\S]*?maybeSpeakRematchConfirmationPrompt\(\);/);
   assert.match(js, /source\.addEventListener\('match\.draw-offer',[\s\S]*?openDrawConfirmModal\(\);/);
   assert.match(js, /function bindActions\(/);
-  assert.match(js, /ui\.startMatchBtn\?\.addEventListener\('click', \(\) => startReadyMatch\(\)\.catch/);
+  assert.match(js, /ui\.startMatchBtn\?\.addEventListener\('click', \(\) => startReadyMatch\(\)\.catch\(\(error\) => setFriendlyStatusFromError\(error\)\)\);/);
   assert.match(js, /ui\.confirmRematchBtn\?\.addEventListener\('click', \(\) => confirmRematch\(\)\.catch/);
   assert.match(js, /ui\.rematchBtn\?\.addEventListener\('click', \(\) => startRematch\(\)\.catch/);
   assert.match(js, /ui\.returnLobbyBtn\?\.addEventListener\('click', \(\) => returnToLobby\(\)\.catch/);
@@ -338,6 +339,7 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /document\.addEventListener\(eventName,\s*\(\) => \{\s*unlockMoveSound\(\)\.catch\(\(\) => \{\}\);\s*\},\s*\{ once: true, passive: true \}\);/);
   assert.match(js, /ui\.createRoomBtn\?\.addEventListener\('click', \(\) => createRoom\(\)\.catch\(\(error\) => \{[\s\S]*?const message = getFriendlyXiangqiErrorMessage\(error, 'create_room'\);[\s\S]*?showCreateRoomInsufficientBalanceAlert\(message\);[\s\S]*?setStatus\(message\);[\s\S]*?\}\)\);/);
   assert.match(js, /ui\.joinRoomBtn\?\.addEventListener\('click', \(\) => joinRoom\(\)\.catch\(\(error\) => \{[\s\S]*?const message = getFriendlyXiangqiErrorMessage\(error, 'join_room'\);[\s\S]*?showJoinRoomAlert\(message\);[\s\S]*?setStatus\(message\);[\s\S]*?\}\)\);/);
+  assert.doesNotMatch(js, /startReadyMatch\(\)\.catch\(\(error\) => setStatus\(error\.message\)\)/);
   assert.doesNotMatch(js, /ui\.actionDrawRejectBtn\?\.addEventListener\('click', async \(\) => \{/);
   assert.match(js, /ui\.drawConfirmAcceptBtn\?\.addEventListener\('click', async \(\) => \{/);
   assert.match(js, /ui\.drawConfirmAcceptBtn\?\.addEventListener\('click', async \(\) => \{[\s\S]*?if \(response\?\.match\) \{[\s\S]*?state\.match = response\.match;[\s\S]*?renderMatch\(\);[\s\S]*?if \(String\(response\.status \|\| ''\)\.toLowerCase\(\) === 'finished'\) \{[\s\S]*?speakFinishedMatchResult\(response\.match\);[\s\S]*?await refreshWallet\(\);[\s\S]*?\}[\s\S]*?\} else \{[\s\S]*?await refreshMatch\(state\.match\.id\);[\s\S]*?\}/);

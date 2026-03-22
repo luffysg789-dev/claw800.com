@@ -513,6 +513,10 @@ function showJoinRoomAlert(message) {
   }
 }
 
+function setFriendlyStatusFromError(error, context = '') {
+  setStatus(getFriendlyXiangqiErrorMessage(error, context));
+}
+
 function sanitizeMoneyInput(value) {
   const raw = String(value || '');
   let next = raw.replace(/,/g, '.').replace(/[^\d.]/g, '');
@@ -1769,11 +1773,11 @@ function bindActions() {
     syncJoinRoomClearButton();
     ui.joinRoomCode.focus();
   });
-  ui.startMatchBtn?.addEventListener('click', () => startReadyMatch().catch((error) => setStatus(error.message)));
-  ui.rematchBtn?.addEventListener('click', () => startRematch().catch((error) => setStatus(error.message)));
-  ui.confirmRematchBtn?.addEventListener('click', () => confirmRematch().catch((error) => setStatus(error.message)));
-  ui.returnLobbyBtn?.addEventListener('click', () => returnToLobby().catch((error) => setStatus(error.message)));
-  ui.cancelRoomBtn?.addEventListener('click', () => cancelWaitingRoom().catch((error) => setStatus(error.message)));
+  ui.startMatchBtn?.addEventListener('click', () => startReadyMatch().catch((error) => setFriendlyStatusFromError(error)));
+  ui.rematchBtn?.addEventListener('click', () => startRematch().catch((error) => setFriendlyStatusFromError(error)));
+  ui.confirmRematchBtn?.addEventListener('click', () => confirmRematch().catch((error) => setFriendlyStatusFromError(error)));
+  ui.returnLobbyBtn?.addEventListener('click', () => returnToLobby().catch((error) => setFriendlyStatusFromError(error)));
+  ui.cancelRoomBtn?.addEventListener('click', () => cancelWaitingRoom().catch((error) => setFriendlyStatusFromError(error)));
   ui.stakePresetButtons.forEach((button) => {
     button.addEventListener('click', () => {
       const nextStake = String(button.dataset.stakePreset || '').trim();
@@ -1811,7 +1815,7 @@ function bindActions() {
         await refreshMatch(state.match.id);
       }
     } catch (error) {
-      setStatus(error.message);
+      setFriendlyStatusFromError(error);
     }
   });
   ui.actionResignBtn?.addEventListener('click', async () => {
@@ -1823,7 +1827,7 @@ function bindActions() {
       await refreshWallet();
       await refreshMatch(state.match.id);
     } catch (error) {
-      setStatus(error.message);
+      setFriendlyStatusFromError(error);
     }
   });
   ui.board?.addEventListener('click', (event) => {
@@ -1878,7 +1882,7 @@ function bindActions() {
         await refreshMatch(state.match.id);
       }
     } catch (error) {
-      setStatus(error.message);
+      setFriendlyStatusFromError(error);
     }
   });
   ui.drawConfirmRejectBtn?.addEventListener('click', async () => {
@@ -1896,7 +1900,7 @@ function bindActions() {
         await refreshMatch(state.match.id);
       }
     } catch (error) {
-      setStatus(error.message);
+      setFriendlyStatusFromError(error);
     }
   });
   ui.drawConfirmModal?.addEventListener('click', (event) => {
