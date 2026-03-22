@@ -351,42 +351,43 @@ async function createNexaTipOrder({ req, gameSlug, openId, sessionKey, amount = 
     lastSignatureResponse = response;
     response = null;
   }
+  if (!response) {
+    for (const variant of fallbackVariants) {
+      try {
+        response = await postNexaJson('/partner/api/openapi/payment/create', variant.payload);
+      } catch (error) {
+        if (isNexaRateLimitError(error)) {
+          const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
+          rateLimitError.statusCode = 429;
+          throw rateLimitError;
+        }
+        throw error;
+      }
 
-  for (const variant of fallbackVariants) {
-    try {
-      response = await postNexaJson('/partner/api/openapi/payment/create', variant.payload);
-    } catch (error) {
-      if (isNexaRateLimitError(error)) {
+      if (isNexaRateLimitError(response)) {
+        console.error('[nexa-tip-create] rate-limited on fallback payload', {
+          ...debugMeta,
+          variant: variant.name,
+          response
+        });
         const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
         rateLimitError.statusCode = 429;
         throw rateLimitError;
       }
-      throw error;
-    }
 
-    if (isNexaRateLimitError(response)) {
-      console.error('[nexa-tip-create] rate-limited on fallback payload', {
-        ...debugMeta,
-        variant: variant.name,
-        response
-      });
-      const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
-      rateLimitError.statusCode = 429;
-      throw rateLimitError;
-    }
+      if (isNexaSignatureError(response)) {
+        console.error('[nexa-tip-create] fallback payload signature failure', {
+          ...debugMeta,
+          variant: variant.name,
+          response
+        });
+        lastSignatureResponse = response;
+        continue;
+      }
 
-    if (isNexaSignatureError(response)) {
-      console.error('[nexa-tip-create] fallback payload signature failure', {
-        ...debugMeta,
-        variant: variant.name,
-        response
-      });
-      lastSignatureResponse = response;
-      continue;
+      preferredNexaPaymentVariantName = variant.name;
+      break;
     }
-
-    preferredNexaPaymentVariantName = variant.name;
-    break;
   }
 
   if (!response) {
