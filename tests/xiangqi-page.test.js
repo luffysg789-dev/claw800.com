@@ -96,9 +96,7 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /function buildNexaAuthorizeUrl\(/);
   assert.match(js, /function buildNexaPaymentUrl\(/);
   assert.match(js, /function launchNexaUrl\(/);
-  assert.match(js, /document\.createElement\('a'\)/);
   assert.match(js, /window\.location\.href = targetUrl;/);
-  assert.match(js, /window\.location\.replace\(targetUrl\);/);
   assert.match(js, /function exchangeSessionFromUrlCode\(/);
   assert.match(js, /function beginLoginFlow\(/);
   assert.match(js, /async function ensureAuthorizedForRoomAction\(/);

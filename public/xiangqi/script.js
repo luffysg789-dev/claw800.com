@@ -257,25 +257,6 @@ function buildNexaAuthorizeUrl() {
 function launchNexaUrl(url) {
   const targetUrl = String(url || '').trim();
   if (!targetUrl) return;
-
-  try {
-    const link = document.createElement('a');
-    link.href = targetUrl;
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-    window.setTimeout(() => {
-      window.location.href = targetUrl;
-    }, 40);
-    window.setTimeout(() => {
-      window.location.replace(targetUrl);
-    }, 180);
-    window.setTimeout(() => {
-      link.remove();
-    }, 260);
-    return;
-  } catch {}
-
   window.location.href = targetUrl;
 }
 
