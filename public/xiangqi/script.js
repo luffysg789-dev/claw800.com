@@ -111,7 +111,9 @@ const state = {
   lastStartPromptKey: '',
   lastRedFirstTurnPromptKey: '',
   lastRematchPromptKey: '',
-  rematchExpireSubmitting: false
+  rematchExpireSubmitting: false,
+  joinRoomSubmitting: false,
+  lastAutoJoinRoomCode: ''
 };
 
 function buildPreviewPieces() {
@@ -1549,27 +1551,32 @@ async function createRoom() {
   connectRoomEvents(response.roomCode);
 }
 
-async function joinRoom() {
-  const roomCode = String(ui.joinRoomCode.value || '').trim().toUpperCase();
+async function joinRoom(roomCodeOverride = '') {
+  const roomCode = String(roomCodeOverride || ui.joinRoomCode.value || '').trim().toUpperCase();
   if (!roomCode) return;
+  state.joinRoomSubmitting = true;
   if (!state.user?.userId) {
     savePendingAction({
       type: 'join',
       roomCode
     });
   }
-  if (!await ensureAuthorizedForRoomAction()) return;
+  try {
+    if (!await ensureAuthorizedForRoomAction()) return;
 
-  await postJson('/api/xiangqi/rooms/join', {
-    userId: state.user.userId,
-    roomCode
-  });
+    await postJson('/api/xiangqi/rooms/join', {
+      userId: state.user.userId,
+      roomCode
+    });
 
-  clearPendingAction();
-  await refreshWallet();
-  await refreshRoom(roomCode);
-  syncRoomUrl(roomCode);
-  connectRoomEvents(roomCode);
+    clearPendingAction();
+    await refreshWallet();
+    await refreshRoom(roomCode);
+    syncRoomUrl(roomCode);
+    connectRoomEvents(roomCode);
+  } finally {
+    state.joinRoomSubmitting = false;
+  }
 }
 
 async function startReadyMatch() {
@@ -1720,11 +1727,28 @@ function bindActions() {
     if (ui.joinRoomCode.value !== digitsOnly) {
       ui.joinRoomCode.value = digitsOnly;
     }
+    if (digitsOnly !== state.lastAutoJoinRoomCode) {
+      state.lastAutoJoinRoomCode = '';
+    }
     syncJoinRoomClearButton();
+    if (
+      digitsOnly.length === 6
+      && !state.room?.roomCode
+      && !state.joinRoomSubmitting
+      && state.lastAutoJoinRoomCode !== digitsOnly
+    ) {
+      state.lastAutoJoinRoomCode = digitsOnly;
+      joinRoom(digitsOnly).catch((error) => {
+        const message = getFriendlyXiangqiErrorMessage(error, 'join_room');
+        showJoinRoomAlert(message);
+        setStatus(message);
+      });
+    }
   });
   ui.joinRoomClearBtn?.addEventListener('click', () => {
     if (!ui.joinRoomCode) return;
     ui.joinRoomCode.value = '';
+    state.lastAutoJoinRoomCode = '';
     syncJoinRoomClearButton();
     ui.joinRoomCode.focus();
   });

@@ -151,6 +151,8 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /joinRoomClearBtn: document\.getElementById\('xiangqiJoinRoomClearBtn'\)/);
   assert.match(js, /function sanitizeMoneyInput\(/);
   assert.match(js, /function syncJoinRoomClearButton\(/);
+  assert.match(js, /joinRoomSubmitting:\s*false,/);
+  assert.match(js, /lastAutoJoinRoomCode:\s*''/);
   assert.match(js, /function openAmountModal\(/);
   assert.match(js, /function closeAmountModal\(/);
   assert.match(js, /function getLedgerEntryPresentation\(/);
@@ -162,6 +164,10 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /function closeLedgerModal\(/);
   assert.match(js, /async function startRematch\(/);
   assert.match(js, /async function confirmRematch\(/);
+  assert.match(js, /async function joinRoom\(roomCodeOverride = ''\) \{/);
+  assert.match(js, /const roomCode = String\(roomCodeOverride \|\| ui\.joinRoomCode\.value \|\| ''\)\.trim\(\)\.toUpperCase\(\);/);
+  assert.match(js, /state\.joinRoomSubmitting = true;/);
+  assert.match(js, /state\.joinRoomSubmitting = false;/);
   assert.match(js, /async function returnToLobby\(/);
   assert.match(js, /const previousRoomCode = String\(state\.room\?\.roomCode \|\| ''\)\.trim\(\)\.toUpperCase\(\);/);
   assert.match(js, /if \(ui\.joinRoomCode\) ui\.joinRoomCode\.value = previousRoomCode;/);
@@ -318,7 +324,12 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /ui\.returnLobbyBtn\?\.addEventListener\('click', \(\) => returnToLobby\(\)\.catch/);
   assert.match(js, /ui\.joinRoomCode\?\.addEventListener\('input', \(\) => \{/);
   assert.match(js, /replace\(\/\\D\+\/g, ''\)\.slice\(0, 6\)/);
+  assert.match(js, /if \(digitsOnly !== state\.lastAutoJoinRoomCode\) \{[\s\S]*?state\.lastAutoJoinRoomCode = '';/);
+  assert.match(js, /digitsOnly\.length === 6/);
+  assert.match(js, /state\.lastAutoJoinRoomCode !== digitsOnly/);
+  assert.match(js, /joinRoom\(digitsOnly\)\.catch/);
   assert.match(js, /ui\.joinRoomClearBtn\?\.addEventListener\('click', \(\) => \{/);
+  assert.match(js, /state\.lastAutoJoinRoomCode = '';/);
   assert.match(js, /document\.addEventListener\(eventName,\s*\(\) => \{\s*unlockMoveSound\(\)\.catch\(\(\) => \{\}\);\s*\},\s*\{ once: true, passive: true \}\);/);
   assert.match(js, /ui\.createRoomBtn\?\.addEventListener\('click', \(\) => createRoom\(\)\.catch\(\(error\) => \{[\s\S]*?const message = getFriendlyXiangqiErrorMessage\(error, 'create_room'\);[\s\S]*?showCreateRoomInsufficientBalanceAlert\(message\);[\s\S]*?setStatus\(message\);[\s\S]*?\}\)\);/);
   assert.match(js, /ui\.joinRoomBtn\?\.addEventListener\('click', \(\) => joinRoom\(\)\.catch\(\(error\) => \{[\s\S]*?const message = getFriendlyXiangqiErrorMessage\(error, 'join_room'\);[\s\S]*?showJoinRoomAlert\(message\);[\s\S]*?setStatus\(message\);[\s\S]*?\}\)\);/);
