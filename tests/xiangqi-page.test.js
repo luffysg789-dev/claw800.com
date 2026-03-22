@@ -369,7 +369,7 @@ test('xiangqi css delivers a distinctive mobile-first room layout', () => {
   assert.match(css, /\.xiangqi-wallet-card__chips span\s*\{[\s\S]*?background:\s*transparent;[\s\S]*?color:\s*#fff;/);
   assert.match(css, /\.xiangqi-wallet-card__amount strong\s*\{[\s\S]*?font-size:\s*clamp\(20px,\s*3\.5vw,\s*28px\);/);
   assert.match(css, /\.xiangqi-wallet-action\s*\{/);
-  assert.match(css, /#xiangqiDepositBtn\s*\{[\s\S]*?grid-column:\s*1;[\s\S]*?grid-row:\s*1 \/ span 2;[\s\S]*?min-height:\s*102px;/);
+  assert.match(css, /#xiangqiDepositBtn\s*\{[\s\S]*?grid-column:\s*1;[\s\S]*?grid-row:\s*1;/);
   assert.match(css, /#xiangqiWithdrawBtn\s*\{[\s\S]*?grid-column:\s*2;[\s\S]*?grid-row:\s*1;/);
   assert.match(css, /\.xiangqi-wallet-action--ledger\s*\{[\s\S]*?grid-column:\s*2;[\s\S]*?grid-row:\s*2;/);
   assert.match(css, /\.xiangqi-amount-modal\s*\{/);
@@ -395,7 +395,6 @@ test('xiangqi css delivers a distinctive mobile-first room layout', () => {
   assert.match(css, /@media \(max-width: 430px\)[\s\S]*?width:\s*calc\(100% - 12px\);/);
   assert.match(css, /@media \(max-width: 430px\)[\s\S]*?\.xiangqi-wallet-card__amount strong\s*\{[\s\S]*?font-size:\s*18px;/);
   assert.match(css, /@media \(max-width: 430px\)[\s\S]*?\.xiangqi-wallet-card__side\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(62px,\s*1fr\)\);[\s\S]*?grid-template-rows:\s*repeat\(2,\s*minmax\(38px,\s*auto\)\);/);
-  assert.match(css, /@media \(max-width: 430px\)[\s\S]*?#xiangqiDepositBtn\s*\{[\s\S]*?min-height:\s*86px;/);
   assert.match(css, /@media \(max-width: 430px\)[\s\S]*?\.xiangqi-room-grid\s*\{[\s\S]*?gap:\s*12px;/);
   assert.match(css, /@media \(max-width: 430px\)[\s\S]*?\.xiangqi-room-card\s*\{[\s\S]*?padding:\s*16px;/);
   assert.match(css, /@media \(max-width: 430px\)[\s\S]*?\.xiangqi-danger-btn,\s*[\s\S]*?font-size:\s*14px;/);

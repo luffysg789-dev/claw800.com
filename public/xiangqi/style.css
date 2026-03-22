@@ -211,8 +211,7 @@ select {
 
 #xiangqiDepositBtn {
   grid-column: 1;
-  grid-row: 1 / span 2;
-  min-height: 102px;
+  grid-row: 1;
 }
 
 #xiangqiWithdrawBtn {
@@ -1170,10 +1169,6 @@ select {
 
   .xiangqi-wallet-action--ledger {
     min-width: 62px;
-  }
-
-  #xiangqiDepositBtn {
-    min-height: 86px;
   }
 
   .xiangqi-room-grid {
