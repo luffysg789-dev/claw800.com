@@ -4564,9 +4564,12 @@ app.post('/api/xiangqi/matches/:id/move', (req, res) => {
   }
   if (result.kind === 'settled') {
     const match = selectXiangqiMatchDetailStmt.get(matchId);
-    const room = match ? selectXiangqiRoomCodeByIdStmt.get(match.room_id) : null;
+    const room = match ? db.prepare('SELECT * FROM xiangqi_rooms WHERE id = ?').get(match.room_id) : null;
     const matchItem = match ? formatXiangqiMatchItem(match) : null;
-    if (room?.room_code) {
+    if (room?.room_code && matchItem) {
+      emitXiangqiRoomEvent(room.room_code, 'room.updated', {
+        room: formatXiangqiRoomItem(room, match)
+      });
       emitXiangqiRoomEvent(room.room_code, 'match.finished', {
         match: matchItem
       });
@@ -4621,8 +4624,11 @@ app.post('/api/xiangqi/matches/:id/resign', (req, res) => {
   }
 
   const match = selectXiangqiMatchDetailStmt.get(matchId);
-  const room = match ? db.prepare('SELECT room_code FROM xiangqi_rooms WHERE id = ?').get(match.room_id) : null;
-  if (room?.room_code) {
+  const room = match ? db.prepare('SELECT * FROM xiangqi_rooms WHERE id = ?').get(match.room_id) : null;
+  if (room?.room_code && match) {
+    emitXiangqiRoomEvent(room.room_code, 'room.updated', {
+      room: formatXiangqiRoomItem(room, match)
+    });
     emitXiangqiRoomEvent(room.room_code, 'match.finished', {
       match: formatXiangqiMatchItem(match)
     });
@@ -4714,8 +4720,11 @@ app.post('/api/xiangqi/matches/:id/draw/respond', (req, res) => {
   }
   const match = selectXiangqiMatchDetailStmt.get(matchId);
   if (match) {
-    const room = db.prepare('SELECT room_code FROM xiangqi_rooms WHERE id = ?').get(match.room_id);
+    const room = db.prepare('SELECT * FROM xiangqi_rooms WHERE id = ?').get(match.room_id);
     if (room?.room_code) {
+      emitXiangqiRoomEvent(room.room_code, 'room.updated', {
+        room: formatXiangqiRoomItem(room, match)
+      });
       emitXiangqiRoomEvent(room.room_code, 'match.updated', {
         match: formatXiangqiMatchItem(match)
       });
@@ -4749,8 +4758,11 @@ app.post('/api/xiangqi/matches/:id/timeout', (req, res) => {
 
   const match = selectXiangqiMatchDetailStmt.get(matchId);
   if (match) {
-    const room = db.prepare('SELECT room_code FROM xiangqi_rooms WHERE id = ?').get(match.room_id);
+    const room = db.prepare('SELECT * FROM xiangqi_rooms WHERE id = ?').get(match.room_id);
     if (room?.room_code) {
+      emitXiangqiRoomEvent(room.room_code, 'room.updated', {
+        room: formatXiangqiRoomItem(room, match)
+      });
       emitXiangqiRoomEvent(room.room_code, 'match.finished', {
         match: formatXiangqiMatchItem(match)
       });
