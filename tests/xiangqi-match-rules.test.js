@@ -328,11 +328,10 @@ test('draw offer and acceptance mark the match as draw', async () => {
     const matchResponse = await harness.request('GET', `/api/xiangqi/matches/${context.matchId}`);
 
     assert.equal(offerResponse.statusCode, 200);
-    assert.deepEqual(offerResponse.body, {
-      ok: true,
-      status: 'pending',
-      offerSide: 'RED'
-    });
+    assert.equal(offerResponse.body.ok, true);
+    assert.equal(offerResponse.body.status, 'pending');
+    assert.equal(offerResponse.body.offerSide, 'RED');
+    assert.equal(offerResponse.body.match.pendingDrawOfferSide, 'RED');
     assert.equal(acceptResponse.statusCode, 200);
     assert.deepEqual(acceptResponse.body, {
       ok: true,
@@ -349,6 +348,39 @@ test('draw offer and acceptance mark the match as draw', async () => {
       available_balance: '20.00',
       frozen_balance: '0.00'
     });
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('draw offer response includes pending draw state for realtime clients', async () => {
+  const harness = createHarness();
+
+  try {
+    const context = await createPlayingMatch(harness);
+
+    const offerResponse = await harness.request('POST', `/api/xiangqi/matches/${context.matchId}/draw/offer`, {
+      userId: context.redUserId
+    });
+
+    assert.equal(offerResponse.statusCode, 200);
+    assert.equal(offerResponse.body.ok, true);
+    assert.equal(offerResponse.body.status, 'pending');
+    assert.equal(offerResponse.body.offerSide, 'RED');
+    assert.equal(offerResponse.body.match.id, context.matchId);
+    assert.equal(typeof offerResponse.body.match.roomId, 'number');
+    assert.ok(offerResponse.body.match.roomId > 0);
+    assert.equal(offerResponse.body.match.redUserId, context.redUserId);
+    assert.equal(offerResponse.body.match.blackUserId, context.blackUserId);
+    assert.equal(offerResponse.body.match.turnSide, 'RED');
+    assert.equal(offerResponse.body.match.status, 'PLAYING');
+    assert.equal(offerResponse.body.match.result, '');
+    assert.equal(offerResponse.body.match.winnerUserId, null);
+    assert.equal(offerResponse.body.match.pendingDrawOfferSide, 'RED');
+    assert.equal(offerResponse.body.match.finishedAt, '');
+    assert.ok(Array.isArray(offerResponse.body.match.pieces));
+    assert.equal(typeof offerResponse.body.match.redTimeLeftMs, 'number');
+    assert.equal(typeof offerResponse.body.match.blackTimeLeftMs, 'number');
   } finally {
     harness.cleanup();
   }
@@ -492,6 +524,35 @@ test('checking the opposing king returns the check audio cue', async () => {
     assert.equal(response.body.match.blackTimeLeftMs > 0, true);
     assert.equal(response.body.match.pendingDrawOfferSide, null);
     assert.equal(Array.isArray(response.body.match.pieces), true);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('timeout makes the timed out side lose instead of ending in a draw', async () => {
+  const harness = createHarness();
+
+  try {
+    const context = await createPlayingMatch(harness);
+    harness.db.prepare(
+      `
+        UPDATE xiangqi_matches
+        SET red_time_left_ms = 0,
+            black_time_left_ms = 60000
+        WHERE id = ?
+      `
+    ).run(context.matchId);
+
+    const response = await harness.request('POST', `/api/xiangqi/matches/${context.matchId}/timeout`, {});
+    const matchResponse = await harness.request('GET', `/api/xiangqi/matches/${context.matchId}`);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.ok, true);
+    assert.equal(response.body.status, 'finished');
+    assert.equal(response.body.result, 'BLACK_WIN');
+    assert.equal(matchResponse.body.item.status, 'FINISHED');
+    assert.equal(matchResponse.body.item.result, 'BLACK_WIN');
+    assert.equal(matchResponse.body.item.winnerUserId, context.blackUserId);
   } finally {
     harness.cleanup();
   }

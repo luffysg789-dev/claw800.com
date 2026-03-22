@@ -66,6 +66,7 @@ const ui = {
   cancelRoomBtn: document.getElementById('xiangqiCancelRoomBtn'),
   actionCopyRoomBtn: document.getElementById('xiangqiActionCopyRoomBtn'),
   actionDrawBtn: document.getElementById('xiangqiActionDrawBtn'),
+  actionDrawRejectBtn: document.getElementById('xiangqiActionDrawRejectBtn'),
   actionResignBtn: document.getElementById('xiangqiActionResignBtn'),
   stakePresetButtons: Array.from(document.querySelectorAll('[data-stake-preset]')),
   timePresetButtons: Array.from(document.querySelectorAll('[data-time-preset]'))
@@ -578,6 +579,15 @@ function renderPlayers() {
   }
 }
 
+function renderDrawActionState() {
+  if (!ui.actionDrawBtn || !ui.actionDrawRejectBtn) return;
+  const currentSide = getCurrentUserSide();
+  const pendingSide = String(state.match?.pendingDrawOfferSide || '').toUpperCase();
+  const hasIncomingDrawOffer = Boolean(pendingSide && pendingSide !== currentSide);
+  ui.actionDrawBtn.textContent = hasIncomingDrawOffer ? '同意求和' : '求和';
+  ui.actionDrawRejectBtn.hidden = !hasIncomingDrawOffer;
+}
+
 function syncStakePresetButtons() {
   const currentStake = String(ui.createStake?.value || '').trim();
   ui.stakePresetButtons.forEach((button) => {
@@ -780,6 +790,7 @@ function renderMatch() {
   applyShellMode();
   renderRoomSummary();
   renderPlayers();
+  renderDrawActionState();
   buildBoardMarkup();
   renderBoardOverlay();
   syncStakePresetButtons();
@@ -1249,8 +1260,11 @@ function startCountdownLoop() {
   state.countdownTimer = window.setInterval(async () => {
     if (!state.match || state.match.status !== 'PLAYING') return;
 
-    state.match.redTimeLeftMs = Math.max(0, Number(state.match.redTimeLeftMs || 0) - 1000);
-    state.match.blackTimeLeftMs = Math.max(0, Number(state.match.blackTimeLeftMs || 0) - 1000);
+    if (state.match.turnSide === 'RED') {
+      state.match.redTimeLeftMs = Math.max(0, Number(state.match.redTimeLeftMs || 0) - 1000);
+    } else {
+      state.match.blackTimeLeftMs = Math.max(0, Number(state.match.blackTimeLeftMs || 0) - 1000);
+    }
     renderPlayers();
 
     if (
@@ -1314,17 +1328,40 @@ function bindActions() {
   ui.actionDrawBtn?.addEventListener('click', async () => {
     if (!state.match || !state.user?.userId) return;
     try {
+      let response;
       if (state.match.pendingDrawOfferSide && state.match.pendingDrawOfferSide !== getCurrentUserSide()) {
-        await postJson(`/api/xiangqi/matches/${state.match.id}/draw/respond`, {
+        response = await postJson(`/api/xiangqi/matches/${state.match.id}/draw/respond`, {
           userId: state.user.userId,
           accept: true
         });
       } else {
-        await postJson(`/api/xiangqi/matches/${state.match.id}/draw/offer`, {
+        response = await postJson(`/api/xiangqi/matches/${state.match.id}/draw/offer`, {
           userId: state.user.userId
         });
       }
-      await refreshMatch(state.match.id);
+      if (response?.match) {
+        state.match = response.match;
+        renderMatch();
+      } else {
+        await refreshMatch(state.match.id);
+      }
+    } catch (error) {
+      setStatus(error.message);
+    }
+  });
+  ui.actionDrawRejectBtn?.addEventListener('click', async () => {
+    if (!state.match || !state.user?.userId || !state.match.pendingDrawOfferSide) return;
+    try {
+      const response = await postJson(`/api/xiangqi/matches/${state.match.id}/draw/respond`, {
+        userId: state.user.userId,
+        accept: false
+      });
+      if (response?.match) {
+        state.match = response.match;
+        renderMatch();
+      } else {
+        await refreshMatch(state.match.id);
+      }
     } catch (error) {
       setStatus(error.message);
     }

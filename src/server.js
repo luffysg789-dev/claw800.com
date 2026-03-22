@@ -3453,9 +3453,11 @@ function settleXiangqiTimeoutDraw(payload) {
     return { kind: 'timeout_not_reached', redTimeLeftMs, blackTimeLeftMs };
   }
 
+   const loserSide = redTimeLeftMs <= 0 ? 'RED' : 'BLACK';
+
   return settleXiangqiMatch({
     matchId: match.id,
-    result: 'TIMEOUT_DRAW'
+    result: loserSide === 'RED' ? 'BLACK_WIN' : 'RED_WIN'
   });
 }
 
@@ -4294,16 +4296,21 @@ app.post('/api/xiangqi/matches/:id/draw/offer', (req, res) => {
   if (result.kind === 'match_forbidden') {
     return res.status(403).json({ ok: false, error: 'MATCH_FORBIDDEN' });
   }
+  let matchItem = null;
   if (result.roomId) {
     const room = db.prepare('SELECT room_code FROM xiangqi_rooms WHERE id = ?').get(result.roomId);
     const match = selectXiangqiMatchDetailStmt.get(result.matchId);
+    matchItem = match ? formatXiangqiMatchItem(match) : null;
     if (room?.room_code) {
+      emitXiangqiRoomEvent(room.room_code, 'match.updated', {
+        match: matchItem
+      });
       emitXiangqiRoomEvent(room.room_code, 'match.draw-offer', {
-        match: formatXiangqiMatchItem(match)
+        match: matchItem
       });
     }
   }
-  return res.json({ ok: true, status: 'pending', offerSide: result.offerSide });
+  return res.json({ ok: true, status: 'pending', offerSide: result.offerSide, match: matchItem });
 });
 
 app.post('/api/xiangqi/matches/:id/draw/respond', (req, res) => {
@@ -4337,7 +4344,12 @@ app.post('/api/xiangqi/matches/:id/draw/respond', (req, res) => {
     return res.status(409).json({ ok: false, error: 'DRAW_RESPONSE_FORBIDDEN' });
   }
   if (result.kind === 'declined') {
-    return res.json({ ok: true, status: 'declined' });
+    const match = selectXiangqiMatchDetailStmt.get(matchId);
+    return res.json({
+      ok: true,
+      status: 'declined',
+      match: match ? formatXiangqiMatchItem(match) : null
+    });
   }
   if (result.kind === 'already_processed') {
     return res.json({ ok: true, status: 'finished', result: result.result });

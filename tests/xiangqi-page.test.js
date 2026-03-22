@@ -86,9 +86,10 @@ test('xiangqi html includes mobile wallet, room, and board sections', () => {
   assert.doesNotMatch(html, /id="xiangqiActiveRoomCard"/);
   assert.doesNotMatch(html, /id="xiangqiMyRoomBtn"/);
   assert.match(html, /id="xiangqiCancelRoomBtn"/);
-  assert.match(html, /class="xiangqi-action-bar"[\s\S]*?id="xiangqiActionResignBtn"[\s\S]*?id="xiangqiActionDrawBtn"[\s\S]*?id="xiangqiActionCopyRoomBtn"[\s\S]*?id="xiangqiCancelRoomBtn"/);
+  assert.match(html, /class="xiangqi-action-bar"[\s\S]*?id="xiangqiActionResignBtn"[\s\S]*?id="xiangqiActionDrawBtn"[\s\S]*?id="xiangqiActionDrawRejectBtn"[\s\S]*?id="xiangqiActionCopyRoomBtn"[\s\S]*?id="xiangqiCancelRoomBtn"/);
   assert.match(html, /id="xiangqiActionResignBtn"/);
   assert.match(html, /id="xiangqiActionDrawBtn"/);
+  assert.match(html, /id="xiangqiActionDrawRejectBtn"/);
 });
 
 test('xiangqi script bootstraps page state and board coordinates', () => {
@@ -166,6 +167,7 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /xiangqi-board__river-text/);
   assert.match(js, /function getPlayerCardsViewModel\(/);
   assert.match(js, /function renderRoomSummary\(/);
+  assert.match(js, /function renderDrawActionState\(/);
   assert.match(js, /function getRoomOverlayState\(/);
   assert.match(js, /function renderBoardOverlay\(/);
   assert.match(js, /overlayState\.detail/);
@@ -177,6 +179,8 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /黑方胜/);
   assert.match(js, /if \(matchStatus === 'FINISHED'\)/);
   assert.match(js, /function shouldFlipBoardPerspective\(/);
+  assert.match(js, /function startCountdownLoop\(/);
+  assert.match(js, /if \(state\.match\.turnSide === 'RED'\) \{\s*state\.match\.redTimeLeftMs = Math\.max\(0, Number\(state\.match\.redTimeLeftMs \|\| 0\) - 1000\);\s*\} else \{\s*state\.match\.blackTimeLeftMs = Math\.max\(0, Number\(state\.match\.blackTimeLeftMs \|\| 0\) - 1000\);\s*\}/);
   assert.match(js, /const shouldFlip = shouldFlipBoardPerspective\(\);/);
   assert.match(js, /const boardFile = shouldFlip \? 8 - file : file;/);
   assert.match(js, /const boardRank = shouldFlip \? 9 - rank : rank;/);
@@ -209,12 +213,17 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /else if \(!response\.match\) \{\s*await refreshMatch\(state\.match\.id\);\s*\}/);
   assert.match(js, /unlockMoveSound\(\)\.catch\(\(\) => \{\}\);/);
   assert.match(js, /if \(payload\.actorUserId !== Number\(state\.user\?\.userId \|\| 0\)\) \{[\s\S]*?playMoveSound\(\);[\s\S]*?if \(payload\.audioCue\) \{[\s\S]*?speakXiangqiCue\(payload\.audioCue\);[\s\S]*?\}[\s\S]*?\}/);
+  assert.match(js, /ui\.actionDrawBtn\.textContent = hasIncomingDrawOffer \? '同意求和' : '求和';/);
+  assert.match(js, /ui\.actionDrawRejectBtn\.hidden = !hasIncomingDrawOffer;/);
+  assert.match(js, /if \(response\?\.match\) \{\s*state\.match = response\.match;\s*renderMatch\(\);\s*\} else \{\s*await refreshMatch\(state\.match\.id\);\s*\}/);
   assert.match(js, /source\.addEventListener\('match\.finished',[\s\S]*?speakFinishedMatchResult\(payload\.match\);/);
   assert.match(js, /function bindActions\(/);
   assert.match(js, /ui\.startMatchBtn\?\.addEventListener\('click', \(\) => startReadyMatch\(\)\.catch/);
   assert.match(js, /document\.addEventListener\(eventName,\s*\(\) => \{\s*unlockMoveSound\(\)\.catch\(\(\) => \{\}\);\s*\},\s*\{ once: true, passive: true \}\);/);
   assert.match(js, /ui\.createRoomBtn\?\.addEventListener\('click', \(\) => createRoom\(\)\.catch\(\(error\) => \{[\s\S]*?const message = getFriendlyXiangqiErrorMessage\(error, 'create_room'\);[\s\S]*?showCreateRoomInsufficientBalanceAlert\(message\);[\s\S]*?setStatus\(message\);[\s\S]*?\}\)\);/);
   assert.match(js, /ui\.joinRoomBtn\?\.addEventListener\('click', \(\) => joinRoom\(\)\.catch\(\(error\) => \{[\s\S]*?const message = getFriendlyXiangqiErrorMessage\(error, 'join_room'\);[\s\S]*?showJoinRoomNotFoundAlert\(message\);[\s\S]*?setStatus\(message\);[\s\S]*?\}\)\);/);
+  assert.match(js, /ui\.actionDrawRejectBtn\?\.addEventListener\('click', async \(\) => \{/);
+  assert.match(js, /await postJson\(`\/api\/xiangqi\/matches\/\$\{state\.match\.id\}\/draw\/respond`, \{[\s\S]*?accept: false/);
   assert.match(js, /await requestAmount\('输入要充值到游戏账户的 USDT 金额'\)/);
   assert.match(js, /await requestAmount\('输入要提现回 Nexa 的 USDT 金额'\)/);
   assert.match(js, /setStatus\('请在 Nexa App 内提现吗。'\);/);
