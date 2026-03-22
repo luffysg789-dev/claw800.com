@@ -108,7 +108,9 @@ const state = {
   moveAudioUnlocked: false,
   ledgerItems: [],
   lastStartPromptKey: '',
-  lastRematchPromptKey: ''
+  lastRedFirstTurnPromptKey: '',
+  lastRematchPromptKey: '',
+  rematchExpireSubmitting: false
 };
 
 function buildPreviewPieces() {
@@ -376,6 +378,10 @@ function speakStartPrompt() {
   speakText('请点击开始');
 }
 
+function speakRedFirstTurnPrompt() {
+  speakText('您是红方，您先下棋', 220);
+}
+
 function speakFinishedMatchResult(match) {
   const result = String(match?.result || '').trim().toUpperCase();
   let text = '';
@@ -471,10 +477,10 @@ function showCreateRoomInsufficientBalanceAlert(message) {
   }
 }
 
-function showJoinRoomNotFoundAlert(message) {
-  if (message !== '房间号不存在') return;
+function showJoinRoomAlert(message) {
+  if (message !== '房间号不存在' && message !== '余额不足，无法加入房间。') return;
   if (typeof window.alert === 'function') {
-    window.alert('房间号不存在');
+    window.alert(message);
   }
 }
 
@@ -728,6 +734,41 @@ function getPlayerCardsViewModel() {
   const room = state.room;
   const match = state.match;
   const currentUserId = Number(state.user?.userId || 0);
+  const currentUserSide = getCurrentUserSide();
+  if (match && currentUserId > 0 && currentUserSide) {
+    const topSeat = currentUserSide === 'BLACK'
+      ? {
+          side: 'RED',
+          label: '红方',
+          name: Number(match.redUserId) === currentUserId ? '你' : '房主',
+          userId: Number(match.redUserId || 0) || null
+        }
+      : {
+          side: 'BLACK',
+          label: '黑方',
+          name: Number(match.blackUserId) === currentUserId ? '你' : '挑战者',
+          userId: Number(match.blackUserId || 0) || null
+        };
+    const bottomSeat = currentUserSide === 'BLACK'
+      ? {
+          side: 'BLACK',
+          label: '黑方',
+          name: '你',
+          userId: currentUserId
+        }
+      : {
+          side: 'RED',
+          label: '红方',
+          name: '你',
+          userId: currentUserId
+        };
+    return {
+      top: topSeat,
+      bottom: bottomSeat,
+      redTime: formatTime(match?.redTimeLeftMs || Number(room?.timeControlMinutes || 15) * 60 * 1000),
+      blackTime: formatTime(match?.blackTimeLeftMs || Number(room?.timeControlMinutes || 15) * 60 * 1000)
+    };
+  }
   const creatorUserId = Number(room?.creatorUserId || match?.redUserId || 0);
   const joinerUserId = Number(room?.joinerUserId || match?.blackUserId || 0);
   const isBlackSeat = currentUserId > 0 && currentUserId === joinerUserId;
@@ -860,9 +901,30 @@ function getFinishedMatchStatusLabel(result) {
   return '已结束';
 }
 
+function getRematchCountdownSeconds() {
+  const requestedAt = String(state.room?.rematchRequestedAt || '').trim();
+  if (!requestedAt) return 60;
+  const requestedAtMs = Date.parse(requestedAt.replace(' ', 'T') + 'Z');
+  if (!Number.isFinite(requestedAtMs)) return 60;
+  const remainingMs = Math.max(0, 60 * 1000 - (Date.now() - requestedAtMs));
+  return Math.max(0, Math.ceil(remainingMs / 1000));
+}
+
 function getRoomOverlayState() {
   const roomStatus = String(state.room?.status || '').toUpperCase();
   const matchStatus = String(state.match?.status || '').toUpperCase();
+  if (roomStatus === 'DISBANDED') {
+    return {
+      visible: true,
+      message: '房间已经解散',
+      detail: '',
+      showStart: false,
+      showFinishedActions: false,
+      showRematch: false,
+      showConfirmRematch: false,
+      showReturnLobby: true
+    };
+  }
   if (matchStatus === 'FINISHED') {
     const finishedCopy = getFinishedMatchOverlayCopy();
     const isCreator = isCurrentUserRoomCreator();
@@ -914,7 +976,12 @@ function renderBoardOverlay() {
   ui.boardOverlayDetail.classList.toggle('is-rematch-waiting', overlayState.detail === '等待房主再来');
   ui.startMatchBtn.hidden = !overlayState.showStart;
   if (ui.rematchBtn) ui.rematchBtn.hidden = !overlayState.showRematch;
-  if (ui.confirmRematchBtn) ui.confirmRematchBtn.hidden = !overlayState.showConfirmRematch;
+  if (ui.confirmRematchBtn) {
+    ui.confirmRematchBtn.hidden = !overlayState.showConfirmRematch;
+    ui.confirmRematchBtn.textContent = overlayState.showConfirmRematch
+      ? `确认再来(${getRematchCountdownSeconds()}s)`
+      : '确认再来';
+  }
   if (ui.returnLobbyBtn) ui.returnLobbyBtn.hidden = !overlayState.showReturnLobby;
   const overlayActions = ui.rematchBtn?.parentElement;
   if (overlayActions) {
@@ -925,6 +992,22 @@ function renderBoardOverlay() {
     speakStartPrompt();
   } else if (!nextStartPromptKey) {
     state.lastStartPromptKey = '';
+  }
+}
+
+function maybeSpeakRedFirstTurnPrompt() {
+  const currentUserSide = getCurrentUserSide();
+  const promptKey = state.match
+    && String(state.match.status || '').toUpperCase() === 'PLAYING'
+    && String(state.match.turnSide || '').toUpperCase() === 'RED'
+    && currentUserSide === 'RED'
+    ? `${Number(state.match.id || 0)}:${Number(state.match.redUserId || 0)}:${Number(state.match.blackUserId || 0)}:${String(state.match.status || '')}:${String(state.match.turnSide || '')}`
+    : '';
+  if (promptKey && state.lastRedFirstTurnPromptKey !== promptKey) {
+    state.lastRedFirstTurnPromptKey = promptKey;
+    speakRedFirstTurnPrompt();
+  } else if (!promptKey) {
+    state.lastRedFirstTurnPromptKey = '';
   }
 }
 
@@ -948,6 +1031,25 @@ function maybeSpeakRematchConfirmationPrompt() {
   } else if (!promptKey) {
     state.lastRematchPromptKey = '';
   }
+}
+
+async function maybeExpireRematchRequest() {
+  const roomStatus = String(state.room?.status || '').toUpperCase();
+  const matchStatus = String(state.match?.status || '').toUpperCase();
+  const rematchRequestedBy = Number(state.room?.rematchRequestedBy || 0);
+  if (state.rematchExpireSubmitting) return;
+  if (roomStatus !== 'FINISHED' || matchStatus !== 'FINISHED' || rematchRequestedBy <= 0) return;
+  if (getRematchCountdownSeconds() > 0) return;
+  state.rematchExpireSubmitting = true;
+  try {
+    await postJson(`/api/xiangqi/rooms/${encodeURIComponent(state.room.roomCode)}/rematch/expire`, {});
+    await refreshRoom(state.room.roomCode);
+  } catch (error) {
+    if (String(error?.message || '').trim().toUpperCase() !== 'REMATCH_NOT_EXPIRED') {
+      setStatus(String(error?.message || '房间解散失败'));
+    }
+  }
+  state.rematchExpireSubmitting = false;
 }
 
 function buildBoardMarkup() {
@@ -1078,6 +1180,7 @@ function renderMatch() {
   } else {
     setStatus('');
   }
+  maybeSpeakRedFirstTurnPrompt();
 }
 
 async function syncSessionAndWallet() {
@@ -1541,21 +1644,25 @@ async function handleBoardTap(file, rank) {
 function startCountdownLoop() {
   window.clearInterval(state.countdownTimer);
   state.countdownTimer = window.setInterval(async () => {
-    if (!state.match || state.match.status !== 'PLAYING') return;
-    const displayedCountdown = getDisplayedCountdownState();
-    renderPlayers();
+    if (state.match?.status === 'PLAYING') {
+      const displayedCountdown = getDisplayedCountdownState();
+      renderPlayers();
 
-    if (
-      !state.timeoutSubmitting &&
-      (displayedCountdown.redTimeLeftMs <= 0 || displayedCountdown.blackTimeLeftMs <= 0)
-    ) {
-      state.timeoutSubmitting = true;
-      try {
-        await postJson(`/api/xiangqi/matches/${state.match.id}/timeout`, {});
-        await refreshWallet();
-        await refreshMatch(state.match.id);
-      } catch {}
-      state.timeoutSubmitting = false;
+      if (
+        !state.timeoutSubmitting &&
+        (displayedCountdown.redTimeLeftMs <= 0 || displayedCountdown.blackTimeLeftMs <= 0)
+      ) {
+        state.timeoutSubmitting = true;
+        try {
+          await postJson(`/api/xiangqi/matches/${state.match.id}/timeout`, {});
+          await refreshWallet();
+          await refreshMatch(state.match.id);
+        } catch {}
+        state.timeoutSubmitting = false;
+      }
+    } else if (state.room?.roomCode) {
+      renderBoardOverlay();
+      await maybeExpireRematchRequest();
     }
   }, 1000);
 }
@@ -1577,7 +1684,7 @@ function bindActions() {
   }));
   ui.joinRoomBtn?.addEventListener('click', () => joinRoom().catch((error) => {
     const message = getFriendlyXiangqiErrorMessage(error, 'join_room');
-    showJoinRoomNotFoundAlert(message);
+    showJoinRoomAlert(message);
     setStatus(message);
   }));
   ui.startMatchBtn?.addEventListener('click', () => startReadyMatch().catch((error) => setStatus(error.message)));

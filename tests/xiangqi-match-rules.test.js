@@ -98,30 +98,57 @@ function seedUser(db, { openid, availableBalance = '20.00' }) {
   return Number(result.lastInsertRowid);
 }
 
-async function createPlayingMatch(harness) {
-  const redUserId = seedUser(harness.db, { openid: 'rules-red' });
-  const blackUserId = seedUser(harness.db, { openid: 'rules-black' });
+async function createPlayingMatch(harness, options = {}) {
+  const creatorUserId = seedUser(harness.db, { openid: 'rules-red' });
+  const joinerUserId = seedUser(harness.db, { openid: 'rules-black' });
 
   const createResponse = await harness.request('POST', '/api/xiangqi/rooms/create', {
-    userId: redUserId,
+    userId: creatorUserId,
     stakeAmount: '5.00',
     timeControlMinutes: 15
   });
   const joinResponse = await harness.request('POST', '/api/xiangqi/rooms/join', {
-    userId: blackUserId,
+    userId: joinerUserId,
     roomCode: createResponse.body.roomCode
   });
-  await harness.request('POST', `/api/xiangqi/rooms/${createResponse.body.roomCode}/start`, {
-    userId: redUserId
-  });
+  const originalRandom = Math.random;
+  Math.random = () => Number.isFinite(options.randomValue) ? options.randomValue : 0;
+  try {
+    await harness.request('POST', `/api/xiangqi/rooms/${createResponse.body.roomCode}/start`, {
+      userId: creatorUserId
+    });
+  } finally {
+    Math.random = originalRandom;
+  }
+  const matchResponse = await harness.request('GET', `/api/xiangqi/matches/${joinResponse.body.matchId}`);
+  const match = matchResponse.body.item;
 
   return {
-    redUserId,
-    blackUserId,
+    creatorUserId,
+    joinerUserId,
+    redUserId: match.redUserId,
+    blackUserId: match.blackUserId,
     roomCode: createResponse.body.roomCode,
     matchId: joinResponse.body.matchId
   };
 }
+
+test('host start randomly assigns red and black while red still moves first', async () => {
+  const harness = createHarness();
+
+  try {
+    const context = await createPlayingMatch(harness, { randomValue: 0.99 });
+    const matchResponse = await harness.request('GET', `/api/xiangqi/matches/${context.matchId}`);
+
+    assert.equal(matchResponse.statusCode, 200);
+    assert.equal(matchResponse.body.item.status, 'PLAYING');
+    assert.equal(matchResponse.body.item.turnSide, 'RED');
+    assert.equal(matchResponse.body.item.redUserId, context.joinerUserId);
+    assert.equal(matchResponse.body.item.blackUserId, context.creatorUserId);
+  } finally {
+    harness.cleanup();
+  }
+});
 
 test('moves are blocked until a ready room is explicitly started', async () => {
   const harness = createHarness();
