@@ -558,7 +558,7 @@ select {
 .xiangqi-board-foot {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
-  align-items: stretch;
+  align-items: start;
   gap: 12px;
   margin-top: 10px;
 }
@@ -567,7 +567,7 @@ select {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  min-height: 100%;
+  align-self: start;
   border-radius: 24px;
   padding: 16px 18px;
   background: #faf7f3;
