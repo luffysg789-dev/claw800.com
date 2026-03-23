@@ -163,8 +163,15 @@ select {
   font-weight: 700;
 }
 
-.xiangqi-wallet-card__chips {
+.xiangqi-wallet-card__footer {
   margin-top: 20px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.xiangqi-wallet-card__chips {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -180,6 +187,22 @@ select {
   color: #fff;
   font-size: 15px;
   font-weight: 700;
+}
+
+.xiangqi-wallet-card__notes {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.xiangqi-wallet-card__notes span {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: nowrap;
 }
 
 .xiangqi-wallet-card__side {
@@ -1144,13 +1167,25 @@ select {
     font-size: 18px;
   }
 
-  .xiangqi-wallet-card__chips {
+  .xiangqi-wallet-card__footer {
     margin-top: 14px;
+    gap: 10px;
+  }
+
+  .xiangqi-wallet-card__chips {
     gap: 8px;
   }
 
   .xiangqi-wallet-card__chips span {
     font-size: 13px;
+  }
+
+  .xiangqi-wallet-card__notes {
+    gap: 3px;
+  }
+
+  .xiangqi-wallet-card__notes span {
+    font-size: 11px;
   }
 
   .xiangqi-wallet-card__side {
