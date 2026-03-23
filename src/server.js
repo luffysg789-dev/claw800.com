@@ -2034,6 +2034,8 @@ const XIANGQI_FALLBACK_ROOM_CODE_LENGTH = 5;
 const XIANGQI_ACTIVE_ROOM_STATUSES = ['WAITING', 'READY', 'PLAYING'];
 const XIANGQI_ALLOWED_TIME_CONTROLS = new Set([10, 15, 30]);
 const XIANGQI_SETTLEMENT_RESULTS = new Set(['RED_WIN', 'BLACK_WIN', 'DRAW', 'TIMEOUT_DRAW']);
+const XIANGQI_PLATFORM_FEE_BPS = 100n;
+const XIANGQI_FEE_BPS_DENOMINATOR = 10000n;
 const XIANGQI_LEGACY_TEST_OPEN_IDS = new Set(['xiangqi-demo-local', 'xiangqi-browser-local']);
 
 const selectXiangqiWalletStmt = db.prepare(
@@ -3465,16 +3467,19 @@ const settleXiangqiMatch = db.transaction((payload) => {
   }
 
   const stakeAmountCents = parseMoneyToCents(match.stake_amount);
+  const totalPotCents = stakeAmountCents * 2n;
+  const platformFeeCents = (totalPotCents * XIANGQI_PLATFORM_FEE_BPS) / XIANGQI_FEE_BPS_DENOMINATOR;
+  const winnerPayoutCents = totalPotCents - platformFeeCents;
   let winnerUserId = null;
 
   if (result === 'RED_WIN') {
     winnerUserId = Number(match.red_user_id);
     applyWalletMatchSettlement({
       userId: Number(match.red_user_id),
-      availableDeltaCents: stakeAmountCents * 2n,
+      availableDeltaCents: winnerPayoutCents,
       frozenDeltaCents: -stakeAmountCents,
       ledgerType: 'match_win',
-      ledgerAmountCents: stakeAmountCents * 2n,
+      ledgerAmountCents: winnerPayoutCents,
       relatedId: match.id,
       remark: 'match settled win'
     });
@@ -3500,10 +3505,10 @@ const settleXiangqiMatch = db.transaction((payload) => {
     });
     applyWalletMatchSettlement({
       userId: Number(match.black_user_id),
-      availableDeltaCents: stakeAmountCents * 2n,
+      availableDeltaCents: winnerPayoutCents,
       frozenDeltaCents: -stakeAmountCents,
       ledgerType: 'match_win',
-      ledgerAmountCents: stakeAmountCents * 2n,
+      ledgerAmountCents: winnerPayoutCents,
       relatedId: match.id,
       remark: 'match settled win'
     });

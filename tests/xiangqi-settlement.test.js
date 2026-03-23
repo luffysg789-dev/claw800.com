@@ -108,7 +108,7 @@ function getRoomByCode(db, roomCode) {
 
 function getMatchById(db, matchId) {
   return db
-    .prepare('SELECT id, status, result, winner_user_id, finished_at FROM xiangqi_matches WHERE id = ?')
+    .prepare('SELECT id, red_user_id, black_user_id, status, result, winner_user_id, finished_at FROM xiangqi_matches WHERE id = ?')
     .get(matchId);
 }
 
@@ -136,15 +136,22 @@ async function createPlayingMatch(harness) {
     roomCode
   });
 
+  await harness.request('POST', `/api/xiangqi/rooms/${roomCode}/start`, {
+    userId: creatorUserId
+  });
+  const match = getMatchById(harness.db, joinResponse.body.matchId);
+
   return {
     creatorUserId,
     joinerUserId,
     roomCode,
-    matchId: joinResponse.body.matchId
+    matchId: joinResponse.body.matchId,
+    redUserId: Number(match.red_user_id),
+    blackUserId: Number(match.black_user_id)
   };
 }
 
-test('winner receives opponent stake and own stake is released', async () => {
+test('winner receives the combined stake minus the 1% platform fee', async () => {
   const harness = createHarness();
 
   try {
@@ -154,29 +161,31 @@ test('winner receives opponent stake and own stake is released', async () => {
       matchId: context.matchId,
       result: 'RED_WIN'
     });
+    const winnerUserId = context.redUserId;
+    const loserUserId = context.blackUserId;
 
     assert.equal(result.kind, 'settled');
     assert.equal(result.result, 'RED_WIN');
-    assert.deepEqual(getWallet(harness.db, context.creatorUserId), {
-      available_balance: '25.00',
+    assert.deepEqual(getWallet(harness.db, winnerUserId), {
+      available_balance: '24.90',
       frozen_balance: '0.00'
     });
-    assert.deepEqual(getWallet(harness.db, context.joinerUserId), {
+    assert.deepEqual(getWallet(harness.db, loserUserId), {
       available_balance: '15.00',
       frozen_balance: '0.00'
     });
     assert.deepEqual(getLedgerByMatch(harness.db, context.matchId), [
       {
-        user_id: context.creatorUserId,
+        user_id: winnerUserId,
         type: 'match_win',
-        amount: '10.00',
-        balance_after: '25.00',
+        amount: '9.90',
+        balance_after: '24.90',
         related_type: 'xiangqi_match',
         related_id: String(context.matchId),
         remark: 'match settled win'
       },
       {
-        user_id: context.joinerUserId,
+        user_id: loserUserId,
         type: 'match_loss',
         amount: '-5.00',
         balance_after: '15.00',
@@ -195,23 +204,25 @@ test('loser loses only their frozen stake', async () => {
 
   try {
     const context = await createPlayingMatch(harness);
+    const winnerUserId = context.blackUserId;
+    const loserUserId = context.redUserId;
 
     harness.app.locals.xiangqi.settleMatchForTesting({
       matchId: context.matchId,
       result: 'BLACK_WIN'
     });
 
-    assert.deepEqual(getWallet(harness.db, context.creatorUserId), {
+    assert.deepEqual(getWallet(harness.db, loserUserId), {
       available_balance: '15.00',
       frozen_balance: '0.00'
     });
-    assert.deepEqual(getWallet(harness.db, context.joinerUserId), {
-      available_balance: '25.00',
+    assert.deepEqual(getWallet(harness.db, winnerUserId), {
+      available_balance: '24.90',
       frozen_balance: '0.00'
     });
     assert.deepEqual(getLedgerByMatch(harness.db, context.matchId), [
       {
-        user_id: context.creatorUserId,
+        user_id: loserUserId,
         type: 'match_loss',
         amount: '-5.00',
         balance_after: '15.00',
@@ -220,10 +231,10 @@ test('loser loses only their frozen stake', async () => {
         remark: 'match settled loss'
       },
       {
-        user_id: context.joinerUserId,
+        user_id: winnerUserId,
         type: 'match_win',
-        amount: '10.00',
-        balance_after: '25.00',
+        amount: '9.90',
+        balance_after: '24.90',
         related_type: 'xiangqi_match',
         related_id: String(context.matchId),
         remark: 'match settled win'
@@ -255,26 +266,29 @@ test('draw returns both frozen stakes', async () => {
       available_balance: '20.00',
       frozen_balance: '0.00'
     });
-    assert.deepEqual(getLedgerByMatch(harness.db, context.matchId), [
-      {
-        user_id: context.creatorUserId,
-        type: 'unfreeze_stake',
-        amount: '5.00',
-        balance_after: '20.00',
-        related_type: 'xiangqi_match',
-        related_id: String(context.matchId),
-        remark: 'match draw unfreeze'
-      },
-      {
-        user_id: context.joinerUserId,
-        type: 'unfreeze_stake',
-        amount: '5.00',
-        balance_after: '20.00',
-        related_type: 'xiangqi_match',
-        related_id: String(context.matchId),
-        remark: 'match draw unfreeze'
-      }
-    ]);
+    assert.deepEqual(
+      getLedgerByMatch(harness.db, context.matchId).sort((a, b) => a.user_id - b.user_id),
+      [
+        {
+          user_id: context.creatorUserId,
+          type: 'unfreeze_stake',
+          amount: '5.00',
+          balance_after: '20.00',
+          related_type: 'xiangqi_match',
+          related_id: String(context.matchId),
+          remark: 'match draw unfreeze'
+        },
+        {
+          user_id: context.joinerUserId,
+          type: 'unfreeze_stake',
+          amount: '5.00',
+          balance_after: '20.00',
+          related_type: 'xiangqi_match',
+          related_id: String(context.matchId),
+          remark: 'match draw unfreeze'
+        }
+      ]
+    );
 
     const room = getRoomByCode(harness.db, context.roomCode);
     const match = getMatchById(harness.db, context.matchId);
@@ -310,26 +324,29 @@ test('timeout result returns both frozen stakes', async () => {
       available_balance: '20.00',
       frozen_balance: '0.00'
     });
-    assert.deepEqual(getLedgerByMatch(harness.db, context.matchId), [
-      {
-        user_id: context.creatorUserId,
-        type: 'unfreeze_stake',
-        amount: '5.00',
-        balance_after: '20.00',
-        related_type: 'xiangqi_match',
-        related_id: String(context.matchId),
-        remark: 'match timeout draw unfreeze'
-      },
-      {
-        user_id: context.joinerUserId,
-        type: 'unfreeze_stake',
-        amount: '5.00',
-        balance_after: '20.00',
-        related_type: 'xiangqi_match',
-        related_id: String(context.matchId),
-        remark: 'match timeout draw unfreeze'
-      }
-    ]);
+    assert.deepEqual(
+      getLedgerByMatch(harness.db, context.matchId).sort((a, b) => a.user_id - b.user_id),
+      [
+        {
+          user_id: context.creatorUserId,
+          type: 'unfreeze_stake',
+          amount: '5.00',
+          balance_after: '20.00',
+          related_type: 'xiangqi_match',
+          related_id: String(context.matchId),
+          remark: 'match timeout draw unfreeze'
+        },
+        {
+          user_id: context.joinerUserId,
+          type: 'unfreeze_stake',
+          amount: '5.00',
+          balance_after: '20.00',
+          related_type: 'xiangqi_match',
+          related_id: String(context.matchId),
+          remark: 'match timeout draw unfreeze'
+        }
+      ]
+    );
   } finally {
     harness.cleanup();
   }
@@ -353,11 +370,11 @@ test('settlement is idempotent if the same match result is processed twice', asy
     assert.equal(first.kind, 'settled');
     assert.equal(first.result, 'RED_WIN');
     assert.deepEqual(second, { kind: 'already_processed', result: 'RED_WIN' });
-    assert.deepEqual(getWallet(harness.db, context.creatorUserId), {
-      available_balance: '25.00',
+    assert.deepEqual(getWallet(harness.db, context.redUserId), {
+      available_balance: '24.90',
       frozen_balance: '0.00'
     });
-    assert.deepEqual(getWallet(harness.db, context.joinerUserId), {
+    assert.deepEqual(getWallet(harness.db, context.blackUserId), {
       available_balance: '15.00',
       frozen_balance: '0.00'
     });

@@ -700,7 +700,7 @@ test('challenger confirm rematch reuses same room settings and freezes stake aga
       userId: joinerUserId
     });
 
-    assert.equal(getWallet(harness.db, creatorUserId).available_balance, '25.00');
+    assert.equal(getWallet(harness.db, creatorUserId).available_balance, '24.90');
     assert.equal(getWallet(harness.db, joinerUserId).available_balance, '15.00');
     assert.equal(getWallet(harness.db, creatorUserId).frozen_balance, '0.00');
     assert.equal(getWallet(harness.db, joinerUserId).frozen_balance, '0.00');
@@ -732,7 +732,7 @@ test('challenger confirm rematch reuses same room settings and freezes stake aga
     assert.equal(match.red_time_left_ms, 900000);
     assert.equal(match.black_time_left_ms, 900000);
     assert.equal(getMoveCount(harness.db, match.id), 0);
-    assert.equal(getWallet(harness.db, creatorUserId).available_balance, '20.00');
+    assert.equal(getWallet(harness.db, creatorUserId).available_balance, '19.90');
     assert.equal(getWallet(harness.db, creatorUserId).frozen_balance, '5.00');
     assert.equal(getWallet(harness.db, joinerUserId).available_balance, '10.00');
     assert.equal(getWallet(harness.db, joinerUserId).frozen_balance, '5.00');

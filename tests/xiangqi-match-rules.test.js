@@ -328,7 +328,7 @@ test('resign marks the correct winner', async () => {
       result: 'RED_WIN'
     });
     assert.deepEqual(getWallet(harness.db, context.redUserId), {
-      available_balance: '25.00',
+      available_balance: '24.90',
       frozen_balance: '0.00'
     });
     assert.deepEqual(getWallet(harness.db, context.blackUserId), {
@@ -461,7 +461,7 @@ test('capturing the opposing king ends the match immediately', async () => {
       frozen_balance: '0.00'
     });
     assert.deepEqual(getWallet(harness.db, context.blackUserId), {
-      available_balance: '25.00',
+      available_balance: '24.90',
       frozen_balance: '0.00'
     });
   } finally {
