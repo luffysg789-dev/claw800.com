@@ -56,6 +56,7 @@ const tutorialList = document.getElementById('tutorialList');
 const adminSkillsFetchSection = document.getElementById('adminSkillsFetchSection');
 const adminSkillsSection = document.getElementById('adminSkillsSection');
 const adminGamesSection = document.getElementById('adminGamesSection');
+const adminXiangqiDepositsSection = document.getElementById('adminXiangqiDepositsSection');
 const adminXiangqiWithdrawalsSection = document.getElementById('adminXiangqiWithdrawalsSection');
 const adminSkillsCreateForm = document.getElementById('adminSkillsCreateForm');
 const adminSkillsCategoryOptions = document.getElementById('adminSkillsCategoryOptions');
@@ -64,6 +65,8 @@ const skillsList = document.getElementById('skillsList');
 const skillsMessage = document.getElementById('skillsMessage');
 const gamesList = document.getElementById('gamesList');
 const gamesMessage = document.getElementById('gamesMessage');
+const xiangqiDepositsList = document.getElementById('xiangqiDepositsList');
+const xiangqiDepositsMessage = document.getElementById('xiangqiDepositsMessage');
 const xiangqiWithdrawalsList = document.getElementById('xiangqiWithdrawalsList');
 const xiangqiWithdrawalsMessage = document.getElementById('xiangqiWithdrawalsMessage');
 const skillsFetchMessage = document.getElementById('skillsFetchMessage');
@@ -185,6 +188,7 @@ const texts = {
     navSkillsFetch: '技能抓取',
     navSkills: '技能列表',
     navGames: '游戏列表',
+    navXiangqiDeposits: '象棋充值订单',
     navXiangqiWithdrawals: '象棋提现审核',
     navPassword: '修改密码',
     navPending: '等待审核',
@@ -289,6 +293,8 @@ const texts = {
     skillsCreateSuccess: '技能已新增',
     skillsCreateRouteMissing: '技能新增接口不存在（404）。请重启后端后再试。',
     gamesListTitle: '游戏列表',
+    xiangqiDepositsTitle: '象棋充值订单',
+    xiangqiDepositsEmpty: '当前没有象棋充值订单。',
     xiangqiWithdrawalsTitle: '象棋提现审核',
     xiangqiWithdrawalsApprove: '通过并打款',
     xiangqiWithdrawalsReject: '驳回并退款',
@@ -424,6 +430,7 @@ const texts = {
     navSkillsFetch: 'Skill Fetch',
     navSkills: 'Skills',
     navGames: 'Games',
+    navXiangqiDeposits: 'Xiangqi Deposits',
     navXiangqiWithdrawals: 'Xiangqi Withdrawals',
     navPassword: 'Change Password',
     navPending: 'Pending',
@@ -528,6 +535,8 @@ const texts = {
     skillsCreateSuccess: 'Skill added.',
     skillsCreateRouteMissing: 'Skill create API not found (404). Please restart the backend and try again.',
     gamesListTitle: 'Games',
+    xiangqiDepositsTitle: 'Xiangqi Deposit Orders',
+    xiangqiDepositsEmpty: 'No Xiangqi deposit orders yet.',
     xiangqiWithdrawalsTitle: 'Xiangqi Withdrawals',
     xiangqiWithdrawalsApprove: 'Approve',
     xiangqiWithdrawalsReject: 'Reject',
@@ -969,6 +978,7 @@ function applyLanguage() {
   document.getElementById('navSkillsFetch').textContent = dict.navSkillsFetch;
   document.getElementById('navSkills').textContent = dict.navSkills;
   document.getElementById('navGames').textContent = dict.navGames;
+  document.getElementById('navXiangqiDeposits').textContent = dict.navXiangqiDeposits;
   document.getElementById('navXiangqiWithdrawals').textContent = dict.navXiangqiWithdrawals;
   document.getElementById('navPassword').textContent = dict.navPassword;
   document.getElementById('navPending').textContent = dict.navPending;
@@ -1027,6 +1037,7 @@ function applyLanguage() {
   document.getElementById('skillsFetchTitle').textContent = dict.skillsFetchTitle;
   document.getElementById('skillsListTitle').textContent = dict.skillsListTitle;
   document.getElementById('gamesListTitle').textContent = dict.gamesListTitle;
+  document.getElementById('xiangqiDepositsTitle').textContent = dict.xiangqiDepositsTitle;
   document.getElementById('xiangqiWithdrawalsTitle').textContent = dict.xiangqiWithdrawalsTitle;
   document.getElementById('skillsSyncConfigTitle').textContent = dict.skillsSyncConfigTitle;
   document.getElementById('skillsSyncEnabledLabel').childNodes[0].textContent = dict.skillsSyncEnabledLabel;
@@ -1096,6 +1107,7 @@ function setView(view) {
   adminSkillsFetchSection.classList.toggle('hidden', view !== 'skills-fetch');
   adminSkillsSection.classList.toggle('hidden', view !== 'skills');
   adminGamesSection.classList.toggle('hidden', view !== 'games');
+  adminXiangqiDepositsSection.classList.toggle('hidden', view !== 'xiangqi-deposits');
   adminXiangqiWithdrawalsSection.classList.toggle('hidden', view !== 'xiangqi-withdrawals');
   adminPasswordSection.classList.toggle('hidden', view !== 'password');
   adminListSection.classList.toggle('hidden', view !== 'pending' && view !== 'approved');
@@ -1125,6 +1137,9 @@ function setView(view) {
   }
   if (view === 'games') {
     loadGamesList();
+  }
+  if (view === 'xiangqi-deposits') {
+    loadXiangqiDepositsList();
   }
   if (view === 'xiangqi-withdrawals') {
     loadXiangqiWithdrawalsList();
@@ -1171,6 +1186,64 @@ function renderXiangqiWithdrawalsList(items) {
       `;
     })
     .join('');
+}
+
+function renderXiangqiDepositsList(items) {
+  if (!xiangqiDepositsList) return;
+  if (!Array.isArray(items) || !items.length) {
+    xiangqiDepositsList.innerHTML = `<p class="empty">${escapeHtml(t('xiangqiDepositsEmpty'))}</p>`;
+    return;
+  }
+
+  xiangqiDepositsList.innerHTML = items
+    .map((item) => {
+      const partnerOrderNo = String(item.partnerOrderNo || '').trim();
+      const amount = String(item.amount || '0.00').trim();
+      const currency = String(item.currency || 'USDT').trim();
+      const status = String(item.status || '').trim();
+      const openId = String(item.openId || '').trim();
+      const createdAt = String(item.createdAt || '').trim();
+      const paidAt = String(item.paidAt || '').trim();
+      return `
+        <article class="review-card">
+          <h3>${escapeHtml(partnerOrderNo)}</h3>
+          <p class="small">OpenID: ${escapeHtml(openId || '-')}</p>
+          <p class="small">金额: ${escapeHtml(amount)} ${escapeHtml(currency)}</p>
+          <p class="small">状态: ${escapeHtml(status || '-')}</p>
+          <p class="small">创建时间: ${escapeHtml(createdAt || '-')}</p>
+          <p class="small">到账时间: ${escapeHtml(paidAt || '-')}</p>
+        </article>
+      `;
+    })
+    .join('');
+}
+
+async function loadXiangqiDepositsList() {
+  if (!xiangqiDepositsList || !xiangqiDepositsMessage) return;
+  xiangqiDepositsMessage.textContent = '';
+  xiangqiDepositsMessage.className = 'message';
+  const result = await requestTutorialJson(['/api/admin/xiangqi-deposits?status=paid'], { method: 'GET' });
+  if (!result.res) {
+    xiangqiDepositsMessage.textContent = t('operationFailed');
+    xiangqiDepositsMessage.className = 'message error';
+    return;
+  }
+  if (result.res.status === 401) {
+    showLogin();
+    return;
+  }
+  if (result.res.status === 404) {
+    xiangqiDepositsMessage.textContent = '当前运行中的后端还没有 /api/admin/xiangqi-deposits 接口，请重启后端加载最新代码。';
+    xiangqiDepositsMessage.className = 'message error';
+    xiangqiDepositsList.innerHTML = '<p class="empty">请重启后端后再查看象棋充值订单列表。</p>';
+    return;
+  }
+  if (!result.res.ok) {
+    xiangqiDepositsMessage.textContent = localizeApiError(result.data?.error || t('operationFailed'));
+    xiangqiDepositsMessage.className = 'message error';
+    return;
+  }
+  renderXiangqiDepositsList(result.data?.items || []);
 }
 
 async function loadXiangqiWithdrawalsList() {
@@ -3195,6 +3268,7 @@ document.getElementById('navTutorialAdd').addEventListener('click', () => {
 document.getElementById('navSkillsFetch').addEventListener('click', () => setView('skills-fetch'));
 document.getElementById('navSkills').addEventListener('click', () => setView('skills'));
 document.getElementById('navGames').addEventListener('click', () => setView('games'));
+document.getElementById('navXiangqiDeposits').addEventListener('click', () => setView('xiangqi-deposits'));
 document.getElementById('navXiangqiWithdrawals').addEventListener('click', () => setView('xiangqi-withdrawals'));
 document.getElementById('navPassword').addEventListener('click', () => setView('password'));
 document.getElementById('navPending').addEventListener('click', () => setView('pending'));

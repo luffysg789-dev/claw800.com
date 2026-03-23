@@ -170,6 +170,32 @@ test('admin can list review-pending xiangqi withdrawals', async () => {
   }
 });
 
+test('admin can list xiangqi deposit orders after users recharge', async () => {
+  const harness = createHarness();
+  const userId = seedUser(harness.db, { openid: 'deposit-list-user', availableBalance: '2.00' });
+
+  try {
+    harness.db
+      .prepare(
+        "INSERT INTO nexa_game_deposits (partner_order_no, user_id, amount, currency, status, notify_payload, created_at, paid_at) VALUES (?, ?, ?, 'USDT', ?, '', datetime('now'), ?)"
+      )
+      .run('dep-admin-list-001', userId, '8.88', 'paid', '2026-03-23 10:00:00');
+
+    const cookies = await loginAdmin(harness);
+    const response = await harness.request('GET', '/api/admin/xiangqi-deposits?status=paid', undefined, cookies);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.ok, true);
+    assert.equal(response.body.items.length, 1);
+    assert.equal(response.body.items[0].partnerOrderNo, 'dep-admin-list-001');
+    assert.equal(response.body.items[0].status, 'paid');
+    assert.equal(response.body.items[0].openId, 'deposit-list-user');
+    assert.equal(response.body.items[0].amount, '8.88');
+  } finally {
+    harness.cleanup();
+  }
+});
+
 test('admin rejection refunds review-pending withdrawal back to wallet', async () => {
   const harness = createHarness();
   const userId = seedUser(harness.db, { openid: 'review-reject-user', availableBalance: '20.00' });
@@ -275,4 +301,16 @@ test('admin panel includes a xiangqi withdrawal review entry point', () => {
   assert.match(js, /requestTutorialJson\(\['\/api\/admin\/xiangqi-withdrawals\?status=review_pending'/);
   assert.match(js, /requestTutorialJson\(\[`\/api\/admin\/xiangqi-withdrawals\/\$\{encodeURIComponent\(partnerOrderNo\)\}\/approve`\]/);
   assert.match(js, /requestTutorialJson\(\[`\/api\/admin\/xiangqi-withdrawals\/\$\{encodeURIComponent\(partnerOrderNo\)\}\/reject`\]/);
+});
+
+test('admin panel includes a xiangqi deposits entry point', () => {
+  const html = fs.readFileSync(adminHtmlPath, 'utf8');
+  const js = fs.readFileSync(adminJsPath, 'utf8');
+
+  assert.match(html, /id="navXiangqiDeposits"/);
+  assert.match(html, /id="adminXiangqiDepositsSection"/);
+  assert.match(html, /id="xiangqiDepositsList"/);
+  assert.match(js, /const adminXiangqiDepositsSection = document\.getElementById\('adminXiangqiDepositsSection'\);/);
+  assert.match(js, /const xiangqiDepositsList = document\.getElementById\('xiangqiDepositsList'\);/);
+  assert.match(js, /requestTutorialJson\(\['\/api\/admin\/xiangqi-deposits\?status=paid'/);
 });

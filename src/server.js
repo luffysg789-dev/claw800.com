@@ -2101,6 +2101,24 @@ const selectLatestXiangqiDepositByUserStmt = db.prepare(`
   ORDER BY id DESC
   LIMIT 1
 `);
+const listAdminXiangqiDepositsStmt = db.prepare(`
+  SELECT
+    d.partner_order_no,
+    d.user_id,
+    d.amount,
+    d.currency,
+    d.status,
+    d.nexa_order_no,
+    d.notify_payload,
+    d.created_at,
+    d.paid_at,
+    u.openid
+  FROM nexa_game_deposits d
+  JOIN game_users u ON u.id = d.user_id
+  WHERE (? = '' OR d.status = ?)
+  ORDER BY CASE WHEN d.status = 'paid' THEN 0 ELSE 1 END, d.id DESC
+  LIMIT ?
+`);
 const selectXiangqiWithdrawalByOrderStmt = db.prepare(
   'SELECT partner_order_no, user_id, amount, status FROM nexa_game_withdrawals WHERE partner_order_no = ?'
 );
@@ -4035,6 +4053,23 @@ app.get('/api/admin/xiangqi-withdrawals', requireAdmin, (req, res) => {
     reviewedAt: String(row.reviewed_at || '').trim(),
     createdAt: String(row.created_at || '').trim(),
     finishedAt: String(row.finished_at || '').trim()
+  }));
+  return res.json({ ok: true, items });
+});
+
+app.get('/api/admin/xiangqi-deposits', requireAdmin, (req, res) => {
+  const status = String(req.query?.status || '').trim().toLowerCase();
+  const limit = Math.min(200, Math.max(1, Number(req.query?.limit || 50) || 50));
+  const items = listAdminXiangqiDepositsStmt.all(status, status, limit).map((row) => ({
+    partnerOrderNo: String(row.partner_order_no || '').trim(),
+    userId: Number(row.user_id),
+    openId: String(row.openid || '').trim(),
+    amount: String(row.amount || '0.00'),
+    currency: String(row.currency || 'USDT').trim(),
+    status: String(row.status || '').trim(),
+    nexaOrderNo: String(row.nexa_order_no || '').trim(),
+    createdAt: String(row.created_at || '').trim(),
+    paidAt: String(row.paid_at || '').trim()
   }));
   return res.json({ ok: true, items });
 });
