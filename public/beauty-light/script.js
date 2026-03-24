@@ -14,9 +14,9 @@ const state = {
   hue: PRESET_LIGHTS[0].hue,
   saturation: PRESET_LIGHTS[0].saturation,
   brightness: PRESET_LIGHTS[0].brightness,
-  touchStartX: null,
   panelCollapsed: false,
-  panelTouchStartY: null
+  panelTouchStartY: null,
+  hintDismissed: false
 };
 
 const ui = {
@@ -25,6 +25,8 @@ const ui = {
   panel: document.getElementById('beautyLightPanel'),
   panelCloseBtn: document.getElementById('beautyLightPanelCloseBtn'),
   panelHandle: document.getElementById('beautyLightPanelHandle'),
+  panelToggleBtn: document.getElementById('beautyLightPanelToggleBtn'),
+  hintBubble: document.querySelector('.beauty-light-hint-bubble'),
   presets: Array.from(document.querySelectorAll('.beauty-light-preset')),
   hue: document.getElementById('beautyLightHue'),
   saturation: document.getElementById('beautyLightSaturation'),
@@ -62,7 +64,11 @@ function syncPresetSelection() {
 }
 
 function syncPanelState() {
-  ui.shell.classList.toggle('is-panel-collapsed', state.panelCollapsed);
+  ui.shell.classList.toggle('is-panel-hidden', state.panelCollapsed);
+}
+
+function syncHintState() {
+  ui.shell.classList.toggle('is-hint-dismissed', state.hintDismissed);
 }
 
 function closePanel() {
@@ -95,21 +101,15 @@ function stepPreset(delta) {
   setPreset(nextIndex);
 }
 
-function onTouchStart(event) {
-  state.touchStartX = event.changedTouches?.[0]?.clientX ?? null;
-}
-
-function onTouchEnd(event) {
-  if (state.touchStartX == null) return;
-  const endX = event.changedTouches?.[0]?.clientX ?? state.touchStartX;
-  const deltaX = endX - state.touchStartX;
-  state.touchStartX = null;
-  if (Math.abs(deltaX) < 36) return;
-  if (deltaX < 0) {
-    stepPreset(1);
+function onStageClick(event) {
+  if (event.target.closest('.beauty-light-topbar')) {
     return;
   }
-  stepPreset(-1);
+  if (!state.hintDismissed) {
+    state.hintDismissed = true;
+    syncHintState();
+  }
+  stepPreset(1);
 }
 
 function onPanelTouchStart(event) {
@@ -146,9 +146,15 @@ function bindEvents() {
     applyColor();
   });
 
-  ui.stage.addEventListener('touchstart', onTouchStart, { passive: true });
-  ui.stage.addEventListener('touchend', onTouchEnd, { passive: true });
+  ui.stage.addEventListener('click', onStageClick);
   ui.panelCloseBtn.addEventListener('click', closePanel);
+  ui.panelToggleBtn.addEventListener('click', () => {
+    if (state.panelCollapsed) {
+      openPanel();
+      return;
+    }
+    closePanel();
+  });
   ui.panelHandle.addEventListener('click', () => {
     if (state.panelCollapsed) {
       openPanel();
@@ -158,17 +164,13 @@ function bindEvents() {
   });
   ui.panel.addEventListener('touchstart', onPanelTouchStart, { passive: true });
   ui.panel.addEventListener('touchend', onPanelTouchEnd, { passive: true });
-  ui.stage.addEventListener('click', () => {
-    if (state.panelCollapsed) {
-      openPanel();
-    }
-  });
 }
 
 function init() {
   bindEvents();
   setPreset(0);
   syncPanelState();
+  syncHintState();
 }
 
 init();

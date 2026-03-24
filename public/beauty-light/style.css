@@ -64,8 +64,7 @@ input {
 }
 
 .beauty-light-back,
-.beauty-light-camera-pill,
-.beauty-light-camera-fab {
+.beauty-light-camera-pill {
   border: 0;
   color: rgba(255, 255, 255, 0.95);
   background: rgba(255, 255, 255, 0.18);
@@ -90,9 +89,7 @@ input {
 
 .beauty-light-top-actions {
   display: flex;
-  flex-direction: column;
   align-items: flex-end;
-  gap: 18px;
 }
 
 .beauty-light-camera-pill {
@@ -113,21 +110,6 @@ input {
   background: rgba(255, 255, 255, 0.96);
 }
 
-.beauty-light-camera-fab {
-  width: 54px;
-  height: 54px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  box-shadow: 0 12px 28px rgba(112, 36, 74, 0.12);
-}
-
-.beauty-light-camera-fab svg {
-  width: 26px;
-  height: 26px;
-}
-
 .beauty-light-hint-bubble {
   position: absolute;
   left: 50%;
@@ -145,6 +127,12 @@ input {
   white-space: nowrap;
 }
 
+.beauty-light-shell.is-hint-dismissed .beauty-light-hint-bubble {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .beauty-light-panel {
   position: fixed;
   left: 0;
@@ -155,19 +143,18 @@ input {
   background: linear-gradient(180deg, rgba(22, 15, 19, 0.98), rgba(24, 16, 21, 0.99));
   box-shadow: var(--shell-shadow);
   transition: transform 220ms ease, opacity 220ms ease;
+  z-index: 4;
 }
 
-.beauty-light-shell.is-panel-collapsed .beauty-light-panel {
-  transform: translateY(calc(100% - 32px));
-}
-
-.beauty-light-shell.is-panel-collapsed .beauty-light-hint-bubble {
-  bottom: 72px;
+.beauty-light-shell.is-panel-hidden .beauty-light-panel {
+  transform: translateY(calc(100% + 24px));
+  opacity: 0;
+  pointer-events: none;
 }
 
 .beauty-light-panel-close {
   position: absolute;
-  top: 16px;
+  top: 22px;
   right: 18px;
   width: 42px;
   height: 42px;
@@ -187,7 +174,7 @@ input {
 
 .beauty-light-panel-handle {
   position: absolute;
-  top: 8px;
+  top: 12px;
   left: 50%;
   transform: translateX(-50%);
   width: 54px;
@@ -206,7 +193,7 @@ input {
 
 .beauty-light-copy-card {
   padding: 18px 20px 20px;
-  margin-top: 18px;
+  margin-top: 32px;
 }
 
 .beauty-light-copy-card h2 {
@@ -313,28 +300,41 @@ input {
   .beauty-light-stage {
     min-height: 100vh;
     min-height: 100dvh;
-    padding: calc(env(safe-area-inset-top) + 18px) 28px 188px;
+    padding: calc(env(safe-area-inset-top) + 96px) min(42vw, 560px) 24px 28px;
+  }
+
+  .beauty-light-topbar {
+    position: fixed;
+    top: 24px;
+    left: 28px;
+    right: 24px;
+    z-index: 6;
   }
 
   .beauty-light-panel {
-    left: 24px;
+    top: 72px;
+    bottom: 24px;
+    left: auto;
     right: 24px;
-    max-width: 1480px;
-    margin: 0 auto;
+    width: min(520px, calc(100vw - 48px));
+    max-height: calc(100dvh - 48px);
+    overflow-y: auto;
     padding: 20px 24px 24px;
     border-radius: 34px;
   }
 
-  .beauty-light-shell.is-panel-collapsed .beauty-light-panel {
-    transform: translateY(calc(100% - 42px));
+  .beauty-light-shell.is-panel-hidden .beauty-light-panel {
+    transform: translateX(calc(100% + 32px));
   }
 
   .beauty-light-hint-bubble {
     bottom: 42px;
+    left: calc(50% - min(21vw, 280px));
   }
 
-  .beauty-light-shell.is-panel-collapsed .beauty-light-hint-bubble {
+  .beauty-light-shell.is-panel-hidden .beauty-light-hint-bubble {
     bottom: 86px;
+    left: 50%;
   }
 }
 
@@ -355,7 +355,6 @@ input {
     height: 42px;
   }
 
-  .beauty-light-camera-fab,
   .beauty-light-back {
     width: 44px;
     height: 44px;
@@ -367,10 +366,18 @@ input {
   }
 
   .beauty-light-panel-close {
-    top: 12px;
+    top: 18px;
     right: 12px;
     width: 40px;
     height: 40px;
+  }
+
+  .beauty-light-panel-handle {
+    top: 10px;
+  }
+
+  .beauty-light-copy-card {
+    margin-top: 28px;
   }
 
   .beauty-light-copy-card {
