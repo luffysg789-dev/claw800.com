@@ -19,8 +19,9 @@ html,
 body {
   margin: 0;
   min-height: 100%;
+  height: 100%;
   font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  background: #f7b2c6;
+  background: var(--default-light-color);
 }
 
 body {
@@ -33,7 +34,8 @@ input {
 }
 
 .beauty-light-shell {
-  position: relative;
+  position: fixed;
+  inset: 0;
   min-height: 100vh;
   min-height: 100dvh;
   color: var(--text-main);
@@ -43,12 +45,13 @@ input {
     linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
     var(--default-light-color);
   transition: background 220ms ease;
+  overflow: hidden;
 }
 
 .beauty-light-stage {
   position: relative;
-  min-height: calc(100vh - 360px);
-  min-height: calc(100dvh - 360px);
+  min-height: 100%;
+  min-height: 100dvh;
   padding: calc(env(safe-area-inset-top) + 16px) 18px 200px;
   touch-action: manipulation;
 }
@@ -341,8 +344,8 @@ input {
 
 @media (max-width: 430px) {
   .beauty-light-stage {
-    min-height: calc(100vh - 374px);
-    min-height: calc(100dvh - 374px);
+    min-height: 100%;
+    min-height: 100dvh;
     padding: calc(env(safe-area-inset-top) + 12px) 12px 188px;
   }
 

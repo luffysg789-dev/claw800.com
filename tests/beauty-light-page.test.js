@@ -51,6 +51,7 @@ test('beauty light stylesheet defines cute visual tokens', () => {
 
   assert.match(css, /--panel-bg/);
   assert.match(css, /--default-light-color/);
+  assert.match(css, /inset:\s*0/);
   assert.match(css, /env\(safe-area-inset-top\)/);
   assert.match(css, /beauty-light-shell/);
   assert.match(css, /touch-action:\s*manipulation/);
@@ -73,6 +74,9 @@ test('beauty light script contains preset colors and swipe handling', () => {
   assert.match(js, /落日灯/);
   assert.match(js, /click/);
   assert.match(js, /pointerdown/);
+  assert.match(js, /touchend/);
+  assert.match(js, /visibilitychange/);
+  assert.match(js, /pageshow/);
   assert.match(js, /saturation/);
   assert.match(js, /brightness/);
   assert.match(js, /hue/);

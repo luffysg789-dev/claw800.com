@@ -118,6 +118,10 @@ function onStageInteract(event) {
   stepPreset(1);
 }
 
+function resetStageInteraction() {
+  state.lastStageStepAt = 0;
+}
+
 function onPanelTouchStart(event) {
   state.panelTouchStartY = event.changedTouches?.[0]?.clientY ?? null;
 }
@@ -153,6 +157,7 @@ function bindEvents() {
   });
 
   ui.stage.addEventListener('pointerdown', onStageInteract);
+  ui.stage.addEventListener('touchend', onStageInteract, { passive: true });
   ui.stage.addEventListener('click', onStageInteract);
   ui.panelCloseBtn.addEventListener('click', closePanel);
   ui.panelToggleBtn.addEventListener('click', () => {
@@ -171,6 +176,12 @@ function bindEvents() {
   });
   ui.panel.addEventListener('touchstart', onPanelTouchStart, { passive: true });
   ui.panel.addEventListener('touchend', onPanelTouchEnd, { passive: true });
+  window.addEventListener('pageshow', resetStageInteraction);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      resetStageInteraction();
+    }
+  });
 }
 
 function init() {
