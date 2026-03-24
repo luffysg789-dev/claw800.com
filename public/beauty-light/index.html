@@ -6,7 +6,7 @@
     <title>Claw800 最萌补光灯</title>
     <meta name="description" content="Claw800 最萌补光灯，支持左右滑动切换颜色、预设色卡与亮度调节。" />
     <link rel="icon" href="/favicon.ico" />
-    <link rel="stylesheet" href="/beauty-light/style.css?v=20260324-01" />
+    <link rel="stylesheet" href="/beauty-light/style.css?v=20260324-02" />
   </head>
   <body>
     <main class="beauty-light-shell" id="beautyLightShell">
@@ -20,7 +20,7 @@
               />
             </svg>
           </a>
-          <h1 class="beauty-light-title">最萌补光灯</h1>
+          <div class="beauty-light-topbar-spacer" aria-hidden="true"></div>
           <div class="beauty-light-top-actions">
             <button type="button" class="beauty-light-camera-pill" aria-label="更多选项（装饰）">
               <span></span>
@@ -41,7 +41,13 @@
         <div class="beauty-light-hint-bubble">左右滑动切换颜色</div>
       </div>
 
-      <section class="beauty-light-panel">
+      <section class="beauty-light-panel" id="beautyLightPanel">
+        <button type="button" class="beauty-light-panel-close" id="beautyLightPanelCloseBtn" aria-label="关闭选项面板">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path fill="currentColor" d="M6.7 5.3 12 10.6l5.3-5.3a1 1 0 1 1 1.4 1.4L13.4 12l5.3 5.3a1 1 0 0 1-1.4 1.4L12 13.4l-5.3 5.3a1 1 0 1 1-1.4-1.4l5.3-5.3-5.3-5.3a1 1 0 1 1 1.4-1.4Z" />
+          </svg>
+        </button>
+        <button type="button" class="beauty-light-panel-handle" id="beautyLightPanelHandle" aria-label="下拉收起选项面板"></button>
         <article class="beauty-light-copy-card">
           <h2>最萌补光灯</h2>
           <p>选一个最衬今天妆容的补光色，让自拍更软更亮。</p>
@@ -110,6 +116,6 @@
       </section>
     </main>
 
-    <script src="/beauty-light/script.js?v=20260324-01"></script>
+    <script src="/beauty-light/script.js?v=20260324-02"></script>
   </body>
 </html>

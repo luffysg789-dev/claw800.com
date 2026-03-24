@@ -59,6 +59,10 @@ input {
   gap: 14px;
 }
 
+.beauty-light-topbar-spacer {
+  min-height: 46px;
+}
+
 .beauty-light-back,
 .beauty-light-camera-pill,
 .beauty-light-camera-fab {
@@ -82,15 +86,6 @@ input {
 .beauty-light-back svg {
   width: 24px;
   height: 24px;
-}
-
-.beauty-light-title {
-  margin: 8px 0 0;
-  text-align: center;
-  font-size: 1.95rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-shadow: 0 8px 18px rgba(121, 48, 84, 0.16);
 }
 
 .beauty-light-top-actions {
@@ -159,6 +154,47 @@ input {
   border-radius: 34px 34px 0 0;
   background: linear-gradient(180deg, rgba(22, 15, 19, 0.98), rgba(24, 16, 21, 0.99));
   box-shadow: var(--shell-shadow);
+  transition: transform 220ms ease, opacity 220ms ease;
+}
+
+.beauty-light-shell.is-panel-collapsed .beauty-light-panel {
+  transform: translateY(calc(100% - 32px));
+}
+
+.beauty-light-shell.is-panel-collapsed .beauty-light-hint-bubble {
+  bottom: 72px;
+}
+
+.beauty-light-panel-close {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 50%;
+  color: rgba(255, 245, 249, 0.92);
+  background: rgba(255, 255, 255, 0.08);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.beauty-light-panel-close svg {
+  width: 22px;
+  height: 22px;
+}
+
+.beauty-light-panel-handle {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 54px;
+  height: 6px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.36);
 }
 
 .beauty-light-copy-card,
@@ -170,6 +206,7 @@ input {
 
 .beauty-light-copy-card {
   padding: 18px 20px 20px;
+  margin-top: 18px;
 }
 
 .beauty-light-copy-card h2 {
@@ -272,15 +309,40 @@ input {
   accent-color: #ff4ecf;
 }
 
+@media (min-width: 768px) {
+  .beauty-light-stage {
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: calc(env(safe-area-inset-top) + 18px) 28px 188px;
+  }
+
+  .beauty-light-panel {
+    left: 24px;
+    right: 24px;
+    max-width: 1480px;
+    margin: 0 auto;
+    padding: 20px 24px 24px;
+    border-radius: 34px;
+  }
+
+  .beauty-light-shell.is-panel-collapsed .beauty-light-panel {
+    transform: translateY(calc(100% - 42px));
+  }
+
+  .beauty-light-hint-bubble {
+    bottom: 42px;
+  }
+
+  .beauty-light-shell.is-panel-collapsed .beauty-light-hint-bubble {
+    bottom: 86px;
+  }
+}
+
 @media (max-width: 430px) {
   .beauty-light-stage {
     min-height: calc(100vh - 374px);
     min-height: calc(100dvh - 374px);
     padding: calc(env(safe-area-inset-top) + 12px) 12px 188px;
-  }
-
-  .beauty-light-title {
-    font-size: 1.72rem;
   }
 
   .beauty-light-topbar {
@@ -302,6 +364,13 @@ input {
   .beauty-light-panel {
     padding: 14px 12px calc(env(safe-area-inset-bottom) + 14px);
     border-radius: 28px 28px 0 0;
+  }
+
+  .beauty-light-panel-close {
+    top: 12px;
+    right: 12px;
+    width: 40px;
+    height: 40px;
   }
 
   .beauty-light-copy-card {

@@ -23,7 +23,7 @@ test('beauty light page includes core layout', () => {
 
   const html = fs.readFileSync(htmlPath, 'utf8');
 
-  assert.match(html, />最萌补光灯</);
+  assert.doesNotMatch(html, /<h1[^>]*>\s*最萌补光灯\s*<\/h1>/);
   assert.match(html, /左右滑动切换颜色/);
   assert.match(html, /少女粉/);
   assert.match(html, /冷白皮/);
@@ -39,6 +39,9 @@ test('beauty light page includes core layout', () => {
   assert.match(html, /id="beautyLightSaturation"/);
   assert.match(html, /id="beautyLightBrightness"/);
   assert.match(html, /class="beauty-light-presets"/);
+  assert.match(html, /id="beautyLightPanel"/);
+  assert.match(html, /id="beautyLightPanelCloseBtn"/);
+  assert.match(html, /id="beautyLightPanelHandle"/);
 });
 
 test('beauty light stylesheet defines cute visual tokens', () => {
@@ -49,6 +52,8 @@ test('beauty light stylesheet defines cute visual tokens', () => {
   assert.match(css, /env\(safe-area-inset-top\)/);
   assert.match(css, /beauty-light-shell/);
   assert.match(css, /beauty-light-camera-pill/);
+  assert.match(css, /beauty-light-panel-close/);
+  assert.match(css, /@media \(min-width: 768px\)/);
 });
 
 test('beauty light script contains preset colors and swipe handling', () => {
@@ -62,4 +67,7 @@ test('beauty light script contains preset colors and swipe handling', () => {
   assert.match(js, /saturation/);
   assert.match(js, /brightness/);
   assert.match(js, /hue/);
+  assert.match(js, /panelCollapsed/);
+  assert.match(js, /function closePanel\(/);
+  assert.match(js, /function openPanel\(/);
 });
