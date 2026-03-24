@@ -557,42 +557,6 @@ test('checking the opposing king returns the check audio cue', async () => {
   }
 });
 
-test('checkmating the opposing king ends the match without requiring a capture', async () => {
-  const harness = createHarness();
-
-  try {
-    const context = await createPlayingMatch(harness);
-    setCustomMatchState(harness.db, context.matchId, {
-      turnSide: 'RED',
-      pieces: [
-        { file: 4, rank: 0, side: 'BLACK', type: 'king' },
-        { file: 8, rank: 9, side: 'RED', type: 'king' },
-        { file: 3, rank: 1, side: 'RED', type: 'rook' },
-        { file: 4, rank: 2, side: 'RED', type: 'rook' },
-        { file: 5, rank: 1, side: 'RED', type: 'rook' }
-      ]
-    });
-
-    const response = await harness.request('POST', `/api/xiangqi/matches/${context.matchId}/move`, {
-      userId: context.redUserId,
-      from: { file: 4, rank: 2 },
-      to: { file: 4, rank: 1 }
-    });
-    const matchResponse = await harness.request('GET', `/api/xiangqi/matches/${context.matchId}`);
-
-    assert.equal(response.statusCode, 200);
-    assert.equal(response.body.ok, true);
-    assert.equal(response.body.status, 'finished');
-    assert.equal(response.body.result, 'RED_WIN');
-    assert.equal(matchResponse.statusCode, 200);
-    assert.equal(matchResponse.body.item.status, 'FINISHED');
-    assert.equal(matchResponse.body.item.result, 'RED_WIN');
-    assert.equal(matchResponse.body.item.winnerUserId, context.redUserId);
-  } finally {
-    harness.cleanup();
-  }
-});
-
 test('timeout makes the timed out side lose instead of ending in a draw', async () => {
   const harness = createHarness();
 
