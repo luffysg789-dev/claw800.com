@@ -190,8 +190,8 @@
       return pending;
     }
 
-    function startSamplePlayback(context, note, sampleNote, audioBuffer) {
-      if (!context || !audioBuffer) return false;
+    function startSamplePlayback(context, note, sampleNote, audioBuffer, options = {}) {
+      if (!context || !audioBuffer) return null;
 
       const sourceNode = context.createBufferSource();
       const gainNode = context.createGain();
@@ -199,6 +199,9 @@
       const targetMidi = noteToMidi(note);
       const sourceMidi = noteToMidi(sampleNote);
       const now = context.currentTime;
+      const attackDuration = Number(options.attackDuration ?? 0.004);
+      const peakGain = Number(options.peakGain ?? 0.98);
+      const releaseDuration = Number(options.releaseDuration ?? Math.min(4.2, audioBuffer.duration + 0.9));
 
       sourceNode.buffer = audioBuffer;
       sourceNode.playbackRate.value = 2 ** ((targetMidi - sourceMidi) / 12);
@@ -207,27 +210,18 @@
       filterNode.Q.value = 0.4;
 
       gainNode.gain.setValueAtTime(0.0001, now);
-      gainNode.gain.linearRampToValueAtTime(0.98, now + 0.004);
-      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + Math.min(4.2, audioBuffer.duration + 0.9));
+      gainNode.gain.linearRampToValueAtTime(peakGain, now + attackDuration);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + releaseDuration);
 
       sourceNode.connect(filterNode);
       filterNode.connect(gainNode);
       gainNode.connect(context.destination);
       sourceNode.start(now);
 
-      activeVoices.set(note, {
-        kind: 'sample',
+      return {
         gainNode,
         sourceNode
-      });
-
-      sourceNode.addEventListener('ended', () => {
-        if (activeVoices.get(note)?.sourceNode === sourceNode) {
-          activeVoices.delete(note);
-        }
-      }, { once: true });
-
-      return true;
+      };
     }
 
     async function playSampleNote(note) {
@@ -238,7 +232,21 @@
       const audioBuffer = await loadSampleBuffer(sampleNote).catch(() => null);
       if (!audioBuffer) return false;
 
-      return startSamplePlayback(context, note, sampleNote, audioBuffer);
+      const sampleLayer = startSamplePlayback(context, note, sampleNote, audioBuffer);
+      if (!sampleLayer) return false;
+
+      activeVoices.set(note, {
+        kind: 'sample',
+        ...sampleLayer
+      });
+
+      sampleLayer.sourceNode.addEventListener('ended', () => {
+        if (activeVoices.get(note)?.sourceNode === sampleLayer.sourceNode) {
+          activeVoices.delete(note);
+        }
+      }, { once: true });
+
+      return true;
     }
 
     function scheduleSampleWarmup(prioritySampleNote) {
@@ -328,15 +336,64 @@
       toneFilter.connect(masterGain);
       masterGain.connect(context.destination);
 
-      activeVoices.set(note, {
-        kind: 'synth',
+      return {
         oscillators,
         noiseSource,
         masterGain
-      });
+      };
     }
 
-    async function playNote(note) {
+    function fadeOutSynthLayer(context, synthLayer, duration = 0.18) {
+      if (!context || !synthLayer) return;
+      const stopAt = context.currentTime + duration;
+      synthLayer.masterGain.gain.cancelScheduledValues(context.currentTime);
+      synthLayer.masterGain.gain.setValueAtTime(Math.max(synthLayer.masterGain.gain.value, 0.0001), context.currentTime);
+      synthLayer.masterGain.gain.exponentialRampToValueAtTime(0.0001, stopAt);
+      for (const oscillator of synthLayer.oscillators) {
+        oscillator.stop(stopAt + 0.04);
+      }
+      if (synthLayer.noiseSource) {
+        try {
+          synthLayer.noiseSource.stop(stopAt);
+        } catch {}
+      }
+    }
+
+    function playTouchResponsiveNote(context, note, sampleNote) {
+      const synthLayer = playSynthNote(context, note);
+      const voice = {
+        kind: 'hybrid',
+        synthLayer,
+        sampleLayer: null
+      };
+
+      activeVoices.set(note, voice);
+      scheduleSampleWarmup(sampleNote);
+
+      loadSampleBuffer(sampleNote)
+        .then((audioBuffer) => {
+          if (!audioBuffer) return;
+          if (activeVoices.get(note) !== voice || voice.sampleLayer) return;
+
+          const sampleLayer = startSamplePlayback(context, note, sampleNote, audioBuffer, {
+            attackDuration: 0.08,
+            peakGain: 0.72
+          });
+          if (!sampleLayer) return;
+
+          voice.sampleLayer = sampleLayer;
+          fadeOutSynthLayer(context, synthLayer, 0.18);
+
+          sampleLayer.sourceNode.addEventListener('ended', () => {
+            if (activeVoices.get(note) === voice) {
+              activeVoices.delete(note);
+            }
+          }, { once: true });
+        })
+        .catch(() => null);
+    }
+
+    async function playNote(note, options = {}) {
       let context = ensureAudioContext();
       if (!context) return;
       if (context.state === 'suspended') {
@@ -346,12 +403,31 @@
 
       const sampleNote = getNearestSampleNote(note);
       const cachedSample = sampleBufferCache.get(sampleNote);
+      const preferImmediateSynth = Boolean(options.preferImmediateSynth);
+      if (preferImmediateSynth) {
+        playTouchResponsiveNote(context, note, sampleNote);
+        return;
+      }
       if (cachedSample) {
-        startSamplePlayback(context, note, sampleNote, cachedSample);
+        const sampleLayer = startSamplePlayback(context, note, sampleNote, cachedSample);
+        if (!sampleLayer) return;
+        activeVoices.set(note, {
+          kind: 'sample',
+          ...sampleLayer
+        });
+        sampleLayer.sourceNode.addEventListener('ended', () => {
+          if (activeVoices.get(note)?.sourceNode === sampleLayer.sourceNode) {
+            activeVoices.delete(note);
+          }
+        }, { once: true });
         return;
       }
 
-      playSynthNote(context, note);
+      const synthLayer = playSynthNote(context, note);
+      activeVoices.set(note, {
+        kind: 'synth',
+        ...synthLayer
+      });
       scheduleSampleWarmup(sampleNote);
     }
 
@@ -366,7 +442,7 @@
         voice.gainNode.gain.setValueAtTime(Math.max(voice.gainNode.gain.value, 0.0001), context.currentTime);
         voice.gainNode.gain.exponentialRampToValueAtTime(0.0001, stopAt);
         voice.sourceNode.stop(stopAt + 0.02);
-      } else {
+      } else if (voice.kind === 'synth') {
         voice.masterGain.gain.cancelScheduledValues(context.currentTime);
         voice.masterGain.gain.setValueAtTime(Math.max(voice.masterGain.gain.value, 0.0001), context.currentTime);
         voice.masterGain.gain.exponentialRampToValueAtTime(0.0001, stopAt);
@@ -377,6 +453,17 @@
           try {
             voice.noiseSource.stop(stopAt);
           } catch {}
+        }
+      }
+      if (voice.kind === 'hybrid') {
+        if (voice.sampleLayer) {
+          voice.sampleLayer.gainNode.gain.cancelScheduledValues(context.currentTime);
+          voice.sampleLayer.gainNode.gain.setValueAtTime(Math.max(voice.sampleLayer.gainNode.gain.value, 0.0001), context.currentTime);
+          voice.sampleLayer.gainNode.gain.exponentialRampToValueAtTime(0.0001, stopAt);
+          voice.sampleLayer.sourceNode.stop(stopAt + 0.03);
+        }
+        if (voice.synthLayer) {
+          fadeOutSynthLayer(context, voice.synthLayer, 0.18);
         }
       }
       activeVoices.delete(note);
@@ -431,7 +518,10 @@
     store.press(note, source);
     setKeyPressedState(note, true);
     if (shouldStartAudio) {
-      audioEngine.playNote(note).catch(() => {});
+      const preferImmediateSynth = typeof window !== 'undefined'
+        && window.innerWidth < 900
+        && String(source || '').startsWith('pointer:touch:');
+      audioEngine.playNote(note, { preferImmediateSynth }).catch(() => {});
     }
   }
 
@@ -462,7 +552,7 @@
         const note = resolvePointerNoteTarget(event);
         if (!note) return;
         event.preventDefault();
-        const source = `pointer:${event.pointerId}`;
+        const source = `pointer:${event.pointerType || 'unknown'}:${event.pointerId}`;
         pointerToNote.set(event.pointerId, note);
         pressNote(note, source, store, audioEngine);
       });
@@ -471,14 +561,14 @@
         if (event.pointerType !== 'mouse' || event.buttons === 0) return;
         const note = resolvePointerNoteTarget(event);
         if (!note) return;
-        const source = `pointer:${event.pointerId}`;
+        const source = `pointer:${event.pointerType || 'unknown'}:${event.pointerId}`;
         pointerToNote.set(event.pointerId, note);
         pressNote(note, source, store, audioEngine);
       });
 
       key.addEventListener('pointermove', (event) => {
         if (event.pointerType === 'mouse' || (event.buttons === 0 && event.pressure === 0)) return;
-        const source = `pointer:${event.pointerId}`;
+        const source = `pointer:${event.pointerType || 'unknown'}:${event.pointerId}`;
         const nextNote = resolvePointerNoteTarget(event);
         const previousNote = pointerToNote.get(event.pointerId);
         if (!nextNote || nextNote === previousNote) return;
@@ -492,13 +582,13 @@
       key.addEventListener('pointerup', (event) => {
         const note = pointerToNote.get(event.pointerId) || resolvePointerNoteTarget(event);
         pointerToNote.delete(event.pointerId);
-        releaseNote(note, `pointer:${event.pointerId}`, store, audioEngine);
+        releaseNote(note, `pointer:${event.pointerType || 'unknown'}:${event.pointerId}`, store, audioEngine);
       });
 
       key.addEventListener('pointercancel', (event) => {
         const note = pointerToNote.get(event.pointerId) || resolvePointerNoteTarget(event);
         pointerToNote.delete(event.pointerId);
-        releaseNote(note, `pointer:${event.pointerId}`, store, audioEngine);
+        releaseNote(note, `pointer:${event.pointerType || 'unknown'}:${event.pointerId}`, store, audioEngine);
       });
     }
   }

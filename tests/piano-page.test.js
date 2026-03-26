@@ -132,6 +132,7 @@ test('piano script prepares note playback and orientation syncing', () => {
   assert.match(js, /audioContext/);
   assert.match(js, /resumeAudioContextIfNeeded/);
   assert.match(js, /function scheduleSampleWarmup\(/);
+  assert.match(js, /function playTouchResponsiveNote\(/);
   assert.match(js, /const cachedSample = sampleBufferCache\.get\(sampleNote\);/);
   assert.match(js, /window\.requestIdleCallback/);
   assert.match(js, /window\.requestIdleCallback\(warmupTask,\s*\{\s*timeout:\s*1500\s*\}\)/);
@@ -140,6 +141,7 @@ test('piano script prepares note playback and orientation syncing', () => {
   assert.match(js, /},\s*420\)/);
   assert.match(js, /scheduleSampleWarmup\(sampleNote\);/);
   assert.match(js, /playSynthNote\(context,\s*note\);[\s\S]*scheduleSampleWarmup\(sampleNote\);[\s\S]*\n\s*\}/);
+  assert.match(js, /if \(preferImmediateSynth\) \{[\s\S]*playTouchResponsiveNote\(context,\s*note,\s*sampleNote\);[\s\S]*return;/);
   assert.match(js, /function syncOrientationState\(/);
   assert.match(js, /const isPortrait = window\.matchMedia\('\(orientation: portrait\)'\)\.matches && window\.innerWidth < 900;/);
   assert.match(js, /page\.classList\.toggle\('is-portrait', isPortrait\)/);
@@ -154,10 +156,13 @@ test('piano script uses a richer piano tone model instead of a basic two-oscilla
   assert.match(js, /oscillator\.setPeriodicWave\(periodicWave\);/);
   assert.match(js, /noiseSource = context\.createBufferSource\(\);/);
   assert.match(js, /noiseFilter\.type = 'bandpass';/);
-  assert.match(js, /gainNode\.gain\.linearRampToValueAtTime\(0\.98,\s*now \+ 0\.004\);/);
+  assert.match(js, /const attackDuration = Number\(options\.attackDuration \?\? 0\.004\);/);
+  assert.match(js, /const peakGain = Number\(options\.peakGain \?\? 0\.98\);/);
+  assert.match(js, /gainNode\.gain\.linearRampToValueAtTime\(peakGain,\s*now \+ attackDuration\);/);
   assert.match(js, /masterGain\.gain\.linearRampToValueAtTime\(0\.24,\s*now \+ 0\.004\);/);
   assert.match(js, /masterGain\.gain\.exponentialRampToValueAtTime\(0\.0001,\s*now \+ 3\.2\);/);
   assert.match(js, /const stopAt = context\.currentTime \+ 0\.22;/);
+  assert.match(js, /function fadeOutSynthLayer\(/);
 });
 
 test('piano page ships local real piano sample assets and loads them before falling back', () => {
