@@ -141,7 +141,7 @@ test('piano script prepares note playback and orientation syncing', () => {
   assert.match(js, /},\s*420\)/);
   assert.match(js, /scheduleSampleWarmup\(sampleNote\);/);
   assert.match(js, /playSynthNote\(context,\s*note\);[\s\S]*scheduleSampleWarmup\(sampleNote\);[\s\S]*\n\s*\}/);
-  assert.match(js, /if \(preferImmediateSynth\) \{[\s\S]*playTouchResponsiveNote\(context,\s*note,\s*sampleNote\);[\s\S]*return;/);
+  assert.match(js, /if \(preferImmediateSynth\) \{[\s\S]*playTouchResponsiveNote\(context,\s*note,\s*sampleNote,\s*\{\s*cachedSample\s*\}\);[\s\S]*return;/);
   assert.match(js, /function syncOrientationState\(/);
   assert.match(js, /const isPortrait = window\.matchMedia\('\(orientation: portrait\)'\)\.matches && window\.innerWidth < 900;/);
   assert.match(js, /page\.classList\.toggle\('is-portrait', isPortrait\)/);

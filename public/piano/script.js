@@ -139,6 +139,7 @@
     let periodicWave = null;
     let hammerNoiseBuffer = null;
     let sampleWarmupScheduled = false;
+    let lastTouchInteractionAt = 0;
 
     function ensureAudioContext() {
       if (audioContext || typeof window === 'undefined') return audioContext;
@@ -249,11 +250,22 @@
       return true;
     }
 
+    function markTouchInteraction() {
+      lastTouchInteractionAt = Date.now();
+    }
+
     function scheduleSampleWarmup(prioritySampleNote) {
       if (sampleWarmupScheduled || typeof window === 'undefined') return;
       sampleWarmupScheduled = true;
 
       const warmupTask = () => {
+        const idleFor = Date.now() - lastTouchInteractionAt;
+        if (idleFor < 260) {
+          sampleWarmupScheduled = false;
+          window.setTimeout(() => scheduleSampleWarmup(prioritySampleNote), 220);
+          return;
+        }
+
         const orderedNotes = [
           prioritySampleNote,
           ...Object.keys(PIANO_SAMPLE_FILES).filter((sampleNote) => sampleNote !== prioritySampleNote)
@@ -265,6 +277,10 @@
             .then(() => loadSampleBuffer(sampleNote).catch(() => null))
             .then(() => new Promise((resolve) => window.setTimeout(resolve, 90)));
         }
+
+        chain.finally(() => {
+          sampleWarmupScheduled = false;
+        });
       };
 
       if (typeof window.requestIdleCallback === 'function') {
@@ -359,8 +375,9 @@
       }
     }
 
-    function playTouchResponsiveNote(context, note, sampleNote) {
+    function playTouchResponsiveNote(context, note, sampleNote, options = {}) {
       const synthLayer = playSynthNote(context, note);
+      const cachedSample = options.cachedSample || sampleBufferCache.get(sampleNote) || null;
       const voice = {
         kind: 'hybrid',
         synthLayer,
@@ -368,29 +385,27 @@
       };
 
       activeVoices.set(note, voice);
+      markTouchInteraction();
       scheduleSampleWarmup(sampleNote);
 
-      loadSampleBuffer(sampleNote)
-        .then((audioBuffer) => {
-          if (!audioBuffer) return;
-          if (activeVoices.get(note) !== voice || voice.sampleLayer) return;
+      if (!cachedSample) {
+        return;
+      }
 
-          const sampleLayer = startSamplePlayback(context, note, sampleNote, audioBuffer, {
-            attackDuration: 0.08,
-            peakGain: 0.72
-          });
-          if (!sampleLayer) return;
+      const sampleLayer = startSamplePlayback(context, note, sampleNote, cachedSample, {
+        attackDuration: 0.045,
+        peakGain: 0.74
+      });
+      if (!sampleLayer) return;
 
-          voice.sampleLayer = sampleLayer;
-          fadeOutSynthLayer(context, synthLayer, 0.18);
+      voice.sampleLayer = sampleLayer;
+      fadeOutSynthLayer(context, synthLayer, 0.16);
 
-          sampleLayer.sourceNode.addEventListener('ended', () => {
-            if (activeVoices.get(note) === voice) {
-              activeVoices.delete(note);
-            }
-          }, { once: true });
-        })
-        .catch(() => null);
+      sampleLayer.sourceNode.addEventListener('ended', () => {
+        if (activeVoices.get(note) === voice) {
+          activeVoices.delete(note);
+        }
+      }, { once: true });
     }
 
     async function playNote(note, options = {}) {
@@ -405,7 +420,7 @@
       const cachedSample = sampleBufferCache.get(sampleNote);
       const preferImmediateSynth = Boolean(options.preferImmediateSynth);
       if (preferImmediateSynth) {
-        playTouchResponsiveNote(context, note, sampleNote);
+        playTouchResponsiveNote(context, note, sampleNote, { cachedSample });
         return;
       }
       if (cachedSample) {
