@@ -130,9 +130,11 @@ test('piano script prepares note playback and orientation syncing', () => {
   assert.match(js, /function createAudioEngine\(/);
   assert.match(js, /audioContext/);
   assert.match(js, /resumeAudioContextIfNeeded/);
-  assert.match(js, /function preloadAllSampleBuffers\(/);
+  assert.match(js, /function scheduleSampleWarmup\(/);
   assert.match(js, /const cachedSample = sampleBufferCache\.get\(sampleNote\);/);
-  assert.match(js, /preloadAllSampleBuffers\(\)\.catch\(\(\) => \{\}\);/);
+  assert.match(js, /window\.requestIdleCallback/);
+  assert.match(js, /window\.setTimeout\(warmupTask,\s*180\)/);
+  assert.match(js, /scheduleSampleWarmup\(sampleNote\);/);
   assert.match(js, /function syncOrientationState\(/);
   assert.match(js, /const isPortrait = window\.matchMedia\('\(orientation: portrait\)'\)\.matches && window\.innerWidth < 900;/);
   assert.match(js, /page\.classList\.toggle\('is-portrait', isPortrait\)/);

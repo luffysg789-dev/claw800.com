@@ -138,7 +138,7 @@
     const sampleBufferLoading = new Map();
     let periodicWave = null;
     let hammerNoiseBuffer = null;
-    let samplePreloadStarted = false;
+    let sampleWarmupScheduled = false;
 
     function ensureAudioContext() {
       if (audioContext || typeof window === 'undefined') return audioContext;
@@ -241,10 +241,30 @@
       return startSamplePlayback(context, note, sampleNote, audioBuffer);
     }
 
-    async function preloadAllSampleBuffers() {
-      if (samplePreloadStarted) return;
-      samplePreloadStarted = true;
-      await Promise.allSettled(Object.keys(PIANO_SAMPLE_FILES).map((sampleNote) => loadSampleBuffer(sampleNote)));
+    function scheduleSampleWarmup(prioritySampleNote) {
+      if (sampleWarmupScheduled || typeof window === 'undefined') return;
+      sampleWarmupScheduled = true;
+
+      const warmupTask = () => {
+        const orderedNotes = [
+          prioritySampleNote,
+          ...Object.keys(PIANO_SAMPLE_FILES).filter((sampleNote) => sampleNote !== prioritySampleNote)
+        ].filter(Boolean);
+
+        let chain = Promise.resolve();
+        for (const sampleNote of orderedNotes) {
+          chain = chain
+            .then(() => loadSampleBuffer(sampleNote).catch(() => null))
+            .then(() => new Promise((resolve) => window.setTimeout(resolve, 40)));
+        }
+      };
+
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(warmupTask, { timeout: 300 });
+        return;
+      }
+
+      window.setTimeout(warmupTask, 180);
     }
 
     function playSynthNote(context, note) {
@@ -314,10 +334,13 @@
     }
 
     async function playNote(note) {
-      const context = await resumeAudioContextIfNeeded();
+      let context = ensureAudioContext();
+      if (!context) return;
+      if (context.state === 'suspended') {
+        context = await resumeAudioContextIfNeeded();
+      }
       if (!context || activeVoices.has(note)) return;
 
-      preloadAllSampleBuffers().catch(() => {});
       const sampleNote = getNearestSampleNote(note);
       const cachedSample = sampleBufferCache.get(sampleNote);
       if (cachedSample) {
@@ -326,6 +349,7 @@
       }
 
       playSynthNote(context, note);
+      scheduleSampleWarmup(sampleNote);
       loadSampleBuffer(sampleNote).catch(() => null);
     }
 
@@ -367,7 +391,7 @@
         return audioContext;
       },
       resumeAudioContextIfNeeded,
-      preloadAllSampleBuffers,
+      scheduleSampleWarmup,
       playNote,
       stopNote,
       stopAll
