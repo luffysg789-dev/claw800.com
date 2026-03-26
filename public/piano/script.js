@@ -255,16 +255,19 @@
         for (const sampleNote of orderedNotes) {
           chain = chain
             .then(() => loadSampleBuffer(sampleNote).catch(() => null))
-            .then(() => new Promise((resolve) => window.setTimeout(resolve, 40)));
+            .then(() => new Promise((resolve) => window.setTimeout(resolve, 90)));
         }
       };
 
       if (typeof window.requestIdleCallback === 'function') {
-        window.requestIdleCallback(warmupTask, { timeout: 300 });
-        return;
+        window.setTimeout(() => {
+          window.requestIdleCallback(warmupTask, { timeout: 1500 });
+        }, 420);
+      } else {
+        window.setTimeout(() => {
+          warmupTask();
+        }, 420);
       }
-
-      window.setTimeout(warmupTask, 180);
     }
 
     function playSynthNote(context, note) {
