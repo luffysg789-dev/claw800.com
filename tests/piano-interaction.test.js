@@ -78,3 +78,28 @@ test('resolvePointerNoteTarget follows the key currently under the finger during
     currentTarget: fallbackTarget
   }, ownerDocument), 'C4');
 });
+
+test('resolvePointerNoteTarget falls back to the nearest white key when touch crosses a gap', () => {
+  const ownerDocument = {
+    elementFromPoint() {
+      return null;
+    },
+    querySelector(selector) {
+      if (selector !== '#pianoKeys') return null;
+      return {
+        getBoundingClientRect() {
+          return {
+            left: 100,
+            width: 280
+          };
+        }
+      };
+    }
+  };
+
+  assert.equal(resolvePointerNoteTarget({
+    clientX: 170,
+    clientY: 40,
+    currentTarget: { dataset: { note: 'C4' } }
+  }, ownerDocument), 'F4');
+});

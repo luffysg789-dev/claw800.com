@@ -110,6 +110,8 @@ test('piano script includes pointer, keyboard, and release handling hooks', () =
   const js = fs.readFileSync(jsPath, 'utf8');
 
   assert.match(js, /function attachPointerHandlers\(/);
+  assert.match(js, /event\.currentTarget\.setPointerCapture\?\.\(event\.pointerId\);/);
+  assert.match(js, /event\.currentTarget\.releasePointerCapture\?\.\(event\.pointerId\);/);
   assert.match(js, /function attachKeyboardHandlers\(/);
   assert.match(js, /function releaseAllNotes\(/);
   assert.match(js, /document\.addEventListener\('selectionchange'/);

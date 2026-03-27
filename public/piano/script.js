@@ -583,6 +583,12 @@
     if (activeKey?.dataset?.note) {
       return String(activeKey.dataset.note).trim();
     }
+    const keyboardBounds = ownerDocument?.querySelector?.('#pianoKeys')?.getBoundingClientRect?.();
+    if (keyboardBounds?.width) {
+      const relativeX = Math.min(Math.max((Number(event?.clientX) - keyboardBounds.left) / keyboardBounds.width, 0), 0.999999);
+      const whiteIndex = Math.min(WHITE_NOTES.length - 1, Math.max(0, Math.floor(relativeX * WHITE_NOTES.length)));
+      return WHITE_NOTES[whiteIndex];
+    }
     return String(event?.currentTarget?.dataset?.note || '').trim();
   }
 
@@ -596,6 +602,7 @@
         const note = resolvePointerNoteTarget(event);
         if (!note) return;
         event.preventDefault();
+        event.currentTarget.setPointerCapture?.(event.pointerId);
         const source = `pointer:${event.pointerType || 'unknown'}:${event.pointerId}`;
         pointerToNote.set(event.pointerId, note);
         pressNote(note, source, store, audioEngine);
@@ -625,12 +632,14 @@
 
       key.addEventListener('pointerup', (event) => {
         const note = pointerToNote.get(event.pointerId) || resolvePointerNoteTarget(event);
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
         pointerToNote.delete(event.pointerId);
         releaseNote(note, `pointer:${event.pointerType || 'unknown'}:${event.pointerId}`, store, audioEngine);
       });
 
       key.addEventListener('pointercancel', (event) => {
         const note = pointerToNote.get(event.pointerId) || resolvePointerNoteTarget(event);
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
         pointerToNote.delete(event.pointerId);
         releaseNote(note, `pointer:${event.pointerType || 'unknown'}:${event.pointerId}`, store, audioEngine);
       });
