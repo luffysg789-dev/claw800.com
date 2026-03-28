@@ -321,30 +321,30 @@ a {
   justify-content: center;
   min-height: 100dvh;
   padding: 0;
-  padding-left: max(4px, env(safe-area-inset-left));
-  padding-right: max(4px, env(safe-area-inset-right));
+  padding-left: max(1px, env(safe-area-inset-left));
+  padding-right: max(1px, env(safe-area-inset-right));
 }
 
 .piano-page.is-mobile-device .piano-stage {
   position: fixed;
   top: 50%;
   left: 50%;
-  width: min(calc(100vh - 8px), calc(100vw - 8px));
+  width: min(calc(100vh - 2px), calc(100vw - 2px));
   max-width: none;
-  padding: max(4px, env(safe-area-inset-left)) max(4px, env(safe-area-inset-top));
+  padding: max(1px, env(safe-area-inset-left)) max(1px, env(safe-area-inset-top));
   transform: translate(-50%, -50%) rotate(90deg);
   transform-origin: center;
 }
 
 .piano-page.is-mobile-device .piano-shell {
-  min-height: min(calc(100vw - 8px), calc(100vh - 8px));
-  padding: 6px;
-  border-radius: 18px;
+  min-height: min(calc(100vw - 2px), calc(100vh - 2px));
+  padding: 2px;
+  border-radius: 14px;
 }
 
 .piano-page.is-mobile-device .piano-header {
-  gap: 6px;
-  margin-bottom: 4px;
+  gap: 4px;
+  margin-bottom: 0;
 }
 
 .piano-page.is-mobile-device .piano-back {
@@ -354,8 +354,8 @@ a {
 }
 
 .piano-page.is-mobile-device .piano-keyboard {
-  padding: 8px 6px 10px;
-  border-radius: 20px;
+  padding: 4px 3px 6px;
+  border-radius: 16px;
 }
 
 .piano-page.is-mobile-device .piano-shortcut-hint {
@@ -371,6 +371,10 @@ a {
 }
 
 .piano-page.is-mobile-device .piano-key__note {
+  display: none;
+}
+
+.piano-page.is-mobile-device .piano-tip-slot {
   display: none;
 }
 
