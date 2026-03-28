@@ -361,6 +361,7 @@ a {
   }
 
   .piano-back {
+    display: none;
     width: 40px;
     height: 40px;
   }
