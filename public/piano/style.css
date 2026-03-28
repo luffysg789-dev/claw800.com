@@ -315,6 +315,25 @@ a {
   margin-top: 18px;
 }
 
+.piano-page.is-portrait {
+  padding: 0;
+}
+
+.piano-page.is-portrait .piano-stage {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 100vh;
+  max-width: none;
+  padding: max(10px, env(safe-area-inset-left)) max(10px, env(safe-area-inset-top));
+  transform: translate(-50%, -50%) rotate(90deg);
+  transform-origin: center;
+}
+
+.piano-page.is-portrait .piano-shell {
+  min-height: 100vw;
+}
+
 @media (orientation: landscape) {
   .piano-page {
     display: flex;
