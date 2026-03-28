@@ -40,11 +40,11 @@ test('piano html includes the standalone shell and latest bundles', () => {
   const html = fs.readFileSync(htmlPath, 'utf8');
 
   assert.match(html, /<title>Claw800 钢琴<\/title>/);
-  assert.match(html, /\/game-tip\.css\?v=20260328-19/);
-  assert.match(html, /\/piano\/style\.css\?v=20260328-19/);
-  assert.match(html, /\/games-config\.js\?v=20260328-19/);
-  assert.match(html, /\/piano\/script\.js\?v=20260328-19/);
-  assert.match(html, /\/game-tip\.js\?v=20260328-19/);
+  assert.match(html, /\/game-tip\.css\?v=20260328-20/);
+  assert.match(html, /\/piano\/style\.css\?v=20260328-20/);
+  assert.match(html, /\/games-config\.js\?v=20260328-20/);
+  assert.match(html, /\/piano\/script\.js\?v=20260328-20/);
+  assert.match(html, /\/game-tip\.js\?v=20260328-20/);
   assert.match(html, /class="piano-back" href="\/games\.html" aria-label="返回游戏大全" title="返回游戏大全"/);
   assert.match(html, /id="pianoKeyboard"/);
   assert.match(html, /id="pianoKeys"/);
@@ -126,6 +126,9 @@ test('piano script includes pointer, keyboard, and release handling hooks', () =
 
   assert.match(js, /function attachPointerHandlers\(/);
   assert.match(js, /function attachTouchHandlers\(/);
+  assert.match(js, /function attachAudioWarmupHandlers\(/);
+  assert.match(js, /keyboard\.addEventListener\('touchstart',\s*warmupAudio,\s*\{\s*capture:\s*true,\s*passive:\s*true\s*\}\)/);
+  assert.match(js, /keyboard\.addEventListener\('pointerdown',\s*warmupAudio,\s*\{\s*capture:\s*true,\s*passive:\s*true\s*\}\)/);
   assert.match(js, /key\.addEventListener\('touchstart',\s*\(event\)\s*=>\s*\{/);
   assert.match(js, /key\.addEventListener\('touchmove',\s*\(event\)\s*=>\s*\{/);
   assert.match(js, /key\.addEventListener\('touchend',\s*\(event\)\s*=>\s*\{/);
@@ -174,6 +177,8 @@ test('piano script keeps mobile phones on the dedicated piano layout even in lan
   assert.match(js, /function syncOrientationState\(/);
   assert.match(js, /const isMobile = isLikelyMobileDevice\(\);/);
   assert.match(js, /page\.classList\.toggle\('is-mobile-device', isMobile\)/);
+  assert.match(js, /String\(source \|\| ''\)\.startsWith\('touch:'\)/);
+  assert.match(js, /attachAudioWarmupHandlers\(audioEngine\);/);
   assert.doesNotMatch(js, /classList\.toggle\('is-portrait'/);
 });
 

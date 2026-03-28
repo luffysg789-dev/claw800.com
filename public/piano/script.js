@@ -569,6 +569,25 @@
     page.classList.toggle('is-mobile-device', isMobile);
   }
 
+  function attachAudioWarmupHandlers(audioEngine) {
+    if (typeof document === 'undefined') return;
+    const keyboard = document.getElementById('pianoKeyboard');
+    if (!keyboard || !audioEngine) return;
+
+    let hasPrimedAudio = false;
+    const warmupAudio = () => {
+      if (hasPrimedAudio) return;
+      hasPrimedAudio = true;
+      audioEngine.resumeAudioContextIfNeeded()
+        .catch(() => {
+          hasPrimedAudio = false;
+        });
+    };
+
+    keyboard.addEventListener('touchstart', warmupAudio, { capture: true, passive: true });
+    keyboard.addEventListener('pointerdown', warmupAudio, { capture: true, passive: true });
+  }
+
   function pressNote(note, source, store, audioEngine) {
     if (!note) return;
     const shouldStartAudio = !store.has(note);
@@ -576,7 +595,10 @@
     setKeyPressedState(note, true);
     if (shouldStartAudio) {
       const preferImmediateSynth = isLikelyMobileDevice()
-        && String(source || '').startsWith('pointer:touch:');
+        && (
+          String(source || '').startsWith('pointer:touch:')
+          || String(source || '').startsWith('touch:')
+        );
       audioEngine.playNote(note, { preferImmediateSynth }).catch(() => {});
     }
   }
@@ -777,6 +799,7 @@
     const audioEngine = createAudioEngine();
     primeKeyAccessibility();
     syncOrientationState();
+    attachAudioWarmupHandlers(audioEngine);
     attachPointerHandlers(store, audioEngine);
     attachTouchHandlers(store, audioEngine);
     attachKeyboardHandlers(store, audioEngine);
@@ -800,6 +823,7 @@
     createPressedNotesStore,
     resolvePointerNoteTarget,
     createAudioEngine,
+    attachAudioWarmupHandlers,
     attachPointerHandlers,
     attachTouchHandlers,
     attachKeyboardHandlers,
