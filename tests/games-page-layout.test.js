@@ -21,6 +21,11 @@ test('games page loads the latest game config bundle and keeps piano cards on /p
   assert.match(config, /if \(fallback\.route\) \{[\s\S]*const legacyRoute = `\/games\/\$\{encodeURIComponent\(slug\)\}`;[\s\S]*if \(!route \|\| route === legacyRoute\) route = fallback\.route;/);
 });
 
+test('games page keeps standalone pages like p-mining out of the public games hub', () => {
+  assert.match(config, /slug:\s*'p-mining'[\s\S]*showInGamesHub:\s*0/);
+  assert.match(config, /\.filter\(\(item\) => item\.is_enabled && item\.slug !== 'xiangqi' && item\.showInGamesHub !== 0\)/);
+});
+
 test('games page cards stretch body and keep actions aligned at the bottom', () => {
   assert.match(css, /\.game-card\s*\{[\s\S]*display:\s*flex;[\s\S]*flex-direction:\s*column;/);
   assert.match(css, /\.game-card__body\s*\{[\s\S]*flex:\s*1 1 auto;/);

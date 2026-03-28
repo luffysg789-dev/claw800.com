@@ -4,6 +4,21 @@ const { getGameCardMediaMarkup } = typeof window === 'undefined'
 
 const DEFAULT_GAMES = [
   {
+    slug: 'p-mining',
+    name: 'P-Mining',
+    description: '移动端优先的云挖矿原型，突出透明产出、邀请加成与实时网络数据。',
+    cover_image: '',
+    secondary_image: '',
+    sound_file: '',
+    background_music_file: '',
+    is_enabled: 1,
+    showInGamesHub: 0,
+    sort_order: 54,
+    route: '/p-mining/',
+    icon: '⛏️',
+    actionText: '开始挖矿'
+  },
+  {
     slug: 'piano',
     name: '钢琴',
     description: '手机横屏优先的双八度网页钢琴，轻触即响，支持多键同时演奏。',
@@ -132,6 +147,7 @@ const DEFAULT_GAMES = [
 ];
 
 const GAME_ACTION_TEXT = {
+  'p-mining': '开始挖矿',
   piano: '开始演奏',
   'zodiac-today': '开始游戏',
   'blast-balloons': '开始游戏',
@@ -225,6 +241,7 @@ function normalizeGame(item, fallback = {}) {
     sound_file: String(item?.sound_file || fallback.sound_file || '').trim(),
     background_music_file: String(item?.background_music_file || fallback.background_music_file || '').trim(),
     is_enabled: Number(item?.is_enabled ?? fallback.is_enabled ?? 1) ? 1 : 0,
+    showInGamesHub: Number(item?.showInGamesHub ?? fallback.showInGamesHub ?? 1) ? 1 : 0,
     sort_order: Number(item?.sort_order ?? fallback.sort_order ?? 0) || 0,
     route,
     icon: String(item?.icon || fallback.icon || '🎮').trim(),
@@ -291,7 +308,7 @@ async function bootstrapGamesPage() {
 
   const items = Array.from(mergedBySlug.values());
   grid.innerHTML = items
-    .filter((item) => item.is_enabled && item.slug !== 'xiangqi')
+    .filter((item) => item.is_enabled && item.slug !== 'xiangqi' && item.showInGamesHub !== 0)
     .map(gameCardMarkup)
     .join('');
 }

@@ -367,6 +367,17 @@ db.exec(`
 
 const DEFAULT_GAMES_CATALOG = [
   {
+    slug: 'p-mining',
+    name: 'P-Mining',
+    description: '移动端优先的云挖矿原型，突出透明产出、邀请加成与实时网络数据。',
+    cover_image: '',
+    secondary_image: '',
+    sound_file: '',
+    background_music_file: '',
+    is_enabled: 1,
+    sort_order: 54
+  },
+  {
     slug: 'piano',
     name: '钢琴',
     description: '手机横屏优先的双八度网页钢琴，轻触即响，支持多键同时演奏。',

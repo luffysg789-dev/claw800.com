@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Claw800 P-Mining</title>
+    <meta name="description" content="Claw800 P-Mining，运行在 Nexa Pay 宿主内的移动端挖矿原型。" />
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="stylesheet" href="/p-mining/style.css" />
+  </head>
+  <body>
+    <main class="p-mining-page" data-p-mining-app>
+      <header class="p-mining-header">
+        <div class="p-mining-brand">
+          <div class="p-mining-brand__icon" aria-hidden="true">⛏️</div>
+          <div class="p-mining-brand__name">P-Mining</div>
+        </div>
+        <div class="p-mining-header__actions">
+          <div class="p-mining-host-status" id="pMiningHostStatus">
+            <span class="p-mining-host-status__dot" aria-hidden="true"></span>
+            <span data-i18n="networkOnline">Online</span>
+          </div>
+          <div class="p-mining-locale-toggle" aria-label="language switcher">
+            <button class="p-mining-locale-toggle__button" type="button" data-locale-toggle="en">EN</button>
+            <button class="p-mining-locale-toggle__button" type="button" data-locale-toggle="zh">中</button>
+          </div>
+        </div>
+      </header>
+
+      <section class="p-mining-panels">
+        <section class="p-mining-panel is-active" data-tab="mining">
+          <article class="p-mining-card p-mining-balance-card">
+            <div class="p-mining-balance-card__watermark" aria-hidden="true">⛏️</div>
+            <p class="p-mining-card__label" data-i18n="currentHoldings">Current P</p>
+            <div class="p-mining-balance-card__value" id="pMiningBalanceValue">0.0</div>
+            <div class="p-mining-balance-card__meta">
+              <div>
+                <p class="p-mining-card__label" data-i18n="currentPower">Your Power</p>
+                <div class="p-mining-metric p-mining-metric--power" id="pMiningPowerValue">10.0</div>
+              </div>
+              <div>
+                <p class="p-mining-card__label" data-i18n="estimatedPerMinute">Est. P / Min</p>
+                <div class="p-mining-metric" id="pMiningRewardPerMinute">49942.9</div>
+              </div>
+            </div>
+          </article>
+
+          <section class="p-mining-claim">
+            <button id="pMiningClaimButton" class="p-mining-claim-ring" type="button" aria-label="领取 P">
+              <span class="p-mining-claim-ring__inner">
+                <span class="p-mining-claim-ring__mine-icon" aria-hidden="true">⛏️</span>
+                <span class="p-mining-claim-ring__countdown" id="pMiningClaimCountdown">60</span>
+                <span class="p-mining-claim-ring__hint" id="pMiningClaimHint">点击领取</span>
+              </span>
+            </button>
+          </section>
+
+          <section id="pMiningStatsGrid" class="p-mining-stats-grid">
+            <article class="p-mining-card p-mining-stat-card">
+              <p class="p-mining-card__label" data-i18n="networkUsers">Users</p>
+              <div class="p-mining-stat-card__value" id="pMiningTotalUsers">1.0</div>
+            </article>
+            <article class="p-mining-card p-mining-stat-card">
+              <p class="p-mining-card__label" data-i18n="totalMined">Total Mined</p>
+              <div class="p-mining-stat-card__value" id="pMiningTotalMined">0.0</div>
+            </article>
+            <article class="p-mining-card p-mining-stat-card">
+              <p class="p-mining-card__label" data-i18n="todayOutput">Today Output</p>
+              <div class="p-mining-stat-card__value p-mining-stat-card__value--accent" id="pMiningTodayMined">0.0</div>
+            </article>
+            <article class="p-mining-card p-mining-stat-card">
+              <p class="p-mining-card__label" data-i18n="todayPower">Today Power</p>
+              <div class="p-mining-stat-card__value p-mining-stat-card__value--power" id="pMiningTodayPower">10</div>
+            </article>
+            <article class="p-mining-card p-mining-stat-card">
+              <p class="p-mining-card__label" data-i18n="remainingSupply">Remaining</p>
+              <div class="p-mining-stat-card__value" id="pMiningRemainingSupply">210000000000.0</div>
+            </article>
+            <article class="p-mining-card p-mining-stat-card">
+              <p class="p-mining-card__label" data-i18n="halvingCycle">Halving Cycle</p>
+              <div class="p-mining-stat-card__value" id="pMiningHalvingCycle">1 / 25</div>
+            </article>
+            <article class="p-mining-card p-mining-stat-card">
+              <p class="p-mining-card__label" data-i18n="nextHalving">Every 4 Years (Next)</p>
+              <div class="p-mining-stat-card__value" id="pMiningNextHalvingDate">2030/03/28</div>
+            </article>
+            <article class="p-mining-card p-mining-stat-card">
+              <p class="p-mining-card__label" data-i18n="totalSupply">Supply</p>
+              <div class="p-mining-stat-card__value">2100 亿</div>
+            </article>
+            <article class="p-mining-card p-mining-stat-card">
+              <p class="p-mining-card__label" data-i18n="estimatedFinish">Est. Finish</p>
+              <div class="p-mining-stat-card__value" id="pMiningEstimatedFinish">100.0 年</div>
+            </article>
+          </section>
+
+          <article class="p-mining-card p-mining-rule-card">
+            <p>P is Pay，P is People，P没有用，是我们的见证，当参与的人数超过 1000 万人时，说不定是一场伟大的胜利。</p>
+          </article>
+        </section>
+
+        <section class="p-mining-panel" data-tab="invite" hidden>
+          <article class="p-mining-card p-mining-section-card">
+            <h2 data-i18n="inviteFriends">Invite Friends</h2>
+            <div class="p-mining-invite-code">
+              <div>
+                <p class="p-mining-card__label" data-i18n="myInviteCode">My Code</p>
+                <div class="p-mining-invite-code__value" id="pMiningInviteCodeValue">------</div>
+              </div>
+              <button id="pMiningCopyInviteButton" class="p-mining-inline-button" type="button" data-i18n="copyButton">Copy</button>
+            </div>
+            <p class="p-mining-helper" data-i18n="inviteHint">Both sides get +10 power.</p>
+          </article>
+
+          <article class="p-mining-card p-mining-section-card">
+            <h2 data-i18n="enterInviteCode">Enter Invite Code</h2>
+            <div class="p-mining-invite-form">
+              <input id="pMiningInviteInput" class="p-mining-text-input" type="text" placeholder="Enter a friend's code" data-i18n-placeholder="invitePlaceholder" />
+              <button id="pMiningInviteSubmitButton" class="p-mining-submit-button" type="button">→</button>
+            </div>
+            <p id="pMiningInviteError" class="p-mining-error" hidden></p>
+          </article>
+
+          <section class="p-mining-two-col">
+            <article class="p-mining-card p-mining-stat-card">
+              <p class="p-mining-card__label" data-i18n="invitedUsers">Invites</p>
+              <div class="p-mining-stat-card__value" id="pMiningInviteCount">0.0</div>
+            </article>
+            <article class="p-mining-card p-mining-stat-card">
+              <p class="p-mining-card__label" data-i18n="invitePowerBonus">Power Bonus</p>
+              <div class="p-mining-stat-card__value p-mining-stat-card__value--power" id="pMiningInviteBonus">0.0</div>
+            </article>
+          </section>
+        </section>
+
+        <section class="p-mining-panel" data-tab="records" hidden>
+          <div class="p-mining-record-filters">
+            <button class="p-mining-record-filters__button is-active" type="button" data-record-filter="claims" data-i18n="claimRecords">Claims</button>
+            <button class="p-mining-record-filters__button" type="button" data-record-filter="invites" data-i18n="inviteRecords">Invites</button>
+            <button class="p-mining-record-filters__button" type="button" data-record-filter="power" data-i18n="powerChanges">Power</button>
+          </div>
+          <div id="pMiningRecordsList" class="p-mining-records-list"></div>
+        </section>
+
+        <section class="p-mining-panel" data-tab="profile" hidden>
+          <article class="p-mining-card p-mining-profile-card">
+            <div class="p-mining-profile-card__avatar" aria-hidden="true">◎</div>
+            <div class="p-mining-profile-card__email" id="pMiningProfileEmail">guest@nexa.app</div>
+            <div class="p-mining-profile-card__uid" id="pMiningProfileUid">UID: --</div>
+          </article>
+
+          <article class="p-mining-card p-mining-profile-list">
+            <div class="p-mining-profile-list__row">
+              <span data-i18n="currentTotalPoints">Current P</span>
+              <strong id="pMiningProfileBalance">0.0 P</strong>
+            </div>
+            <div class="p-mining-profile-list__row">
+              <span data-i18n="currentPower">Your Power</span>
+              <strong id="pMiningProfilePower">10.0</strong>
+            </div>
+            <div class="p-mining-profile-list__row">
+              <span data-i18n="bindStatus">Bind Status</span>
+              <strong id="pMiningProfileBindStatus">未绑定</strong>
+            </div>
+          </article>
+
+          <button id="pMiningLogoutButton" class="p-mining-logout-button" type="button" data-i18n="logoutButton">Log Out</button>
+        </section>
+      </section>
+
+      <nav class="p-mining-nav" aria-label="P-Mining 页面导航">
+        <button class="p-mining-nav__item is-active" type="button" data-tab-target="mining" data-i18n="tabMining">Mining</button>
+        <button class="p-mining-nav__item" type="button" data-tab-target="invite" data-i18n="tabInvite">Invite</button>
+        <button class="p-mining-nav__item" type="button" data-tab-target="records" data-i18n="tabRecords">Records</button>
+        <button class="p-mining-nav__item" type="button" data-tab-target="profile" data-i18n="tabProfile">Profile</button>
+      </nav>
+    </main>
+
+    <script src="/games-config.js"></script>
+    <script>
+      window.ClawGamesConfig?.bootstrapGamePage?.('p-mining');
+    </script>
+    <script src="/p-mining/script.js"></script>
+  </body>
+</html>
