@@ -25,10 +25,15 @@
     return window.matchMedia('(max-width: 720px)').matches;
   }
 
+  function isLikelyMobileDevice() {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function' || typeof navigator === 'undefined') return false;
+    return window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+  }
+
   function isMobilePianoTip() {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
     return (window.location.pathname || '').startsWith('/piano/')
-      && window.matchMedia('(max-width: 720px)').matches;
+      && isLikelyMobileDevice();
   }
 
   function isNexaAppEnvironment() {
