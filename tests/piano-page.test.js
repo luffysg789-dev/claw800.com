@@ -94,8 +94,9 @@ test('piano css includes landscape-first keyboard layout and desktop centering',
   assert.match(css, /\.piano-page\.is-portrait\s+\.piano-stage\s*\{[\s\S]*rotate\(90deg\)/);
   assert.match(css, /--piano-shell-glow:\s*rgba\(157,\s*219,\s*255,\s*0\.2\);/);
   assert.match(css, /\.piano-key\s*\{[\s\S]*transform 45ms ease-out,/);
-  assert.match(css, /\.piano-key--white\.is-active\s*\{[\s\S]*translateY\(1px\)/);
-  assert.match(css, /\.piano-key--black\.is-active\s*\{[\s\S]*translateX\(-50%\) translateY\(1px\)/);
+  assert.match(css, /\.piano-key--white\.is-active\s*\{[\s\S]*translateY\(4px\)/);
+  assert.match(css, /\.piano-key--white\.is-active\s*\{[\s\S]*0 10px 0 rgba\(122,\s*156,\s*190,\s*0\.22\)/);
+  assert.match(css, /\.piano-key--black\.is-active\s*\{[\s\S]*translateX\(-50%\) translateY\(2px\)/);
 });
 
 test('piano page includes a low-emphasis NexaPay tip section below the keyboard', () => {
