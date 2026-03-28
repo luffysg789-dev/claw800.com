@@ -40,11 +40,11 @@ test('piano html includes header, keyboard shell, orientation hint, and tip moun
   const html = fs.readFileSync(htmlPath, 'utf8');
 
   assert.match(html, /<title>Claw800 钢琴<\/title>/);
-  assert.match(html, /\/game-tip\.css\?v=20260328-08/);
-  assert.match(html, /\/piano\/style\.css\?v=20260328-08/);
-  assert.match(html, /\/games-config\.js\?v=20260328-08/);
-  assert.match(html, /\/piano\/script\.js\?v=20260328-08/);
-  assert.match(html, /\/game-tip\.js\?v=20260328-08/);
+  assert.match(html, /\/game-tip\.css\?v=20260328-09/);
+  assert.match(html, /\/piano\/style\.css\?v=20260328-09/);
+  assert.match(html, /\/games-config\.js\?v=20260328-09/);
+  assert.match(html, /\/piano\/script\.js\?v=20260328-09/);
+  assert.match(html, /\/game-tip\.js\?v=20260328-09/);
   assert.doesNotMatch(html, /id="gamePageTitle"/);
   assert.doesNotMatch(html, /id="gamePageSubtitle"/);
   assert.match(html, /class="piano-back" href="\/games\.html" aria-label="返回游戏大全" title="返回游戏大全"/);
@@ -169,8 +169,13 @@ test('piano script keeps phones on the mobile piano UI and lets CSS handle orien
   assert.match(js, /window\.matchMedia\('\(pointer: coarse\)'\)\.matches/);
   assert.match(js, /navigator\.maxTouchPoints > 0/);
   assert.match(js, /function syncOrientationState\(/);
+  assert.match(js, /function getScreenOrientation\(/);
+  assert.match(js, /screen\.orientation\?\.type/);
   assert.match(js, /const isMobile = isLikelyMobileDevice\(\);/);
   assert.match(js, /page\.classList\.toggle\('is-mobile-device', isMobile\)/);
+  assert.match(js, /page\.dataset\.screenOrientation = getScreenOrientation\(\);/);
+  assert.match(js, /window\.addEventListener\('orientationchange',\s*syncOrientationState\)/);
+  assert.match(js, /window\.screen\.orientation\?\.addEventListener\('change',\s*syncOrientationState\)/);
   assert.doesNotMatch(js, /classList\.toggle\('is-portrait'/);
 });
 
