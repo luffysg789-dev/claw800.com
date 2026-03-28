@@ -550,15 +550,6 @@
     store.clear();
   }
 
-  function syncOrientationState() {
-    if (typeof document === 'undefined' || typeof window === 'undefined') return;
-    const page = document.querySelector('.piano-page');
-    if (!page) return;
-
-    const isPortrait = window.matchMedia('(orientation: portrait)').matches && window.innerWidth < 900;
-    page.classList.toggle('is-portrait', isPortrait);
-  }
-
   function pressNote(note, source, store, audioEngine) {
     if (!note) return;
     const shouldStartAudio = !store.has(note);
@@ -767,7 +758,6 @@
     const store = createPressedNotesStore();
     const audioEngine = createAudioEngine();
     primeKeyAccessibility();
-    syncOrientationState();
     attachPointerHandlers(store, audioEngine);
     attachTouchHandlers(store, audioEngine);
     attachKeyboardHandlers(store, audioEngine);
@@ -776,12 +766,10 @@
     const releaseAll = () => releaseAllNotes(store, audioEngine);
     window.addEventListener('blur', releaseAllNotes);
     window.addEventListener('blur', releaseAll);
-    window.addEventListener('resize', syncOrientationState);
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState !== 'visible') {
         releaseAll();
       }
-      syncOrientationState();
     });
   }
 
@@ -795,7 +783,6 @@
     attachTouchHandlers,
     attachKeyboardHandlers,
     releaseAllNotes,
-    syncOrientationState,
     initPiano
   };
 
