@@ -78,6 +78,18 @@ test('p-mining css includes dark glass tokens, bottom nav, and circular claim la
   assert.match(css, /padding-bottom:\s*calc\(.*env\(safe-area-inset-bottom\)/);
 });
 
+test('p-mining mobile layout is tightened for smaller phone screens', () => {
+  const css = fs.readFileSync(cssPath, 'utf8');
+
+  assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-page\s*\{[\s\S]*?padding-top:\s*12px;[\s\S]*?padding-right:\s*14px;[\s\S]*?padding-left:\s*14px;/);
+  assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-brand__icon\s*\{[\s\S]*?width:\s*52px;[\s\S]*?height:\s*52px;/);
+  assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-balance-card\s*\{[\s\S]*?min-height:\s*184px;/);
+  assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-balance-card__value\s*\{[\s\S]*?font-size:\s*clamp\(2\.4rem,\s*10vw,\s*4rem\);/);
+  assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-claim-ring\s*\{[\s\S]*?width:\s*min\(58vw,\s*264px\);/);
+  assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-card\s*\{[\s\S]*?padding:\s*14px;/);
+  assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-stat-card__value\s*\{[\s\S]*?font-size:\s*clamp\(1\.35rem,\s*4\.6vw,\s*2rem\);/);
+});
+
 test('p-mining html includes the expected mining, invite, records, and profile sections', () => {
   const html = fs.readFileSync(htmlPath, 'utf8');
 
