@@ -685,15 +685,14 @@ function formatPMiningDate(date = new Date()) {
 }
 
 function generatePMiningInviteCode(seed) {
-  const base = String(seed || 'PMINER').replace(/[^a-z0-9]/gi, '').toUpperCase() || 'PMINER';
-  const alphabet = `${base}2G4WQC789XYZ`;
-  let inviteCode = alphabet.slice(0, 6).padEnd(6, 'X');
+  const seedDigits = String(seed || '100000').replace(/\D/g, '') || '100000';
+  let inviteCode = seedDigits.padEnd(6, '0').slice(-6);
   let attempt = 0;
   while (selectPMiningUserByInviteCodeStmt.get(inviteCode)) {
     attempt += 1;
-    inviteCode = `${alphabet}${attempt.toString(36).toUpperCase()}`.slice(attempt, attempt + 6).padEnd(6, 'X');
+    inviteCode = String((Number(seedDigits.slice(-6)) || 0) + attempt).padStart(6, '0').slice(-6);
     if (attempt > 20) {
-      inviteCode = crypto.randomBytes(4).toString('base64url').replace(/[^A-Z0-9]/gi, '').toUpperCase().slice(0, 6);
+      inviteCode = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
     }
   }
   return inviteCode;

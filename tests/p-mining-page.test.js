@@ -36,6 +36,7 @@ test('p-mining html includes host header, tab panels, and script mounts', () => 
   assert.match(html, /data-locale-toggle="zh"/);
   assert.match(html, /data-tab="mining"/);
   assert.match(html, /data-tab="invite"/);
+  assert.match(html, /data-tab="purchase"/);
   assert.match(html, /data-tab="records"/);
   assert.match(html, /data-tab="profile"/);
   assert.match(html, /id="pMiningClaimButton"/);
@@ -48,12 +49,20 @@ test('p-mining html includes host header, tab panels, and script mounts', () => 
   assert.match(html, /data-record-filter="claims"/);
   assert.match(html, /data-record-filter="invites"/);
   assert.match(html, /data-record-filter="power"/);
-  assert.match(html, /id="pMiningOpenPurchaseButton"/);
   assert.match(html, /id="pMiningPurchasePanel"/);
   assert.match(html, /data-purchase-tier="starter"/);
   assert.match(html, /data-purchase-tier="boost"/);
   assert.match(html, /\/games-config\.js/);
   assert.match(html, /\/p-mining\/script\.js/);
+});
+
+test('p-mining purchase is a standalone tab placed between invite and records', () => {
+  const html = fs.readFileSync(htmlPath, 'utf8');
+
+  assert.doesNotMatch(html, /id="pMiningOpenPurchaseButton"/);
+  assert.match(html, /data-tab-target="invite"[\s\S]*data-tab-target="purchase"[\s\S]*data-tab-target="records"/);
+  assert.match(html, /data-i18n="tabPurchase"/);
+  assert.match(html, /<section class="p-mining-panel" data-tab="purchase" hidden>[\s\S]*id="pMiningPurchasePanel"/);
 });
 
 test('p-mining css includes dark glass tokens, bottom nav, and circular claim layout', () => {
@@ -84,10 +93,31 @@ test('p-mining mobile layout is tightened for smaller phone screens', () => {
   assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-page\s*\{[\s\S]*?padding-top:\s*12px;[\s\S]*?padding-right:\s*14px;[\s\S]*?padding-left:\s*14px;/);
   assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-brand__icon\s*\{[\s\S]*?width:\s*52px;[\s\S]*?height:\s*52px;/);
   assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-balance-card\s*\{[\s\S]*?min-height:\s*184px;/);
-  assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-balance-card__value\s*\{[\s\S]*?font-size:\s*clamp\(2\.4rem,\s*10vw,\s*4rem\);/);
+  assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-balance-card__value\s*\{[\s\S]*?font-size:\s*clamp\(2\.15rem,\s*9vw,\s*3\.5rem\);/);
   assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-claim-ring\s*\{[\s\S]*?width:\s*min\(58vw,\s*264px\);/);
   assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-card\s*\{[\s\S]*?padding:\s*14px;/);
-  assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-stat-card__value\s*\{[\s\S]*?font-size:\s*clamp\(1\.35rem,\s*4\.6vw,\s*2rem\);/);
+  assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-stat-card__value\s*\{[\s\S]*?font-size:\s*clamp\(1\.18rem,\s*4\.1vw,\s*1\.7rem\);/);
+});
+
+test('p-mining mobile stats stay in a compact two-column dashboard layout', () => {
+  const css = fs.readFileSync(cssPath, 'utf8');
+
+  assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-stats-grid\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
+  assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-stats-grid\s*\{[\s\S]*?gap:\s*8px;/);
+  assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-two-col\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
+  assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-rule-card\s*\{[\s\S]*?line-height:\s*1\.5;/);
+});
+
+test('p-mining mobile typography scales down across all tabs for a denser phone layout', () => {
+  const css = fs.readFileSync(cssPath, 'utf8');
+
+  assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-balance-card__value\s*\{[\s\S]*?font-size:\s*clamp\(2\.15rem,\s*9vw,\s*3\.5rem\);/);
+  assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-metric\s*\{[\s\S]*?font-size:\s*clamp\(1\.08rem,\s*4vw,\s*1\.55rem\);/);
+  assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-claim-ring__countdown\s*\{[\s\S]*?font-size:\s*clamp\(1\.5rem,\s*5\.2vw,\s*2\.3rem\);/);
+  assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-stat-card__value\s*\{[\s\S]*?font-size:\s*clamp\(1\.18rem,\s*4\.1vw,\s*1\.7rem\);/);
+  assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-record-card__title\s*\{[\s\S]*?font-size:\s*1\.02rem;/);
+  assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-record-card__value\s*\{[\s\S]*?font-size:\s*1\.34rem;/);
+  assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*?\.p-mining-nav__item\s*\{[\s\S]*?font-size:\s*0\.84rem;/);
 });
 
 test('p-mining html includes the expected mining, invite, records, and profile sections', () => {
@@ -130,7 +160,7 @@ test('p-mining script includes the expected UI hooks', () => {
   assert.match(js, /function hasSettledPaymentOrder\(/);
   assert.match(js, /function settlePendingPaymentOrder\(/);
   assert.match(js, /function applyPendingInvitePurchaseBonuses\(/);
-  assert.match(js, /function togglePurchasePanel\(/);
+  assert.doesNotMatch(js, /function togglePurchasePanel\(/);
   assert.match(js, /function calculateEstimatedTodayOutput\(/);
   assert.match(js, /\/api\/p-mining\/session/);
   assert.match(js, /\/api\/p-mining\/session\/logout/);

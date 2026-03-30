@@ -495,7 +495,7 @@ body {
   right: 0;
   bottom: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
   padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
   border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -587,7 +587,7 @@ body {
 
   .p-mining-card__label {
     margin-bottom: 8px;
-    font-size: 0.84rem;
+    font-size: 0.78rem;
   }
 
   .p-mining-balance-card {
@@ -601,7 +601,7 @@ body {
   }
 
   .p-mining-balance-card__value {
-    font-size: clamp(2.4rem, 10vw, 4rem);
+    font-size: clamp(2.15rem, 9vw, 3.5rem);
   }
 
   .p-mining-balance-card__meta {
@@ -610,7 +610,7 @@ body {
   }
 
   .p-mining-metric {
-    font-size: clamp(1.2rem, 4.4vw, 1.8rem);
+    font-size: clamp(1.08rem, 4vw, 1.55rem);
   }
 
   .p-mining-claim {
@@ -623,22 +623,26 @@ body {
   }
 
   .p-mining-claim-ring__mine-icon {
-    font-size: 2.5rem;
+    font-size: 2.2rem;
   }
 
   .p-mining-claim-ring__countdown {
     margin-top: 12px;
-    font-size: clamp(1.7rem, 6vw, 2.8rem);
+    font-size: clamp(1.5rem, 5.2vw, 2.3rem);
   }
 
   .p-mining-claim-ring__hint {
     margin-top: 8px;
-    font-size: 0.9rem;
+    font-size: 0.82rem;
   }
 
-  .p-mining-stats-grid,
+  .p-mining-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
   .p-mining-two-col {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .p-mining-stats-grid,
@@ -649,33 +653,42 @@ body {
   }
 
   .p-mining-stat-card__value {
-    font-size: clamp(1.35rem, 4.6vw, 2rem);
+    font-size: clamp(1.18rem, 4.1vw, 1.7rem);
   }
 
   .p-mining-section-card h2,
   .p-mining-profile-card__email {
     margin-bottom: 14px;
-    font-size: clamp(1.25rem, 5.4vw, 1.8rem);
+    font-size: clamp(1.1rem, 4.8vw, 1.55rem);
+  }
+
+  .p-mining-rule-card {
+    line-height: 1.5;
   }
 
   .p-mining-inline-button {
     min-width: 74px;
     padding: 0 14px;
     border-radius: 16px;
+    font-size: 0.84rem;
+  }
+
+  .p-mining-invite-code__value {
+    font-size: 1.95rem;
   }
 
   .p-mining-text-input {
     height: 60px;
     padding: 0 16px;
     border-radius: 18px;
-    font-size: 1rem;
+    font-size: 0.92rem;
   }
 
   .p-mining-submit-button {
     width: 78px;
     height: 60px;
     border-radius: 18px;
-    font-size: 1.7rem;
+    font-size: 1.45rem;
   }
 
   .p-mining-record-filters {
@@ -686,21 +699,21 @@ body {
   .p-mining-logout-button {
     min-height: 54px;
     border-radius: 18px;
-    font-size: 0.92rem;
+    font-size: 0.84rem;
   }
 
   .p-mining-record-card__title {
-    font-size: 1.15rem;
+    font-size: 1.02rem;
   }
 
   .p-mining-record-card__value {
-    font-size: 1.6rem;
+    font-size: 1.34rem;
   }
 
   .p-mining-profile-card__avatar {
-    width: 96px;
-    height: 96px;
-    font-size: 2.4rem;
+    width: 88px;
+    height: 88px;
+    font-size: 2.1rem;
   }
 
   .p-mining-nav {
@@ -711,7 +724,7 @@ body {
   .p-mining-nav__item {
     min-height: 52px;
     border-radius: 16px;
-    font-size: 0.92rem;
+    font-size: 0.84rem;
   }
 }
 

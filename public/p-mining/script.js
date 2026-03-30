@@ -2,7 +2,7 @@
   const TOTAL_SUPPLY = 210000000000;
   const DAILY_CAP = 71917808;
   const CLAIM_COOLDOWN_MS = 60 * 1000;
-  const DEMO_INVITE_CODES = ['2G4WQC', 'ABC123', 'NEXA88'];
+  const DEMO_INVITE_CODES = ['246810', '135790', '888888'];
   const STORAGE_KEY_PREFIX = 'claw800:p-mining:state:';
   const NETWORK_STORAGE_KEY = 'claw800:p-mining:network-stats';
   const LOCALE_STORAGE_KEY = 'claw800:p-mining:locale';
@@ -49,12 +49,15 @@
       nextHalving: 'Every 4 Years (Next)',
       totalSupply: 'Supply',
       estimatedFinish: 'Est. Finish',
+      manifesto: 'P is Pay, P is People. P may have no utility, but it stands as our witness. If participation surpasses 10 million people, it might become a great victory.',
       inviteFriends: 'Invite Friends',
       myInviteCode: 'My Code',
       copyButton: 'Copy',
       inviteHint: 'Both sides get +10 power.',
       buyPower: 'Buy',
+      tabPurchase: 'Buy',
       powerStore: 'Power Store',
+      purchaseHelper: 'Pay with Nexa secure checkout. Power settles after payment success.',
       powerPackageStarter: '+10 Power / 10 USDT',
       powerPackageBoost: '+1000 Power / 80 USDT',
       powerPurchaseAction: 'Buy Now',
@@ -105,12 +108,15 @@
       nextHalving: '每四年减半（下次）',
       totalSupply: '总发行量',
       estimatedFinish: '预计挖完时间',
+      manifesto: 'P is Pay，P is People，P没有用，是我们的见证，当参与的人数超过 1000 万人时，说不定是一场伟大的胜利。',
       inviteFriends: '邀请好友',
       myInviteCode: '我的邀请码',
       copyButton: '复制',
       inviteHint: '邀请好友双方各增加 10 算力。',
       buyPower: '购买',
+      tabPurchase: '购买',
       powerStore: '购买算力',
+      purchaseHelper: '通过 Nexa 第三方安全支付完成购买，支付成功后算力自动到账。',
       powerPackageStarter: '+10 算力 / 10 USDT',
       powerPackageBoost: '+1000 算力 / 80 USDT',
       powerPurchaseAction: '立即购买',
@@ -382,8 +388,9 @@
   }
 
   function createInviteCode(uid) {
-    const seed = String(uid || 'NEXA00').replace(/[^a-z0-9]/gi, '').toUpperCase();
-    return (seed + '2G4WQC').slice(0, 6).padEnd(6, 'X');
+    const seed = String(uid || '100000').replace(/\D/g, '') || '100000';
+    const digits = seed.padEnd(6, '0').slice(-6);
+    return digits;
   }
 
   function createDefaultMiningState(hostUser) {
@@ -891,7 +898,6 @@
   }
 
   function renderInvitePanel(appState) {
-    appState.elements.purchasePanel.hidden = !appState.isPurchasePanelOpen;
     appState.elements.inviteCodeValue.textContent = appState.state.inviteCode;
     appState.elements.inviteCount.textContent = formatWholeNumber(appState.state.inviteCount);
     appState.elements.inviteBonus.textContent = formatPowerValue(appState.state.invitePowerBonus);
@@ -1031,11 +1037,6 @@
     }
   }
 
-  function togglePurchasePanel(appState) {
-    appState.isPurchasePanelOpen = !appState.isPurchasePanelOpen;
-    renderInvitePanel(appState);
-  }
-
   async function queryPMiningPaymentOrder(orderNo) {
     return postJson('/api/p-mining/payment/query', {
       orderNo: String(orderNo || '').trim()
@@ -1091,7 +1092,7 @@
 
   async function handlePurchasePower(appState, tier) {
     if (!appState.nexaSession) {
-      beginNexaLoginFlow(appState, 'invite').catch(() => {});
+      beginNexaLoginFlow(appState, 'purchase').catch(() => {});
       return;
     }
     const option = POWER_PURCHASE_OPTIONS[String(tier || '').trim()] || null;
@@ -1236,7 +1237,7 @@
   }
 
   async function handleProtectedTabNavigation(appState, nextTab) {
-    if (nextTab !== 'profile') {
+    if (nextTab !== 'profile' && nextTab !== 'purchase') {
       switchTab(appState, nextTab);
       return;
     }
@@ -1268,7 +1269,6 @@
       network: loadNetworkStats(storage),
       activeTab: 'mining',
       activeRecordFilter: 'claims',
-      isPurchasePanelOpen: false,
       isProcessing: false,
       isAuthorizing: false,
       elements: {
@@ -1296,7 +1296,6 @@
         inviteCodeValue: root.querySelector('#pMiningInviteCodeValue'),
         inviteCount: root.querySelector('#pMiningInviteCount'),
         inviteBonus: root.querySelector('#pMiningInviteBonus'),
-        openPurchaseButton: root.querySelector('#pMiningOpenPurchaseButton'),
         purchasePanel: root.querySelector('#pMiningPurchasePanel'),
         purchaseButtons: Array.from(root.querySelectorAll('[data-purchase-tier]')),
         inviteInput: root.querySelector('#pMiningInviteInput'),
@@ -1324,7 +1323,6 @@
     appState.elements.claimButton?.addEventListener('click', () => handleClaimButtonClick(appState).catch(() => {}));
     appState.elements.inviteSubmitButton?.addEventListener('click', () => handleInviteSubmit(appState).catch(() => {}));
     appState.elements.copyInviteButton?.addEventListener('click', () => handleCopyInviteCode(appState));
-    appState.elements.openPurchaseButton?.addEventListener('click', () => togglePurchasePanel(appState));
     appState.elements.purchaseButtons.forEach((button) => {
       button.addEventListener('click', () => {
         handlePurchasePower(appState, button.dataset.purchaseTier).catch(() => {});
@@ -1425,11 +1423,10 @@
     loadPMiningBootstrap,
     renderClaimState,
     handleClaimButtonClick,
-    handleInviteSubmit,
-    handleCopyInviteCode,
-    togglePurchasePanel,
-    renderRecordsPanel,
-    renderProfilePanel,
+        handleInviteSubmit,
+        handleCopyInviteCode,
+        renderRecordsPanel,
+        renderProfilePanel,
     beginNexaLoginFlow,
     settlePendingPaymentOrder
   };

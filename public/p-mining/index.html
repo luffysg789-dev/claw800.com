@@ -99,7 +99,7 @@
           </section>
 
           <article class="p-mining-card p-mining-rule-card">
-            <p>P is Pay，P is People，P没有用，是我们的见证，当参与的人数超过 1000 万人时，说不定是一场伟大的胜利。</p>
+            <p data-i18n="manifesto">P is Pay，P is People，P没有用，是我们的见证，当参与的人数超过 1000 万人时，说不定是一场伟大的胜利。</p>
           </article>
         </section>
 
@@ -107,7 +107,6 @@
           <article class="p-mining-card p-mining-section-card">
             <div class="p-mining-section-card__header">
               <h2 data-i18n="inviteFriends">Invite Friends</h2>
-              <button id="pMiningOpenPurchaseButton" class="p-mining-inline-button" type="button" data-i18n="buyPower">Buy</button>
             </div>
             <div class="p-mining-invite-code">
               <div>
@@ -117,22 +116,6 @@
               <button id="pMiningCopyInviteButton" class="p-mining-inline-button" type="button" data-i18n="copyButton">Copy</button>
             </div>
             <p class="p-mining-helper" data-i18n="inviteHint">Both sides get +10 power.</p>
-          </article>
-
-          <article id="pMiningPurchasePanel" class="p-mining-card p-mining-section-card" hidden>
-            <div class="p-mining-section-card__header">
-              <h2 data-i18n="powerStore">购买算力</h2>
-            </div>
-            <div class="p-mining-purchase-grid">
-              <article class="p-mining-purchase-card">
-                <p class="p-mining-card__label" data-i18n="powerPackageStarter">+10 算力 / 10 USDT</p>
-                <button class="p-mining-submit-button p-mining-purchase-card__button" type="button" data-purchase-tier="starter" data-i18n="powerPurchaseAction">立即购买</button>
-              </article>
-              <article class="p-mining-purchase-card">
-                <p class="p-mining-card__label" data-i18n="powerPackageBoost">+1000 算力 / 80 USDT</p>
-                <button class="p-mining-submit-button p-mining-purchase-card__button" type="button" data-purchase-tier="boost" data-i18n="powerPurchaseAction">立即购买</button>
-              </article>
-            </div>
           </article>
 
           <article class="p-mining-card p-mining-section-card">
@@ -154,6 +137,25 @@
               <div class="p-mining-stat-card__value p-mining-stat-card__value--power" id="pMiningInviteBonus">0.0</div>
             </article>
           </section>
+        </section>
+
+        <section class="p-mining-panel" data-tab="purchase" hidden>
+          <article id="pMiningPurchasePanel" class="p-mining-card p-mining-section-card">
+            <div class="p-mining-section-card__header">
+              <h2 data-i18n="powerStore">Power Store</h2>
+            </div>
+            <p class="p-mining-helper" data-i18n="purchaseHelper">Pay with Nexa secure checkout. Power settles after payment success.</p>
+            <div class="p-mining-purchase-grid">
+              <article class="p-mining-purchase-card">
+                <p class="p-mining-card__label" data-i18n="powerPackageStarter">+10 Power / 10 USDT</p>
+                <button class="p-mining-submit-button p-mining-purchase-card__button" type="button" data-purchase-tier="starter" data-i18n="powerPurchaseAction">Buy Now</button>
+              </article>
+              <article class="p-mining-purchase-card">
+                <p class="p-mining-card__label" data-i18n="powerPackageBoost">+1000 Power / 80 USDT</p>
+                <button class="p-mining-submit-button p-mining-purchase-card__button" type="button" data-purchase-tier="boost" data-i18n="powerPurchaseAction">Buy Now</button>
+              </article>
+            </div>
+          </article>
         </section>
 
         <section class="p-mining-panel" data-tab="records" hidden>
@@ -194,6 +196,7 @@
       <nav class="p-mining-nav" aria-label="P-Mining 页面导航">
         <button class="p-mining-nav__item is-active" type="button" data-tab-target="mining" data-i18n="tabMining">Mining</button>
         <button class="p-mining-nav__item" type="button" data-tab-target="invite" data-i18n="tabInvite">Invite</button>
+        <button class="p-mining-nav__item" type="button" data-tab-target="purchase" data-i18n="tabPurchase">Buy</button>
         <button class="p-mining-nav__item" type="button" data-tab-target="records" data-i18n="tabRecords">Records</button>
         <button class="p-mining-nav__item" type="button" data-tab-target="profile" data-i18n="tabProfile">Profile</button>
       </nav>

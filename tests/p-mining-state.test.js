@@ -64,6 +64,7 @@ test('createDefaultMiningState seeds balance, power, and invite code', () => {
   assert.equal(state.power, 10);
   assert.equal(typeof state.inviteCode, 'string');
   assert.equal(state.inviteCode.length, 6);
+  assert.match(state.inviteCode, /^\d{6}$/);
 });
 
 test('formatMiningNumber always keeps one decimal place', () => {
@@ -179,13 +180,13 @@ test('bindInviteCode rejects self-binding and duplicate binding', () => {
 
   assert.throws(() => bindInviteCode(baseState, baseState.inviteCode), /self/i);
 
-  const bound = bindInviteCode(baseState, '2G4WQC');
-  assert.throws(() => bindInviteCode(bound, 'ABC123'), /already bound/i);
+  const bound = bindInviteCode(baseState, '246810');
+  assert.throws(() => bindInviteCode(bound, '135790'), /already bound/i);
 });
 
 test('bindInviteCode adds +10 power and records invite activity', () => {
   const baseState = createDefaultMiningState({ uid: 'user_1' });
-  const next = bindInviteCode(baseState, '2G4WQC');
+  const next = bindInviteCode(baseState, '246810');
 
   assert.equal(next.power, 20);
   assert.equal(next.invitePowerBonus, 10);
