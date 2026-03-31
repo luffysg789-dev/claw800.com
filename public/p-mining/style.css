@@ -247,7 +247,7 @@ body {
 .p-mining-card {
   position: relative;
   overflow: hidden;
-  padding: 18px;
+  padding: 14px 16px;
   border: 1px solid var(--p-mining-border);
   border-radius: 24px;
   background: var(--p-mining-card);
@@ -256,7 +256,7 @@ body {
 }
 
 .p-mining-card__label {
-  margin: 0 0 10px;
+  margin: 0 0 6px;
   color: var(--p-mining-muted);
   font-size: 0.95rem;
 }
@@ -313,8 +313,8 @@ body {
 }
 
 .p-mining-balance-card__meta {
-  gap: 16px;
-  margin-top: 20px;
+  gap: 14px;
+  margin-top: 12px;
   justify-content: flex-start;
 }
 
@@ -425,12 +425,12 @@ body {
 
 .p-mining-rule-card {
   color: rgba(255, 255, 255, 0.72);
-  line-height: 1.65;
+  line-height: 1.52;
 }
 
 .p-mining-section-card h2,
 .p-mining-profile-card__email {
-  margin: 0 0 18px;
+  margin: 0 0 10px;
   font-size: clamp(1.6rem, 4vw, 2.3rem);
   font-weight: 800;
   letter-spacing: -0.04em;
@@ -471,7 +471,7 @@ body {
 }
 
 .p-mining-helper {
-  margin: 12px 0 0;
+  margin: 6px 0 0;
   color: var(--p-mining-muted);
 }
 
@@ -494,7 +494,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 16px;
+  padding: 12px 14px;
   border: 1px solid var(--p-mining-border);
   border-radius: 22px;
   background: rgba(255, 255, 255, 0.04);
@@ -574,7 +574,7 @@ body {
 }
 
 .p-mining-record-card__title {
-  margin: 0 0 8px;
+  margin: 0 0 4px;
   font-size: 1.35rem;
   font-weight: 800;
 }
@@ -584,7 +584,7 @@ body {
 }
 
 .p-mining-record-card__value {
-  margin-top: 10px;
+  margin-top: 6px;
   font-family: "SF Mono", "Menlo", "Consolas", monospace;
   font-size: 2rem;
   font-weight: 700;
@@ -613,7 +613,7 @@ body {
 }
 
 .p-mining-profile-list__row {
-  padding: 14px 0;
+  padding: 10px 0;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
@@ -720,12 +720,12 @@ body {
   }
 
   .p-mining-card {
-    padding: 14px;
+    padding: 10px 12px;
     border-radius: 20px;
   }
 
   .p-mining-card__label {
-    margin-bottom: 8px;
+    margin-bottom: 4px;
     font-size: 0.78rem;
   }
 
@@ -750,8 +750,8 @@ body {
   }
 
   .p-mining-balance-card__meta {
-    gap: 10px;
-    margin-top: 10px;
+    gap: 8px;
+    margin-top: 6px;
   }
 
   .p-mining-metric {
@@ -800,12 +800,12 @@ body {
 
   .p-mining-section-card h2,
   .p-mining-profile-card__email {
-    margin-bottom: 14px;
+    margin-bottom: 8px;
     font-size: clamp(1.1rem, 4.8vw, 1.55rem);
   }
 
   .p-mining-rule-card {
-    line-height: 1.5;
+    line-height: 1.36;
   }
 
   .p-mining-inline-button {
@@ -834,8 +834,8 @@ body {
   }
 
   .p-mining-purchase-card {
-    gap: 10px;
-    padding: 14px;
+    gap: 8px;
+    padding: 10px 12px;
   }
 
   .p-mining-purchase-card__button {
@@ -945,7 +945,7 @@ body {
   }
 
   .p-mining-card {
-    padding: 14px;
+    padding: 10px 12px;
     border-radius: 20px;
   }
 
