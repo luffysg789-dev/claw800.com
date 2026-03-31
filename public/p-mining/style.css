@@ -429,6 +429,10 @@ body {
   line-height: 1.52;
 }
 
+.p-mining-rule-card p {
+  margin: 0;
+}
+
 .p-mining-section-card h2,
 .p-mining-profile-card__email {
   margin: 0 0 10px;

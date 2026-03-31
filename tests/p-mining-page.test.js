@@ -108,6 +108,7 @@ test('p-mining css includes dark glass tokens, bottom nav, and circular claim la
   assert.match(css, /\.p-mining-balance-card__meta\s*\{[\s\S]*?margin-top:\s*12px;/);
   assert.match(css, /\.p-mining-helper\s*\{[\s\S]*?margin:\s*6px 0 0;/);
   assert.match(css, /\.p-mining-rule-card\s*\{[\s\S]*?padding:\s*6px 16px;/);
+  assert.match(css, /\.p-mining-rule-card\s+p\s*\{[\s\S]*?margin:\s*0;/);
 });
 
 test('p-mining mobile layout is tightened for smaller phone screens', () => {
