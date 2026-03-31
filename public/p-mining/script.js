@@ -22,7 +22,7 @@
   const PAYMENT_QUERY_TIMEOUT_MS = 45000;
   const CLAIM_SOUND_DURATION_SECONDS = 0.08;
   const CLAIM_SOUND_FREQUENCY_HZ = 1320;
-  const CLAIM_SOUND_PULSE_COUNT = 3;
+  const CLAIM_SOUND_PULSE_COUNT = 8;
   const CLAIM_SOUND_PULSE_GAP_SECONDS = 0.09;
   const AudioContextCtor = globalScope.window?.AudioContext || globalScope.window?.webkitAudioContext;
   const POWER_PURCHASE_OPTIONS = {

@@ -251,7 +251,7 @@ test('p-mining script includes the expected UI hooks', () => {
   assert.match(js, /appState\.elements\.profileUid\.textContent = appState\.state\.inviteCode \|\| '------';/);
   assert.match(js, /const AudioContextCtor = globalScope\.window\?\.AudioContext \|\| globalScope\.window\?\.webkitAudioContext;/);
   assert.match(js, /function playClaimSuccessSound\(/);
-  assert.match(js, /const CLAIM_SOUND_PULSE_COUNT = 3;/);
+  assert.match(js, /const CLAIM_SOUND_PULSE_COUNT = 8;/);
   assert.match(js, /for \(let pulseIndex = 0; pulseIndex < CLAIM_SOUND_PULSE_COUNT; pulseIndex \+= 1\) \{/);
   assert.match(js, /playClaimSuccessSound\(appState\);/);
   assert.match(js, /input\.addEventListener\('focus',[\s\S]*ensureInviteInputVisible\(appState,\s*input\)/);
