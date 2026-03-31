@@ -10,6 +10,8 @@ const {
   CLAIM_COOLDOWN_MS,
   getMockNexaUser,
   normalizeHostUser,
+  createInviteCode,
+  normalizeInviteCode,
   createDefaultMiningState,
   createDefaultNetworkStats,
   formatMiningNumber,
@@ -68,6 +70,18 @@ test('createDefaultMiningState seeds balance, power, and invite code', () => {
   assert.equal(typeof state.inviteCode, 'string');
   assert.equal(state.inviteCode.length, 6);
   assert.match(state.inviteCode, /^\d{6}$/);
+});
+
+test('normalizeInviteCode accepts 6 or more numeric digits for longer invite code overflow cases', () => {
+  assert.equal(normalizeInviteCode('246810'), '246810');
+  assert.equal(normalizeInviteCode('2468107'), '2468107');
+  assert.equal(normalizeInviteCode(' 24-68107 '), '2468107');
+  assert.equal(normalizeInviteCode('abc12'), '');
+});
+
+test('createInviteCode still defaults to a 6-digit numeric code for normal users', () => {
+  assert.equal(createInviteCode('user_123456'), '123456');
+  assert.match(createInviteCode('guest'), /^\d{6}$/);
 });
 
 test('formatMiningNumber rounds mining displays down to integers without decimals', () => {

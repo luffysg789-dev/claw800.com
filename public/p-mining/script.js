@@ -20,8 +20,10 @@
   const MAX_RECORDS = 20;
   const PAYMENT_QUERY_INTERVAL_MS = 2000;
   const PAYMENT_QUERY_TIMEOUT_MS = 45000;
-  const CLAIM_SOUND_DURATION_SECONDS = 0.18;
-  const CLAIM_SOUND_FREQUENCY_HZ = 880;
+  const CLAIM_SOUND_DURATION_SECONDS = 0.08;
+  const CLAIM_SOUND_FREQUENCY_HZ = 1320;
+  const CLAIM_SOUND_PULSE_COUNT = 3;
+  const CLAIM_SOUND_PULSE_GAP_SECONDS = 0.09;
   const AudioContextCtor = globalScope.window?.AudioContext || globalScope.window?.webkitAudioContext;
   const POWER_PURCHASE_OPTIONS = {
     starter: {
@@ -80,6 +82,8 @@
       claimRecords: 'Claims',
       inviteRecords: 'Invites',
       powerChanges: 'Power',
+      profileHeadline: 'My Nexa Account',
+      profileCodeLabel: 'Invite Code',
       currentTotalPoints: 'Current P',
       logoutButton: 'Log Out',
       tabMining: 'Mining',
@@ -144,6 +148,8 @@
       claimRecords: '领取记录',
       inviteRecords: '邀请记录',
       powerChanges: '算力变动',
+      profileHeadline: '我的 Nexa 玩家',
+      profileCodeLabel: '邀请码',
       currentTotalPoints: '当前总积分',
       logoutButton: '退出登录',
       tabMining: '挖矿',
@@ -430,9 +436,9 @@
 
   function normalizeInviteCode(value) {
     const raw = String(value || '').trim();
-    if (/^\d{6}$/.test(raw)) return raw;
+    if (/^\d{6,}$/.test(raw)) return raw;
     const digitsOnly = raw.replace(/\D/g, '');
-    return /^\d{6}$/.test(digitsOnly) ? digitsOnly : '';
+    return /^\d{6,}$/.test(digitsOnly) ? digitsOnly : '';
   }
 
   function createDefaultMiningState(hostUser) {
@@ -1106,7 +1112,7 @@
 
   function renderProfilePanel(appState) {
     appState.elements.profileEmail.textContent = appState.hostUser.email;
-    appState.elements.profileUid.textContent = `UID: ${appState.hostUser.uid}`;
+    appState.elements.profileUid.textContent = appState.state.inviteCode || '------';
     appState.elements.profileBalance.textContent = `${formatMiningNumber(appState.state.balance)} P`;
     appState.elements.profilePower.textContent = formatPowerValue(appState.state.power);
   }
@@ -1253,22 +1259,26 @@
   function playClaimSuccessSound(appState) {
     void ensureClaimAudioContext(appState).then((audioContext) => {
       if (!audioContext) return;
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
       const now = audioContext.currentTime;
+      for (let pulseIndex = 0; pulseIndex < CLAIM_SOUND_PULSE_COUNT; pulseIndex += 1) {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        const pulseStartAt = now + (pulseIndex * (CLAIM_SOUND_DURATION_SECONDS + CLAIM_SOUND_PULSE_GAP_SECONDS));
+        const pulseEndAt = pulseStartAt + CLAIM_SOUND_DURATION_SECONDS;
 
-      oscillator.type = 'triangle';
-      oscillator.frequency.setValueAtTime(CLAIM_SOUND_FREQUENCY_HZ, now);
-      oscillator.frequency.exponentialRampToValueAtTime(CLAIM_SOUND_FREQUENCY_HZ * 1.18, now + CLAIM_SOUND_DURATION_SECONDS);
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(CLAIM_SOUND_FREQUENCY_HZ, pulseStartAt);
+        oscillator.frequency.exponentialRampToValueAtTime(CLAIM_SOUND_FREQUENCY_HZ * 1.06, pulseEndAt);
 
-      gainNode.gain.setValueAtTime(0.0001, now);
-      gainNode.gain.exponentialRampToValueAtTime(0.08, now + 0.02);
-      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + CLAIM_SOUND_DURATION_SECONDS);
+        gainNode.gain.setValueAtTime(0.0001, pulseStartAt);
+        gainNode.gain.exponentialRampToValueAtTime(0.065, pulseStartAt + 0.015);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, pulseEndAt);
 
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      oscillator.start(now);
-      oscillator.stop(now + CLAIM_SOUND_DURATION_SECONDS);
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        oscillator.start(pulseStartAt);
+        oscillator.stop(pulseEndAt);
+      }
     }).catch(() => {});
   }
 
@@ -1750,6 +1760,8 @@
     CLAIM_COOLDOWN_MS,
     getMockNexaUser,
     normalizeHostUser,
+    createInviteCode,
+    normalizeInviteCode,
     createDefaultMiningState,
     createDefaultNetworkStats,
     formatMiningNumber,

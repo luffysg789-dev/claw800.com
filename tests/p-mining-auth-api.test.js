@@ -231,6 +231,47 @@ test('p-mining bootstrap migrates legacy alphanumeric invite codes to 6-digit nu
   }
 });
 
+test('p-mining bootstrap expands invite code length when the local 6-digit sequence is exhausted', async () => {
+  const harness = createHarness();
+
+  try {
+    for (let offset = 0; offset <= 20; offset += 1) {
+      const syncResponse = await harness.request('POST', '/api/p-mining/session', {
+        openId: `p-mining-open-id-seq-${offset}`,
+        sessionKey: `p-mining-session-key-seq-${offset}`,
+        nickname: `Sequence Miner ${offset}`
+      });
+      const serialized = JSON.parse(syncResponse.headers['set-cookie'][0]);
+      const cookies = {
+        [serialized.name]: serialized.value
+      };
+      const bootstrapResponse = await harness.request('GET', '/api/p-mining/bootstrap', null, { cookies });
+      const inviteCode = String(123456 + offset).padStart(6, '0');
+      const userRow = harness.db.prepare("SELECT id FROM game_users WHERE openid = ?").get(`p-mining-open-id-seq-${offset}`);
+      harness.db.prepare("UPDATE p_mining_users SET invite_code = ? WHERE user_id = ?").run(inviteCode, userRow.id);
+      assert.equal(bootstrapResponse.statusCode, 200);
+    }
+
+    const syncResponse = await harness.request('POST', '/api/p-mining/session', {
+      openId: 'p-mining-open-id-overflow-123456',
+      sessionKey: 'p-mining-session-key-overflow-123456',
+      nickname: 'Overflow Miner'
+    });
+    const serialized = JSON.parse(syncResponse.headers['set-cookie'][0]);
+    const cookies = {
+      [serialized.name]: serialized.value
+    };
+
+    const response = await harness.request('GET', '/api/p-mining/bootstrap', null, { cookies });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.ok, true);
+    assert.match(response.body.account.inviteCode, /^\d{7,}$/);
+  } finally {
+    harness.cleanup();
+  }
+});
+
 test('p-mining claim writes balance and claim records on the backend', async () => {
   const harness = createHarness();
 

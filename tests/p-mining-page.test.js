@@ -171,6 +171,8 @@ test('p-mining html includes the expected mining, invite, records, and profile s
   assert.match(html, /data-i18n="enterInviteCode"/);
   assert.match(html, /data-i18n="inviteFriends"/);
   assert.match(html, /data-i18n="claimRecords"/);
+  assert.match(html, /data-i18n="profileHeadline"/);
+  assert.match(html, /data-i18n="profileCodeLabel"/);
   assert.match(html, /data-i18n="currentTotalPoints"/);
   assert.match(html, /data-i18n="totalSupplyValue"/);
   assert.match(html, /Every 4 Years \(Next\)/);
@@ -225,6 +227,10 @@ test('p-mining script includes the expected UI hooks', () => {
   assert.match(js, /function applyTranslations\(/);
   assert.match(js, /totalSupplyValue:\s*'210B'/);
   assert.match(js, /totalSupplyValue:\s*'2100 亿'/);
+  assert.match(js, /profileHeadline:\s*'My Nexa Account'/);
+  assert.match(js, /profileCodeLabel:\s*'Invite Code'/);
+  assert.match(js, /profileHeadline:\s*'我的 Nexa 玩家'/);
+  assert.match(js, /profileCodeLabel:\s*'邀请码'/);
   assert.match(js, /function switchTab\(/);
   assert.match(js, /function animateBalanceValue\(/);
   assert.match(js, /globalScope\.window\?\.requestAnimationFrame\?\.bind\(globalScope\.window\)/);
@@ -242,8 +248,11 @@ test('p-mining script includes the expected UI hooks', () => {
   assert.match(js, /function handleCopyInviteCode\(/);
   assert.match(js, /function renderRecordsPanel\(/);
   assert.match(js, /function renderProfilePanel\(/);
+  assert.match(js, /appState\.elements\.profileUid\.textContent = appState\.state\.inviteCode \|\| '------';/);
   assert.match(js, /const AudioContextCtor = globalScope\.window\?\.AudioContext \|\| globalScope\.window\?\.webkitAudioContext;/);
   assert.match(js, /function playClaimSuccessSound\(/);
+  assert.match(js, /const CLAIM_SOUND_PULSE_COUNT = 3;/);
+  assert.match(js, /for \(let pulseIndex = 0; pulseIndex < CLAIM_SOUND_PULSE_COUNT; pulseIndex \+= 1\) \{/);
   assert.match(js, /playClaimSuccessSound\(appState\);/);
   assert.match(js, /input\.addEventListener\('focus',[\s\S]*ensureInviteInputVisible\(appState,\s*input\)/);
   assert.match(js, /window\.visualViewport\?\.addEventListener\('resize'/);

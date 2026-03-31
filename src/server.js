@@ -721,23 +721,28 @@ function formatPMiningDate(date = new Date()) {
 
 function generatePMiningInviteCode(seed) {
   const seedDigits = String(seed || '100000').replace(/\D/g, '') || '100000';
-  let inviteCode = seedDigits.padEnd(6, '0').slice(-6);
+  let length = 6;
   let attempt = 0;
-  while (selectPMiningUserByInviteCodeStmt.get(inviteCode)) {
+
+  while (true) {
+    const baseDigits = seedDigits.padEnd(length, '0').slice(-length);
+    const inviteCode = (BigInt(baseDigits) + BigInt(attempt)).toString();
+    if (!selectPMiningUserByInviteCodeStmt.get(inviteCode)) {
+      return inviteCode.length >= 6 ? inviteCode : inviteCode.padStart(6, '0');
+    }
     attempt += 1;
-    inviteCode = String((Number(seedDigits.slice(-6)) || 0) + attempt).padStart(6, '0').slice(-6);
     if (attempt > 20) {
-      inviteCode = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+      length += 1;
+      attempt = 0;
     }
   }
-  return inviteCode;
 }
 
 function normalizePMiningInviteCode(value) {
   const raw = String(value || '').trim();
-  if (/^\d{6}$/.test(raw)) return raw;
+  if (/^\d{6,}$/.test(raw)) return raw;
   const digitsOnly = raw.replace(/\D/g, '');
-  return /^\d{6}$/.test(digitsOnly) ? digitsOnly : '';
+  return /^\d{6,}$/.test(digitsOnly) ? digitsOnly : '';
 }
 
 function migratePMiningInviteCodeRecord(miningUser, seed) {
