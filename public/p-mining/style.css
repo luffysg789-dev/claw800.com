@@ -162,12 +162,12 @@ body {
 }
 
 .p-mining-panels {
-  margin-top: 18px;
+  margin-top: 14px;
 }
 
 .p-mining-panel {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 .p-mining-panel[hidden] {
@@ -401,7 +401,7 @@ body {
 .p-mining-stats-grid,
 .p-mining-two-col {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -486,7 +486,7 @@ body {
 
 .p-mining-purchase-grid {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .p-mining-purchase-card {
@@ -570,7 +570,7 @@ body {
 
 .p-mining-records-list {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .p-mining-record-card__title {
