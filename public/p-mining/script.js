@@ -901,6 +901,9 @@
   }
 
   function applyTranslations(appState) {
+    if (globalScope.document?.documentElement) {
+      globalScope.document.documentElement.lang = appState.locale === 'zh' ? 'zh-CN' : 'en';
+    }
     appState.elements.translatableNodes.forEach((node) => {
       node.textContent = t(appState.locale, node.dataset.i18n);
     });
@@ -1668,6 +1671,7 @@
         logoutButton: root.querySelector('#pMiningLogoutButton')
       }
     };
+    setStoredLocale(storage, appState.locale);
 
     appState.elements.navButtons.forEach((button) => {
       button.addEventListener('click', () => {
