@@ -302,7 +302,7 @@ test('loadCachedPMiningSession returns null when the saved nexa session is expir
   assert.equal(loadCachedPMiningSession(storage), null);
 });
 
-test('shouldForceFreshNexaAuthorization ignores cached session when reopening inside Nexa without a new auth code', () => {
+test('shouldForceFreshNexaAuthorization keeps the current session for same-account reopen flows', () => {
   assert.equal(
     shouldForceFreshNexaAuthorization({
       isNexaEnvironment: true,
@@ -312,7 +312,7 @@ test('shouldForceFreshNexaAuthorization ignores cached session when reopening in
         sessionKey: 'session-key-1'
       }
     }),
-    true
+    false
   );
 
   assert.equal(

@@ -848,7 +848,7 @@
   }
 
   function shouldForceFreshNexaAuthorization({ isNexaEnvironment, hasAuthCode, cachedSession }) {
-    return Boolean(isNexaEnvironment && !hasAuthCode && cachedSession?.openId && cachedSession?.sessionKey);
+    return false;
   }
 
   function getClaimUiState({ lastClaimAt, now, isProcessing }) {
@@ -1543,10 +1543,7 @@
       hasAuthCode: Boolean(extractAuthCodeFromUrl()),
       cachedSession
     });
-    if (requiresFreshNexaAuthorization) {
-      clearCachedPMiningSession(storage);
-    }
-    const activeSession = requiresFreshNexaAuthorization ? null : cachedSession;
+    const activeSession = cachedSession;
     const hostUser = activeSession ? createHostUserFromSession(activeSession) : getMockNexaUser();
     const appState = {
       hostUser,
@@ -1678,11 +1675,6 @@
     if (!root) return;
     const appState = createBrowserApp(root);
     const exchanged = await exchangePMiningSessionFromUrlCode(appState);
-    if (!exchanged && appState.requiresFreshNexaAuthorization) {
-      await beginNexaLoginFlow(appState, readPendingAuthTarget(appState.storage) || 'mining').catch(() => false);
-      await settlePendingPaymentOrder(appState).catch(() => false);
-      return;
-    }
     if (!exchanged && appState.nexaSession) {
       const bootstrap = await loadPMiningBootstrap().catch(() => null);
       if (bootstrap?.ok) {
