@@ -1554,6 +1554,7 @@
       const targetTab = readPendingAuthTarget(appState.storage) || 'profile';
       clearPendingAuthTarget(appState.storage);
       renderAll(appState);
+      syncInvitePromptVisibility(appState);
       switchTab(appState, targetTab);
       return true;
     } catch {

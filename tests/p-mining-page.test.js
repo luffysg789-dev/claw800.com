@@ -283,6 +283,7 @@ test('p-mining invite prompt waits for synced account state instead of opening d
     /renderAll\(appState\);\s*switchTab\(appState,\s*'mining'\);\s*if \(shouldShowInvitePrompt\(appState\)\) \{\s*openInvitePrompt\(appState\);/
   );
   assert.match(js, /syncAppStateFromServer\(appState,\s*bootstrap\);\s*renderAll\(appState\);\s*syncInvitePromptVisibility\(appState\);/);
+  assert.match(js, /clearPendingAuthTarget\(appState\.storage\);\s*renderAll\(appState\);\s*syncInvitePromptVisibility\(appState\);\s*switchTab\(appState,\s*targetTab\);/);
 });
 
 test('p-mining invite success feedback opens after a successful bind from the invite page too', () => {
