@@ -187,7 +187,7 @@ test('p-mining html includes the expected mining, invite, records, and profile s
   assert.match(html, /data-i18n="currentTotalPoints"/);
   assert.match(html, /data-i18n="totalSupplyValue"/);
   assert.match(html, /Every 4 Years \(Next\)/);
-  assert.match(html, /P is Pay，P is People，P无实际用途，当参与人数超过 1000 万人时，可能是一场伟大的胜利。/);
+  assert.match(html, /P is Pay，P is People，P无实际用途，参与人数超过 1000 万人时，可能是一场伟大的胜利。/);
   assert.doesNotMatch(html, />2100 亿</);
 });
 
