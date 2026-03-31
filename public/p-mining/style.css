@@ -262,7 +262,7 @@ body {
 }
 
 .p-mining-balance-card {
-  min-height: 228px;
+  min-height: 206px;
 }
 
 .p-mining-balance-card__content {
@@ -424,7 +424,7 @@ body {
 }
 
 .p-mining-rule-card {
-  padding: 10px 16px;
+  padding: 6px 16px;
   color: rgba(255, 255, 255, 0.72);
   line-height: 1.52;
 }
@@ -731,7 +731,7 @@ body {
   }
 
   .p-mining-balance-card {
-    min-height: 164px;
+    min-height: 150px;
   }
 
   .p-mining-balance-card__watermark {
@@ -806,7 +806,7 @@ body {
   }
 
   .p-mining-rule-card {
-    padding: 8px 12px;
+    padding: 4px 12px;
     line-height: 1.36;
   }
 
@@ -952,7 +952,7 @@ body {
   }
 
   .p-mining-balance-card {
-    min-height: 148px;
+    min-height: 136px;
   }
 
   .p-mining-claim-ring {
