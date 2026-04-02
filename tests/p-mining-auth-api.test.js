@@ -300,6 +300,49 @@ test('p-mining claim writes balance and claim records on the backend', async () 
   }
 });
 
+test('p-mining abnormal repeated claim attempts trigger a 7-day mining ban', async () => {
+  const harness = createHarness();
+  const realNow = Date.now;
+
+  try {
+    let now = 1710000000000;
+    Date.now = () => now;
+
+    const syncResponse = await harness.request('POST', '/api/p-mining/session', {
+      openId: 'p-mining-open-id-risk-ban',
+      sessionKey: 'p-mining-session-key-risk-ban',
+      nickname: 'Risk Miner'
+    });
+    const serialized = JSON.parse(syncResponse.headers['set-cookie'][0]);
+    const cookies = {
+      [serialized.name]: serialized.value
+    };
+
+    const claimResponse = await harness.request('POST', '/api/p-mining/claim', {}, { cookies });
+    assert.equal(claimResponse.statusCode, 200);
+
+    now += 500;
+    assert.equal((await harness.request('POST', '/api/p-mining/claim', {}, { cookies })).statusCode, 409);
+    now += 500;
+    assert.equal((await harness.request('POST', '/api/p-mining/claim', {}, { cookies })).statusCode, 409);
+    now += 500;
+    const bannedResponse = await harness.request('POST', '/api/p-mining/claim', {}, { cookies });
+
+    assert.equal(bannedResponse.statusCode, 423);
+    assert.equal(bannedResponse.body.ok, false);
+    assert.equal(bannedResponse.body.error, 'MINING_BANNED');
+    assert.equal(typeof bannedResponse.body.banUntil, 'number');
+    assert.match(String(bannedResponse.body.message || ''), /7 天|7 days/i);
+
+    const bootstrapResponse = await harness.request('GET', '/api/p-mining/bootstrap', null, { cookies });
+    assert.equal(bootstrapResponse.body.account.miningBanUntil, bannedResponse.body.banUntil);
+    assert.equal(bootstrapResponse.body.account.riskScore >= 120, true);
+  } finally {
+    Date.now = realNow;
+    harness.cleanup();
+  }
+});
+
 test('p-mining invite bind updates inviter and invitee accounts on the backend', async () => {
   const harness = createHarness();
 

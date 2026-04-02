@@ -851,6 +851,8 @@
     if (!response.ok) {
       const error = new Error(String(json?.error || json?.message || '请求失败'));
       error.statusCode = Number(response.status || 0) || 0;
+      error.displayMessage = String(json?.message || json?.error || '请求失败');
+      error.payload = json || null;
       throw error;
     }
     return json;
@@ -1308,7 +1310,10 @@
         playClaimSuccessSound(appState);
         renderAll(appState);
       }
-    } catch {
+    } catch (error) {
+      if (String(error?.message || '').includes('MINING_BANNED')) {
+        globalScope.window.alert(String(error?.displayMessage || error?.message || ''));
+      }
       renderClaimState(appState);
     } finally {
       appState.isProcessing = false;

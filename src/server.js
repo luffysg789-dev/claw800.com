@@ -49,6 +49,11 @@ const NEXA_TIP_CURRENCY = 'USDT';
 const PMINING_TOTAL_SUPPLY = 210000000000;
 const PMINING_DAILY_CAP = 71917808;
 const PMINING_CLAIM_COOLDOWN_MS = 60 * 1000;
+const PMINING_RISK_BAN_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
+const PMINING_RISK_SCORE_THRESHOLD = 120;
+const PMINING_RISK_INCREMENT_EARLY_COOLDOWN = 40;
+const PMINING_RISK_COOLDOWN_WINDOW_MS = 3000;
+const PMINING_RISK_SCORE_DECAY_MS = 24 * 60 * 60 * 1000;
 const PMINING_MAX_RECORDS = 20;
 const nexaTipOrders = new Map();
 const PMINING_PAYMENT_CURRENCY = 'USDT';
@@ -787,7 +792,38 @@ function formatPMiningAccountRow(row) {
     boundInviteCode: String(row?.bound_invite_code || '').trim(),
     inviteCount: Math.max(0, Number(row?.invite_count || 0) || 0),
     invitePowerBonus: Math.max(0, Number(row?.invite_power_bonus || 0) || 0),
+    riskScore: Math.max(0, Number(row?.risk_score || 0) || 0),
+    riskReason: String(row?.risk_reason || '').trim(),
+    miningBanUntil: Math.max(0, Number(row?.mining_ban_until || 0) || 0),
     lastClaimAt: Math.max(0, Number(row?.last_claim_at || 0) || 0)
+  };
+}
+
+function buildPMiningBanMessage() {
+  return '账号存在异常操作，已限制挖矿 7 天';
+}
+
+function applyPMiningRiskStrike(account, {
+  now,
+  increment = PMINING_RISK_INCREMENT_EARLY_COOLDOWN,
+  reason = 'abnormal_auto_click'
+} = {}) {
+  const normalizedNow = Number(now || Date.now()) || Date.now();
+  const lastRiskAt = Math.max(0, Number(account?.last_risk_at || 0) || 0);
+  const previousScore = normalizedNow - lastRiskAt > PMINING_RISK_SCORE_DECAY_MS
+    ? 0
+    : Math.max(0, Number(account?.risk_score || 0) || 0);
+  const nextScore = previousScore + Math.max(0, Number(increment || 0) || 0);
+  const nextBanUntil = nextScore >= PMINING_RISK_SCORE_THRESHOLD
+    ? normalizedNow + PMINING_RISK_BAN_DURATION_MS
+    : Math.max(0, Number(account?.mining_ban_until || 0) || 0);
+
+  updatePMiningRiskStateStmt.run(nextScore, String(reason || '').trim(), normalizedNow, nextBanUntil, account.user_id);
+
+  return {
+    score: nextScore,
+    reason: String(reason || '').trim(),
+    banUntil: nextBanUntil
   };
 }
 
@@ -924,8 +960,29 @@ const applyPMiningClaim = db.transaction((payload) => {
   const account = selectPMiningUserByUserIdStmt.get(payload.userId);
   if (!account) return { kind: 'account_not_found' };
   const now = Number(payload.now || Date.now()) || Date.now();
+  const banUntil = Math.max(0, Number(account.mining_ban_until || 0) || 0);
+  if (banUntil > now) {
+    return {
+      kind: 'banned',
+      banUntil,
+      message: buildPMiningBanMessage()
+    };
+  }
   const lastClaimAt = Math.max(0, Number(account.last_claim_at || 0) || 0);
   if (now - lastClaimAt < PMINING_CLAIM_COOLDOWN_MS) {
+    if (now - lastClaimAt <= PMINING_RISK_COOLDOWN_WINDOW_MS) {
+      const risk = applyPMiningRiskStrike(account, {
+        now,
+        reason: 'abnormal_auto_click'
+      });
+      if (risk.banUntil > now) {
+        return {
+          kind: 'banned',
+          banUntil: risk.banUntil,
+          message: buildPMiningBanMessage()
+        };
+      }
+    }
     return {
       kind: 'cooldown',
       remainingSeconds: Math.ceil((PMINING_CLAIM_COOLDOWN_MS - (now - lastClaimAt)) / 1000)
@@ -2569,6 +2626,14 @@ app.post('/api/p-mining/claim', (req, res) => {
     if (result.kind === 'cooldown') {
       return res.status(409).json({ ok: false, error: 'COOLDOWN', remainingSeconds: result.remainingSeconds });
     }
+    if (result.kind === 'banned') {
+      return res.status(423).json({
+        ok: false,
+        error: 'MINING_BANNED',
+        message: String(result.message || buildPMiningBanMessage()),
+        banUntil: Number(result.banUntil || 0) || 0
+      });
+    }
     if (result.kind !== 'claimed') {
       return res.status(404).json({ ok: false, error: 'ACCOUNT_NOT_FOUND' });
     }
@@ -2816,6 +2881,10 @@ const selectPMiningUserByUserIdStmt = db.prepare(`
     power,
     invite_count,
     invite_power_bonus,
+    risk_score,
+    risk_reason,
+    last_risk_at,
+    mining_ban_until,
     last_claim_at
   FROM p_mining_users
   WHERE user_id = ?
@@ -2829,13 +2898,19 @@ const selectPMiningUserByInviteCodeStmt = db.prepare(`
     power,
     invite_count,
     invite_power_bonus,
+    risk_score,
+    risk_reason,
+    last_risk_at,
+    mining_ban_until,
     last_claim_at
   FROM p_mining_users
   WHERE invite_code = ?
 `);
 const insertPMiningUserStmt = db.prepare(`
-  INSERT INTO p_mining_users (user_id, invite_code, balance_p, power, invite_count, invite_power_bonus, last_claim_at)
-  VALUES (?, ?, 0, 10, 0, 0, 0)
+  INSERT INTO p_mining_users (
+    user_id, invite_code, balance_p, power, invite_count, invite_power_bonus, risk_score, risk_reason, last_risk_at, mining_ban_until, last_claim_at
+  )
+  VALUES (?, ?, 0, 10, 0, 0, 0, '', 0, 0, 0)
 `);
 const updatePMiningInviteCodeStmt = db.prepare(`
   UPDATE p_mining_users
@@ -2845,6 +2920,11 @@ const updatePMiningInviteCodeStmt = db.prepare(`
 const updatePMiningClaimStateStmt = db.prepare(`
   UPDATE p_mining_users
   SET balance_p = ?, last_claim_at = ?, updated_at = datetime('now')
+  WHERE user_id = ?
+`);
+const updatePMiningRiskStateStmt = db.prepare(`
+  UPDATE p_mining_users
+  SET risk_score = ?, risk_reason = ?, last_risk_at = ?, mining_ban_until = ?, updated_at = datetime('now')
   WHERE user_id = ?
 `);
 const updatePMiningBoundInviteCodeStmt = db.prepare(`

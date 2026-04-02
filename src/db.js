@@ -249,12 +249,33 @@ db.exec(`
     power INTEGER NOT NULL DEFAULT 10,
     invite_count INTEGER NOT NULL DEFAULT 0,
     invite_power_bonus INTEGER NOT NULL DEFAULT 0,
+    risk_score INTEGER NOT NULL DEFAULT 0,
+    risk_reason TEXT NOT NULL DEFAULT '',
+    last_risk_at INTEGER NOT NULL DEFAULT 0,
+    mining_ban_until INTEGER NOT NULL DEFAULT 0,
     last_claim_at INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY(user_id) REFERENCES game_users(id)
   );
 `);
+
+const hasPMiningRiskScore = db.prepare("SELECT 1 FROM pragma_table_info('p_mining_users') WHERE name = 'risk_score'").get();
+if (!hasPMiningRiskScore) {
+  db.exec("ALTER TABLE p_mining_users ADD COLUMN risk_score INTEGER NOT NULL DEFAULT 0");
+}
+const hasPMiningRiskReason = db.prepare("SELECT 1 FROM pragma_table_info('p_mining_users') WHERE name = 'risk_reason'").get();
+if (!hasPMiningRiskReason) {
+  db.exec("ALTER TABLE p_mining_users ADD COLUMN risk_reason TEXT NOT NULL DEFAULT ''");
+}
+const hasPMiningLastRiskAt = db.prepare("SELECT 1 FROM pragma_table_info('p_mining_users') WHERE name = 'last_risk_at'").get();
+if (!hasPMiningLastRiskAt) {
+  db.exec("ALTER TABLE p_mining_users ADD COLUMN last_risk_at INTEGER NOT NULL DEFAULT 0");
+}
+const hasPMiningMiningBanUntil = db.prepare("SELECT 1 FROM pragma_table_info('p_mining_users') WHERE name = 'mining_ban_until'").get();
+if (!hasPMiningMiningBanUntil) {
+  db.exec("ALTER TABLE p_mining_users ADD COLUMN mining_ban_until INTEGER NOT NULL DEFAULT 0");
+}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS p_mining_claim_records (

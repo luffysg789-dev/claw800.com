@@ -252,6 +252,7 @@ test('p-mining script includes the expected UI hooks', () => {
   assert.match(js, /style\.transform = `translateX\(\$\{-shift\}px\)`/);
   assert.match(js, /function renderClaimState\(/);
   assert.match(js, /function handleClaimButtonClick\(/);
+  assert.match(js, /if \(String\(error\?\.message \|\| ''\)\.includes\('MINING_BANNED'\)\) \{\s*globalScope\.window\.alert\(String\(error\?\.displayMessage \|\| error\?\.message \|\| ''\)\);/);
   assert.match(js, /function handleInviteSubmit\(/);
   assert.match(js, /function shouldShowInvitePrompt\(/);
   assert.match(js, /function openInvitePrompt\(/);
