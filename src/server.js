@@ -41,6 +41,8 @@ const tutorialUploadDrafts = new Map();
 const ADMIN_COOKIE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const PMINING_SESSION_COOKIE_NAME = 'p_mining_session';
 const PMINING_SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+const TIGANG_SESSION_COOKIE_NAME = 'tigang_master_session';
+const TIGANG_SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 // Use COOKIE_SECURE=true in production HTTPS; keep false for localhost HTTP.
 const COOKIE_SECURE = String(process.env.COOKIE_SECURE || '') === 'true';
 const TRUST_PROXY = String(process.env.TRUST_PROXY || 'loopback, linklocal, uniquelocal').trim();
@@ -301,6 +303,40 @@ function decodePMiningSessionCookie(raw) {
 }
 
 function buildPMiningCookieSession(payload = {}) {
+  return {
+    openId: String(payload.openId || '').trim(),
+    sessionKey: String(payload.sessionKey || '').trim(),
+    nickname: String(payload.nickname || 'Nexa User').trim() || 'Nexa User',
+    avatar: String(payload.avatar || '').trim(),
+    savedAt: Date.now()
+  };
+}
+
+function encodeTigangSessionCookie(session) {
+  return Buffer.from(JSON.stringify(session), 'utf8').toString('base64url');
+}
+
+function decodeTigangSessionCookie(raw) {
+  try {
+    const decoded = Buffer.from(String(raw || '').trim(), 'base64url').toString('utf8');
+    const parsed = JSON.parse(decoded);
+    if (!parsed || typeof parsed !== 'object') return null;
+    const openId = String(parsed.openId || '').trim();
+    const sessionKey = String(parsed.sessionKey || '').trim();
+    if (!openId || !sessionKey) return null;
+    return {
+      openId,
+      sessionKey,
+      nickname: String(parsed.nickname || 'Nexa User').trim() || 'Nexa User',
+      avatar: String(parsed.avatar || '').trim(),
+      savedAt: Number(parsed.savedAt || 0) || Date.now()
+    };
+  } catch {
+    return null;
+  }
+}
+
+function buildTigangCookieSession(payload = {}) {
   return {
     openId: String(payload.openId || '').trim(),
     sessionKey: String(payload.sessionKey || '').trim(),
@@ -1245,6 +1281,7 @@ const DEFAULT_SKILLS_PAGE_BOT_PROMPT_EN = 'claw800.com is a curated OpenClaw ski
 const DEFAULT_SKILLS_PAGE_INSTALL_PROMPT_ZH = '你是 OpenClaw 用户的技能安装助手。现在请帮我安装技能「{{name}}」。\n技能简介：{{description}}\n技能分类：{{category}}\n详情链接：{{url}}\n请按这个流程执行：\n1. 先打开详情链接，阅读 README、SKILL.md 或安装说明。\n2. 用中文告诉我这个技能做什么、是否安全、安装后会影响什么。\n3. 如果需要环境变量、依赖或权限，先明确列出来，再征求我确认。\n4. 只有在我确认后，才开始安装。\n5. 安装完成后，告诉我验证方法、使用方法，以及如何卸载或回滚。\n不要跳过确认步骤，也不要一次性安装无关技能。';
 const DEFAULT_SKILLS_PAGE_INSTALL_PROMPT_EN = 'You are an OpenClaw skill installation assistant. Help me install the skill "{{name}}".\nSkill summary: {{description}}\nSkill category: {{category}}\nDetail URL: {{url}}\nFollow this process:\n1. Open the detail page and read the README, SKILL.md, or install docs.\n2. Explain what the skill does, whether it looks safe, and what it may change.\n3. List any dependencies, env vars, permissions, or prerequisites before installing.\n4. Wait for my confirmation before you run or install anything.\n5. After installation, tell me how to verify it, use it, and uninstall or roll it back.\nDo not skip confirmation and do not install unrelated skills.';
 const GAME_ROUTE_MAP = {
+  'tigang-master': '/tigang-master/',
   'p-mining': '/p-mining/',
   piano: '/piano/',
   'zodiac-today': '/zodiac-today/',
@@ -1256,6 +1293,7 @@ const GAME_ROUTE_MAP = {
   muyu: '/muyu.html'
 };
 const GAME_ICON_MAP = {
+  'tigang-master': '⭕',
   'p-mining': '⛏️',
   piano: '🎹',
   'zodiac-today': '✨',
@@ -2622,6 +2660,53 @@ app.get('/api/p-mining/session', (req, res) => {
 
 app.post('/api/p-mining/session/logout', (_req, res) => {
   res.clearCookie(PMINING_SESSION_COOKIE_NAME, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: COOKIE_SECURE,
+    path: '/'
+  });
+  return res.json({ ok: true });
+});
+
+app.post('/api/tigang-master/session', (req, res) => {
+  const session = buildTigangCookieSession(req.body || {});
+  if (!session.openId || !session.sessionKey) {
+    return res.status(400).json({ ok: false, error: 'openId 和 sessionKey 必填' });
+  }
+
+  res.cookie(TIGANG_SESSION_COOKIE_NAME, encodeTigangSessionCookie(session), {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: COOKIE_SECURE,
+    path: '/',
+    maxAge: TIGANG_SESSION_MAX_AGE_MS
+  });
+
+  return res.json({
+    ok: true,
+    session: {
+      ...session,
+      expiresAt: session.savedAt + TIGANG_SESSION_MAX_AGE_MS
+    }
+  });
+});
+
+app.get('/api/tigang-master/session', (req, res) => {
+  const session = decodeTigangSessionCookie(req.cookies?.[TIGANG_SESSION_COOKIE_NAME]);
+  if (!session) {
+    return res.status(401).json({ ok: false, error: 'UNAUTHORIZED' });
+  }
+  return res.json({
+    ok: true,
+    session: {
+      ...session,
+      expiresAt: Number(session.savedAt || Date.now()) + TIGANG_SESSION_MAX_AGE_MS
+    }
+  });
+});
+
+app.post('/api/tigang-master/session/logout', (_req, res) => {
+  res.clearCookie(TIGANG_SESSION_COOKIE_NAME, {
     httpOnly: true,
     sameSite: 'lax',
     secure: COOKIE_SECURE,

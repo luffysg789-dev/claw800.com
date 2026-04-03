@@ -4,6 +4,20 @@ const { getGameCardMediaMarkup } = typeof window === 'undefined'
 
 const DEFAULT_GAMES = [
   {
+    slug: 'tigang-master',
+    name: '提肛大师',
+    description: '开始提肛、松开记录，每天 5 次圆圈变绿。',
+    cover_image: '',
+    secondary_image: '',
+    sound_file: '',
+    background_music_file: '',
+    is_enabled: 1,
+    sort_order: 53,
+    route: '/tigang-master/',
+    icon: '⭕',
+    actionText: '开始打卡'
+  },
+  {
     slug: 'p-mining',
     name: 'P-Mining',
     description: '移动端优先的云挖矿原型，突出透明产出、邀请加成与实时网络数据。',
@@ -147,6 +161,7 @@ const DEFAULT_GAMES = [
 ];
 
 const GAME_ACTION_TEXT = {
+  'tigang-master': '开始打卡',
   'p-mining': '开始挖矿',
   piano: '开始演奏',
   'zodiac-today': '开始游戏',

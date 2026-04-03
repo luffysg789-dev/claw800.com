@@ -1,0 +1,222 @@
+:root {
+  --tigang-bg: #0f1117;
+  --tigang-panel: rgba(24, 26, 34, 0.94);
+  --tigang-line: rgba(255, 255, 255, 0.08);
+  --tigang-text: #f5f7fb;
+  --tigang-muted: rgba(245, 247, 251, 0.68);
+  --tigang-danger: #d84d4d;
+  --tigang-success: #35b56a;
+  --tigang-shadow: 0 24px 48px rgba(0, 0, 0, 0.28);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top, rgba(216, 77, 77, 0.18), transparent 36%),
+    linear-gradient(180deg, #11131b 0%, #090b10 100%);
+  color: var(--tigang-text);
+  font-family: "SF Pro Display", "PingFang SC", "Helvetica Neue", sans-serif;
+}
+
+.tigang-page {
+  min-height: 100vh;
+  padding: 18px 16px calc(24px + env(safe-area-inset-bottom));
+}
+
+.tigang-shell {
+  width: min(100%, 720px);
+  margin: 0 auto;
+  display: grid;
+  gap: 14px;
+}
+
+.tigang-header,
+.tigang-card,
+.tigang-nav {
+  border: 1px solid var(--tigang-line);
+  background: var(--tigang-panel);
+  border-radius: 24px;
+  box-shadow: var(--tigang-shadow);
+}
+
+.tigang-header,
+.tigang-card {
+  padding: 16px;
+}
+
+.tigang-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.tigang-eyebrow,
+.tigang-label {
+  margin: 0 0 6px;
+  font-size: 0.88rem;
+  color: var(--tigang-muted);
+}
+
+.tigang-header h1,
+.tigang-record-head h2 {
+  margin: 0;
+  font-size: clamp(1.8rem, 5vw, 2.5rem);
+}
+
+.tigang-record-head {
+  margin-bottom: 10px;
+}
+
+.tigang-subtitle,
+.tigang-helper,
+.tigang-record-item__meta {
+  margin: 6px 0 0;
+  color: var(--tigang-muted);
+  line-height: 1.45;
+}
+
+.tigang-session-chip {
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--tigang-text);
+  white-space: nowrap;
+}
+
+.tigang-nav {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  padding: 6px;
+  gap: 6px;
+}
+
+.tigang-nav__item {
+  border: 0;
+  background: transparent;
+  color: var(--tigang-muted);
+  border-radius: 18px;
+  padding: 12px 10px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.tigang-nav__item.is-active {
+  color: var(--tigang-text);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.tigang-panels,
+.tigang-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.tigang-panel[hidden] {
+  display: none;
+}
+
+.tigang-goal-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: center;
+}
+
+.tigang-goal-row strong {
+  font-size: clamp(1.8rem, 6vw, 2.6rem);
+}
+
+.tigang-action-button {
+  width: min(72vw, 330px);
+  aspect-ratio: 1 / 1;
+  margin: 18px auto 12px;
+  border-radius: 50%;
+  border: 0;
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  background: radial-gradient(circle at 30% 20%, #ef7676 0%, var(--tigang-danger) 45%, #991f1f 100%);
+  color: #fff;
+  box-shadow: 0 26px 40px rgba(216, 77, 77, 0.28);
+  transition: transform 140ms ease, box-shadow 140ms ease, background 180ms ease;
+}
+
+.tigang-action-button.is-active {
+  transform: scale(0.97);
+  box-shadow: 0 18px 30px rgba(216, 77, 77, 0.22);
+}
+
+.tigang-action-button.is-complete {
+  background: radial-gradient(circle at 30% 20%, #7fe5a4 0%, var(--tigang-success) 45%, #15753d 100%);
+  box-shadow: 0 26px 40px rgba(53, 181, 106, 0.28);
+}
+
+.tigang-action-button__timer {
+  font-size: clamp(2rem, 8vw, 3.4rem);
+  font-weight: 800;
+}
+
+.tigang-action-button__status {
+  font-size: clamp(1rem, 3.8vw, 1.28rem);
+  font-weight: 700;
+}
+
+.tigang-record-list {
+  display: grid;
+  gap: 10px;
+}
+
+.tigang-record-day {
+  display: grid;
+  gap: 10px;
+}
+
+.tigang-record-day__title {
+  margin: 2px 0 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--tigang-text);
+}
+
+.tigang-record-item {
+  border: 1px solid var(--tigang-line);
+  border-radius: 18px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tigang-record-item__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .tigang-page {
+    padding: 14px 12px calc(22px + env(safe-area-inset-bottom));
+  }
+
+  .tigang-header,
+  .tigang-card {
+    padding: 14px;
+  }
+
+  .tigang-action-button {
+    width: min(76vw, 292px);
+    margin: 14px auto 10px;
+  }
+
+  .tigang-record-head {
+    margin-bottom: 8px;
+  }
+
+  .tigang-shell {
+    gap: 10px;
+  }
+}

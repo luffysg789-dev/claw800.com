@@ -475,6 +475,17 @@ db.exec(`
 
 const DEFAULT_GAMES_CATALOG = [
   {
+    slug: 'tigang-master',
+    name: '提肛大师',
+    description: '开始提肛、松开记录，每天 5 次圆圈变绿。',
+    cover_image: '',
+    secondary_image: '',
+    sound_file: '',
+    background_music_file: '',
+    is_enabled: 1,
+    sort_order: 53
+  },
+  {
     slug: 'p-mining',
     name: 'P-Mining',
     description: '移动端优先的云挖矿原型，突出透明产出、邀请加成与实时网络数据。',
@@ -609,6 +620,13 @@ db.prepare(`
   SET description = '轻点木鱼一下，功德 +1。', updated_at = datetime('now')
   WHERE slug = 'muyu'
     AND description = '轻点木鱼一下，功德 +1。保留简洁仪式感，支持手机触控、音效和自动保存。'
+`).run();
+
+db.prepare(`
+  UPDATE games_catalog
+  SET description = '开始提肛、松开记录，每天 5 次圆圈变绿。', updated_at = datetime('now')
+  WHERE slug = 'tigang-master'
+    AND description = '健康习惯打卡工具，按下开始提肛、松开自动记录，每天完成 5 次圆圈变绿。'
 `).run();
 
 const hasSkillsCatalogSortOrder = db.prepare("SELECT 1 FROM pragma_table_info('skills_catalog') WHERE name = 'sort_order'").get();

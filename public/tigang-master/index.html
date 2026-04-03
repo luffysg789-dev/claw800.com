@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Claw800 提肛大师</title>
+    <meta name="description" content="Claw800 提肛大师，按下开始提肛，松开自动记录每日健康打卡。" />
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="stylesheet" href="/tigang-master/style.css?v=2" />
+  </head>
+  <body>
+    <main class="tigang-page" data-tigang-app>
+      <section class="tigang-shell">
+        <header class="tigang-header">
+          <div>
+            <p id="gamePageSubtitle" class="tigang-subtitle">开始提肛、松开记录，每天 5 次圆圈变绿。</p>
+          </div>
+        </header>
+
+        <nav class="tigang-nav">
+          <button class="tigang-nav__item is-active" type="button" data-tab-target="home">提肛</button>
+          <button class="tigang-nav__item" type="button" data-tab-target="records">记录</button>
+        </nav>
+
+        <section class="tigang-panels">
+          <section class="tigang-panel is-active" data-tab="home">
+            <article class="tigang-card tigang-hero-card">
+              <div class="tigang-goal-row">
+                <div>
+                  <p class="tigang-label">今日次数</p>
+                  <strong id="tigangTodayCount">0</strong>
+                </div>
+                <div>
+                  <p class="tigang-label">目标</p>
+                  <strong id="tigangTodayGoal">5</strong>
+                </div>
+              </div>
+
+              <button id="tigangActionButton" class="tigang-action-button" type="button" aria-label="开始提肛">
+                <span class="tigang-action-button__timer" id="tigangTimerValue">0.0s</span>
+                <span class="tigang-action-button__status" id="tigangStatusText">按住开始</span>
+              </button>
+
+              <p id="tigangProgressText" class="tigang-helper">今天还差 5 次达成绿色状态。</p>
+            </article>
+
+            <article class="tigang-card">
+              <div class="tigang-record-head">
+                <div>
+                  <p class="tigang-label">最近记录</p>
+                  <h2>最近 5 次</h2>
+                </div>
+              </div>
+              <div id="tigangRecentList" class="tigang-record-list"></div>
+            </article>
+          </section>
+
+          <section class="tigang-panel" data-tab="records" hidden>
+            <article class="tigang-card">
+              <div class="tigang-record-head">
+                <div>
+                  <p class="tigang-label">最近记录</p>
+                  <h2>打卡历史</h2>
+                </div>
+              </div>
+              <div id="tigangRecordList" class="tigang-record-list"></div>
+            </article>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <script src="/games-config.js"></script>
+    <script>
+      window.ClawGamesConfig?.bootstrapGamePage?.('tigang-master');
+    </script>
+    <script src="/tigang-master/script.js?v=2"></script>
+  </body>
+</html>
