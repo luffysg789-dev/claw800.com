@@ -34,6 +34,9 @@ test('tigang-master html includes home and records tabs plus the squeeze button'
 
   assert.match(html, /<title>Claw800 提肛大师<\/title>/);
   assert.match(html, /data-tigang-app/);
+  assert.match(html, /\/game-tip\.css\?v=20260321-01/);
+  assert.match(html, /\/game-tip\.js\?v=20260321-01/);
+  assert.match(html, /class="tigang-back" href="\/games\.html" aria-label="返回游戏大全" title="返回游戏大全"/);
   assert.match(html, /id="tigangLanguageToggle"/);
   assert.match(html, /data-tab="home"/);
   assert.match(html, /data-tab="records"/);
@@ -44,6 +47,7 @@ test('tigang-master html includes home and records tabs plus the squeeze button'
   assert.match(html, /id="tigangTodayGoal"/);
   assert.match(html, /id="tigangRecentList"/);
   assert.match(html, /id="tigangRecordList"/);
+  assert.match(html, /data-game-tip-root/);
 });
 
 test('tigang-master script includes local record state and nexa session hooks', () => {
@@ -81,6 +85,14 @@ test('tigang-master hides the inactive tab panel so the squeeze button does not 
   const css = fs.readFileSync(cssPath, 'utf8');
 
   assert.match(css, /\.tigang-panel\[hidden\]\s*\{\s*display:\s*none;/);
+});
+
+test('tigang-master header includes a back button and a bottom game tip slot', () => {
+  const css = fs.readFileSync(cssPath, 'utf8');
+
+  assert.match(css, /\.tigang-header-left\s*\{/);
+  assert.match(css, /\.tigang-back\s*\{[\s\S]*width:\s*42px;[\s\S]*height:\s*42px;/);
+  assert.match(css, /\.tigang-tip-slot\s*\{/);
 });
 
 test('tigang-master squeeze button disables text selection and long-press callout behavior', () => {

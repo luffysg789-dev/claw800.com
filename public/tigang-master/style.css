@@ -56,6 +56,14 @@ body {
   align-items: center;
 }
 
+.tigang-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .tigang-eyebrow,
 .tigang-label {
   margin: 0 0 6px;
@@ -96,6 +104,25 @@ body {
   width: auto;
   min-width: 180px;
   flex: 1 1 auto;
+}
+
+.tigang-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  border: 1px solid var(--tigang-line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--tigang-text);
+  text-decoration: none;
+}
+
+.tigang-back svg {
+  width: 18px;
+  height: 18px;
 }
 
 .tigang-nav__item {
@@ -228,6 +255,10 @@ body {
   font-weight: 700;
 }
 
+.tigang-tip-slot {
+  display: grid;
+}
+
 @media (max-width: 640px) {
   .tigang-page {
     padding: 14px 12px calc(22px + env(safe-area-inset-bottom));
@@ -242,8 +273,17 @@ body {
     gap: 8px;
   }
 
+  .tigang-header-left {
+    gap: 8px;
+  }
+
   .tigang-nav {
     min-width: 0;
+  }
+
+  .tigang-back {
+    width: 36px;
+    height: 36px;
   }
 
   .tigang-language-toggle__button {

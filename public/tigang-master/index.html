@@ -6,16 +6,27 @@
     <title>Claw800 提肛大师</title>
     <meta name="description" content="Claw800 提肛大师，按下开始提肛，松开自动记录每日健康打卡。" />
     <link rel="icon" href="/favicon.ico" />
+    <link rel="stylesheet" href="/game-tip.css?v=20260321-01" />
     <link rel="stylesheet" href="/tigang-master/style.css?v=2" />
   </head>
   <body>
     <main class="tigang-page" data-tigang-app>
       <section class="tigang-shell">
         <header class="tigang-header">
-          <nav class="tigang-nav">
-            <button class="tigang-nav__item is-active" type="button" data-tab-target="home" data-i18n="navHome">提肛</button>
-            <button class="tigang-nav__item" type="button" data-tab-target="records" data-i18n="navRecords">记录</button>
-          </nav>
+          <div class="tigang-header-left">
+            <a class="tigang-back" href="/games.html" aria-label="返回游戏大全" title="返回游戏大全">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  fill="currentColor"
+                  d="M15.7 5.3a1 1 0 010 1.4L10.41 12l5.29 5.3a1 1 0 01-1.42 1.4l-6-6a1 1 0 010-1.4l6-6a1 1 0 011.42 0z"
+                />
+              </svg>
+            </a>
+            <nav class="tigang-nav">
+              <button class="tigang-nav__item is-active" type="button" data-tab-target="home" data-i18n="navHome">提肛</button>
+              <button class="tigang-nav__item" type="button" data-tab-target="records" data-i18n="navRecords">记录</button>
+            </nav>
+          </div>
           <div class="tigang-language-toggle" id="tigangLanguageToggle" aria-label="语言切换">
             <button class="tigang-language-toggle__button is-active" type="button" data-language="zh">中</button>
             <button class="tigang-language-toggle__button" type="button" data-language="en">EN</button>
@@ -67,6 +78,8 @@
             </article>
           </section>
         </section>
+
+        <div class="tigang-tip-slot" data-game-tip-root></div>
       </section>
     </main>
 
@@ -75,5 +88,6 @@
       window.ClawGamesConfig?.bootstrapGamePage?.('tigang-master');
     </script>
     <script src="/tigang-master/script.js?v=2"></script>
+    <script src="/game-tip.js?v=20260321-01"></script>
   </body>
 </html>
