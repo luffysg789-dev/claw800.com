@@ -310,8 +310,10 @@
     if (ui.modeBadge) {
       ui.modeBadge.textContent = modeLabel(state.mode);
     }
-    ui.difficultyBadge.textContent = difficultyLabel(state.difficulty);
-    ui.difficultyBadge.classList.toggle('is-hidden', state.mode !== 'ai');
+    if (ui.difficultyBadge) {
+      ui.difficultyBadge.textContent = difficultyLabel(state.difficulty);
+      ui.difficultyBadge.classList.toggle('is-hidden', state.mode !== 'ai');
+    }
 
     if (state.phase === 'idle') {
       ui.statusTitle.textContent = '等待';

@@ -58,6 +58,7 @@ test('gomoku html includes setup controls and board canvas', () => {
   assert.match(html, /id="gomokuBoardStartBtn"/);
   assert.match(html, /id="gomokuStatusTitle">等待<\/h2>/);
   assert.doesNotMatch(html, /id="gomokuModeBadge"/);
+  assert.doesNotMatch(html, /id="gomokuDifficultyBadge"/);
   assert.match(html, /id="gomokuUndoBtn"/);
   assert.match(html, /id="gomokuRestartBtn"/);
   assert.doesNotMatch(html, /gomoku-secondary-link/);
@@ -81,6 +82,7 @@ test('gomoku script includes ai profiles and winner handling', () => {
   assert.match(js, /gomokuOverlayModeAi/);
   assert.match(js, /gomokuOverlaySettings/);
   assert.match(js, /if \(ui\.modeBadge\) \{\s*ui\.modeBadge\.textContent = modeLabel\(state\.mode\);/);
+  assert.match(js, /if \(ui\.difficultyBadge\) \{\s*ui\.difficultyBadge\.textContent = difficultyLabel\(state\.difficulty\);[\s\S]*?ui\.difficultyBadge\.classList\.toggle\('is-hidden', state\.mode !== 'ai'\);/);
   assert.doesNotMatch(js, /Math\.max\(320,\s*Math\.min\(ui\.board\.parentElement\.clientWidth,\s*720\)\)/);
   assert.match(js, /function placeMove\([\s\S]*?render\(\);/);
   assert.match(js, /function chooseAiMove\(/);
