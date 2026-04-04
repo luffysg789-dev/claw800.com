@@ -256,6 +256,7 @@ db.exec(`
     claim_streak_count INTEGER NOT NULL DEFAULT 0,
     last_claim_success_at INTEGER NOT NULL DEFAULT 0,
     human_check_required INTEGER NOT NULL DEFAULT 0,
+    first_claim_at INTEGER NOT NULL DEFAULT 0,
     last_claim_at INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -290,6 +291,10 @@ if (!hasPMiningLastClaimSuccessAt) {
 const hasPMiningHumanCheckRequired = db.prepare("SELECT 1 FROM pragma_table_info('p_mining_users') WHERE name = 'human_check_required'").get();
 if (!hasPMiningHumanCheckRequired) {
   db.exec("ALTER TABLE p_mining_users ADD COLUMN human_check_required INTEGER NOT NULL DEFAULT 0");
+}
+const hasPMiningFirstClaimAt = db.prepare("SELECT 1 FROM pragma_table_info('p_mining_users') WHERE name = 'first_claim_at'").get();
+if (!hasPMiningFirstClaimAt) {
+  db.exec("ALTER TABLE p_mining_users ADD COLUMN first_claim_at INTEGER NOT NULL DEFAULT 0");
 }
 
 db.exec(`

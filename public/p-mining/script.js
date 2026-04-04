@@ -20,6 +20,7 @@
   const MAX_RECORDS = 20;
   const PAYMENT_QUERY_INTERVAL_MS = 2000;
   const PAYMENT_QUERY_TIMEOUT_MS = 45000;
+  const NETWORK_AUTO_GROWTH_INTERVAL_MS = 60 * 1000;
   const CLAIM_SOUND_DURATION_SECONDS = 0.08;
   const CLAIM_SOUND_FREQUENCY_HZ = 1320;
   const CLAIM_SOUND_PULSE_COUNT = 8;
@@ -97,6 +98,7 @@
       cooldown: 'Cooling',
       noRecords: 'No records yet',
       noRecordMeta: 'Nothing to show in this category.',
+      runtimeSince: 'Running',
       claimTitle: 'Claim Reward',
       inviteTitle: 'Invite Linked',
       powerTitle: 'Power Update',
@@ -166,6 +168,7 @@
       cooldown: '冷却中',
       noRecords: '暂无记录',
       noRecordMeta: '当前分类还没有可展示的数据',
+      runtimeSince: '成功运行',
       claimTitle: '挖矿领取',
       inviteTitle: '邀请绑定',
       powerTitle: '算力变动',
@@ -469,6 +472,7 @@
           createdAt: Date.now()
         }
       ],
+      firstClaimAt: 0,
       lastClaimAt: 0,
       createdAt: Date.now()
     };
@@ -484,7 +488,40 @@
       currentHalvingCycle: 1,
       nextHalvingDate: '2030/03/28',
       estimatedFinishYears: 100,
-      dailyCap: DAILY_CAP
+      dailyCap: DAILY_CAP,
+      lastAutoGrowthMinute: Math.floor(Date.now() / 60000)
+    };
+  }
+
+  function getAutomaticNetworkGrowthForMinute(minuteBucket) {
+    const seed = ((Math.max(0, Number(minuteBucket || 0)) * 1664525) + 1013904223) >>> 0;
+    return 1 + (seed % 3);
+  }
+
+  function applyAutomaticNetworkGrowth(stats, now = Date.now()) {
+    const current = { ...createDefaultNetworkStats(), ...(stats || {}) };
+    const currentMinute = Math.floor(Math.max(0, Number(now || Date.now())) / 60000);
+    const lastMinute = Number.isFinite(Number(current.lastAutoGrowthMinute))
+      ? Number(current.lastAutoGrowthMinute)
+      : currentMinute;
+
+    if (currentMinute <= lastMinute) {
+      return {
+        ...current,
+        lastAutoGrowthMinute: currentMinute
+      };
+    }
+
+    let addedUsers = 0;
+    for (let minute = lastMinute + 1; minute <= currentMinute; minute += 1) {
+      addedUsers += getAutomaticNetworkGrowthForMinute(minute);
+    }
+
+    return {
+      ...current,
+      totalUsers: Math.max(0, Number(current.totalUsers || 0)) + addedUsers,
+      todayPower: Math.max(10, Number(current.todayPower || 0)) + (addedUsers * 10),
+      lastAutoGrowthMinute: currentMinute
     };
   }
 
@@ -500,6 +537,13 @@
     const safeNetworkPower = Math.max(1, Number(networkPower || 1));
     const safeDailyCap = Math.max(0, Number(dailyCap || DAILY_CAP));
     return roundToSingle((safeUserPower / safeNetworkPower) * safeDailyCap);
+  }
+
+  function calculateRunningDays(firstClaimAt, now = Date.now()) {
+    const startedAt = Math.max(0, Number(firstClaimAt || 0) || 0);
+    if (!startedAt) return 0;
+    const current = Math.max(startedAt, Number(now || Date.now()) || startedAt);
+    return Math.max(1, Math.floor((current - startedAt) / (24 * 60 * 60 * 1000)) + 1);
   }
 
   function advanceNetworkStats(stats, elapsedMs) {
@@ -543,6 +587,7 @@
     return {
       ...current,
       balance: roundToSingle(current.balance + safeReward),
+      firstClaimAt: Number(current.firstClaimAt || 0) || when,
       lastClaimAt: when,
       claimRecords: prependRecord(current.claimRecords, {
         id: `claim-${when}`,
@@ -1064,6 +1109,9 @@
     appState.elements.estimatedFinish.textContent = appState.locale === 'zh'
       ? `${formatMiningNumber(appState.network.estimatedFinishYears)} 年`
       : `${formatMiningNumber(appState.network.estimatedFinishYears)} Y`;
+    appState.elements.runtimeDays.textContent = appState.locale === 'zh'
+      ? `${calculateRunningDays(appState.state.firstClaimAt, Date.now())} 天`
+      : `${calculateRunningDays(appState.state.firstClaimAt, Date.now())} Days`;
     renderClaimState(appState);
   }
 
@@ -1139,6 +1187,20 @@
     renderRecordsPanel(appState);
     renderProfilePanel(appState);
     syncHumanCheckVisibility(appState);
+  }
+
+  function syncAutomaticNetworkGrowth(appState) {
+    const nextNetwork = applyAutomaticNetworkGrowth(appState.network, Date.now());
+    if (
+      Number(nextNetwork.totalUsers || 0) === Number(appState.network.totalUsers || 0)
+      && Number(nextNetwork.todayPower || 0) === Number(appState.network.todayPower || 0)
+      && Number(nextNetwork.lastAutoGrowthMinute || 0) === Number(appState.network.lastAutoGrowthMinute || 0)
+    ) {
+      return;
+    }
+    appState.network = nextNetwork;
+    saveNetworkStats(appState.storage, appState.network);
+    renderMiningPanel(appState);
   }
 
   function showInviteError(appState, message) {
@@ -1565,10 +1627,11 @@
       inviteCode: String(account.inviteCode || '').trim(),
       boundInviteCode: String(account.boundInviteCode || '').trim(),
       inviteCount: Number(account.inviteCount || 0) || 0,
-      invitePowerBonus: Number(account.invitePowerBonus || 0) || 0,
-      claimStreakCount: Number(account.claimStreakCount || 0) || 0,
-      needHumanCheck: Boolean(account.needHumanCheck),
-      claimRecords: Array.isArray(records.claims) ? records.claims : [],
+          invitePowerBonus: Number(account.invitePowerBonus || 0) || 0,
+          claimStreakCount: Number(account.claimStreakCount || 0) || 0,
+          needHumanCheck: Boolean(account.needHumanCheck),
+          firstClaimAt: Number(account.firstClaimAt || 0) || 0,
+          claimRecords: Array.isArray(records.claims) ? records.claims : [],
       inviteRecords: Array.isArray(records.invites) ? records.invites : [],
       powerChanges: Array.isArray(records.power) ? records.power : [],
       lastClaimAt: Number(account.lastClaimAt || 0) || 0
@@ -1713,12 +1776,13 @@
         totalMined: root.querySelector('#pMiningTotalMined'),
         todayMined: root.querySelector('#pMiningTodayMined'),
         todayPower: root.querySelector('#pMiningTodayPower'),
-        estimatedTodayOutput: root.querySelector('#pMiningEstimatedTodayOutput'),
-        remainingSupply: root.querySelector('#pMiningRemainingSupply'),
-        halvingCycle: root.querySelector('#pMiningHalvingCycle'),
-        nextHalvingDate: root.querySelector('#pMiningNextHalvingDate'),
-        estimatedFinish: root.querySelector('#pMiningEstimatedFinish'),
-        inviteCodeValue: root.querySelector('#pMiningInviteCodeValue'),
+            estimatedTodayOutput: root.querySelector('#pMiningEstimatedTodayOutput'),
+            remainingSupply: root.querySelector('#pMiningRemainingSupply'),
+            halvingCycle: root.querySelector('#pMiningHalvingCycle'),
+            nextHalvingDate: root.querySelector('#pMiningNextHalvingDate'),
+            estimatedFinish: root.querySelector('#pMiningEstimatedFinish'),
+            runtimeDays: root.querySelector('#pMiningRuntimeDays'),
+            inviteCodeValue: root.querySelector('#pMiningInviteCodeValue'),
             inviteCount: root.querySelector('#pMiningInviteCount'),
             inviteBonus: root.querySelector('#pMiningInviteBonus'),
             purchasePanel: root.querySelector('#pMiningPurchasePanel'),
@@ -1789,6 +1853,7 @@
     });
     attachInviteInputVisibilityHandlers(appState);
     attachRecordFilters(appState);
+    syncAutomaticNetworkGrowth(appState);
     renderAll(appState);
     switchTab(appState, 'mining');
     root.classList.add('is-ready');
@@ -1796,6 +1861,10 @@
     globalScope.window.setInterval(() => {
       renderClaimState(appState);
     }, 1000);
+
+    globalScope.window.setInterval(() => {
+      syncAutomaticNetworkGrowth(appState);
+    }, 60 * 1000);
 
     return appState;
   }
@@ -1810,6 +1879,7 @@
       const bootstrap = await loadPMiningBootstrap().catch(() => null);
       if (bootstrap?.ok) {
         syncAppStateFromServer(appState, bootstrap);
+        syncAutomaticNetworkGrowth(appState);
         renderAll(appState);
         syncInvitePromptVisibility(appState);
       }
@@ -1826,6 +1896,7 @@
         const bootstrap = await loadPMiningBootstrap().catch(() => null);
         if (bootstrap?.ok) {
           syncAppStateFromServer(appState, bootstrap);
+          syncAutomaticNetworkGrowth(appState);
           renderAll(appState);
           syncInvitePromptVisibility(appState);
         }
@@ -1857,8 +1928,10 @@
     POWER_PURCHASE_OPTIONS,
     calculateClaimReward,
     calculateEstimatedTodayOutput,
+    calculateRunningDays,
     buildNexaPaymentUrl,
     advanceNetworkStats,
+    applyAutomaticNetworkGrowth,
     canClaim,
     getClaimCooldownRemainingSeconds,
     applyClaimResult,
@@ -1884,6 +1957,7 @@
         ensureInviteInputVisible,
         attachInviteInputVisibilityHandlers,
         syncAppStateFromServer,
+        syncAutomaticNetworkGrowth,
     loadPMiningBootstrap,
     renderClaimState,
     handleClaimButtonClick,

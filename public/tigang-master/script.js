@@ -30,6 +30,8 @@
       noRecent: '还没有最近记录',
       noRecords: '今天还没有记录',
       startHint: '按住红色圆圈开始第一组练习。',
+      firstDailyHint: FIRST_DAILY_CHEER_TEXT,
+      dailyGoalHint: DAILY_GOAL_CHEER_TEXT,
       recordItem(ordinal, seconds) {
         return `第 ${ordinal || 1} 次 · ${seconds}s`;
       },
@@ -57,6 +59,8 @@
       noRecent: 'No recent records yet',
       noRecords: 'No records yet today',
       startHint: 'Hold the red circle to begin your first set.',
+      firstDailyHint: 'Wow, you are amazing. Keep it up.',
+      dailyGoalHint: 'Wow, congratulations on getting healthier again. Hope you share it with more friends and stay healthy together.',
       recordItem(ordinal, seconds) {
         return `No. ${ordinal || 1} · ${seconds}s`;
       },
@@ -336,6 +340,7 @@
     appState.elements.progressText.textContent = today.isComplete
       ? copy.progressComplete
       : copy.progressRemaining(today.remaining);
+    renderInlineReminder(appState);
   }
 
   function applyLanguage(appState, nextLanguage) {
@@ -361,28 +366,23 @@
     });
   }
 
-  function speakText(text) {
-    try {
-      const synth = globalScope.window?.speechSynthesis;
-      const Utterance = globalScope.SpeechSynthesisUtterance;
-      if (!synth || typeof Utterance !== 'function' || !String(text || '').trim()) return;
-      synth.cancel?.();
-      const utterance = new Utterance(String(text).trim());
-      utterance.lang = 'zh-CN';
-      utterance.rate = 1;
-      utterance.pitch = 1;
-      synth.speak(utterance);
-    } catch {}
+  function setInlineReminder(appState, reminderKey = '') {
+    appState.inlineReminderKey = String(reminderKey || '').trim();
+    renderInlineReminder(appState);
   }
 
-  function speakFirstDailyCheer() {
-    const language = normalizeLanguage(globalScope.window?.TigangMaster?.language || 'zh');
-    speakText(TRANSLATIONS[language].firstDailyCheer);
-  }
-
-  function speakDailyGoalCheer() {
-    const language = normalizeLanguage(globalScope.window?.TigangMaster?.language || 'zh');
-    speakText(TRANSLATIONS[language].dailyGoalCheer);
+  function renderInlineReminder(appState) {
+    const node = appState.elements.reminderText;
+    if (!node) return;
+    const copy = TRANSLATIONS[appState.language];
+    const reminderKey = String(appState.inlineReminderKey || '').trim();
+    if (!reminderKey || !copy[reminderKey]) {
+      node.hidden = true;
+      node.textContent = '';
+      return;
+    }
+    node.hidden = false;
+    node.textContent = copy[reminderKey];
   }
 
   function renderSession(appState) {
@@ -442,13 +442,14 @@
     appState.records = sortRecordsNewestFirst([createTigangEntry(appState.activeDurationMs, now), ...appState.records]);
     saveTigangRecords(appState.storage, appState.records);
     appState.activeDurationMs = 0;
+    setInlineReminder(appState, '');
     renderAll(appState);
     if (previousTodaySummary.count === 0) {
-      speakFirstDailyCheer();
+      setInlineReminder(appState, 'firstDailyHint');
       return;
     }
     if (previousTodaySummary.count === DAILY_GOAL_COUNT - 1) {
-      speakDailyGoalCheer();
+      setInlineReminder(appState, 'dailyGoalHint');
     }
   }
 
@@ -507,6 +508,7 @@
       pressStartedAt: 0,
       activeDurationMs: 0,
       pressTicker: null,
+      inlineReminderKey: '',
       elements: {
         navButtons: Array.from(root.querySelectorAll('[data-tab-target]')),
         languageButtons: Array.from(root.querySelectorAll('[data-language]')),
@@ -516,6 +518,7 @@
         actionButton: root.querySelector('#tigangActionButton'),
         statusText: root.querySelector('#tigangStatusText'),
         timerValue: root.querySelector('#tigangTimerValue'),
+        reminderText: root.querySelector('#tigangReminderText'),
         todayCount: root.querySelector('#tigangTodayCount'),
         todayGoal: root.querySelector('#tigangTodayGoal'),
         progressText: root.querySelector('#tigangProgressText'),
@@ -534,7 +537,6 @@
         renderAll(appState);
       });
     });
-
         appState.elements.actionButton?.addEventListener('pointerdown', (event) => {
           event.preventDefault();
           handlePressStart(appState);
@@ -585,9 +587,8 @@
     buildTodaySummary,
     groupRecordsByDay,
     applyLanguage,
-    speakText,
-    speakFirstDailyCheer,
-    speakDailyGoalCheer,
+    setInlineReminder,
+    renderInlineReminder,
     beginNexaLoginFlow,
     handlePressStart,
     handlePressEnd

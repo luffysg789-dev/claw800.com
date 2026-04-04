@@ -88,6 +88,18 @@ body {
   line-height: 1.45;
 }
 
+.tigang-reminder {
+  margin: 0;
+  text-align: center;
+  color: #8fe6aa;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.tigang-reminder[hidden] {
+  display: none;
+}
+
 .tigang-session-chip {
   padding: 10px 14px;
   border-radius: 999px;

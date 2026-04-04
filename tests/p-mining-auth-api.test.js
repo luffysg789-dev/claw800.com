@@ -202,6 +202,40 @@ test('p-mining bootstrap creates a backend account and returns synced account st
   }
 });
 
+test('p-mining bootstrap network stats add 1-3 synthetic users per minute and matching power growth', async () => {
+  const baseNow = 1_710_000_000_000;
+  const originalNow = Date.now;
+  Date.now = () => baseNow;
+  const harness = createHarness();
+
+  try {
+    const syncResponse = await harness.request('POST', '/api/p-mining/session', {
+      openId: 'p-mining-open-id-network-growth',
+      sessionKey: 'p-mining-session-key-network-growth',
+      nickname: 'Growth Miner'
+    });
+    const serialized = JSON.parse(syncResponse.headers['set-cookie'][0]);
+    const cookies = {
+      [serialized.name]: serialized.value
+    };
+
+    const initial = await harness.request('GET', '/api/p-mining/bootstrap', null, { cookies });
+    Date.now = () => baseNow + 60_000;
+    const next = await harness.request('GET', '/api/p-mining/bootstrap', null, { cookies });
+    const grownUsers = next.body.network.totalUsers - initial.body.network.totalUsers;
+
+    assert.ok(grownUsers >= 1);
+    assert.ok(grownUsers <= 3);
+    assert.equal(
+      next.body.network.todayPower - initial.body.network.todayPower,
+      grownUsers * 10
+    );
+  } finally {
+    Date.now = originalNow;
+    harness.cleanup();
+  }
+});
+
 test('p-mining bootstrap migrates legacy alphanumeric invite codes to 6-digit numeric codes', async () => {
   const harness = createHarness();
 
@@ -295,6 +329,7 @@ test('p-mining claim writes balance and claim records on the backend', async () 
     const bootstrapResponse = await harness.request('GET', '/api/p-mining/bootstrap', null, { cookies });
     assert.equal(bootstrapResponse.body.account.balance, claimResponse.body.account.balance);
     assert.equal(bootstrapResponse.body.records.claims.length, 1);
+    assert.equal(bootstrapResponse.body.account.firstClaimAt > 0, true);
   } finally {
     harness.cleanup();
   }

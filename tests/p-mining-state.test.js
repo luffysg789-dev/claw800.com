@@ -17,6 +17,8 @@ const {
   formatMiningNumber,
   calculateClaimReward,
   advanceNetworkStats,
+  applyAutomaticNetworkGrowth,
+  calculateRunningDays,
   canClaim,
   getClaimCooldownRemainingSeconds,
   applyClaimResult,
@@ -127,12 +129,35 @@ test('createDefaultNetworkStats uses supply and daily cap defaults', () => {
   assert.equal(stats.todayPower, 10);
 });
 
+test('calculateRunningDays uses the first successful claim timestamp as the runtime start', () => {
+  const firstClaimAt = 1_710_000_000_000;
+  const threeDaysLater = firstClaimAt + (3 * 24 * 60 * 60 * 1000) + 1;
+
+  assert.equal(calculateRunningDays(firstClaimAt, threeDaysLater), 4);
+  assert.equal(calculateRunningDays(0, threeDaysLater), 0);
+});
+
 test('advanceNetworkStats updates mined totals and remaining supply', () => {
   const next = advanceNetworkStats(createDefaultNetworkStats(), 60_000);
 
   assert.ok(next.totalMined > 0);
   assert.ok(next.todayMined > 0);
   assert.ok(next.remainingSupply < TOTAL_SUPPLY);
+});
+
+test('applyAutomaticNetworkGrowth adds 1-3 users per minute and increases total power accordingly', () => {
+  const initial = {
+    ...createDefaultNetworkStats(),
+    lastAutoGrowthMinute: 100
+  };
+
+  const next = applyAutomaticNetworkGrowth(initial, (102 * 60_000) + 1234);
+  const grownUsers = next.totalUsers - initial.totalUsers;
+
+  assert.ok(grownUsers >= 2);
+  assert.ok(grownUsers <= 6);
+  assert.equal(next.todayPower, initial.todayPower + (grownUsers * 10));
+  assert.equal(next.lastAutoGrowthMinute, 102);
 });
 
 test('canClaim returns false during the 60-second cooldown', () => {

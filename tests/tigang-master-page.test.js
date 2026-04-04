@@ -43,6 +43,7 @@ test('tigang-master html includes home and records tabs plus the squeeze button'
   assert.match(html, /id="tigangActionButton"/);
   assert.match(html, /id="tigangStatusText"/);
   assert.match(html, /id="tigangTimerValue"/);
+  assert.match(html, /id="tigangReminderText"/);
   assert.match(html, /id="tigangTodayCount"/);
   assert.match(html, /id="tigangTodayGoal"/);
   assert.match(html, /id="tigangRecentList"/);
@@ -70,15 +71,20 @@ test('tigang-master script includes local record state and nexa session hooks', 
   assert.match(js, /slice\(0,\s*5\)/);
   assert.match(js, /const FIRST_DAILY_CHEER_TEXT = '哇，你太棒了。坚持哦。';/);
   assert.match(js, /const DAILY_GOAL_CHEER_TEXT = '哇，恭喜你又健康了，希望你分享给更多朋友，一起健康。';/);
-  assert.match(js, /function speakText\(/);
-  assert.match(js, /function speakFirstDailyCheer\(/);
-  assert.match(js, /function speakDailyGoalCheer\(/);
+  assert.match(js, /function setInlineReminder\(/);
+  assert.match(js, /function renderInlineReminder\(/);
+  assert.doesNotMatch(js, /function speakText\(/);
+  assert.doesNotMatch(js, /function resolveSpeechVoice\(/);
+  assert.doesNotMatch(js, /function warmSpeechSynthesis\(/);
+  assert.doesNotMatch(js, /function speakFirstDailyCheer\(/);
+  assert.doesNotMatch(js, /function speakDailyGoalCheer\(/);
   assert.match(js, /function beginNexaLoginFlow\(/);
   assert.match(js, /\/api\/tigang-master\/session/);
   assert.match(js, /\/api\/tigang-master\/session\/logout/);
   assert.match(js, /\/api\/nexa\/tip\/session/);
   assert.match(js, /function handlePressStart\(/);
   assert.match(js, /function handlePressEnd\(/);
+  assert.match(js, /appState\.elements\.reminderText/);
 });
 
 test('tigang-master hides the inactive tab panel so the squeeze button does not appear on records', () => {

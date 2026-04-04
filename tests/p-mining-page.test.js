@@ -50,6 +50,8 @@ test('p-mining html includes host header, tab panels, and script mounts', () => 
   assert.doesNotMatch(html, /id="pMiningClaimCountdown">00:00:00</);
   assert.match(html, /id="pMiningStatsGrid"/);
   assert.match(html, /id="pMiningEstimatedTodayOutput"/);
+  assert.match(html, /id="pMiningRuntimeDays"/);
+  assert.match(html, /data-i18n="runtimeSince"/);
   assert.match(html, /data-record-filter="claims"/);
   assert.match(html, /data-record-filter="invites"/);
   assert.match(html, /data-record-filter="power"/);
@@ -189,6 +191,7 @@ test('p-mining html includes the expected mining, invite, records, and profile s
   assert.doesNotMatch(html, /id="pMiningProfileEmail"/);
   assert.match(html, /data-i18n="currentTotalPoints"/);
   assert.match(html, /data-i18n="totalSupplyValue"/);
+  assert.match(html, /data-i18n="runtimeSince"/);
   assert.match(html, /Every 4 Years \(Next\)/);
   assert.match(html, /P is Pay，P is People，P无实际用途，参与人数超过 1000 万人时，可能是一场伟大的胜利。/);
   assert.doesNotMatch(html, />2100 亿</);
@@ -273,6 +276,8 @@ test('p-mining script includes the expected UI hooks', () => {
   assert.match(js, /function handleCopyInviteCode\(/);
   assert.match(js, /function renderRecordsPanel\(/);
   assert.match(js, /function renderProfilePanel\(/);
+  assert.match(js, /function calculateRunningDays\(/);
+  assert.match(js, /appState\.elements\.runtimeDays\.textContent =/);
   assert.doesNotMatch(js, /profileEmail:\s*root\.querySelector\('#pMiningProfileEmail'\)/);
   assert.match(js, /appState\.elements\.profileUid\.textContent = appState\.state\.inviteCode \|\| '------';/);
   assert.match(js, /const AudioContextCtor = globalScope\.window\?\.AudioContext \|\| globalScope\.window\?\.webkitAudioContext;/);
@@ -296,7 +301,7 @@ test('p-mining invite prompt waits for synced account state instead of opening d
     js,
     /renderAll\(appState\);\s*switchTab\(appState,\s*'mining'\);\s*if \(shouldShowInvitePrompt\(appState\)\) \{\s*openInvitePrompt\(appState\);/
   );
-  assert.match(js, /syncAppStateFromServer\(appState,\s*bootstrap\);\s*renderAll\(appState\);\s*syncInvitePromptVisibility\(appState\);/);
+  assert.match(js, /syncAppStateFromServer\(appState,\s*bootstrap\);\s*(syncAutomaticNetworkGrowth\(appState\);\s*)?renderAll\(appState\);\s*syncInvitePromptVisibility\(appState\);/);
   assert.match(js, /clearPendingAuthTarget\(appState\.storage\);\s*renderAll\(appState\);\s*syncInvitePromptVisibility\(appState\);\s*switchTab\(appState,\s*targetTab\);/);
   assert.match(js, /if \(!exchanged && !appState\.nexaSession\) \{\s*if \(appState\.requiresFreshNexaAuthorization && isNexaAppEnvironment\(\)\) \{\s*await clearPMiningServerSession\(\)\.catch\(\(\) => false\);\s*await beginNexaLoginFlow\(appState,\s*'mining'\)\.catch\(\(\) => false\);\s*return;\s*\}/);
 });
@@ -318,6 +323,7 @@ test('p-mining script only refreshes cooldown on interval without auto-advancing
   const js = fs.readFileSync(jsPath, 'utf8');
 
   assert.match(js, /window\.setInterval\(\(\)\s*=>\s*\{\s*renderClaimState\(appState\);\s*\},\s*1000\);/);
+  assert.match(js, /window\.setInterval\(\(\)\s*=>\s*\{\s*syncAutomaticNetworkGrowth\(appState\);\s*\},\s*60\s*\*\s*1000\);/);
 });
 
 test('p-mining protected tab navigation switches purchase/profile immediately before bootstrap refresh', () => {

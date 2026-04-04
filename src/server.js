@@ -60,6 +60,8 @@ const PMINING_HUMAN_CHECK_STREAK_THRESHOLD = 10;
 const PMINING_HUMAN_CHECK_MIN_INTERVAL_MS = PMINING_CLAIM_COOLDOWN_MS;
 const PMINING_HUMAN_CHECK_MAX_INTERVAL_MS = 75 * 1000;
 const PMINING_MAX_RECORDS = 20;
+const PMINING_SYNTHETIC_NETWORK_START_MINUTE = Math.floor(Date.now() / 60000);
+const PMINING_SYNTHETIC_POWER_PER_USER = 10;
 const nexaTipOrders = new Map();
 const PMINING_PAYMENT_CURRENCY = 'USDT';
 const PMINING_POWER_PAYMENT_OPTIONS = {
@@ -836,6 +838,7 @@ function formatPMiningAccountRow(row) {
     miningBanUntil: Math.max(0, Number(row?.mining_ban_until || 0) || 0),
     claimStreakCount: Math.max(0, Number(row?.claim_streak_count || 0) || 0),
     needHumanCheck: Boolean(Number(row?.human_check_required || 0) || 0),
+    firstClaimAt: Math.max(0, Number(row?.first_claim_at || 0) || 0),
     lastClaimAt: Math.max(0, Number(row?.last_claim_at || 0) || 0)
   };
 }
@@ -875,9 +878,17 @@ function applyPMiningRiskStrike(account, {
 function buildPMiningNetworkStats() {
   const aggregate = selectPMiningNetworkAggregateStmt.get() || {};
   const today = selectPMiningTodayMinedAggregateStmt.get() || {};
-  const totalUsers = Math.max(0, Number(aggregate.total_users || 0) || 0);
+  const currentMinute = Math.floor(Date.now() / 60000);
+  const syntheticElapsedMinutes = Math.max(0, currentMinute - PMINING_SYNTHETIC_NETWORK_START_MINUTE);
+  let syntheticUsers = 0;
+  for (let offset = 1; offset <= syntheticElapsedMinutes; offset += 1) {
+    const minuteBucket = PMINING_SYNTHETIC_NETWORK_START_MINUTE + offset;
+    const seed = ((minuteBucket * 1664525) + 1013904223) >>> 0;
+    syntheticUsers += 1 + (seed % 3);
+  }
+  const totalUsers = Math.max(0, Number(aggregate.total_users || 0) || 0) + syntheticUsers;
   const totalMined = roundPMiningValue(aggregate.total_mined || 0);
-  const todayPower = Math.max(10, Number(aggregate.total_power || 0) || 0);
+  const todayPower = Math.max(10, Number(aggregate.total_power || 0) || 0) + (syntheticUsers * PMINING_SYNTHETIC_POWER_PER_USER);
   const todayMined = roundPMiningValue(today.today_mined || 0);
   const currentHalvingCycle = 1;
   const nextHalvingDate = '2030/03/28';
@@ -1042,13 +1053,14 @@ const applyPMiningClaim = db.transaction((payload) => {
   const network = buildPMiningNetworkStats();
   const reward = roundPMiningValue((Math.max(0, Number(account.power || 0)) / Math.max(1, Number(network.todayPower || 1))) * (PMINING_DAILY_CAP / 1440));
   const nextBalance = roundPMiningValue(Number(account.balance_p || 0) + reward);
+  const firstClaimAt = Math.max(0, Number(account.first_claim_at || 0) || 0) || now;
   const lastClaimSuccessAt = Math.max(0, Number(account.last_claim_success_at || 0) || 0);
   const claimGapMs = lastClaimSuccessAt > 0 ? now - lastClaimSuccessAt : 0;
   const nextClaimStreakCount = claimGapMs >= PMINING_HUMAN_CHECK_MIN_INTERVAL_MS && claimGapMs <= PMINING_HUMAN_CHECK_MAX_INTERVAL_MS
     ? Math.max(0, Number(account.claim_streak_count || 0) || 0) + 1
     : 1;
   const nextHumanCheckRequired = nextClaimStreakCount >= PMINING_HUMAN_CHECK_STREAK_THRESHOLD ? 1 : 0;
-  updatePMiningClaimStateStmt.run(nextBalance, now, nextClaimStreakCount, now, nextHumanCheckRequired, payload.userId);
+  updatePMiningClaimStateStmt.run(nextBalance, firstClaimAt, now, nextClaimStreakCount, now, nextHumanCheckRequired, payload.userId);
   insertPMiningClaimRecordStmt.run(payload.userId, reward, Math.max(0, Number(account.power || 0)));
   return { kind: 'claimed', reward };
 });
@@ -3028,6 +3040,7 @@ const selectPMiningUserByUserIdStmt = db.prepare(`
     claim_streak_count,
     last_claim_success_at,
     human_check_required,
+    first_claim_at,
     last_claim_at
   FROM p_mining_users
   WHERE user_id = ?
@@ -3048,15 +3061,16 @@ const selectPMiningUserByInviteCodeStmt = db.prepare(`
     claim_streak_count,
     last_claim_success_at,
     human_check_required,
+    first_claim_at,
     last_claim_at
   FROM p_mining_users
   WHERE invite_code = ?
 `);
 const insertPMiningUserStmt = db.prepare(`
   INSERT INTO p_mining_users (
-    user_id, invite_code, balance_p, power, invite_count, invite_power_bonus, risk_score, risk_reason, last_risk_at, mining_ban_until, claim_streak_count, last_claim_success_at, human_check_required, last_claim_at
+    user_id, invite_code, balance_p, power, invite_count, invite_power_bonus, risk_score, risk_reason, last_risk_at, mining_ban_until, claim_streak_count, last_claim_success_at, human_check_required, first_claim_at, last_claim_at
   )
-  VALUES (?, ?, 0, 10, 0, 0, 0, '', 0, 0, 0, 0, 0, 0)
+  VALUES (?, ?, 0, 10, 0, 0, 0, '', 0, 0, 0, 0, 0, 0, 0)
 `);
 const updatePMiningInviteCodeStmt = db.prepare(`
   UPDATE p_mining_users
@@ -3065,7 +3079,7 @@ const updatePMiningInviteCodeStmt = db.prepare(`
 `);
 const updatePMiningClaimStateStmt = db.prepare(`
   UPDATE p_mining_users
-  SET balance_p = ?, last_claim_at = ?, claim_streak_count = ?, last_claim_success_at = ?, human_check_required = ?, updated_at = datetime('now')
+  SET balance_p = ?, first_claim_at = ?, last_claim_at = ?, claim_streak_count = ?, last_claim_success_at = ?, human_check_required = ?, updated_at = datetime('now')
   WHERE user_id = ?
 `);
 const updatePMiningRiskStateStmt = db.prepare(`
