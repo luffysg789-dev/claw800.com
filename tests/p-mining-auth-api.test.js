@@ -13,8 +13,12 @@ function createHarness({ mockPaymentResponse, mockQueryResponse } = {}) {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claw800-p-mining-auth-api-'));
   const dbPath = path.join(tmpDir, 'claw800.db');
   const previousDbPath = process.env.CLAW800_DB_PATH;
+  const previousNexaApiKey = process.env.NEXA_API_KEY;
+  const previousNexaAppSecret = process.env.NEXA_APP_SECRET;
 
   process.env.CLAW800_DB_PATH = dbPath;
+  process.env.NEXA_API_KEY = process.env.NEXA_API_KEY || 'test-nexa-api-key';
+  process.env.NEXA_APP_SECRET = process.env.NEXA_APP_SECRET || 'test-nexa-app-secret';
   delete require.cache[require.resolve(dbModulePath)];
   delete require.cache[require.resolve(serverModulePath)];
   delete require.cache[require.resolve(nexaPayModulePath)];
@@ -120,6 +124,16 @@ function createHarness({ mockPaymentResponse, mockQueryResponse } = {}) {
         delete process.env.CLAW800_DB_PATH;
       } else {
         process.env.CLAW800_DB_PATH = previousDbPath;
+      }
+      if (previousNexaApiKey === undefined) {
+        delete process.env.NEXA_API_KEY;
+      } else {
+        process.env.NEXA_API_KEY = previousNexaApiKey;
+      }
+      if (previousNexaAppSecret === undefined) {
+        delete process.env.NEXA_APP_SECRET;
+      } else {
+        process.env.NEXA_APP_SECRET = previousNexaAppSecret;
       }
     }
   };

@@ -4,10 +4,11 @@
   const TIGANG_LANGUAGE_STORAGE_KEY = 'claw800:tigang-master:language';
   const TIGANG_SESSION_COOKIE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
   const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth://oauth/authorize';
-  const NEXA_API_KEY = 'NEXA2033522880098676737';
+  const NEXA_PUBLIC_CONFIG_ENDPOINT = '/api/nexa/public-config';
   const DAILY_GOAL_COUNT = 5;
   const FIRST_DAILY_CHEER_TEXT = '哇，你太棒了。坚持哦。';
   const DAILY_GOAL_CHEER_TEXT = '哇，恭喜你又健康了，希望你分享给更多朋友，一起健康。';
+  let cachedNexaPublicConfig = null;
   const TRANSLATIONS = {
     zh: {
       pageTitle: '提肛大师',
@@ -246,9 +247,10 @@
     return url.toString();
   }
 
-  function beginNexaLoginFlow() {
+  async function beginNexaLoginFlow() {
     const redirectUri = buildCleanReturnUrl();
-    const targetUrl = `${NEXA_PROTOCOL_AUTH_BASE}?apikey=${encodeURIComponent(NEXA_API_KEY)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+    const config = await getNexaPublicConfig();
+    const targetUrl = `${NEXA_PROTOCOL_AUTH_BASE}?apikey=${encodeURIComponent(config.apiKey)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
     globalScope.window.location.href = targetUrl;
   }
 
@@ -287,6 +289,17 @@
       throw new Error(String(json?.error || json?.message || 'REQUEST_FAILED'));
     }
     return json;
+  }
+
+  async function getNexaPublicConfig() {
+    if (cachedNexaPublicConfig?.apiKey) return cachedNexaPublicConfig;
+    const json = await getJson(NEXA_PUBLIC_CONFIG_ENDPOINT);
+    const apiKey = String(json?.apiKey || '').trim();
+    if (!apiKey) {
+      throw new Error('Nexa API Key 未配置');
+    }
+    cachedNexaPublicConfig = { apiKey };
+    return cachedNexaPublicConfig;
   }
 
   async function clearServerSession() {
@@ -492,7 +505,7 @@
       clearCachedSession(appState.storage);
     }
     if (hasNexaEnvironment()) {
-      beginNexaLoginFlow();
+      beginNexaLoginFlow().catch(() => {});
     }
   }
 

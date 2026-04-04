@@ -17,9 +17,9 @@
   const RUNTIME_START_YEAR = 2026;
   const RUNTIME_START_MONTH_INDEX = 2;
   const RUNTIME_START_DAY = 29;
-  const NEXA_API_KEY = 'NEXA2033522880098676737';
   const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth://oauth/authorize';
   const NEXA_PROTOCOL_ORDER_BASE = 'nexaauth://order';
+  const NEXA_PUBLIC_CONFIG_ENDPOINT = '/api/nexa/public-config';
   const MAX_RECORDS = 20;
   const PAYMENT_QUERY_INTERVAL_MS = 2000;
   const PAYMENT_QUERY_TIMEOUT_MS = 45000;
@@ -31,6 +31,7 @@
   const CLAIM_SOUND_PULSE_COUNT = 8;
   const CLAIM_SOUND_PULSE_GAP_SECONDS = 0.09;
   const AudioContextCtor = globalScope.window?.AudioContext || globalScope.window?.webkitAudioContext;
+  let cachedNexaPublicConfig = null;
   const POWER_PURCHASE_OPTIONS = {
     starter: {
       id: 'starter',
@@ -825,7 +826,7 @@
 
   function buildNexaAuthorizeUrl() {
     const redirectUri = buildCleanReturnUrl();
-    return `${NEXA_PROTOCOL_AUTH_BASE}?apikey=${encodeURIComponent(NEXA_API_KEY)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+    return getNexaPublicConfig().then((config) => `${NEXA_PROTOCOL_AUTH_BASE}?apikey=${encodeURIComponent(config.apiKey)}&redirect_uri=${encodeURIComponent(redirectUri)}`);
   }
 
   function buildNexaPaymentUrl(payment, redirectUrl = buildCleanReturnUrl()) {
@@ -833,7 +834,7 @@
       orderNo: String(payment?.orderNo || '').trim(),
       paySign: String(payment?.paySign || '').trim(),
       signType: String(payment?.signType || 'MD5').trim(),
-      apiKey: String(payment?.apiKey || NEXA_API_KEY).trim(),
+      apiKey: String(payment?.apiKey || cachedNexaPublicConfig?.apiKey || '').trim(),
       nonce: String(payment?.nonce || '').trim(),
       timestamp: String(payment?.timestamp || '').trim(),
       redirectUrl: String(redirectUrl || '').trim()
@@ -942,6 +943,17 @@
       throw error;
     }
     return json;
+  }
+
+  async function getNexaPublicConfig() {
+    if (cachedNexaPublicConfig?.apiKey) return cachedNexaPublicConfig;
+    const payload = await getJson(NEXA_PUBLIC_CONFIG_ENDPOINT);
+    const apiKey = String(payload?.apiKey || '').trim();
+    if (!apiKey) {
+      throw new Error('Nexa API Key 未配置');
+    }
+    cachedNexaPublicConfig = { apiKey };
+    return cachedNexaPublicConfig;
   }
 
   function isNexaAppEnvironment() {
@@ -1679,7 +1691,7 @@
       return false;
     }
     setPendingAuthTarget(appState.storage, targetTab);
-    launchNexaUrl(buildNexaAuthorizeUrl());
+    launchNexaUrl(await buildNexaAuthorizeUrl());
     return true;
   }
 

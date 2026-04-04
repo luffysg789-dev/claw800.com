@@ -119,7 +119,7 @@ test('shared tip script uses explicit login-then-pay flow for Nexa app webview',
   assert.match(tipJs, /if \(!isNexaAppEnvironment\(\)\) \{[\s\S]*?promptDownloadNexaApp\(\);[\s\S]*?return;/);
   assert.match(tipJs, /setStatus\('请下载 Nexa App 玩更多游戏,打赏。', 'error'\);/);
   assert.match(tipJs, /window\.alert\('请下载 Nexa App 玩更多游戏,打赏。'\);/);
-  assert.match(tipJs, /launchNexaUrl\(buildNexaAuthorizeUrl\(/);
+  assert.match(tipJs, /launchNexaUrl\(await buildNexaAuthorizeUrl\(/);
   assert.match(tipJs, /launchNexaUrl\(buildNexaPaymentUrl\(/);
   assert.match(tipJs, /const session = loadCachedSession\(\);[\s\S]*?if \(!session\)[\s\S]*?await beginLoginFlow\(game\);[\s\S]*?return;/);
   assert.doesNotMatch(tipJs, /window\.confirm\(/);
