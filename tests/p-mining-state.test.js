@@ -129,12 +129,14 @@ test('createDefaultNetworkStats uses supply and daily cap defaults', () => {
   assert.equal(stats.todayPower, 10);
 });
 
-test('calculateRunningDays uses the first successful claim timestamp as the runtime start', () => {
-  const firstClaimAt = 1_710_000_000_000;
-  const threeDaysLater = firstClaimAt + (3 * 24 * 60 * 60 * 1000) + 1;
+test('calculateRunningDays counts from the fixed 2026-03-29 launch date and increases by day', () => {
+  const launchDayMorning = new Date(2026, 2, 29, 9, 0, 0).getTime();
+  const aprilFourthMorning = new Date(2026, 3, 4, 9, 0, 0).getTime();
+  const dayBeforeLaunch = new Date(2026, 2, 28, 9, 0, 0).getTime();
 
-  assert.equal(calculateRunningDays(firstClaimAt, threeDaysLater), 4);
-  assert.equal(calculateRunningDays(0, threeDaysLater), 0);
+  assert.equal(calculateRunningDays(0, launchDayMorning), 1);
+  assert.equal(calculateRunningDays(0, aprilFourthMorning), 7);
+  assert.equal(calculateRunningDays(0, dayBeforeLaunch), 0);
 });
 
 test('advanceNetworkStats updates mined totals and remaining supply', () => {

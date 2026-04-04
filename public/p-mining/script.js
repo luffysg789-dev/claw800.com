@@ -14,6 +14,9 @@
   const PMINING_PENDING_PAYMENT_STORAGE_KEY = 'claw800:p-mining:pending-payment';
   const PMINING_SETTLED_PAYMENT_STORAGE_KEY = 'claw800:p-mining:settled-payment';
   const MAX_NEXA_SESSION_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+  const RUNTIME_START_YEAR = 2026;
+  const RUNTIME_START_MONTH_INDEX = 2;
+  const RUNTIME_START_DAY = 29;
   const NEXA_API_KEY = 'NEXA2033522880098676737';
   const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth://oauth/authorize';
   const NEXA_PROTOCOL_ORDER_BASE = 'nexaauth://order';
@@ -555,10 +558,11 @@
   }
 
   function calculateRunningDays(firstClaimAt, now = Date.now()) {
-    const startedAt = Math.max(0, Number(firstClaimAt || 0) || 0);
-    if (!startedAt) return 0;
-    const current = Math.max(startedAt, Number(now || Date.now()) || startedAt);
-    return Math.max(1, Math.floor((current - startedAt) / (24 * 60 * 60 * 1000)) + 1);
+    const current = new Date(Number(now || Date.now()) || Date.now());
+    const startDate = new Date(RUNTIME_START_YEAR, RUNTIME_START_MONTH_INDEX, RUNTIME_START_DAY);
+    const currentDate = new Date(current.getFullYear(), current.getMonth(), current.getDate());
+    if (currentDate.getTime() < startDate.getTime()) return 0;
+    return Math.floor((currentDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000)) + 1;
   }
 
   function advanceNetworkStats(stats, elapsedMs) {
