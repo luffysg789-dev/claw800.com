@@ -1,9 +1,9 @@
 const GAME_SLUG = 'xiangqi';
 const FILE_LABELS = ['9', '8', '7', '6', '5', '4', '3', '2', '1'];
 const RANK_LABELS = ['9', '8', '7', '6', '5', '4', '3', '2', '1', '0'];
+const NEXA_API_KEY = 'NEXA2033522880098676737';
 const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth://oauth/authorize';
 const NEXA_PROTOCOL_ORDER_BASE = 'nexaauth://order';
-const NEXA_PUBLIC_CONFIG_ENDPOINT = '/api/nexa/public-config';
 const XIANGQI_MOVE_AUDIO_SRC = '/audio/muyu-strike.mp3';
 const SESSION_STORAGE_KEY = 'claw800_nexa_tip_session_v1';
 const XIANGQI_USER_STORAGE_KEY = 'claw800_xiangqi_user_v1';
@@ -118,7 +118,6 @@ const state = {
   lastAutoJoinRoomCode: '',
   joinRoomAutoJoinTimer: 0
 };
-let cachedNexaPublicConfig = null;
 
 function buildPreviewPieces() {
   return [
@@ -291,7 +290,7 @@ function buildNexaPaymentUrl(payment) {
     orderNo: String(payment?.orderNo || '').trim(),
     paySign: String(payment?.paySign || '').trim(),
     signType: String(payment?.signType || 'MD5').trim(),
-    apiKey: String(payment?.apiKey || cachedNexaPublicConfig?.apiKey || '').trim(),
+    apiKey: String(payment?.apiKey || NEXA_API_KEY).trim(),
     nonce: String(payment?.nonce || '').trim(),
     timestamp: String(payment?.timestamp || '').trim(),
     redirectUrl
@@ -313,7 +312,7 @@ function isLocalDevelopmentHost() {
 
 function buildNexaAuthorizeUrl() {
   const redirectUri = buildCleanReturnUrl();
-  return getNexaPublicConfig().then((config) => `${NEXA_PROTOCOL_AUTH_BASE}?apikey=${encodeURIComponent(config.apiKey)}&redirect_uri=${encodeURIComponent(redirectUri)}`);
+  return `${NEXA_PROTOCOL_AUTH_BASE}?apikey=${encodeURIComponent(NEXA_API_KEY)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
 }
 
 function launchNexaUrl(url) {
@@ -455,22 +454,6 @@ async function fetchJson(url, options = {}) {
     throw error;
   }
   return json;
-}
-
-async function getNexaPublicConfig() {
-  if (cachedNexaPublicConfig?.apiKey) return cachedNexaPublicConfig;
-  const payload = await fetchJson(NEXA_PUBLIC_CONFIG_ENDPOINT, {
-    method: 'GET',
-    headers: {
-      Accept: 'application/json'
-    }
-  });
-  const apiKey = String(payload?.apiKey || '').trim();
-  if (!apiKey) {
-    throw new Error('Nexa API Key 未配置');
-  }
-  cachedNexaPublicConfig = { apiKey };
-  return cachedNexaPublicConfig;
 }
 
 function postJson(url, body) {
@@ -1318,8 +1301,8 @@ async function exchangeSessionFromUrlCode() {
   }
 }
 
-async function beginLoginFlow() {
-  launchNexaUrl(await buildNexaAuthorizeUrl());
+function beginLoginFlow() {
+  launchNexaUrl(buildNexaAuthorizeUrl());
 }
 
 async function ensureAuthorizedForRoomAction() {
@@ -1349,7 +1332,7 @@ async function ensureAuthorizedForRoomAction() {
     return true;
   }
   setStatus('请先完成 Nexa 登录授权。');
-  beginLoginFlow().catch(() => {});
+  beginLoginFlow();
   return false;
 }
 
@@ -1517,7 +1500,7 @@ async function beginDepositFlow(prefilledAmount = '') {
       amount
     });
     setStatus('请先完成 Nexa 登录授权。');
-    beginLoginFlow().catch(() => {});
+    beginLoginFlow();
     return;
   }
 

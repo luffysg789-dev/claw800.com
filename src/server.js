@@ -282,13 +282,6 @@ function ensureNexaCredentialsConfigured() {
   return credentials;
 }
 
-function getNexaPublicConfig() {
-  const credentials = ensureNexaCredentialsConfigured();
-  return {
-    apiKey: credentials.apiKey
-  };
-}
-
 function encodePMiningSessionCookie(session) {
   return Buffer.from(JSON.stringify(session), 'utf8').toString('base64url');
 }
@@ -2664,21 +2657,6 @@ app.post('/api/nexa/tip/session', async (req, res) => {
   } catch (error) {
     const statusCode = Number(error?.statusCode || 502) || 502;
     res.status(statusCode).json({ error: String(error?.message || 'Nexa 授权失败') });
-  }
-});
-
-app.get('/api/nexa/public-config', (_req, res) => {
-  try {
-    const config = getNexaPublicConfig();
-    return res.json({
-      ok: true,
-      apiKey: config.apiKey
-    });
-  } catch (error) {
-    return res.status(Number(error?.statusCode || 503)).json({
-      ok: false,
-      error: String(error?.message || 'Nexa public config unavailable')
-    });
   }
 });
 

@@ -148,7 +148,7 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /function restoreActiveRoom\(/);
   assert.match(js, /function updateLoginButtonState\(/);
   assert.match(js, /if \(ui\.withdrawBtn\) \{\s*ui\.withdrawBtn\.disabled = !isNexaAppEnvironment\(\);\s*\}/);
-  assert.match(js, /launchNexaUrl\(await buildNexaAuthorizeUrl\(\)\)/);
+  assert.match(js, /launchNexaUrl\(buildNexaAuthorizeUrl\(\)\)/);
   assert.match(js, /amountModal: document\.getElementById\('xiangqiAmountModal'\)/);
   assert.match(js, /ledgerBtn: document\.getElementById\('xiangqiLedgerBtn'\)/);
   assert.match(js, /ledgerModal: document\.getElementById\('xiangqiLedgerModal'\)/);
@@ -196,7 +196,7 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /if \(code === 'ROOM_NOT_FINISHED'\) \{\s*return '房间已解散';\s*\}/);
   assert.match(js, /setStatus\('请在 Nexa 内充值。'\);\s*return;/);
   assert.match(js, /savePendingAction\(\{\s*type:\s*'deposit',\s*amount/);
-  assert.match(js, /setStatus\('请先完成 Nexa 登录授权。'\);\s*beginLoginFlow\(\)\.catch\(\(\) => \{\}\);\s*return;/);
+  assert.match(js, /setStatus\('请先完成 Nexa 登录授权。'\);\s*beginLoginFlow\(\);\s*return;/);
   assert.match(js, /launchNexaUrl\(buildNexaPaymentUrl\(response\.payment\)\)/);
   assert.match(js, /function buildPreviewPieces\(/);
   assert.match(js, /function primeMoveAudio\(/);

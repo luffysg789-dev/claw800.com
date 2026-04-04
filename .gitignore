@@ -1,6 +1,3 @@
 data/*.db
 data/*.db
 data/*.db
-.env
-.env.local
-.env.*.local

@@ -4,9 +4,9 @@
   const TIP_BUTTON_TEXT_LOGIN = 'Nexa 登录后打赏';
   const TIP_BUTTON_TEXT_PAY = '打赏 0.1 USDT';
   const TIP_BUTTON_TEXT_BUSY = '处理中...';
+  const NEXA_API_KEY = 'NEXA2033522880098676737';
   const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth://oauth/authorize';
   const NEXA_PROTOCOL_ORDER_BASE = 'nexaauth://order';
-  const NEXA_PUBLIC_CONFIG_ENDPOINT = '/api/nexa/public-config';
   const SESSION_STORAGE_KEY = 'claw800_nexa_tip_session_v1';
   const PENDING_ORDER_STORAGE_KEY = 'claw800_nexa_tip_pending_order_v1';
   const TIP_SUCCESS_STORAGE_KEY = 'claw800_nexa_tip_last_success_v1';
@@ -15,7 +15,6 @@
   const QUERY_TIMEOUT_MS = 45000;
   const RESET_STATUS_DELAY_MS = 3000;
   let resetStatusTimer = 0;
-  let cachedNexaPublicConfig = null;
 
   function shouldRenderTip() {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return true;
@@ -241,7 +240,7 @@
 
   function buildNexaAuthorizeUrl() {
     const redirectUri = buildCleanReturnUrl();
-    return getNexaPublicConfig().then((config) => `${NEXA_PROTOCOL_AUTH_BASE}?apikey=${encodeURIComponent(config.apiKey)}&redirect_uri=${encodeURIComponent(redirectUri)}`);
+    return `${NEXA_PROTOCOL_AUTH_BASE}?apikey=${encodeURIComponent(NEXA_API_KEY)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
   }
 
   function buildNexaPaymentUrl(payment) {
@@ -250,7 +249,7 @@
       orderNo: String(payment?.orderNo || '').trim(),
       paySign: String(payment?.paySign || '').trim(),
       signType: String(payment?.signType || 'MD5').trim(),
-      apiKey: String(payment?.apiKey || cachedNexaPublicConfig?.apiKey || '').trim(),
+      apiKey: String(payment?.apiKey || NEXA_API_KEY).trim(),
       nonce: String(payment?.nonce || '').trim(),
       timestamp: String(payment?.timestamp || '').trim(),
       redirectUrl
@@ -302,23 +301,6 @@
       throw error;
     }
     return json;
-  }
-
-  async function getNexaPublicConfig() {
-    if (cachedNexaPublicConfig?.apiKey) return cachedNexaPublicConfig;
-    const response = await fetch(NEXA_PUBLIC_CONFIG_ENDPOINT, {
-      credentials: 'same-origin'
-    });
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) {
-      throw new Error(String(payload?.error || 'Nexa API Key 未配置'));
-    }
-    const apiKey = String(payload?.apiKey || '').trim();
-    if (!apiKey) {
-      throw new Error('Nexa API Key 未配置');
-    }
-    cachedNexaPublicConfig = { apiKey };
-    return cachedNexaPublicConfig;
   }
 
   function isNexaSessionExpiredError(error) {
@@ -415,7 +397,7 @@
   async function beginLoginFlow(game) {
     setStatus('正在打开 Nexa 登录授权...', '');
     window.sessionStorage.setItem('claw800_nexa_tip_login_game', game.slug);
-    launchNexaUrl(await buildNexaAuthorizeUrl(game));
+    launchNexaUrl(buildNexaAuthorizeUrl(game));
   }
 
   async function beginPaymentFlow(game, session) {
