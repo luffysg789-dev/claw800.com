@@ -236,6 +236,121 @@ test('p-mining bootstrap network stats add 1-3 synthetic users on random 3-10 mi
   }
 });
 
+test('p-mining bootstrap persists the highest synthetic user floor across server restarts on the same database', async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claw800-p-mining-floor-'));
+  const dbPath = path.join(tmpDir, 'claw800.db');
+  const previousDbPath = process.env.CLAW800_DB_PATH;
+  const originalNow = Date.now;
+
+  try {
+    process.env.CLAW800_DB_PATH = dbPath;
+    Date.now = () => new Date('2026-03-29T01:00:00+07:00').getTime();
+
+    delete require.cache[require.resolve(dbModulePath)];
+    delete require.cache[require.resolve(serverModulePath)];
+    delete require.cache[require.resolve(nexaPayModulePath)];
+
+    let db = require(dbModulePath);
+    let app = require(serverModulePath);
+
+    const request = (method, routePath, body, options = {}) => new Promise((resolve, reject) => {
+      const req = new EventEmitter();
+      req.method = method;
+      req.url = routePath;
+      req.originalUrl = routePath;
+      req.headers = { ...(options.headers || {}) };
+      req.connection = {};
+      req.socket = {};
+      req.body = body;
+      req.query = {};
+      req.cookies = { ...(options.cookies || {}) };
+
+      const res = new EventEmitter();
+      res.statusCode = 200;
+      res.headers = {};
+      res.locals = {};
+      res.setHeader = function setHeader(name, value) {
+        this.headers[String(name).toLowerCase()] = value;
+      };
+      res.getHeader = function getHeader(name) {
+        return this.headers[String(name).toLowerCase()];
+      };
+      res.removeHeader = function removeHeader(name) {
+        delete this.headers[String(name).toLowerCase()];
+      };
+      res.status = function status(code) {
+        this.statusCode = code;
+        return this;
+      };
+      res.cookie = function cookie(name, value, opts = {}) {
+        const serialized = JSON.stringify({ name, value, opts });
+        const current = this.headers['set-cookie'];
+        if (!current) {
+          this.headers['set-cookie'] = [serialized];
+        } else {
+          current.push(serialized);
+        }
+        return this;
+      };
+      res.clearCookie = function clearCookie(name, opts = {}) {
+        return this.cookie(name, '', { ...opts, expires: new Date(0), maxAge: 0 });
+      };
+      res.json = function json(payload) {
+        resolve({ statusCode: this.statusCode, body: payload, headers: this.headers });
+        return this;
+      };
+      res.end = function end(chunk) {
+        let payload = chunk;
+        if (Buffer.isBuffer(payload)) payload = payload.toString('utf8');
+        if (payload === undefined || payload === null || payload === '') {
+          resolve({ statusCode: this.statusCode, body: null, headers: this.headers });
+          return;
+        }
+        resolve({ statusCode: this.statusCode, body: String(payload), headers: this.headers });
+      };
+
+      app.handle(req, res, reject);
+      req.emit('end');
+    });
+
+    const syncResponse = await request('POST', '/api/p-mining/session', {
+      openId: 'p-mining-open-id-floor-persist',
+      sessionKey: 'p-mining-session-key-floor-persist',
+      nickname: 'Floor Persist Miner'
+    });
+    const serialized = JSON.parse(syncResponse.headers['set-cookie'][0]);
+    const cookies = {
+      [serialized.name]: serialized.value
+    };
+
+    const firstBootstrap = await request('GET', '/api/p-mining/bootstrap', null, { cookies });
+    const storedFloor = db.prepare("SELECT value FROM settings WHERE key = 'p_mining_total_users_floor'").get();
+    assert.ok(Number(firstBootstrap.body.network.totalUsers || 0) >= 1);
+    assert.equal(Number(storedFloor?.value || 0), Number(firstBootstrap.body.network.totalUsers || 0));
+
+    Date.now = () => new Date('2026-03-29T00:10:00+07:00').getTime();
+    db.close();
+    delete require.cache[require.resolve(serverModulePath)];
+    delete require.cache[require.resolve(dbModulePath)];
+    delete require.cache[require.resolve(nexaPayModulePath)];
+    db = require(dbModulePath);
+    app = require(serverModulePath);
+
+    const secondBootstrap = await request('GET', '/api/p-mining/bootstrap', null, { cookies });
+    assert.ok(Number(secondBootstrap.body.network.totalUsers || 0) >= Number(firstBootstrap.body.network.totalUsers || 0));
+  } finally {
+    Date.now = originalNow;
+    delete require.cache[require.resolve(serverModulePath)];
+    delete require.cache[require.resolve(dbModulePath)];
+    delete require.cache[require.resolve(nexaPayModulePath)];
+    if (previousDbPath === undefined) {
+      delete process.env.CLAW800_DB_PATH;
+    } else {
+      process.env.CLAW800_DB_PATH = previousDbPath;
+    }
+  }
+});
+
 test('p-mining bootstrap migrates legacy alphanumeric invite codes to 6-digit numeric codes', async () => {
   const harness = createHarness();
 

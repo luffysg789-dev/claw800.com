@@ -902,9 +902,19 @@ function buildPMiningNetworkStats() {
     syntheticUsers += event.addedUsers;
     cursorMinute = nextEventMinute;
   }
-  const totalUsers = Math.max(0, Number(aggregate.total_users || 0) || 0) + syntheticUsers;
+  const computedTotalUsers = Math.max(0, Number(aggregate.total_users || 0) || 0) + syntheticUsers;
   const totalMined = roundPMiningValue(aggregate.total_mined || 0);
-  const todayPower = Math.max(10, Number(aggregate.total_power || 0) || 0) + (syntheticUsers * PMINING_SYNTHETIC_POWER_PER_USER);
+  const computedTodayPower = Math.max(10, Number(aggregate.total_power || 0) || 0) + (syntheticUsers * PMINING_SYNTHETIC_POWER_PER_USER);
+  const storedTotalUsersFloor = Math.max(0, Number(getSetting('p_mining_total_users_floor', '0')) || 0);
+  const storedTodayPowerFloor = Math.max(10, Number(getSetting('p_mining_today_power_floor', '10')) || 10);
+  const totalUsers = Math.max(computedTotalUsers, storedTotalUsersFloor);
+  const todayPower = Math.max(computedTodayPower, storedTodayPowerFloor);
+  if (totalUsers > storedTotalUsersFloor) {
+    upsertSettingStmt.run('p_mining_total_users_floor', String(totalUsers));
+  }
+  if (todayPower > storedTodayPowerFloor) {
+    upsertSettingStmt.run('p_mining_today_power_floor', String(todayPower));
+  }
   const todayMined = roundPMiningValue(today.today_mined || 0);
   const currentHalvingCycle = 1;
   const nextHalvingDate = '2030/03/28';
