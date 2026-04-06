@@ -34,8 +34,8 @@ test('tigang-master html includes home and records tabs plus the squeeze button'
 
   assert.match(html, /<title>Claw800 提肛大师<\/title>/);
   assert.match(html, /data-tigang-app/);
-  assert.match(html, /\/game-tip\.css\?v=20260321-01/);
-  assert.match(html, /\/game-tip\.js\?v=20260321-01/);
+  assert.match(html, /\/game-tip\.css\?v=20260407-01/);
+  assert.match(html, /\/game-tip\.js\?v=20260407-01/);
   assert.match(html, /class="tigang-back" href="\/games\.html" aria-label="返回游戏大全" title="返回游戏大全"/);
   assert.match(html, /id="tigangLanguageToggle"/);
   assert.match(html, /data-tab="home"/);
