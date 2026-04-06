@@ -51,15 +51,11 @@ test('tigang-master html includes home and records tabs plus the squeeze button'
   assert.match(html, /data-game-tip-root/);
 });
 
-test('tigang-master script keeps local record state and restores page-level Nexa auth hooks', () => {
+test('tigang-master script keeps local record state without page-level Nexa authorization', () => {
   const js = fs.readFileSync(jsPath, 'utf8');
 
   assert.match(js, /const TIGANG_STORAGE_KEY = 'claw800:tigang-master:records';/);
-  assert.match(js, /const TIGANG_SESSION_STORAGE_KEY = 'claw800:tigang-master:nexa-session';/);
   assert.match(js, /const TIGANG_LANGUAGE_STORAGE_KEY = 'claw800:tigang-master:language';/);
-  assert.match(js, /const TIGANG_SESSION_COOKIE_MAX_AGE_MS = 30 \* 24 \* 60 \* 60 \* 1000;/);
-  assert.match(js, /const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth:\/\/oauth\/authorize';/);
-  assert.match(js, /const NEXA_PUBLIC_CONFIG_ENDPOINT = '\/api\/nexa\/public-config';/);
   assert.match(js, /const DAILY_GOAL_COUNT = 5;/);
   assert.match(js, /const TRANSLATIONS = \{/);
   assert.match(js, /zh:/);
@@ -80,18 +76,14 @@ test('tigang-master script keeps local record state and restores page-level Nexa
   assert.doesNotMatch(js, /function warmSpeechSynthesis\(/);
   assert.doesNotMatch(js, /function speakFirstDailyCheer\(/);
   assert.doesNotMatch(js, /function speakDailyGoalCheer\(/);
-  assert.match(js, /function beginNexaLoginFlow\(/);
-  assert.match(js, /function hasNexaEnvironment\(/);
-  assert.match(js, /\/api\/tigang-master\/session/);
-  assert.match(js, /\/api\/tigang-master\/session\/logout/);
-  assert.match(js, /\/api\/nexa\/tip\/session/);
-  assert.match(js, /loadCachedSession\(/);
-  assert.match(js, /saveCachedSession\(/);
-  assert.match(js, /await syncSessionFromAuthCode\(appState\)\.catch\(\(\) => false\);/);
-  assert.match(js, /if \(!synced && hasNexaEnvironment\(\)\) \{/);
-  assert.match(js, /await clearServerSession\(\)\.catch\(\(\) => \{\}\);/);
-  assert.match(js, /clearCachedSession\(appState\.storage\);/);
-  assert.match(js, /await beginNexaLoginFlow\(\)\.catch\(\(\) => \{\}\);/);
+  assert.doesNotMatch(js, /function beginNexaLoginFlow\(/);
+  assert.doesNotMatch(js, /function hasNexaEnvironment\(/);
+  assert.doesNotMatch(js, /\/api\/tigang-master\/session/);
+  assert.doesNotMatch(js, /\/api\/tigang-master\/session\/logout/);
+  assert.doesNotMatch(js, /\/api\/nexa\/tip\/session/);
+  assert.doesNotMatch(js, /loadCachedSession\(/);
+  assert.doesNotMatch(js, /saveCachedSession\(/);
+  assert.doesNotMatch(js, /syncSessionFromAuthCode/);
   assert.match(js, /function handlePressStart\(/);
   assert.match(js, /function handlePressEnd\(/);
   assert.match(js, /appState\.elements\.reminderText/);
