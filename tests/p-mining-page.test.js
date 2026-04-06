@@ -195,7 +195,7 @@ test('p-mining html includes the expected mining, invite, records, and profile s
   assert.match(html, /data-i18n="totalSupplyValue"/);
   assert.match(html, /<\/article>\s*<p class="p-mining-runtime-note"><span data-i18n="runtimeSince">/);
   assert.match(html, /Every 4 Years \(Next\)/);
-  assert.match(html, /P is Pay，P is People，P无实际用途，参与人数超过 1000 万人时，可能是一场伟大的胜利。/);
+  assert.match(html, /P is Pay\/People，100% 由用户每小时产出，P无用，人数千万时就是一场胜利。/);
   assert.doesNotMatch(html, />2100 亿</);
 });
 
