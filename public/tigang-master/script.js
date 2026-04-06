@@ -1,15 +1,9 @@
 (function createTigangMasterModule(globalScope) {
   const TIGANG_STORAGE_KEY = 'claw800:tigang-master:records';
-  const TIGANG_SESSION_STORAGE_KEY = 'claw800:tigang-master:nexa-session';
-  const SHARED_TIP_SESSION_STORAGE_KEY = 'claw800_nexa_tip_session_v1';
   const TIGANG_LANGUAGE_STORAGE_KEY = 'claw800:tigang-master:language';
-  const TIGANG_SESSION_COOKIE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
-  const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth://oauth/authorize';
-  const NEXA_PUBLIC_CONFIG_ENDPOINT = '/api/nexa/public-config';
   const DAILY_GOAL_COUNT = 5;
   const FIRST_DAILY_CHEER_TEXT = '哇，你太棒了。坚持哦。';
   const DAILY_GOAL_CHEER_TEXT = '哇，恭喜你又健康了，希望你分享给更多朋友，一起健康。';
-  let cachedNexaPublicConfig = null;
   const TRANSLATIONS = {
     zh: {
       pageTitle: '提肛大师',
@@ -199,90 +193,6 @@
     return groups;
   }
 
-  function loadCachedSession(storage = getStorage()) {
-    try {
-      const raw = storage?.getItem?.(TIGANG_SESSION_STORAGE_KEY);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      if (!parsed?.openId || !parsed?.sessionKey) return null;
-      if (Number(parsed.expiresAt || 0) < Date.now()) {
-        storage?.removeItem?.(TIGANG_SESSION_STORAGE_KEY);
-        return null;
-      }
-      return parsed;
-    } catch {
-      return null;
-    }
-  }
-
-  function saveCachedSession(storage = getStorage(), session) {
-    try {
-      const normalized = {
-        openId: String(session?.openId || '').trim(),
-        sessionKey: String(session?.sessionKey || '').trim(),
-        nickname: String(session?.nickname || 'Nexa User').trim() || 'Nexa User',
-        avatar: String(session?.avatar || '').trim(),
-        savedAt: Number(session?.savedAt || 0) || Date.now()
-      };
-      if (!normalized.openId || !normalized.sessionKey) return;
-      normalized.expiresAt = normalized.savedAt + TIGANG_SESSION_COOKIE_MAX_AGE_MS;
-      storage?.setItem?.(TIGANG_SESSION_STORAGE_KEY, JSON.stringify(normalized));
-    } catch {}
-  }
-
-  function clearCachedSession(storage = getStorage()) {
-    try {
-      storage?.removeItem?.(TIGANG_SESSION_STORAGE_KEY);
-    } catch {}
-  }
-
-  function saveSharedTipSession(storage = getStorage(), session) {
-    try {
-      const normalized = {
-        openId: String(session?.openId || '').trim(),
-        sessionKey: String(session?.sessionKey || '').trim(),
-        savedAt: Number(session?.savedAt || 0) || Date.now()
-      };
-      if (!normalized.openId || !normalized.sessionKey) return;
-      normalized.expiresAt = normalized.savedAt + TIGANG_SESSION_COOKIE_MAX_AGE_MS;
-      storage?.setItem?.(SHARED_TIP_SESSION_STORAGE_KEY, JSON.stringify(normalized));
-    } catch {}
-  }
-
-  function hasNexaEnvironment() {
-    const userAgent = String(globalScope.window?.navigator?.userAgent || '');
-    const referrer = String(globalScope.document?.referrer || '');
-    return /nexa/i.test(userAgent) || /nexa/i.test(referrer);
-  }
-
-  function buildCleanReturnUrl() {
-    const url = new URL(globalScope.window.location.href);
-    ['code', 'authCode', 'auth_code', 'state'].forEach((key) => url.searchParams.delete(key));
-    return url.toString();
-  }
-
-  async function beginNexaLoginFlow() {
-    const redirectUri = buildCleanReturnUrl();
-    const config = await getNexaPublicConfig();
-    const targetUrl = `${NEXA_PROTOCOL_AUTH_BASE}?apikey=${encodeURIComponent(config.apiKey)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
-    globalScope.window.location.href = targetUrl;
-  }
-
-  function extractAuthCodeFromUrl() {
-    const params = new URLSearchParams(globalScope.window.location.search);
-    return (
-      String(params.get('code') || '').trim()
-      || String(params.get('authCode') || '').trim()
-      || String(params.get('auth_code') || '').trim()
-    );
-  }
-
-  function clearAuthCodeFromUrl() {
-    const url = new URL(globalScope.window.location.href);
-    ['code', 'authCode', 'auth_code', 'state'].forEach((key) => url.searchParams.delete(key));
-    globalScope.window.history.replaceState({}, globalScope.document.title, url.toString());
-  }
-
   async function postJson(url, body) {
     const response = await globalScope.fetch(url, {
       method: 'POST',
@@ -303,23 +213,6 @@
       throw new Error(String(json?.error || json?.message || 'REQUEST_FAILED'));
     }
     return json;
-  }
-
-  async function getNexaPublicConfig() {
-    if (cachedNexaPublicConfig?.apiKey) return cachedNexaPublicConfig;
-    const json = await getJson(NEXA_PUBLIC_CONFIG_ENDPOINT);
-    const apiKey = String(json?.apiKey || '').trim();
-    if (!apiKey) {
-      throw new Error('Nexa API Key 未配置');
-    }
-    cachedNexaPublicConfig = { apiKey };
-    return cachedNexaPublicConfig;
-  }
-
-  async function clearServerSession() {
-    try {
-      await postJson('/api/tigang-master/session/logout', {});
-    } catch {}
   }
 
   function renderRecentRecords(appState) {
@@ -412,18 +305,10 @@
     node.textContent = copy[reminderKey];
   }
 
-  function renderSession(appState) {
-    if (!appState.elements.sessionChip) return;
-    appState.elements.sessionChip.textContent = appState.nexaSession
-      ? `Nexa 已登录 · ${String(appState.nexaSession.nickname || 'Nexa User')}`
-      : '本地记录';
-  }
-
   function renderAll(appState) {
     renderHome(appState);
     renderRecentRecords(appState);
     renderRecords(appState);
-    renderSession(appState);
   }
 
   function switchTab(appState, tab) {
@@ -480,58 +365,12 @@
     }
   }
 
-  async function syncSessionFromAuthCode(appState) {
-    const authCode = extractAuthCodeFromUrl();
-    if (!authCode) return false;
-    const response = await postJson('/api/nexa/tip/session', {
-      authCode,
-      gameSlug: 'tigang-master'
-    });
-    const serverResponse = await postJson('/api/tigang-master/session', {
-      openId: String(response.session?.openId || '').trim(),
-      sessionKey: String(response.session?.sessionKey || '').trim(),
-      nickname: 'Nexa User',
-      avatar: ''
-    });
-    appState.nexaSession = serverResponse.session || null;
-    if (appState.nexaSession) {
-      saveCachedSession(appState.storage, appState.nexaSession);
-      saveSharedTipSession(appState.storage, appState.nexaSession);
-    }
-    clearAuthCodeFromUrl();
-    return true;
-  }
-
-  async function ensureNexaSession(appState) {
-    const cached = loadCachedSession(appState.storage);
-    if (cached) {
-      appState.nexaSession = cached;
-      return;
-    }
-    try {
-      const response = await getJson('/api/tigang-master/session');
-      appState.nexaSession = response.session || null;
-      if (appState.nexaSession) {
-        saveCachedSession(appState.storage, appState.nexaSession);
-        saveSharedTipSession(appState.storage, appState.nexaSession);
-      }
-      return;
-    } catch {
-      await clearServerSession();
-      clearCachedSession(appState.storage);
-    }
-    if (hasNexaEnvironment()) {
-      beginNexaLoginFlow().catch(() => {});
-    }
-  }
-
   function createApp(root) {
     const storage = getStorage();
     const appState = {
       storage,
       records: loadTigangRecords(storage),
       language: loadLanguage(storage),
-      nexaSession: loadCachedSession(storage),
       activeTab: 'home',
       isPressing: false,
       pressStartedAt: 0,
@@ -543,7 +382,6 @@
         languageButtons: Array.from(root.querySelectorAll('[data-language]')),
         i18nNodes: Array.from(root.querySelectorAll('[data-i18n]')),
         panels: Array.from(root.querySelectorAll('[data-tab]')),
-        sessionChip: root.querySelector('#tigangSessionChip'),
         actionButton: root.querySelector('#tigangActionButton'),
         statusText: root.querySelector('#tigangStatusText'),
         timerValue: root.querySelector('#tigangTimerValue'),
@@ -593,19 +431,12 @@
     if (!globalScope.document) return;
     const root = globalScope.document.querySelector('[data-tigang-app]');
     if (!root) return;
-    const appState = createApp(root);
-    const synced = await syncSessionFromAuthCode(appState).catch(() => false);
-    if (!synced) {
-      await ensureNexaSession(appState).catch(() => {});
-    }
-    renderAll(appState);
+    createApp(root);
   }
 
   const exported = {
     TIGANG_STORAGE_KEY,
-    TIGANG_SESSION_STORAGE_KEY,
     TIGANG_LANGUAGE_STORAGE_KEY,
-    TIGANG_SESSION_COOKIE_MAX_AGE_MS,
     DAILY_GOAL_COUNT,
     TRANSLATIONS,
     loadTigangRecords,
@@ -618,7 +449,6 @@
     applyLanguage,
     setInlineReminder,
     renderInlineReminder,
-    beginNexaLoginFlow,
     handlePressStart,
     handlePressEnd
   };
