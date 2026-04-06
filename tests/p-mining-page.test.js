@@ -46,7 +46,7 @@ test('p-mining html includes host header, tab panels, and script mounts', () => 
   assert.match(html, /class="p-mining-balance-card__aside"/);
   assert.match(html, /class="p-mining-claim-ring"/);
   assert.doesNotMatch(html, /class="p-mining-claim-ring__mine-icon"/);
-  assert.match(html, /id="pMiningClaimCountdown">3600</);
+  assert.match(html, /id="pMiningClaimCountdown">60:00</);
   assert.doesNotMatch(html, /id="pMiningClaimCountdown">00:00:00</);
   assert.match(html, /id="pMiningStatsGrid"/);
   assert.match(html, /id="pMiningEstimatedTodayOutput"/);
@@ -68,6 +68,7 @@ test('p-mining html includes host header, tab panels, and script mounts', () => 
   assert.match(html, /id="pMiningInvitePromptSuccessClose"/);
   assert.match(html, /id="pMiningHumanCheckModal"/);
   assert.match(html, /id="pMiningHumanCheckConfirm"/);
+  assert.match(html, /data-i18n="estimatedPerMinute">Est\. P \/ Hour</);
   assert.doesNotMatch(html, /id="pMiningHumanCheckClose"/);
   assert.match(html, /data-purchase-tier="starter"/);
   assert.match(html, /data-purchase-tier="boost"/);
@@ -236,6 +237,9 @@ test('p-mining script includes the expected UI hooks', () => {
   assert.match(js, /anchor\.click\(\)/);
   assert.doesNotMatch(js, /function togglePurchasePanel\(/);
   assert.match(js, /function calculateEstimatedTodayOutput\(/);
+  assert.match(js, /estimatedPerMinute:\s*'Est\. P \/ Hour'/);
+  assert.match(js, /estimatedPerMinute:\s*'预计收益\/小时'/);
+  assert.match(js, /appState\.elements\.rewardPerMinute\.textContent = formatMiningNumber\(reward \* 60\);/);
   assert.match(js, /\/api\/p-mining\/session/);
   assert.match(js, /\/api\/p-mining\/session\/logout/);
   assert.match(js, /\/api\/p-mining\/bootstrap/);

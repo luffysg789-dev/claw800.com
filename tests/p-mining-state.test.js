@@ -182,7 +182,7 @@ test('getClaimCooldownRemainingSeconds rounds up remaining time', () => {
   assert.equal(remaining, 3575);
 });
 
-test('getClaimUiState shows a full 3600-second cooldown immediately after claim', () => {
+test('getClaimUiState shows a full 60:00 cooldown immediately after claim', () => {
   const claimedAt = 1710000000000;
   const ui = getClaimUiState({
     lastClaimAt: claimedAt,
@@ -190,12 +190,12 @@ test('getClaimUiState shows a full 3600-second cooldown immediately after claim'
   });
 
   assert.equal(ui.remainingSeconds, 3600);
-  assert.equal(ui.countdownLabel, '3600');
+  assert.equal(ui.countdownLabel, '60:00');
   assert.equal(ui.hintLabel, '冷却中');
   assert.equal(ui.isClaimable, false);
 });
 
-test('getClaimUiState uses plain second labels instead of hh:mm:ss', () => {
+test('getClaimUiState uses mm:ss labels for the 1-hour timer', () => {
   const ready = getClaimUiState({
     lastClaimAt: 0,
     now: 1710000000000
@@ -205,8 +205,8 @@ test('getClaimUiState uses plain second labels instead of hh:mm:ss', () => {
     now: 1710000005000
   });
 
-  assert.equal(ready.countdownLabel, '3600');
-  assert.equal(cooling.countdownLabel, '3595');
+  assert.equal(ready.countdownLabel, '60:00');
+  assert.equal(cooling.countdownLabel, '59:55');
 });
 
 test('applyClaimResult updates balance, lastClaimAt, and claim records', () => {

@@ -51,7 +51,7 @@
       networkOnline: 'Online',
       currentHoldings: 'Current P',
       currentPower: 'Your Power',
-      estimatedPerMinute: 'Est. P / Min',
+      estimatedPerMinute: 'Est. P / Hour',
       networkUsers: 'Users',
       totalMined: 'Total Mined',
       todayOutput: 'Today Output',
@@ -121,7 +121,7 @@
       networkOnline: '在线',
       currentHoldings: '我的持有 P',
       currentPower: '我的算力',
-      estimatedPerMinute: '预计收益/分钟',
+      estimatedPerMinute: '预计收益/小时',
       networkUsers: '全网用户',
       totalMined: '已挖出总量',
       todayOutput: '今日全网产出',
@@ -977,11 +977,15 @@
       ? 100
       : Math.min(100, Math.max(0, ((CLAIM_COOLDOWN_MS - remainingSeconds * 1000) / CLAIM_COOLDOWN_MS) * 100));
 
+    const displaySeconds = claimable ? Math.ceil(CLAIM_COOLDOWN_MS / 1000) : remainingSeconds;
+    const displayMinutes = Math.floor(displaySeconds / 60);
+    const displayRemainderSeconds = Math.max(0, displaySeconds % 60);
+
     return {
       remainingSeconds,
       progress,
       isClaimable: claimable && !isProcessing,
-      countdownLabel: claimable ? '3600' : String(remainingSeconds),
+      countdownLabel: `${displayMinutes}:${String(displayRemainderSeconds).padStart(2, '0')}`,
       hintLabel: claimable ? '点击领取' : '冷却中'
     };
   }
@@ -1126,7 +1130,7 @@
     });
     animateBalanceValue(appState, appState.state.balance);
     appState.elements.powerValue.textContent = formatPowerValue(appState.state.power);
-    appState.elements.rewardPerMinute.textContent = formatMiningNumber(reward);
+    appState.elements.rewardPerMinute.textContent = formatMiningNumber(reward * 60);
     appState.elements.totalUsers.textContent = formatWholeNumber(appState.network.totalUsers);
     appState.elements.totalMined.textContent = formatMiningNumber(appState.network.totalMined);
     appState.elements.todayMined.textContent = formatMiningNumber(appState.network.todayMined);
