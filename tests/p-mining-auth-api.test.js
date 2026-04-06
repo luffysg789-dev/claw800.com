@@ -9,12 +9,18 @@ const dbModulePath = path.join(__dirname, '..', 'src', 'db.js');
 const serverModulePath = path.join(__dirname, '..', 'src', 'server.js');
 const nexaPayModulePath = path.join(__dirname, '..', 'src', 'nexa-pay.js');
 
-function createHarness({ mockPaymentResponse, mockQueryResponse } = {}) {
+function createHarness({ mockPaymentResponse, mockQueryResponse, seedNexaEnv = true } = {}) {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claw800-p-mining-auth-api-'));
   const dbPath = path.join(tmpDir, 'claw800.db');
   const previousDbPath = process.env.CLAW800_DB_PATH;
+  const previousNexaApiKey = process.env.NEXA_API_KEY;
+  const previousNexaAppSecret = process.env.NEXA_APP_SECRET;
 
   process.env.CLAW800_DB_PATH = dbPath;
+  if (seedNexaEnv) {
+    process.env.NEXA_API_KEY = process.env.NEXA_API_KEY || 'test-nexa-api-key';
+    process.env.NEXA_APP_SECRET = process.env.NEXA_APP_SECRET || 'test-nexa-app-secret';
+  }
   delete require.cache[require.resolve(dbModulePath)];
   delete require.cache[require.resolve(serverModulePath)];
   delete require.cache[require.resolve(nexaPayModulePath)];
@@ -121,6 +127,16 @@ function createHarness({ mockPaymentResponse, mockQueryResponse } = {}) {
       } else {
         process.env.CLAW800_DB_PATH = previousDbPath;
       }
+      if (previousNexaApiKey === undefined) {
+        delete process.env.NEXA_API_KEY;
+      } else {
+        process.env.NEXA_API_KEY = previousNexaApiKey;
+      }
+      if (previousNexaAppSecret === undefined) {
+        delete process.env.NEXA_APP_SECRET;
+      } else {
+        process.env.NEXA_APP_SECRET = previousNexaAppSecret;
+      }
     }
   };
 }
@@ -199,6 +215,96 @@ test('p-mining bootstrap creates a backend account and returns synced account st
     assert.equal(response.body.network.totalUsers, 1);
   } finally {
     harness.cleanup();
+  }
+});
+
+test('admin site config can store Nexa credentials and public config only returns the apiKey when env vars are absent', async () => {
+  const previousNexaApiKey = process.env.NEXA_API_KEY;
+  const previousNexaAppSecret = process.env.NEXA_APP_SECRET;
+  delete process.env.NEXA_API_KEY;
+  delete process.env.NEXA_APP_SECRET;
+  const harness = createHarness({ seedNexaEnv: false });
+
+  try {
+    const login = await harness.request('POST', '/api/admin/login', { password: '123456' });
+    assert.equal(login.statusCode, 200);
+    const serialized = JSON.parse(login.headers['set-cookie'][0]);
+    const cookies = {
+      [serialized.name]: serialized.value
+    };
+
+    const save = await harness.request(
+      'PUT',
+      '/api/admin/site-config',
+      {
+        title: 'claw800.com',
+        subtitleZh: '',
+        subtitleEn: '',
+        htmlTitleZh: '',
+        htmlTitleEn: '',
+        icon: '',
+        logo: '',
+        skillsPageTitleZh: '',
+        skillsPageTitleEn: '',
+        skillsPageSubtitleZh: '',
+        skillsPageSubtitleEn: '',
+        skillsPageBotLabelZh: '',
+        skillsPageBotLabelEn: '',
+        skillsPageBotPromptZh: '',
+        skillsPageBotPromptEn: '',
+        skillsPageInstallPromptZh: '',
+        skillsPageInstallPromptEn: '',
+        footerCopyrightZh: '',
+        footerCopyrightEn: '',
+        footerLinksRaw: '',
+        footerContactZh: '',
+        footerContactEn: '',
+        nexaApiKey: 'admin-runtime-api-key',
+        nexaAppSecret: 'admin-runtime-app-secret'
+      },
+      { cookies }
+    );
+    assert.equal(save.statusCode, 200);
+
+    const config = await harness.request('GET', '/api/nexa/public-config');
+    assert.equal(config.statusCode, 200);
+    assert.equal(config.body.ok, true);
+    assert.equal(config.body.apiKey, 'admin-runtime-api-key');
+    assert.equal('appSecret' in config.body, false);
+
+    const adminConfig = await harness.request('GET', '/api/admin/site-config', null, { cookies });
+    assert.equal(adminConfig.statusCode, 200);
+    assert.equal(adminConfig.body.nexaApiKey, 'admin-runtime-api-key');
+    assert.equal(adminConfig.body.hasNexaAppSecret, true);
+    assert.equal(adminConfig.body.nexaAppSecret, '');
+
+    const keepSave = await harness.request(
+      'PUT',
+      '/api/admin/site-config',
+      {
+        ...adminConfig.body,
+        title: 'claw800.com',
+        keepNexaAppSecret: true,
+        nexaAppSecret: ''
+      },
+      { cookies }
+    );
+    assert.equal(keepSave.statusCode, 200);
+
+    const storedSecret = harness.db.prepare(`SELECT value FROM settings WHERE key = 'nexa_app_secret'`).get();
+    assert.equal(storedSecret.value, 'admin-runtime-app-secret');
+  } finally {
+    harness.cleanup();
+    if (previousNexaApiKey === undefined) {
+      delete process.env.NEXA_API_KEY;
+    } else {
+      process.env.NEXA_API_KEY = previousNexaApiKey;
+    }
+    if (previousNexaAppSecret === undefined) {
+      delete process.env.NEXA_APP_SECRET;
+    } else {
+      process.env.NEXA_APP_SECRET = previousNexaAppSecret;
+    }
   }
 });
 

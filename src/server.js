@@ -266,9 +266,11 @@ function getGameNameBySlug(slug) {
 }
 
 function getNexaCredentials() {
+  const apiKeyFromSettings = String(getSetting('nexa_api_key', '') || '').trim();
+  const appSecretFromSettings = String(getSetting('nexa_app_secret', '') || '').trim();
   return {
-    apiKey: String(DEFAULT_NEXA_API_KEY || '').trim(),
-    appSecret: String(DEFAULT_NEXA_APP_SECRET || '').trim()
+    apiKey: String(DEFAULT_NEXA_API_KEY || '').trim() || apiKeyFromSettings,
+    appSecret: String(DEFAULT_NEXA_APP_SECRET || '').trim() || appSecretFromSettings
   };
 }
 
@@ -280,6 +282,18 @@ function ensureNexaCredentialsConfigured() {
     throw error;
   }
   return credentials;
+}
+
+function getNexaPublicConfig() {
+  const credentials = getNexaCredentials();
+  if (!credentials.apiKey) {
+    const error = new Error('Nexa 授权配置不完整，请先设置 API Key');
+    error.statusCode = 503;
+    throw error;
+  }
+  return {
+    apiKey: credentials.apiKey
+  };
 }
 
 function encodePMiningSessionCookie(session) {
@@ -1688,6 +1702,8 @@ app.get('/api/admin/site-config', requireAdmin, (_req, res) => {
   const footerContactZh = getSetting('site_footer_contact_zh', '');
   const footerContactEn = getSetting('site_footer_contact_en', '');
   const footerLinksRaw = getSetting('site_footer_links', '');
+  const nexaApiKey = getSetting('nexa_api_key', '');
+  const hasNexaAppSecret = Boolean(String(getSetting('nexa_app_secret', '') || '').trim());
   const footerLinks = parseFooterLinks(footerLinksRaw);
   res.json({
     ok: true,
@@ -1712,6 +1728,9 @@ app.get('/api/admin/site-config', requireAdmin, (_req, res) => {
     footerCopyrightEn,
     footerContactZh,
     footerContactEn,
+    nexaApiKey,
+    nexaAppSecret: '',
+    hasNexaAppSecret,
     footerLinksRaw,
     footerLinks
   });
@@ -1740,6 +1759,9 @@ app.put('/api/admin/site-config', requireAdmin, (req, res) => {
   const footerContactZh = String(req.body.footerContactZh || '').trim();
   const footerContactEn = String(req.body.footerContactEn || '').trim();
   const footerLinksRaw = String(req.body.footerLinksRaw || req.body.footerLinks || '').trim();
+  const nexaApiKey = String(req.body.nexaApiKey || '').trim();
+  const nexaAppSecret = String(req.body.nexaAppSecret || '').trim();
+  const keepNexaAppSecret = req.body.keepNexaAppSecret === true || String(req.body.keepNexaAppSecret || '').trim() === 'true';
 
   if (!title) return res.status(400).json({ error: '网站名称必填' });
   if (Buffer.byteLength(title, 'utf8') > 200) return res.status(413).json({ error: '网站名称太长' });
@@ -1764,6 +1786,8 @@ app.put('/api/admin/site-config', requireAdmin, (req, res) => {
   if (Buffer.byteLength(footerContactZh, 'utf8') > 2000) return res.status(413).json({ error: '联系客服(中文)太长' });
   if (Buffer.byteLength(footerContactEn, 'utf8') > 2000) return res.status(413).json({ error: '联系客服(英文)太长' });
   if (Buffer.byteLength(footerLinksRaw, 'utf8') > 50000) return res.status(413).json({ error: '友情链接太长' });
+  if (Buffer.byteLength(nexaApiKey, 'utf8') > 500) return res.status(413).json({ error: 'Nexa API Key 太长' });
+  if (Buffer.byteLength(nexaAppSecret, 'utf8') > 1000) return res.status(413).json({ error: 'Nexa App Secret 太长' });
 
   if (icon && !isProbablyDataUrl(icon) && !isProbablyAbsoluteUrl(icon)) {
     return res.status(400).json({ error: 'icon 必须是图片 dataURL 或 http(s) 链接' });
@@ -1796,6 +1820,10 @@ app.put('/api/admin/site-config', requireAdmin, (req, res) => {
     upsertSettingStmt.run('site_footer_contact_zh', footerContactZh);
     upsertSettingStmt.run('site_footer_contact_en', footerContactEn);
     upsertSettingStmt.run('site_footer_links', stringifyFooterLinks(footerLinks));
+    upsertSettingStmt.run('nexa_api_key', nexaApiKey);
+    if (!keepNexaAppSecret || nexaAppSecret) {
+      upsertSettingStmt.run('nexa_app_secret', nexaAppSecret);
+    }
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: '保存失败' });
@@ -2657,6 +2685,21 @@ app.post('/api/nexa/tip/session', async (req, res) => {
   } catch (error) {
     const statusCode = Number(error?.statusCode || 502) || 502;
     res.status(statusCode).json({ error: String(error?.message || 'Nexa 授权失败') });
+  }
+});
+
+app.get('/api/nexa/public-config', (_req, res) => {
+  try {
+    const config = getNexaPublicConfig();
+    return res.json({
+      ok: true,
+      apiKey: config.apiKey
+    });
+  } catch (error) {
+    return res.status(Number(error?.statusCode || 503)).json({
+      ok: false,
+      error: String(error?.message || 'Nexa public config unavailable')
+    });
   }
 });
 

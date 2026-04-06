@@ -133,6 +133,7 @@ const CATEGORY_EN = {
 };
 const TUTORIAL_MAX_BYTES = 5000000;
 const TUTORIAL_UPLOAD_CHUNK_SIZE = 100000;
+const SAVED_NEXA_SECRET_MASK = '••••••••已保存';
 const DEFAULT_SITE_CONFIG = {
   title: 'claw800.com',
   subtitleZh: '龙虾学习导航网，为你的龙虾赋能。',
@@ -159,7 +160,10 @@ const DEFAULT_SITE_CONFIG = {
   footerCopyrightEn: '',
   footerLinksRaw: '',
   footerContactZh: '',
-  footerContactEn: ''
+  footerContactEn: '',
+  nexaApiKey: '',
+  nexaAppSecret: '',
+  hasNexaAppSecret: false
 };
 const GAME_ROUTE_MAP = {
   minesweeper: '/minesweeper.html',
@@ -2099,7 +2103,10 @@ function mergeSiteConfigWithDefaults(raw) {
     footerCopyrightEn: String(input.footerCopyrightEn || '').trim(),
     footerLinksRaw: String(input.footerLinksRaw || '').trim(),
     footerContactZh: String(input.footerContactZh || '').trim(),
-    footerContactEn: String(input.footerContactEn || '').trim()
+    footerContactEn: String(input.footerContactEn || '').trim(),
+    nexaApiKey: String(input.nexaApiKey || '').trim(),
+    nexaAppSecret: Boolean(input.hasNexaAppSecret) ? SAVED_NEXA_SECRET_MASK : String(input.nexaAppSecret || '').trim(),
+    hasNexaAppSecret: Boolean(input.hasNexaAppSecret)
   };
 }
 
@@ -2147,6 +2154,8 @@ async function loadSiteConfig() {
       const linksEl = getSiteConfigControl('footerLinksRaw');
       const contactZhEl = getSiteConfigControl('footerContactZh');
       const contactEnEl = getSiteConfigControl('footerContactEn');
+      const nexaApiKeyEl = getSiteConfigControl('nexaApiKey');
+      const nexaAppSecretEl = getSiteConfigControl('nexaAppSecret');
       const iconEl = getSiteConfigControl('icon');
       const logoEl = getSiteConfigControl('logo');
       if (titleEl) titleEl.value = String(siteConfigCache.title || '');
@@ -2171,6 +2180,8 @@ async function loadSiteConfig() {
       if (linksEl) linksEl.value = String(siteConfigCache.footerLinksRaw || '');
       if (contactZhEl) contactZhEl.value = String(siteConfigCache.footerContactZh || '');
       if (contactEnEl) contactEnEl.value = String(siteConfigCache.footerContactEn || '');
+      if (nexaApiKeyEl) nexaApiKeyEl.value = String(siteConfigCache.nexaApiKey || '');
+      if (nexaAppSecretEl) nexaAppSecretEl.value = String(siteConfigCache.nexaAppSecret || '');
       refreshSiteIconPreview();
       refreshSiteLogoPreview();
       setTimeout(() => titleEl?.focus?.(), 0);
@@ -3219,7 +3230,10 @@ if (siteConfigForm) {
       footerCopyrightEn: String(payload.footerCopyrightEn || '').trim(),
       footerLinksRaw: String(payload.footerLinksRaw || '').trim(),
       footerContactZh: String(payload.footerContactZh || '').trim(),
-      footerContactEn: String(payload.footerContactEn || '').trim()
+      footerContactEn: String(payload.footerContactEn || '').trim(),
+      nexaApiKey: String(payload.nexaApiKey || '').trim(),
+      nexaAppSecret: String(payload.nexaAppSecret || '').trim(),
+      keepNexaAppSecret: String(payload.nexaAppSecret || '').trim() === SAVED_NEXA_SECRET_MASK
     };
     try {
       const result = await requestTutorialJson(['/api/admin/site-config', '/admin/site-config'], {
@@ -3237,7 +3251,12 @@ if (siteConfigForm) {
         siteConfigMessage.className = 'message error';
         return;
       }
-      siteConfigCache = body;
+      siteConfigCache = {
+        ...siteConfigCache,
+        ...body,
+        nexaAppSecret: body.keepNexaAppSecret || body.nexaAppSecret ? SAVED_NEXA_SECRET_MASK : '',
+        hasNexaAppSecret: Boolean(body.keepNexaAppSecret || body.nexaAppSecret)
+      };
       renderAdminFavicon();
       siteConfigMessage.textContent = t('siteConfigSaved');
       siteConfigMessage.className = 'message success';
