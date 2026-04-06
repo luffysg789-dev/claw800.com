@@ -56,6 +56,7 @@ test('tigang-master script includes local record state and nexa session hooks', 
 
   assert.match(js, /const TIGANG_STORAGE_KEY = 'claw800:tigang-master:records';/);
   assert.match(js, /const TIGANG_SESSION_STORAGE_KEY = 'claw800:tigang-master:nexa-session';/);
+  assert.match(js, /const SHARED_TIP_SESSION_STORAGE_KEY = 'claw800_nexa_tip_session_v1';/);
   assert.match(js, /const TIGANG_LANGUAGE_STORAGE_KEY = 'claw800:tigang-master:language';/);
   assert.match(js, /const TIGANG_SESSION_COOKIE_MAX_AGE_MS = 30 \* 24 \* 60 \* 60 \* 1000;/);
   assert.match(js, /const DAILY_GOAL_COUNT = 5;/);
@@ -82,6 +83,9 @@ test('tigang-master script includes local record state and nexa session hooks', 
   assert.match(js, /\/api\/tigang-master\/session/);
   assert.match(js, /\/api\/tigang-master\/session\/logout/);
   assert.match(js, /\/api\/nexa\/tip\/session/);
+  assert.match(js, /function saveSharedTipSession\(/);
+  assert.match(js, /setItem\?\.\(SHARED_TIP_SESSION_STORAGE_KEY,/);
+  assert.match(js, /saveSharedTipSession\(appState\.storage,\s*appState\.nexaSession\);/);
   assert.match(js, /function handlePressStart\(/);
   assert.match(js, /function handlePressEnd\(/);
   assert.match(js, /appState\.elements\.reminderText/);

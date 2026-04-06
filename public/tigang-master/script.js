@@ -1,6 +1,7 @@
 (function createTigangMasterModule(globalScope) {
   const TIGANG_STORAGE_KEY = 'claw800:tigang-master:records';
   const TIGANG_SESSION_STORAGE_KEY = 'claw800:tigang-master:nexa-session';
+  const SHARED_TIP_SESSION_STORAGE_KEY = 'claw800_nexa_tip_session_v1';
   const TIGANG_LANGUAGE_STORAGE_KEY = 'claw800:tigang-master:language';
   const TIGANG_SESSION_COOKIE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
   const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth://oauth/authorize';
@@ -232,6 +233,19 @@
   function clearCachedSession(storage = getStorage()) {
     try {
       storage?.removeItem?.(TIGANG_SESSION_STORAGE_KEY);
+    } catch {}
+  }
+
+  function saveSharedTipSession(storage = getStorage(), session) {
+    try {
+      const normalized = {
+        openId: String(session?.openId || '').trim(),
+        sessionKey: String(session?.sessionKey || '').trim(),
+        savedAt: Number(session?.savedAt || 0) || Date.now()
+      };
+      if (!normalized.openId || !normalized.sessionKey) return;
+      normalized.expiresAt = normalized.savedAt + TIGANG_SESSION_COOKIE_MAX_AGE_MS;
+      storage?.setItem?.(SHARED_TIP_SESSION_STORAGE_KEY, JSON.stringify(normalized));
     } catch {}
   }
 
@@ -482,6 +496,7 @@
     appState.nexaSession = serverResponse.session || null;
     if (appState.nexaSession) {
       saveCachedSession(appState.storage, appState.nexaSession);
+      saveSharedTipSession(appState.storage, appState.nexaSession);
     }
     clearAuthCodeFromUrl();
     return true;
@@ -498,6 +513,7 @@
       appState.nexaSession = response.session || null;
       if (appState.nexaSession) {
         saveCachedSession(appState.storage, appState.nexaSession);
+        saveSharedTipSession(appState.storage, appState.nexaSession);
       }
       return;
     } catch {
