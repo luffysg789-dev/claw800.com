@@ -560,7 +560,7 @@
     const safeUserPower = Math.max(0, Number(userPower || 0));
     const safeNetworkPower = Math.max(1, Number(networkPower || 1));
     const safeDailyCap = Math.max(0, Number(dailyCap || DAILY_CAP));
-    return roundToSingle((safeUserPower / safeNetworkPower) * (safeDailyCap / 1440));
+    return roundToSingle((safeUserPower / safeNetworkPower) * (safeDailyCap / 24));
   }
 
   function calculateEstimatedTodayOutput({ userPower, networkPower, dailyCap }) {
