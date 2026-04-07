@@ -25,6 +25,10 @@
       createAction: '确认发起',
       ordersHeadline: '买家付款、卖家交付、买家放款',
       accountHeadline: '你的 Nexa 担保身份',
+      filterAll: '全部',
+      filterActive: '进行中',
+      filterDisputed: '争议中',
+      filterCompleted: '已完成',
       escrowCodeLabel: '担保号',
       walletLabel: '钱包余额',
       copyAction: '复制',
@@ -84,6 +88,10 @@
       createAction: 'Create Order',
       ordersHeadline: 'Buyer pays, seller delivers, buyer releases',
       accountHeadline: 'Your Nexa escrow identity',
+      filterAll: 'All',
+      filterActive: 'Active',
+      filterDisputed: 'Disputed',
+      filterCompleted: 'Completed',
       escrowCodeLabel: 'Escrow ID',
       walletLabel: 'Wallet Balance',
       copyAction: 'Copy',
@@ -569,21 +577,56 @@
     setStatus(appState.elements.detailStatus, describeOrderStatus(appState, order), 'success');
   }
 
+  function filterOrders(appState) {
+    const allOrders = Array.isArray(appState.orders) ? appState.orders : [];
+    if (appState.orderFilter === 'active') {
+      return allOrders.filter((order) => ['AWAITING_PAYMENT', 'FUNDED', 'DELIVERED'].includes(String(order?.status || '').trim().toUpperCase()));
+    }
+    if (appState.orderFilter === 'disputed') {
+      return allOrders.filter((order) => String(order?.status || '').trim().toUpperCase() === 'DISPUTED');
+    }
+    if (appState.orderFilter === 'completed') {
+      return allOrders.filter((order) => ['COMPLETED', 'REFUNDED', 'CANCELLED'].includes(String(order?.status || '').trim().toUpperCase()));
+    }
+    return allOrders;
+  }
+
   function renderOrders(appState) {
     const list = appState.elements.ordersList;
     if (!list) return;
-    if (!appState.orders.length) {
+    appState.elements.orderFilterButtons.forEach((button) => {
+      button.classList.toggle('is-active', button.dataset.orderFilter === appState.orderFilter);
+    });
+    const visibleOrders = filterOrders(appState);
+    if (!visibleOrders.length) {
       list.innerHTML = `<article class="nexa-escrow-order-item"><div class="nexa-escrow-order-item__meta">${t(appState.locale, 'emptyOrders')}</div></article>`;
       renderOrderDetail(appState);
       return;
     }
-    list.innerHTML = appState.orders.map((order) => `
+    list.innerHTML = visibleOrders.map((order) => `
       <button class="nexa-escrow-order-item" type="button" data-trade-code="${order.tradeCode}">
         <div class="nexa-escrow-order-item__top">
           <div class="nexa-escrow-order-item__code">${order.tradeCode}</div>
           <span class="nexa-escrow-pill">${order.status}</span>
         </div>
-        <div class="nexa-escrow-order-item__meta">${order.amount} ${order.currency} · ${order.viewerRole || t(appState.locale, 'viewerPending')} · ${describeOrderStatus(appState, order)}</div>
+        <div class="nexa-escrow-order-item__summary">
+          <div class="nexa-escrow-order-item__amount">
+            <span class="nexa-escrow-label">${describeOrderStatus(appState, order)}</span>
+            <strong>${order.amount} ${order.currency}</strong>
+          </div>
+          <div class="nexa-escrow-order-item__time">${order.createdAt || '--'}</div>
+        </div>
+        <div class="nexa-escrow-order-item__grid">
+          <div class="nexa-escrow-order-item__cell">
+            <span class="nexa-escrow-label">${t(appState.locale, 'detailBuyer')}</span>
+            <strong>${order.buyerEscrowCode || '--'}</strong>
+          </div>
+          <div class="nexa-escrow-order-item__cell">
+            <span class="nexa-escrow-label">${t(appState.locale, 'detailSeller')}</span>
+            <strong>${order.sellerEscrowCode || '--'}</strong>
+          </div>
+        </div>
+        <div class="nexa-escrow-order-item__desc">${order.description || '--'}</div>
       </button>
     `).join('');
     Array.from(list.querySelectorAll('[data-trade-code]')).forEach((button) => {
@@ -592,8 +635,8 @@
         renderOrderDetail(appState);
       });
     });
-    if (!appState.selectedTradeCode) {
-      appState.selectedTradeCode = appState.orders[0]?.tradeCode || '';
+    if (!visibleOrders.some((item) => item.tradeCode === appState.selectedTradeCode)) {
+      appState.selectedTradeCode = visibleOrders[0]?.tradeCode || '';
     }
     renderOrderDetail(appState);
   }
@@ -639,11 +682,13 @@
       selectedTradeCode: '',
       role: 'buyer',
       activeTab: 'create',
+      orderFilter: 'all',
       elements: {
         tabButtons: Array.from(root.querySelectorAll('[data-tab-target]')),
         panels: Array.from(root.querySelectorAll('[data-tab]')),
         roleButtons: Array.from(root.querySelectorAll('[data-role]')),
         localeButtons: Array.from(root.querySelectorAll('[data-locale-toggle]')),
+        orderFilterButtons: Array.from(root.querySelectorAll('[data-order-filter]')),
         translatableNodes: Array.from(root.querySelectorAll('[data-i18n]')),
         placeholderNodes: Array.from(root.querySelectorAll('[data-i18n-placeholder]')),
         counterpartyLabel: root.querySelector('#nexaEscrowCounterpartyLabel'),
@@ -676,6 +721,12 @@
     });
     appState.elements.localeButtons.forEach((button) => {
       button.addEventListener('click', () => toggleLanguage(appState, button.dataset.localeToggle));
+    });
+    appState.elements.orderFilterButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        appState.orderFilter = String(button.dataset.orderFilter || 'all');
+        renderOrders(appState);
+      });
     });
     appState.elements.roleButtons.forEach((button) => {
       button.addEventListener('click', () => {

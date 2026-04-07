@@ -255,6 +255,30 @@ body {
   gap: 10px;
 }
 
+.nexa-escrow-order-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.nexa-escrow-order-filters__item {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--escrow-muted);
+  border-radius: 14px;
+  min-height: 40px;
+  padding: 0 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.nexa-escrow-order-filters__item.is-active {
+  background: rgba(47, 109, 255, 0.16);
+  border-color: rgba(47, 109, 255, 0.32);
+  color: #dce8ff;
+}
+
 .nexa-escrow-account-grid {
   display: grid;
   gap: 10px;
@@ -345,7 +369,8 @@ body {
   background: rgba(255, 255, 255, 0.03);
   padding: 14px;
   display: grid;
-  gap: 8px;
+  gap: 12px;
+  text-align: left;
 }
 
 .nexa-escrow-order-item__top {
@@ -364,6 +389,61 @@ body {
 .nexa-escrow-order-detail__line {
   color: var(--escrow-muted);
   font-size: 0.9rem;
+}
+
+.nexa-escrow-order-item__summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.nexa-escrow-order-item__amount {
+  display: grid;
+  gap: 4px;
+}
+
+.nexa-escrow-order-item__amount strong {
+  color: var(--escrow-text);
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.nexa-escrow-order-item__time {
+  text-align: right;
+  color: var(--escrow-muted);
+  font-size: 0.82rem;
+}
+
+.nexa-escrow-order-item__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.nexa-escrow-order-item__cell {
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.02);
+  padding: 10px 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.nexa-escrow-order-item__cell strong {
+  color: var(--escrow-text);
+  font-size: 0.94rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nexa-escrow-order-item__desc {
+  color: var(--escrow-muted);
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .nexa-escrow-order-detail {
@@ -476,6 +556,8 @@ body {
   }
 
   .nexa-escrow-detail-grid,
+  .nexa-escrow-order-filters,
+  .nexa-escrow-order-item__grid,
   .nexa-escrow-order-detail__actions {
     grid-template-columns: 1fr;
   }

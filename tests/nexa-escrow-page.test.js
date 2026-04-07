@@ -49,6 +49,10 @@ test('nexa-escrow html includes create and orders tabs plus escrow actions', () 
   assert.match(html, /id="nexaEscrowCounterpartyInput"/);
   assert.match(html, /id="nexaEscrowDescriptionInput"/);
   assert.match(html, /id="nexaEscrowCreateButton"/);
+  assert.match(html, /data-order-filter="all"/);
+  assert.match(html, /data-order-filter="active"/);
+  assert.match(html, /data-order-filter="disputed"/);
+  assert.match(html, /data-order-filter="completed"/);
   assert.match(html, /id="nexaEscrowOrdersList"/);
   assert.match(html, /id="nexaEscrowOrderDetail"/);
   assert.match(html, /id="nexaEscrowPrimaryAction"/);
@@ -81,10 +85,12 @@ test('nexa-escrow script includes Nexa auth, escrow bootstrap, order, and paymen
   assert.match(js, /function beginEscrowPayment\(/);
   assert.match(js, /function settlePendingEscrowPayment\(/);
   assert.match(js, /function submitEscrowAction\(/);
+  assert.match(js, /function filterOrders\(/);
   assert.match(js, /function openEscrowCodeModal\(/);
   assert.match(js, /function applyTranslations\(/);
   assert.match(js, /function toggleLanguage\(/);
   assert.match(js, /function copyEscrowCode\(/);
+  assert.match(js, /orderFilterButtons/);
   assert.match(js, /actionDispute/);
   assert.match(js, /actionConfirmReceipt/);
   assert.match(js, /localeButtons/);
