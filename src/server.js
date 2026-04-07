@@ -1675,7 +1675,7 @@ const applyPMiningClaim = db.transaction((payload) => {
     };
   }
   const network = buildPMiningNetworkStats();
-  const reward = roundPMiningValue((Math.max(0, Number(account.power || 0)) / Math.max(1, Number(network.todayPower || 1))) * (PMINING_DAILY_CAP / 1440));
+  const reward = roundPMiningValue((Math.max(0, Number(account.power || 0)) / Math.max(1, Number(network.todayPower || 1))) * (PMINING_DAILY_CAP / 24));
   const nextBalance = roundPMiningValue(Number(account.balance_p || 0) + reward);
   const firstClaimAt = Math.max(0, Number(account.first_claim_at || 0) || 0) || now;
   const lastClaimSuccessAt = Math.max(0, Number(account.last_claim_success_at || 0) || 0);
