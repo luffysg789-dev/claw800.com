@@ -23,9 +23,6 @@
       descriptionLabel: '交易描述',
       descriptionPlaceholder: '例如：购买虚拟主机服务、设计稿定金等',
       createAction: '确认发起',
-      joinHeadline: '输入交易码参与担保',
-      tradeCodePlaceholder: '输入 8 位交易码',
-      joinAction: '加入',
       ordersHeadline: '买家付款、卖家交付、买家放款',
       accountHeadline: '你的 Nexa 担保身份',
       escrowCodeLabel: '担保号',
@@ -46,11 +43,30 @@
       detailBuyer: '买方担保号',
       detailSeller: '卖方担保号',
       detailDescription: '描述',
-      actionFund: '支付担保金',
-      actionDeliver: '确认已交付',
-      actionRelease: '确认放款',
+      detailCreatedAt: '创建时间',
+      progressTitle: '交易进度',
+      safeTitle: '安全提醒',
+      safeBody: '请务必在平台内完成所有沟通。不要在确认收到商品/服务前点击“收到货”。如有疑问，请立即点击“申请仲裁”。',
+      actionFund: '确认担保',
+      actionDeliver: '发货',
+      actionConfirmReceipt: '收到货',
+      actionDispute: '申请仲裁',
       actionCancel: '取消订单',
-      viewerPending: '待加入'
+      viewerPending: '待确认',
+      statusAwaitingPayment: '待买家支付担保金',
+      statusFunded: '资金已托管',
+      statusDelivered: '卖家已发货，等待买家确认',
+      statusDisputed: '争议中，等待平台仲裁',
+      statusCompleted: '已完成，资金已释放',
+      statusRefunded: '已退款给买家',
+      progressCreatedTitle: '创建交易',
+      progressCreatedBody: '买卖双方达成一致',
+      progressFundedTitle: '资金托管',
+      progressFundedBody: '买方已将 USDT 存入平台',
+      progressDeliveredTitle: '卖家发货',
+      progressDeliveredBody: '卖家已提供商品或服务',
+      progressReceivedTitle: '确认收货',
+      progressReceivedBody: '买方确认无误，资金释放'
     },
     en: {
       tabCreate: 'Create',
@@ -66,9 +82,6 @@
       descriptionLabel: 'Trade Description',
       descriptionPlaceholder: 'Example: VPS service, design deposit, etc.',
       createAction: 'Create Order',
-      joinHeadline: 'Enter trade code to join the escrow',
-      tradeCodePlaceholder: 'Enter the 8-character trade code',
-      joinAction: 'Join',
       ordersHeadline: 'Buyer pays, seller delivers, buyer releases',
       accountHeadline: 'Your Nexa escrow identity',
       escrowCodeLabel: 'Escrow ID',
@@ -89,11 +102,30 @@
       detailBuyer: 'Buyer Escrow ID',
       detailSeller: 'Seller Escrow ID',
       detailDescription: 'Description',
-      actionFund: 'Pay Deposit',
-      actionDeliver: 'Mark Delivered',
-      actionRelease: 'Release Funds',
+      detailCreatedAt: 'Created At',
+      progressTitle: 'Progress',
+      safeTitle: 'Safety Notice',
+      safeBody: 'Keep all communication inside the platform. Do not confirm receipt before the goods or service are truly delivered. If anything is wrong, file arbitration immediately.',
+      actionFund: 'Confirm Escrow',
+      actionDeliver: 'Mark Shipped',
+      actionConfirmReceipt: 'Confirm Receipt',
+      actionDispute: 'Open Dispute',
       actionCancel: 'Cancel Order',
-      viewerPending: 'Pending'
+      viewerPending: 'Pending',
+      statusAwaitingPayment: 'Waiting for buyer escrow payment',
+      statusFunded: 'Funds are held by the platform',
+      statusDelivered: 'Seller delivered, waiting for buyer confirmation',
+      statusDisputed: 'Disputed and awaiting platform arbitration',
+      statusCompleted: 'Completed and released to seller',
+      statusRefunded: 'Refunded to buyer',
+      progressCreatedTitle: 'Order Created',
+      progressCreatedBody: 'Buyer and seller agreed on the deal',
+      progressFundedTitle: 'Escrow Funded',
+      progressFundedBody: 'Buyer deposited USDT into the platform',
+      progressDeliveredTitle: 'Seller Delivered',
+      progressDeliveredBody: 'Seller delivered the goods or service',
+      progressReceivedTitle: 'Buyer Confirmed',
+      progressReceivedBody: 'Buyer confirmed receipt and funds were released'
     }
   };
 
@@ -334,16 +366,6 @@
     );
   }
 
-  async function joinEscrowOrder(appState) {
-    const response = await postJson('/api/nexa-escrow/orders/join', {
-      tradeCode: appState.elements.tradeCodeInput.value
-    });
-    appState.orders = mergeOrder(appState.orders, response.order);
-    appState.selectedTradeCode = response.order.tradeCode;
-    renderOrders(appState);
-    setStatus(appState.elements.joinStatus, t(appState.locale, 'joiningOrderSuccess'), 'success');
-  }
-
   async function beginEscrowPayment(appState, tradeCode) {
     const response = await postJson('/api/nexa-escrow/payment/create', { tradeCode });
     savePendingPayment(appState.storage, {
@@ -463,6 +485,43 @@
       : t(appState.locale, 'counterpartyBuyerPlaceholder');
   }
 
+  function describeOrderStatus(appState, order) {
+    const status = String(order?.status || '').trim().toUpperCase();
+    if (status === 'AWAITING_PAYMENT') return t(appState.locale, 'statusAwaitingPayment');
+    if (status === 'FUNDED') return t(appState.locale, 'statusFunded');
+    if (status === 'DELIVERED') return t(appState.locale, 'statusDelivered');
+    if (status === 'DISPUTED') return t(appState.locale, 'statusDisputed');
+    if (status === 'COMPLETED') return t(appState.locale, 'statusCompleted');
+    if (status === 'REFUNDED') return t(appState.locale, 'statusRefunded');
+    return String(order?.status || '');
+  }
+
+  function renderOrderProgress(appState, order) {
+    const progressRoot = appState.elements.detailProgress;
+    if (!progressRoot) return;
+    const status = String(order?.status || '').trim().toUpperCase();
+    const steps = [
+      { key: 'created', title: t(appState.locale, 'progressCreatedTitle'), body: t(appState.locale, 'progressCreatedBody'), active: true },
+      { key: 'funded', title: t(appState.locale, 'progressFundedTitle'), body: t(appState.locale, 'progressFundedBody'), active: ['FUNDED', 'DELIVERED', 'DISPUTED', 'COMPLETED', 'REFUNDED'].includes(status) },
+      { key: 'delivered', title: t(appState.locale, 'progressDeliveredTitle'), body: t(appState.locale, 'progressDeliveredBody'), active: ['DELIVERED', 'DISPUTED', 'COMPLETED', 'REFUNDED'].includes(status) },
+      { key: 'received', title: t(appState.locale, 'progressReceivedTitle'), body: t(appState.locale, 'progressReceivedBody'), active: ['COMPLETED'].includes(status) }
+    ];
+    progressRoot.innerHTML = `
+      <p class="nexa-escrow-label">${t(appState.locale, 'progressTitle')}</p>
+      <div class="nexa-escrow-progress-list">
+        ${steps.map((step) => `
+          <div class="nexa-escrow-progress-item${step.active ? ' is-active' : ''}">
+            <div class="nexa-escrow-progress-item__dot"></div>
+            <div>
+              <strong>${step.title}</strong>
+              <p>${step.body}</p>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
   function renderOrderDetail(appState) {
     const order = appState.orders.find((item) => String(item.tradeCode) === String(appState.selectedTradeCode || ''));
     const card = appState.elements.orderDetail;
@@ -476,17 +535,29 @@
       : `Trade ${order.tradeCode}`;
     appState.elements.detailPill.textContent = order.status;
     appState.elements.detailBody.innerHTML = `
-      <div class="nexa-escrow-order-detail__line">${t(appState.locale, 'detailAmount')}：${order.amount} ${order.currency}</div>
-      <div class="nexa-escrow-order-detail__line">${t(appState.locale, 'detailBuyer')}：${order.buyerEscrowCode || '--'} ${order.buyerNickname ? `(${order.buyerNickname})` : ''}</div>
-      <div class="nexa-escrow-order-detail__line">${t(appState.locale, 'detailSeller')}：${order.sellerEscrowCode || '--'} ${order.sellerNickname ? `(${order.sellerNickname})` : ''}</div>
-      <div class="nexa-escrow-order-detail__line">${t(appState.locale, 'detailDescription')}：${order.description || '--'}</div>
+      <div class="nexa-escrow-detail-grid">
+        <div class="nexa-escrow-order-detail__line"><span>${t(appState.locale, 'detailAmount')}</span><strong>${order.amount} ${order.currency}</strong></div>
+        <div class="nexa-escrow-order-detail__line"><span>${t(appState.locale, 'detailCreatedAt')}</span><strong>${order.createdAt || '--'}</strong></div>
+      </div>
+      <div class="nexa-escrow-order-detail__line nexa-escrow-order-detail__line--block"><span>${t(appState.locale, 'detailDescription')}</span><strong>${order.description || '--'}</strong></div>
+      <div class="nexa-escrow-detail-grid">
+        <div class="nexa-escrow-order-detail__line nexa-escrow-order-detail__line--card"><span>${t(appState.locale, 'detailBuyer')}</span><strong>${order.buyerEscrowCode || '--'}</strong></div>
+        <div class="nexa-escrow-order-detail__line nexa-escrow-order-detail__line--card"><span>${t(appState.locale, 'detailSeller')}</span><strong>${order.sellerEscrowCode || '--'}</strong></div>
+      </div>
+    `;
+    renderOrderProgress(appState, order);
+    appState.elements.safetyNotice.innerHTML = `
+      <p class="nexa-escrow-label">${t(appState.locale, 'safeTitle')}</p>
+      <p>${t(appState.locale, 'safeBody')}</p>
     `;
 
     const [primaryAction, secondaryAction] = order.availableActions || [];
     const actionText = {
       fund: t(appState.locale, 'actionFund'),
       mark_delivered: t(appState.locale, 'actionDeliver'),
-      release: t(appState.locale, 'actionRelease'),
+      confirm_receipt: t(appState.locale, 'actionConfirmReceipt'),
+      release: t(appState.locale, 'actionConfirmReceipt'),
+      dispute: t(appState.locale, 'actionDispute'),
       cancel: t(appState.locale, 'actionCancel')
     };
     appState.elements.primaryAction.hidden = !primaryAction;
@@ -495,6 +566,7 @@
     appState.elements.secondaryAction.textContent = actionText[secondaryAction] || secondaryAction || '';
     appState.elements.primaryAction.dataset.action = primaryAction || '';
     appState.elements.secondaryAction.dataset.action = secondaryAction || '';
+    setStatus(appState.elements.detailStatus, describeOrderStatus(appState, order), 'success');
   }
 
   function renderOrders(appState) {
@@ -511,7 +583,7 @@
           <div class="nexa-escrow-order-item__code">${order.tradeCode}</div>
           <span class="nexa-escrow-pill">${order.status}</span>
         </div>
-        <div class="nexa-escrow-order-item__meta">${order.amount} ${order.currency} · ${order.viewerRole || t(appState.locale, 'viewerPending')} · ${order.description}</div>
+        <div class="nexa-escrow-order-item__meta">${order.amount} ${order.currency} · ${order.viewerRole || t(appState.locale, 'viewerPending')} · ${describeOrderStatus(appState, order)}</div>
       </button>
     `).join('');
     Array.from(list.querySelectorAll('[data-trade-code]')).forEach((button) => {
@@ -580,14 +652,13 @@
         descriptionInput: root.querySelector('#nexaEscrowDescriptionInput'),
         createButton: root.querySelector('#nexaEscrowCreateButton'),
         createStatus: root.querySelector('#nexaEscrowCreateStatus'),
-        tradeCodeInput: root.querySelector('#nexaEscrowTradeCodeInput'),
-        joinButton: root.querySelector('#nexaEscrowJoinButton'),
-        joinStatus: root.querySelector('#nexaEscrowJoinStatus'),
         ordersList: root.querySelector('#nexaEscrowOrdersList'),
         orderDetail: root.querySelector('#nexaEscrowOrderDetail'),
         detailTitle: root.querySelector('#nexaEscrowDetailTitle'),
         detailPill: root.querySelector('#nexaEscrowDetailStatus'),
         detailBody: root.querySelector('#nexaEscrowDetailBody'),
+        detailProgress: root.querySelector('#nexaEscrowDetailProgress'),
+        safetyNotice: root.querySelector('#nexaEscrowSafetyNotice'),
         detailStatus: root.querySelector('#nexaEscrowDetailStatusText'),
         primaryAction: root.querySelector('#nexaEscrowPrimaryAction'),
         secondaryAction: root.querySelector('#nexaEscrowSecondaryAction'),
@@ -620,30 +691,23 @@
         setStatus(appState.elements.createStatus, error instanceof Error ? error.message : '创建失败', 'error');
       }
     });
-    appState.elements.joinButton?.addEventListener('click', async () => {
-      try {
-        setStatus(appState.elements.joinStatus, t(appState.locale, 'joiningOrder'));
-        await joinEscrowOrder(appState);
-      } catch (error) {
-        setStatus(appState.elements.joinStatus, error instanceof Error ? error.message : '加入失败', 'error');
-      }
-    });
     [appState.elements.primaryAction, appState.elements.secondaryAction].forEach((button) => {
       button?.addEventListener('click', async () => {
-        const action = String(button.dataset.action || '').trim();
-        const tradeCode = String(appState.selectedTradeCode || '').trim();
-        if (!action || !tradeCode) return;
-        try {
-          setStatus(appState.elements.detailStatus, t(appState.locale, 'processing'));
-          if (action === 'fund') {
-            await beginEscrowPayment(appState, tradeCode);
-            return;
-          }
-          await submitEscrowAction(appState, action, tradeCode);
-          setStatus(appState.elements.detailStatus, t(appState.locale, 'actionSuccess'), 'success');
-        } catch (error) {
-          setStatus(appState.elements.detailStatus, error instanceof Error ? error.message : '操作失败', 'error');
-        }
+            const action = String(button.dataset.action || '').trim();
+            const tradeCode = String(appState.selectedTradeCode || '').trim();
+            if (!action || !tradeCode) return;
+            try {
+              setStatus(appState.elements.detailStatus, t(appState.locale, 'processing'));
+              if (action === 'fund') {
+                await beginEscrowPayment(appState, tradeCode);
+                return;
+              }
+              await submitEscrowAction(appState, action, tradeCode);
+              const nextOrder = appState.orders.find((item) => item.tradeCode === tradeCode);
+              setStatus(appState.elements.detailStatus, describeOrderStatus(appState, nextOrder), 'success');
+            } catch (error) {
+              setStatus(appState.elements.detailStatus, error instanceof Error ? error.message : '操作失败', 'error');
+            }
       });
     });
     appState.elements.codeModalConfirm?.addEventListener('click', () => {
@@ -701,7 +765,6 @@
     MAX_NEXA_ESCROW_SESSION_RETENTION_MS,
     beginNexaLoginFlow,
     createEscrowOrder,
-    joinEscrowOrder,
     beginEscrowPayment,
     settlePendingEscrowPayment,
     submitEscrowAction

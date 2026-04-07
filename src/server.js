@@ -924,6 +924,22 @@ function getNexaEscrowViewerRole(order, userId) {
   return '';
 }
 
+const NEXA_ESCROW_AUTO_RELEASE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+function addMillisecondsToSqliteDate(dateText, deltaMs) {
+  const baseDate = dateText ? new Date(String(dateText).replace(' ', 'T') + 'Z') : new Date();
+  return new Date(baseDate.getTime() + deltaMs).toISOString().slice(0, 19).replace('T', ' ');
+}
+
+function canEscrowOrderBeDisputed(order) {
+  const status = String(order?.status || '').trim().toUpperCase();
+  if (status !== 'FUNDED' && status !== 'DELIVERED') return false;
+  const deliveredAt = String(order?.delivered_at || '').trim();
+  if (!deliveredAt) return true;
+  const deadline = new Date(String(order.auto_release_at || deliveredAt).replace(' ', 'T') + 'Z').getTime();
+  return Number.isFinite(deadline) ? Date.now() < deadline : true;
+}
+
 function buildNexaEscrowAvailableActions(order, userId) {
   const viewerRole = getNexaEscrowViewerRole(order, userId);
   const actions = [];
@@ -940,8 +956,11 @@ function buildNexaEscrowAvailableActions(order, userId) {
   if (status === 'FUNDED' && viewerRole === 'seller') {
     actions.push('mark_delivered');
   }
-  if ((status === 'FUNDED' || status === 'DELIVERED') && viewerRole === 'buyer') {
-    actions.push('release');
+  if (status === 'DELIVERED' && viewerRole === 'buyer') {
+    actions.push('confirm_receipt');
+  }
+  if (canEscrowOrderBeDisputed(order) && (viewerRole === 'buyer' || viewerRole === 'seller')) {
+    actions.push('dispute');
   }
   return actions;
 }
@@ -967,6 +986,14 @@ function formatNexaEscrowOrder(order, viewerUserId = 0) {
     lastPaymentStatus: String(order?.last_payment_status || '').trim(),
     fundedAt: String(order?.funded_at || '').trim(),
     deliveredAt: String(order?.delivered_at || '').trim(),
+    autoReleaseAt: String(order?.auto_release_at || '').trim(),
+    disputedAt: String(order?.disputed_at || '').trim(),
+    disputeReason: String(order?.dispute_reason || '').trim(),
+    arbitrationStatus: String(order?.arbitration_status || '').trim(),
+    resolutionNote: String(order?.resolution_note || '').trim(),
+    resolvedAt: String(order?.resolved_at || '').trim(),
+    refundToBuyerAt: String(order?.refund_to_buyer_at || '').trim(),
+    releaseType: String(order?.release_type || '').trim(),
     releasedAt: String(order?.released_at || '').trim(),
     cancelledAt: String(order?.cancelled_at || '').trim(),
     createdAt: String(order?.created_at || '').trim(),
@@ -976,8 +1003,45 @@ function formatNexaEscrowOrder(order, viewerUserId = 0) {
   };
 }
 
+function claimNexaEscrowOrdersForUser(user) {
+  if (!user?.id || !user?.escrowCode) return;
+  const pendingOrders = listNexaEscrowOrdersByEscrowCodeStmt.all(user.escrowCode, user.escrowCode);
+  pendingOrders.forEach((order) => {
+    const nextBuyerUserId = Number(order.buyer_user_id || 0) || (String(order.buyer_escrow_code || '').trim().toUpperCase() === user.escrowCode ? user.id : null);
+    const nextSellerUserId = Number(order.seller_user_id || 0) || (String(order.seller_escrow_code || '').trim().toUpperCase() === user.escrowCode ? user.id : null);
+    const nextStatus = nextBuyerUserId && nextSellerUserId
+      ? 'AWAITING_PAYMENT'
+      : (nextBuyerUserId ? 'AWAITING_SELLER' : 'AWAITING_BUYER');
+    updateNexaEscrowOrderJoinStmt.run(
+      nextBuyerUserId ? Number(nextBuyerUserId) : null,
+      nextSellerUserId ? Number(nextSellerUserId) : null,
+      nextStatus,
+      Number(order.id)
+    );
+  });
+}
+
+function maybeAutoReleaseDeliveredEscrowOrders() {
+  const dueOrders = listNexaEscrowAutoReleasableOrdersStmt.all();
+  dueOrders.forEach((order) => {
+    if (String(order.status || '').trim().toUpperCase() !== 'DELIVERED') return;
+    if (String(order.disputed_at || '').trim()) return;
+    db.transaction(() => {
+      markNexaEscrowOrderReleasedStmt.run('AUTO', null, Number(order.id));
+      creditEscrowSellerWallet({
+        sellerUserId: Number(order.seller_user_id || 0),
+        amount: String(order.amount || '0.00').trim(),
+        tradeCode: String(order.trade_code || '').trim()
+      });
+      insertNexaEscrowEvent(order.id, null, 'AUTO_RELEASED', String(order.trade_code || '').trim());
+    })();
+  });
+}
+
 function buildNexaEscrowBootstrapPayload(session) {
   const ensured = ensureNexaEscrowUserAccount(session);
+  claimNexaEscrowOrdersForUser(ensured.user);
+  maybeAutoReleaseDeliveredEscrowOrders();
   const orders = listNexaEscrowOrdersByUserStmt.all(
     ensured.user.id,
     ensured.user.id,
@@ -1018,13 +1082,16 @@ function createNexaEscrowOrder({ session, creatorRole, counterpartyEscrowCode, a
   if (!normalizedDescription) {
     throw buildNexaEscrowBanError('DESCRIPTION_REQUIRED');
   }
+  const counterpartyUser = selectXiangqiUserByEscrowCodeStmt.get(normalizedCounterpartyEscrowCode);
 
   const tradeCode = createNexaEscrowTradeCode();
-  const buyerUserId = normalizedRole === 'buyer' ? ensured.user.id : null;
-  const sellerUserId = normalizedRole === 'seller' ? ensured.user.id : null;
+  const buyerUserId = normalizedRole === 'buyer' ? ensured.user.id : Number(counterpartyUser?.id || 0) || null;
+  const sellerUserId = normalizedRole === 'seller' ? ensured.user.id : Number(counterpartyUser?.id || 0) || null;
   const buyerEscrowCode = normalizedRole === 'buyer' ? ensured.user.escrowCode : normalizedCounterpartyEscrowCode;
   const sellerEscrowCode = normalizedRole === 'seller' ? ensured.user.escrowCode : normalizedCounterpartyEscrowCode;
-  const status = normalizedRole === 'buyer' ? 'AWAITING_SELLER' : 'AWAITING_BUYER';
+  const status = buyerUserId && sellerUserId
+    ? 'AWAITING_PAYMENT'
+    : (normalizedRole === 'buyer' ? 'AWAITING_SELLER' : 'AWAITING_BUYER');
 
   const row = db.transaction(() => {
     const insertResult = insertNexaEscrowOrderStmt.run(
@@ -1241,6 +1308,24 @@ function creditEscrowSellerWallet({ sellerUserId, amount, tradeCode }) {
   );
 }
 
+function creditEscrowBuyerRefund({ buyerUserId, amount, tradeCode }) {
+  if (!buyerUserId) return;
+  const wallet = selectXiangqiWalletStmt.get(Number(buyerUserId));
+  if (!wallet) return;
+  const nextBalance = parseMoneyToCents(wallet.available_balance) + parseMoneyToCents(amount);
+  const nextBalanceString = centsToMoneyString(nextBalance);
+  updateXiangqiWalletBalanceStmt.run(nextBalanceString, Number(buyerUserId));
+  insertXiangqiLedgerStmt.run(
+    Number(buyerUserId),
+    'escrow_refund',
+    String(amount || '0.00').trim(),
+    nextBalanceString,
+    'nexa_escrow',
+    String(tradeCode || '').trim(),
+    'Nexa 担保退款'
+  );
+}
+
 function settleNexaEscrowPaymentSuccess(orderNo, payload = {}) {
   const normalizedOrderNo = String(orderNo || '').trim();
   if (!normalizedOrderNo) return null;
@@ -1269,6 +1354,58 @@ function settleNexaEscrowPaymentSuccess(orderNo, payload = {}) {
     paidTime
   });
   return formatNexaEscrowOrder(nextOrder, Number(nextOrder.buyer_user_id || 0));
+}
+
+function resolveNexaEscrowOrder({ order, resolution, actorLabel = 'admin', actorUserId = null, note = '' }) {
+  const normalizedResolution = String(resolution || '').trim().toLowerCase();
+  const normalizedTradeCode = String(order.trade_code || '').trim();
+  if (normalizedResolution === 'release_to_seller') {
+    const nextOrder = db.transaction(() => {
+      markNexaEscrowOrderReleasedStmt.run(
+        actorLabel === 'auto' ? 'AUTO' : 'ADMIN',
+        actorUserId ? Number(actorUserId) : null,
+        Number(order.id)
+      );
+      finalizeNexaEscrowDisputeStmt.run(
+        'SELLER_WINS',
+        String(note || '').trim(),
+        String(actorLabel || '').trim(),
+        Number(order.id)
+      );
+      creditEscrowSellerWallet({
+        sellerUserId: Number(order.seller_user_id || 0),
+        amount: String(order.amount || '0.00').trim(),
+        tradeCode: normalizedTradeCode
+      });
+      insertNexaEscrowEvent(order.id, actorUserId ? Number(actorUserId) : null, 'RELEASED', actorLabel);
+      return selectNexaEscrowOrderByTradeCodeStmt.get(normalizedTradeCode);
+    })();
+    return formatNexaEscrowOrder(nextOrder, Number(order.buyer_user_id || 0));
+  }
+  if (normalizedResolution === 'refund_buyer') {
+    const nextOrder = db.transaction(() => {
+      markNexaEscrowOrderRefundedStmt.run(
+        String(note || '').trim(),
+        String(actorLabel || '').trim(),
+        Number(order.id)
+      );
+      finalizeNexaEscrowDisputeStmt.run(
+        'BUYER_WINS',
+        String(note || '').trim(),
+        String(actorLabel || '').trim(),
+        Number(order.id)
+      );
+      creditEscrowBuyerRefund({
+        buyerUserId: Number(order.buyer_user_id || 0),
+        amount: String(order.amount || '0.00').trim(),
+        tradeCode: normalizedTradeCode
+      });
+      insertNexaEscrowEvent(order.id, actorUserId ? Number(actorUserId) : null, 'REFUNDED', actorLabel);
+      return selectNexaEscrowOrderByTradeCodeStmt.get(normalizedTradeCode);
+    })();
+    return formatNexaEscrowOrder(nextOrder, Number(order.buyer_user_id || 0));
+  }
+  throw buildNexaEscrowBanError('INVALID_ESCROW_RESOLUTION');
 }
 
 async function queryNexaEscrowPaymentOrder(orderNo) {
@@ -1312,6 +1449,8 @@ async function queryNexaEscrowPaymentOrder(orderNo) {
 
 function applyNexaEscrowAction({ session, tradeCode, action }) {
   const ensured = ensureNexaEscrowUserAccount(session);
+  claimNexaEscrowOrdersForUser(ensured.user);
+  maybeAutoReleaseDeliveredEscrowOrders();
   const normalizedTradeCode = String(tradeCode || '').trim().toUpperCase();
   const normalizedAction = String(action || '').trim().toLowerCase();
   const order = selectNexaEscrowOrderByTradeCodeStmt.get(normalizedTradeCode);
@@ -1323,25 +1462,32 @@ function applyNexaEscrowAction({ session, tradeCode, action }) {
   if (normalizedAction === 'mark_delivered') {
     if (viewerRole !== 'seller') throw buildNexaEscrowBanError('ONLY_SELLER_CAN_MARK_DELIVERED', 403);
     if (status !== 'FUNDED') throw buildNexaEscrowBanError('ORDER_NOT_DELIVERABLE');
+    const autoReleaseAt = addMillisecondsToSqliteDate('', NEXA_ESCROW_AUTO_RELEASE_WINDOW_MS);
     const nextOrder = db.transaction(() => {
-      markNexaEscrowOrderDeliveredStmt.run(Number(order.id));
+      markNexaEscrowOrderDeliveredStmt.run(autoReleaseAt, Number(order.id));
       insertNexaEscrowEvent(order.id, ensured.user.id, 'DELIVERED', normalizedTradeCode);
       return selectNexaEscrowOrderByTradeCodeStmt.get(normalizedTradeCode);
     })();
     return formatNexaEscrowOrder(nextOrder, ensured.user.id);
   }
 
-  if (normalizedAction === 'release') {
+  if (normalizedAction === 'confirm_receipt' || normalizedAction === 'release') {
     if (viewerRole !== 'buyer') throw buildNexaEscrowBanError('ONLY_BUYER_CAN_RELEASE', 403);
     if (status !== 'FUNDED' && status !== 'DELIVERED') throw buildNexaEscrowBanError('ORDER_NOT_RELEASABLE');
+    return resolveNexaEscrowOrder({
+      order,
+      resolution: 'release_to_seller',
+      actorLabel: 'buyer_confirm',
+      actorUserId: ensured.user.id
+    });
+  }
+
+  if (normalizedAction === 'dispute') {
+    if (viewerRole !== 'buyer' && viewerRole !== 'seller') throw buildNexaEscrowBanError('ONLY_PARTICIPANT_CAN_DISPUTE', 403);
+    if (!canEscrowOrderBeDisputed(order)) throw buildNexaEscrowBanError('ORDER_NOT_DISPUTABLE');
     const nextOrder = db.transaction(() => {
-      markNexaEscrowOrderReleasedStmt.run(ensured.user.id, Number(order.id));
-      creditEscrowSellerWallet({
-        sellerUserId: Number(order.seller_user_id || 0),
-        amount: String(order.amount || '0.00').trim(),
-        tradeCode: normalizedTradeCode
-      });
-      insertNexaEscrowEvent(order.id, ensured.user.id, 'RELEASED', normalizedTradeCode);
+      markNexaEscrowOrderDisputedStmt.run(ensured.user.id, viewerRole, Number(order.id));
+      insertNexaEscrowEvent(order.id, ensured.user.id, 'DISPUTED', viewerRole);
       return selectNexaEscrowOrderByTradeCodeStmt.get(normalizedTradeCode);
     })();
     return formatNexaEscrowOrder(nextOrder, ensured.user.id);
@@ -3520,6 +3666,38 @@ app.post('/api/nexa-escrow/orders/action', (req, res) => {
   }
 });
 
+app.get('/api/admin/nexa-escrow-orders', requireAdmin, (_req, res) => {
+  try {
+    maybeAutoReleaseDeliveredEscrowOrders();
+    const status = String(_req.query?.status || '').trim().toUpperCase();
+    const items = listAdminNexaEscrowOrdersStmt.all(status, status).map((row) => formatNexaEscrowOrder(row, 0));
+    return res.json({ ok: true, items });
+  } catch (error) {
+    return res.status(500).json({ ok: false, error: String(error?.message || 'ESCROW_ADMIN_LIST_FAILED') });
+  }
+});
+
+app.post('/api/admin/nexa-escrow-orders/:tradeCode/resolve', requireAdmin, (req, res) => {
+  try {
+    const normalizedTradeCode = String(req.params?.tradeCode || '').trim().toUpperCase();
+    const order = selectNexaEscrowOrderByTradeCodeStmt.get(normalizedTradeCode);
+    if (!order) {
+      return res.status(404).json({ ok: false, error: 'ORDER_NOT_FOUND' });
+    }
+    const resolution = String(req.body?.resolution || '').trim().toLowerCase();
+    const note = String(req.body?.note || '').trim();
+    const formatted = resolveNexaEscrowOrder({
+      order,
+      resolution,
+      actorLabel: 'admin',
+      note
+    });
+    return res.json({ ok: true, order: formatted });
+  } catch (error) {
+    return res.status(Number(error?.statusCode || 400)).json({ ok: false, error: String(error?.message || 'ESCROW_RESOLVE_FAILED') });
+  }
+});
+
 app.post('/api/p-mining/session', (req, res) => {
   const session = buildPMiningCookieSession(req.body || {});
   if (!session.openId || !session.sessionKey) {
@@ -4134,6 +4312,16 @@ const selectNexaEscrowOrderByTradeCodeStmt = db.prepare(`
     o.last_payment_status,
     o.funded_at,
     o.delivered_at,
+    o.auto_release_at,
+    o.disputed_at,
+    o.disputed_by_user_id,
+    o.dispute_reason,
+    o.arbitration_status,
+    o.resolution_note,
+    o.resolved_at,
+    o.resolved_by,
+    o.refund_to_buyer_at,
+    o.release_type,
     o.released_at,
     o.cancelled_at,
     o.released_by_user_id,
@@ -4162,6 +4350,16 @@ const selectNexaEscrowOrderByPaymentOrderNoStmt = db.prepare(`
     o.last_payment_status,
     o.funded_at,
     o.delivered_at,
+    o.auto_release_at,
+    o.disputed_at,
+    o.disputed_by_user_id,
+    o.dispute_reason,
+    o.arbitration_status,
+    o.resolution_note,
+    o.resolved_at,
+    o.resolved_by,
+    o.refund_to_buyer_at,
+    o.release_type,
     o.released_at,
     o.cancelled_at,
     o.released_by_user_id,
@@ -4190,6 +4388,16 @@ const listNexaEscrowOrdersByUserStmt = db.prepare(`
     o.last_payment_status,
     o.funded_at,
     o.delivered_at,
+    o.auto_release_at,
+    o.disputed_at,
+    o.disputed_by_user_id,
+    o.dispute_reason,
+    o.arbitration_status,
+    o.resolution_note,
+    o.resolved_at,
+    o.resolved_by,
+    o.refund_to_buyer_at,
+    o.release_type,
     o.released_at,
     o.cancelled_at,
     o.released_by_user_id,
@@ -4202,6 +4410,127 @@ const listNexaEscrowOrdersByUserStmt = db.prepare(`
      OR o.seller_user_id = ?
   ORDER BY o.id DESC
   LIMIT ?
+`);
+const listNexaEscrowOrdersByEscrowCodeStmt = db.prepare(`
+  SELECT
+    o.id,
+    o.trade_code,
+    o.creator_user_id,
+    o.creator_role,
+    o.buyer_user_id,
+    o.seller_user_id,
+    o.buyer_escrow_code,
+    o.seller_escrow_code,
+    o.amount,
+    o.currency,
+    o.description,
+    o.status,
+    o.payment_order_no,
+    o.payment_partner_order_no,
+    o.last_payment_status,
+    o.funded_at,
+    o.delivered_at,
+    o.auto_release_at,
+    o.disputed_at,
+    o.disputed_by_user_id,
+    o.dispute_reason,
+    o.arbitration_status,
+    o.resolution_note,
+    o.resolved_at,
+    o.resolved_by,
+    o.refund_to_buyer_at,
+    o.release_type,
+    o.released_at,
+    o.cancelled_at,
+    o.released_by_user_id,
+    o.cancel_reason,
+    o.created_at,
+    o.updated_at
+  FROM nexa_escrow_orders o
+  WHERE (o.buyer_escrow_code = ? AND o.buyer_user_id IS NULL)
+     OR (o.seller_escrow_code = ? AND o.seller_user_id IS NULL)
+  ORDER BY o.id DESC
+`);
+const listNexaEscrowAutoReleasableOrdersStmt = db.prepare(`
+  SELECT
+    o.id,
+    o.trade_code,
+    o.creator_user_id,
+    o.creator_role,
+    o.buyer_user_id,
+    o.seller_user_id,
+    o.buyer_escrow_code,
+    o.seller_escrow_code,
+    o.amount,
+    o.currency,
+    o.description,
+    o.status,
+    o.payment_order_no,
+    o.payment_partner_order_no,
+    o.last_payment_status,
+    o.funded_at,
+    o.delivered_at,
+    o.auto_release_at,
+    o.disputed_at,
+    o.disputed_by_user_id,
+    o.dispute_reason,
+    o.arbitration_status,
+    o.resolution_note,
+    o.resolved_at,
+    o.resolved_by,
+    o.refund_to_buyer_at,
+    o.release_type,
+    o.released_at,
+    o.cancelled_at,
+    o.released_by_user_id,
+    o.cancel_reason,
+    o.created_at,
+    o.updated_at
+  FROM nexa_escrow_orders o
+  WHERE o.status = 'DELIVERED'
+    AND o.disputed_at = ''
+    AND o.auto_release_at <> ''
+    AND datetime(o.auto_release_at) <= datetime('now')
+`);
+const listAdminNexaEscrowOrdersStmt = db.prepare(`
+  SELECT
+    o.id,
+    o.trade_code,
+    o.creator_user_id,
+    o.creator_role,
+    o.buyer_user_id,
+    o.seller_user_id,
+    o.buyer_escrow_code,
+    o.seller_escrow_code,
+    o.amount,
+    o.currency,
+    o.description,
+    o.status,
+    o.payment_order_no,
+    o.payment_partner_order_no,
+    o.last_payment_status,
+    o.funded_at,
+    o.delivered_at,
+    o.auto_release_at,
+    o.disputed_at,
+    o.disputed_by_user_id,
+    o.dispute_reason,
+    o.arbitration_status,
+    o.resolution_note,
+    o.resolved_at,
+    o.resolved_by,
+    o.refund_to_buyer_at,
+    o.release_type,
+    o.released_at,
+    o.cancelled_at,
+    o.released_by_user_id,
+    o.cancel_reason,
+    o.created_at,
+    o.updated_at
+  FROM nexa_escrow_orders o
+  WHERE (? = '' OR o.status = ?)
+  ORDER BY o.id DESC
+  LIMIT 200
 `);
 const updateNexaEscrowOrderJoinStmt = db.prepare(`
   UPDATE nexa_escrow_orders
@@ -4232,6 +4561,7 @@ const markNexaEscrowOrderDeliveredStmt = db.prepare(`
   UPDATE nexa_escrow_orders
   SET status = 'DELIVERED',
       delivered_at = datetime('now'),
+      auto_release_at = ?,
       updated_at = datetime('now')
   WHERE id = ?
 `);
@@ -4239,7 +4569,37 @@ const markNexaEscrowOrderReleasedStmt = db.prepare(`
   UPDATE nexa_escrow_orders
   SET status = 'COMPLETED',
       released_at = datetime('now'),
+      release_type = ?,
       released_by_user_id = ?,
+      updated_at = datetime('now')
+  WHERE id = ?
+`);
+const markNexaEscrowOrderDisputedStmt = db.prepare(`
+  UPDATE nexa_escrow_orders
+  SET status = 'DISPUTED',
+      disputed_at = datetime('now'),
+      disputed_by_user_id = ?,
+      dispute_reason = ?,
+      arbitration_status = 'PENDING',
+      updated_at = datetime('now')
+  WHERE id = ?
+`);
+const finalizeNexaEscrowDisputeStmt = db.prepare(`
+  UPDATE nexa_escrow_orders
+  SET arbitration_status = ?,
+      resolution_note = ?,
+      resolved_at = datetime('now'),
+      resolved_by = ?,
+      updated_at = datetime('now')
+  WHERE id = ?
+`);
+const markNexaEscrowOrderRefundedStmt = db.prepare(`
+  UPDATE nexa_escrow_orders
+  SET status = 'REFUNDED',
+      refund_to_buyer_at = datetime('now'),
+      resolution_note = ?,
+      resolved_at = datetime('now'),
+      resolved_by = ?,
       updated_at = datetime('now')
   WHERE id = ?
 `);

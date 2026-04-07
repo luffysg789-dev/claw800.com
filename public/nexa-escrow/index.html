@@ -6,7 +6,7 @@
     <title>Claw800 Nexa 担保</title>
     <meta name="description" content="Claw800 Nexa 担保，支持 Nexa App 内 USDT 担保交易、入金与放款。" />
     <link rel="icon" href="/favicon.ico" />
-    <link rel="stylesheet" href="/nexa-escrow/style.css?v=4" />
+    <link rel="stylesheet" href="/nexa-escrow/style.css?v=5" />
   </head>
   <body>
     <main class="nexa-escrow-page" data-nexa-escrow-app>
@@ -65,20 +65,6 @@
           <article class="nexa-escrow-card">
             <div class="nexa-escrow-card__head">
               <div>
-                <p class="nexa-escrow-label">加入担保单</p>
-                <h2 data-i18n="joinHeadline">输入交易码参与担保</h2>
-              </div>
-            </div>
-            <div class="nexa-escrow-join-row">
-              <input id="nexaEscrowTradeCodeInput" class="nexa-escrow-input" type="text" placeholder="输入 8 位交易码" data-i18n-placeholder="tradeCodePlaceholder" />
-              <button id="nexaEscrowJoinButton" class="nexa-escrow-secondary" type="button" data-i18n="joinAction">加入</button>
-            </div>
-            <p id="nexaEscrowJoinStatus" class="nexa-escrow-status" hidden></p>
-          </article>
-
-          <article class="nexa-escrow-card">
-            <div class="nexa-escrow-card__head">
-              <div>
                 <p class="nexa-escrow-label">我的担保单</p>
                 <h2 data-i18n="ordersHeadline">买家付款、卖家交付、买家放款</h2>
               </div>
@@ -95,6 +81,8 @@
               <span id="nexaEscrowDetailStatus" class="nexa-escrow-pill">状态</span>
             </div>
             <div id="nexaEscrowDetailBody" class="nexa-escrow-order-detail__body"></div>
+            <div id="nexaEscrowDetailProgress" class="nexa-escrow-order-progress"></div>
+            <div id="nexaEscrowSafetyNotice" class="nexa-escrow-safety-card"></div>
             <div class="nexa-escrow-order-detail__actions">
               <button id="nexaEscrowPrimaryAction" class="nexa-escrow-primary" type="button" hidden>主操作</button>
               <button id="nexaEscrowSecondaryAction" class="nexa-escrow-secondary" type="button" hidden>次操作</button>
@@ -143,6 +131,6 @@
     <script>
       window.ClawGamesConfig?.bootstrapGamePage?.('nexa-escrow');
     </script>
-    <script src="/nexa-escrow/script.js?v=4"></script>
+    <script src="/nexa-escrow/script.js?v=5"></script>
   </body>
 </html>

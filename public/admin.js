@@ -56,6 +56,7 @@ const tutorialList = document.getElementById('tutorialList');
 const adminSkillsFetchSection = document.getElementById('adminSkillsFetchSection');
 const adminSkillsSection = document.getElementById('adminSkillsSection');
 const adminGamesSection = document.getElementById('adminGamesSection');
+const adminNexaEscrowSection = document.getElementById('adminNexaEscrowSection');
 const adminXiangqiDepositsSection = document.getElementById('adminXiangqiDepositsSection');
 const adminXiangqiWithdrawalsSection = document.getElementById('adminXiangqiWithdrawalsSection');
 const adminSkillsCreateForm = document.getElementById('adminSkillsCreateForm');
@@ -65,6 +66,8 @@ const skillsList = document.getElementById('skillsList');
 const skillsMessage = document.getElementById('skillsMessage');
 const gamesList = document.getElementById('gamesList');
 const gamesMessage = document.getElementById('gamesMessage');
+const nexaEscrowOrdersList = document.getElementById('nexaEscrowOrdersList');
+const nexaEscrowOrdersMessage = document.getElementById('nexaEscrowOrdersMessage');
 const xiangqiDepositsList = document.getElementById('xiangqiDepositsList');
 const xiangqiDepositsMessage = document.getElementById('xiangqiDepositsMessage');
 const xiangqiWithdrawalsList = document.getElementById('xiangqiWithdrawalsList');
@@ -192,6 +195,7 @@ const texts = {
     navSkillsFetch: '技能抓取',
     navSkills: '技能列表',
     navGames: '游戏列表',
+    navNexaEscrowOrders: '担保订单',
     navXiangqiDeposits: '象棋充值订单',
     navXiangqiWithdrawals: '象棋提现审核',
     navPassword: '修改密码',
@@ -297,7 +301,12 @@ const texts = {
     skillsCreateSuccess: '技能已新增',
     skillsCreateRouteMissing: '技能新增接口不存在（404）。请重启后端后再试。',
     gamesListTitle: '游戏列表',
+    nexaEscrowOrdersTitle: '担保订单',
     xiangqiDepositsTitle: '象棋充值订单',
+    nexaEscrowOrdersEmpty: '当前没有担保订单。',
+    nexaEscrowResolveSeller: '判给卖家',
+    nexaEscrowResolveBuyer: '退款买家',
+    nexaEscrowResolved: '担保订单已处理。',
     xiangqiDepositsEmpty: '当前没有象棋充值订单。',
     xiangqiWithdrawalsTitle: '象棋提现审核',
     xiangqiWithdrawalsApprove: '通过并打款',
@@ -434,6 +443,7 @@ const texts = {
     navSkillsFetch: 'Skill Fetch',
     navSkills: 'Skills',
     navGames: 'Games',
+    navNexaEscrowOrders: 'Escrow Orders',
     navXiangqiDeposits: 'Xiangqi Deposits',
     navXiangqiWithdrawals: 'Xiangqi Withdrawals',
     navPassword: 'Change Password',
@@ -539,7 +549,12 @@ const texts = {
     skillsCreateSuccess: 'Skill added.',
     skillsCreateRouteMissing: 'Skill create API not found (404). Please restart the backend and try again.',
     gamesListTitle: 'Games',
+    nexaEscrowOrdersTitle: 'Escrow Orders',
     xiangqiDepositsTitle: 'Xiangqi Deposit Orders',
+    nexaEscrowOrdersEmpty: 'No escrow orders yet.',
+    nexaEscrowResolveSeller: 'Release to Seller',
+    nexaEscrowResolveBuyer: 'Refund Buyer',
+    nexaEscrowResolved: 'Escrow order resolved.',
     xiangqiDepositsEmpty: 'No Xiangqi deposit orders yet.',
     xiangqiWithdrawalsTitle: 'Xiangqi Withdrawals',
     xiangqiWithdrawalsApprove: 'Approve',
@@ -982,6 +997,7 @@ function applyLanguage() {
   document.getElementById('navSkillsFetch').textContent = dict.navSkillsFetch;
   document.getElementById('navSkills').textContent = dict.navSkills;
   document.getElementById('navGames').textContent = dict.navGames;
+  document.getElementById('navNexaEscrowOrders').textContent = dict.navNexaEscrowOrders;
   document.getElementById('navXiangqiDeposits').textContent = dict.navXiangqiDeposits;
   document.getElementById('navXiangqiWithdrawals').textContent = dict.navXiangqiWithdrawals;
   document.getElementById('navPassword').textContent = dict.navPassword;
@@ -1041,6 +1057,7 @@ function applyLanguage() {
   document.getElementById('skillsFetchTitle').textContent = dict.skillsFetchTitle;
   document.getElementById('skillsListTitle').textContent = dict.skillsListTitle;
   document.getElementById('gamesListTitle').textContent = dict.gamesListTitle;
+  document.getElementById('nexaEscrowOrdersTitle').textContent = dict.nexaEscrowOrdersTitle;
   document.getElementById('xiangqiDepositsTitle').textContent = dict.xiangqiDepositsTitle;
   document.getElementById('xiangqiWithdrawalsTitle').textContent = dict.xiangqiWithdrawalsTitle;
   document.getElementById('skillsSyncConfigTitle').textContent = dict.skillsSyncConfigTitle;
@@ -1111,6 +1128,7 @@ function setView(view) {
   adminSkillsFetchSection.classList.toggle('hidden', view !== 'skills-fetch');
   adminSkillsSection.classList.toggle('hidden', view !== 'skills');
   adminGamesSection.classList.toggle('hidden', view !== 'games');
+  adminNexaEscrowSection.classList.toggle('hidden', view !== 'nexa-escrow-orders');
   adminXiangqiDepositsSection.classList.toggle('hidden', view !== 'xiangqi-deposits');
   adminXiangqiWithdrawalsSection.classList.toggle('hidden', view !== 'xiangqi-withdrawals');
   adminPasswordSection.classList.toggle('hidden', view !== 'password');
@@ -1141,6 +1159,9 @@ function setView(view) {
   }
   if (view === 'games') {
     loadGamesList();
+  }
+  if (view === 'nexa-escrow-orders') {
+    loadNexaEscrowOrdersList();
   }
   if (view === 'xiangqi-deposits') {
     loadXiangqiDepositsList();
@@ -1191,6 +1212,92 @@ function renderXiangqiWithdrawalsList(items) {
     })
     .join('');
 }
+
+function renderNexaEscrowOrdersList(items) {
+  if (!nexaEscrowOrdersList) return;
+  if (!Array.isArray(items) || !items.length) {
+    nexaEscrowOrdersList.innerHTML = `<p class="empty">${escapeHtml(t('nexaEscrowOrdersEmpty'))}</p>`;
+    return;
+  }
+
+  nexaEscrowOrdersList.innerHTML = items
+    .map((item) => {
+      const tradeCode = String(item.tradeCode || '').trim();
+      const buyerCode = String(item.buyerEscrowCode || '').trim();
+      const sellerCode = String(item.sellerEscrowCode || '').trim();
+      const amount = String(item.amount || '0.00').trim();
+      const status = String(item.status || '').trim();
+      const description = String(item.description || '').trim();
+      const canResolve = status === 'DISPUTED';
+      return `
+        <article class="review-card">
+          <h3>${escapeHtml(tradeCode)}</h3>
+          <p class="small">买方担保号: ${escapeHtml(buyerCode || '-')}</p>
+          <p class="small">卖方担保号: ${escapeHtml(sellerCode || '-')}</p>
+          <p class="small">金额: ${escapeHtml(amount)} USDT</p>
+          <p class="small">状态: ${escapeHtml(status || '-')}</p>
+          <p class="small">描述: ${escapeHtml(description || '-')}</p>
+          ${canResolve ? `
+            <div class="review-actions">
+              <button type="button" onclick="resolveNexaEscrowOrder('${escapeHtml(tradeCode)}','release_to_seller')">${escapeHtml(t('nexaEscrowResolveSeller'))}</button>
+              <button type="button" class="danger" onclick="resolveNexaEscrowOrder('${escapeHtml(tradeCode)}','refund_buyer')">${escapeHtml(t('nexaEscrowResolveBuyer'))}</button>
+            </div>
+          ` : ''}
+        </article>
+      `;
+    })
+    .join('');
+}
+
+async function loadNexaEscrowOrdersList() {
+  if (!nexaEscrowOrdersList || !nexaEscrowOrdersMessage) return;
+  nexaEscrowOrdersMessage.textContent = '';
+  nexaEscrowOrdersMessage.className = 'message';
+  const result = await requestTutorialJson(['/api/admin/nexa-escrow-orders?status=DISPUTED'], { method: 'GET' });
+  if (!result.res) {
+    nexaEscrowOrdersMessage.textContent = t('operationFailed');
+    nexaEscrowOrdersMessage.className = 'message error';
+    return;
+  }
+  if (result.res.status === 401) {
+    showLogin();
+    return;
+  }
+  if (!result.res.ok) {
+    nexaEscrowOrdersMessage.textContent = localizeApiError(result.data?.error || t('operationFailed'));
+    nexaEscrowOrdersMessage.className = 'message error';
+    return;
+  }
+  renderNexaEscrowOrdersList(result.data?.items || []);
+}
+
+window.resolveNexaEscrowOrder = async function resolveNexaEscrowOrder(tradeCode, resolution) {
+  const note = window.prompt(t('rejectPrompt'), '') || '';
+  nexaEscrowOrdersMessage.textContent = '';
+  nexaEscrowOrdersMessage.className = 'message';
+  const result = await requestTutorialJson([`/api/admin/nexa-escrow-orders/${encodeURIComponent(tradeCode)}/resolve`], {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ resolution, note })
+  });
+  if (!result.res) {
+    nexaEscrowOrdersMessage.textContent = t('operationFailed');
+    nexaEscrowOrdersMessage.className = 'message error';
+    return;
+  }
+  if (result.res.status === 401) {
+    showLogin();
+    return;
+  }
+  if (!result.res.ok) {
+    nexaEscrowOrdersMessage.textContent = localizeApiError(result.data?.error || t('operationFailed'));
+    nexaEscrowOrdersMessage.className = 'message error';
+    return;
+  }
+  nexaEscrowOrdersMessage.textContent = t('nexaEscrowResolved');
+  nexaEscrowOrdersMessage.className = 'message success';
+  await loadNexaEscrowOrdersList();
+};
 
 function renderXiangqiDepositsList(items) {
   if (!xiangqiDepositsList) return;
@@ -3287,6 +3394,7 @@ document.getElementById('navTutorialAdd').addEventListener('click', () => {
 document.getElementById('navSkillsFetch').addEventListener('click', () => setView('skills-fetch'));
 document.getElementById('navSkills').addEventListener('click', () => setView('skills'));
 document.getElementById('navGames').addEventListener('click', () => setView('games'));
+document.getElementById('navNexaEscrowOrders').addEventListener('click', () => setView('nexa-escrow-orders'));
 document.getElementById('navXiangqiDeposits').addEventListener('click', () => setView('xiangqi-deposits'));
 document.getElementById('navXiangqiWithdrawals').addEventListener('click', () => setView('xiangqi-withdrawals'));
 document.getElementById('navPassword').addEventListener('click', () => setView('password'));

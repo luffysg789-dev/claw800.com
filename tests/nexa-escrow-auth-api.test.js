@@ -141,6 +141,17 @@ function createHarness({ mockPaymentResponse, mockQueryResponse, seedNexaEnv = t
   };
 }
 
+async function loginAdmin(harness) {
+  const response = await harness.request('POST', '/api/admin/login', { password: '123456' });
+  const setCookie = response.headers['set-cookie'];
+  assert.equal(response.statusCode, 200);
+  assert.ok(Array.isArray(setCookie));
+  const serialized = JSON.parse(setCookie[0]);
+  const token = serialized?.value;
+  assert.ok(token);
+  return { admin_token: token };
+}
+
 test('nexa-escrow session sync sets a 30-day cookie and returns the session payload', async () => {
   const harness = createHarness();
 
@@ -188,7 +199,7 @@ test('nexa-escrow bootstrap returns synced account state and empty orders for a 
   }
 });
 
-test('nexa-escrow buyer can create an order and seller can join with the trade code', async () => {
+test('nexa-escrow buyer can create an order and seller sees it automatically by escrow code', async () => {
   const harness = createHarness();
 
   try {
@@ -212,7 +223,7 @@ test('nexa-escrow buyer can create an order and seller can join with the trade c
     });
     const sellerEscrowCode = sellerBootstrap.body.account.escrowCode;
 
-    const recreateResponse = await harness.request('POST', '/api/nexa-escrow/orders', {
+    const createResponse = await harness.request('POST', '/api/nexa-escrow/orders', {
       creatorRole: 'buyer',
       amount: '18.88',
       counterpartyEscrowCode: sellerEscrowCode,
@@ -223,19 +234,22 @@ test('nexa-escrow buyer can create an order and seller can join with the trade c
       }
     });
 
-    const joinResponse = await harness.request('POST', '/api/nexa-escrow/orders/join', {
-      tradeCode: recreateResponse.body.order.tradeCode
-    }, {
+    assert.equal(createResponse.statusCode, 200);
+    assert.equal(createResponse.body.order.status, 'AWAITING_PAYMENT');
+    assert.equal(createResponse.body.order.sellerEscrowCode, sellerEscrowCode);
+
+    const sellerOrdersResponse = await harness.request('GET', '/api/nexa-escrow/bootstrap', null, {
       cookies: {
         [sellerCookie.name]: sellerCookie.value
       }
     });
 
-    assert.equal(joinResponse.statusCode, 200);
-    assert.equal(joinResponse.body.ok, true);
-    assert.equal(joinResponse.body.order.status, 'AWAITING_PAYMENT');
-    assert.equal(joinResponse.body.order.sellerOpenId, 'escrow-seller-open-id');
-    assert.equal(joinResponse.body.order.sellerEscrowCode, sellerEscrowCode);
+    assert.equal(sellerOrdersResponse.statusCode, 200);
+    assert.equal(sellerOrdersResponse.body.ok, true);
+    assert.equal(sellerOrdersResponse.body.orders.length, 1);
+    assert.equal(sellerOrdersResponse.body.orders[0].status, 'AWAITING_PAYMENT');
+    assert.equal(sellerOrdersResponse.body.orders[0].sellerOpenId, 'escrow-seller-open-id');
+    assert.equal(sellerOrdersResponse.body.orders[0].sellerEscrowCode, sellerEscrowCode);
   } finally {
     harness.cleanup();
   }
@@ -320,14 +334,6 @@ test('nexa-escrow funded flow supports payment, seller delivery, and buyer relea
 
     const tradeCode = createResponse.body.order.tradeCode;
 
-    await harness.request('POST', '/api/nexa-escrow/orders/join', {
-      tradeCode
-    }, {
-      cookies: {
-        [sellerCookie.name]: sellerCookie.value
-      }
-    });
-
     const paymentCreate = await harness.request('POST', '/api/nexa-escrow/payment/create', {
       tradeCode
     }, {
@@ -367,7 +373,7 @@ test('nexa-escrow funded flow supports payment, seller delivery, and buyer relea
 
     const buyerRelease = await harness.request('POST', '/api/nexa-escrow/orders/action', {
       tradeCode,
-      action: 'release'
+      action: 'confirm_receipt'
     }, {
       cookies: {
         [buyerCookie.name]: buyerCookie.value
@@ -385,6 +391,214 @@ test('nexa-escrow funded flow supports payment, seller delivery, and buyer relea
     `).get('escrow-seller-open-id-2');
 
     assert.equal(String(wallet.available_balance), '18.88');
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('nexa-escrow auto releases to the seller after 7 days without dispute', async () => {
+  const harness = createHarness({
+    mockPaymentResponse() {
+      return {
+        code: '0',
+        message: 'success',
+        data: {
+          orderNo: 'escrow-order-no-auto-release',
+          timestamp: '1711111111',
+          nonce: 'nonce-escrow',
+          signType: 'MD5',
+          paySign: 'pay-sign-escrow',
+          apiKey: 'test-nexa-api-key'
+        }
+      };
+    },
+    mockQueryResponse() {
+      return {
+        code: '0',
+        message: 'success',
+        data: {
+          orderNo: 'escrow-order-no-auto-release',
+          status: 'SUCCESS',
+          amount: '12.00',
+          currency: 'USDT',
+          paidTime: '2026-04-07 10:00:00'
+        }
+      };
+    }
+  });
+
+  try {
+    const buyerSync = await harness.request('POST', '/api/nexa-escrow/session', {
+      openId: 'escrow-buyer-open-id-auto',
+      sessionKey: 'escrow-buyer-session-key-auto',
+      nickname: 'Buyer User'
+    });
+    const buyerCookie = JSON.parse(buyerSync.headers['set-cookie'][0]);
+
+    const sellerSync = await harness.request('POST', '/api/nexa-escrow/session', {
+      openId: 'escrow-seller-open-id-auto',
+      sessionKey: 'escrow-seller-session-key-auto',
+      nickname: 'Seller User'
+    });
+    const sellerCookie = JSON.parse(sellerSync.headers['set-cookie'][0]);
+    const sellerBootstrap = await harness.request('GET', '/api/nexa-escrow/bootstrap', null, {
+      cookies: { [sellerCookie.name]: sellerCookie.value }
+    });
+
+    const createResponse = await harness.request('POST', '/api/nexa-escrow/orders', {
+      creatorRole: 'buyer',
+      amount: '12.00',
+      counterpartyEscrowCode: sellerBootstrap.body.account.escrowCode,
+      description: '自动放款测试'
+    }, {
+      cookies: { [buyerCookie.name]: buyerCookie.value }
+    });
+    const tradeCode = createResponse.body.order.tradeCode;
+
+    await harness.request('POST', '/api/nexa-escrow/payment/create', { tradeCode }, {
+      cookies: { [buyerCookie.name]: buyerCookie.value }
+    });
+    await harness.request('POST', '/api/nexa-escrow/payment/query', { orderNo: 'escrow-order-no-auto-release' }, {
+      cookies: { [buyerCookie.name]: buyerCookie.value }
+    });
+    await harness.request('POST', '/api/nexa-escrow/orders/action', {
+      tradeCode,
+      action: 'mark_delivered'
+    }, {
+      cookies: { [sellerCookie.name]: sellerCookie.value }
+    });
+
+    harness.db.prepare(
+      "UPDATE nexa_escrow_orders SET delivered_at = '2026-03-01 00:00:00', auto_release_at = '2026-03-08 00:00:00' WHERE trade_code = ?"
+    ).run(tradeCode);
+
+    const bootstrap = await harness.request('GET', '/api/nexa-escrow/bootstrap', null, {
+      cookies: { [buyerCookie.name]: buyerCookie.value }
+    });
+    const autoReleased = bootstrap.body.orders.find((item) => item.tradeCode === tradeCode);
+
+    assert.equal(autoReleased.status, 'COMPLETED');
+    assert.equal(autoReleased.releaseType, 'AUTO');
+
+    const wallet = harness.db.prepare(`
+      SELECT available_balance
+      FROM game_wallets
+      JOIN game_users ON game_users.id = game_wallets.user_id
+      WHERE game_users.openid = ?
+    `).get('escrow-seller-open-id-auto');
+    assert.equal(String(wallet.available_balance), '12.00');
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('nexa-escrow dispute blocks auto release and admin can resolve the order', async () => {
+  const harness = createHarness({
+    mockPaymentResponse() {
+      return {
+        code: '0',
+        message: 'success',
+        data: {
+          orderNo: 'escrow-order-no-dispute',
+          timestamp: '1711111111',
+          nonce: 'nonce-escrow',
+          signType: 'MD5',
+          paySign: 'pay-sign-escrow',
+          apiKey: 'test-nexa-api-key'
+        }
+      };
+    },
+    mockQueryResponse() {
+      return {
+        code: '0',
+        message: 'success',
+        data: {
+          orderNo: 'escrow-order-no-dispute',
+          status: 'SUCCESS',
+          amount: '30.00',
+          currency: 'USDT',
+          paidTime: '2026-04-07 10:00:00'
+        }
+      };
+    }
+  });
+
+  try {
+    const buyerSync = await harness.request('POST', '/api/nexa-escrow/session', {
+      openId: 'escrow-buyer-open-id-dispute',
+      sessionKey: 'escrow-buyer-session-key-dispute',
+      nickname: 'Buyer User'
+    });
+    const buyerCookie = JSON.parse(buyerSync.headers['set-cookie'][0]);
+    const sellerSync = await harness.request('POST', '/api/nexa-escrow/session', {
+      openId: 'escrow-seller-open-id-dispute',
+      sessionKey: 'escrow-seller-session-key-dispute',
+      nickname: 'Seller User'
+    });
+    const sellerCookie = JSON.parse(sellerSync.headers['set-cookie'][0]);
+    const sellerBootstrap = await harness.request('GET', '/api/nexa-escrow/bootstrap', null, {
+      cookies: { [sellerCookie.name]: sellerCookie.value }
+    });
+
+    const createResponse = await harness.request('POST', '/api/nexa-escrow/orders', {
+      creatorRole: 'buyer',
+      amount: '30.00',
+      counterpartyEscrowCode: sellerBootstrap.body.account.escrowCode,
+      description: '仲裁测试'
+    }, {
+      cookies: { [buyerCookie.name]: buyerCookie.value }
+    });
+    const tradeCode = createResponse.body.order.tradeCode;
+
+    await harness.request('POST', '/api/nexa-escrow/payment/create', { tradeCode }, {
+      cookies: { [buyerCookie.name]: buyerCookie.value }
+    });
+    await harness.request('POST', '/api/nexa-escrow/payment/query', { orderNo: 'escrow-order-no-dispute' }, {
+      cookies: { [buyerCookie.name]: buyerCookie.value }
+    });
+    await harness.request('POST', '/api/nexa-escrow/orders/action', {
+      tradeCode,
+      action: 'mark_delivered'
+    }, {
+      cookies: { [sellerCookie.name]: sellerCookie.value }
+    });
+    const disputeResponse = await harness.request('POST', '/api/nexa-escrow/orders/action', {
+      tradeCode,
+      action: 'dispute'
+    }, {
+      cookies: { [buyerCookie.name]: buyerCookie.value }
+    });
+
+    assert.equal(disputeResponse.statusCode, 200);
+    assert.equal(disputeResponse.body.order.status, 'DISPUTED');
+
+    const adminCookies = await loginAdmin(harness);
+    const listResponse = await harness.request('GET', '/api/admin/nexa-escrow-orders?status=DISPUTED', undefined, {
+      cookies: adminCookies
+    });
+    assert.equal(listResponse.statusCode, 200);
+    assert.equal(listResponse.body.items.length, 1);
+    assert.equal(listResponse.body.items[0].tradeCode, tradeCode);
+
+    const resolveResponse = await harness.request(
+      'POST',
+      `/api/admin/nexa-escrow-orders/${encodeURIComponent(tradeCode)}/resolve`,
+      { resolution: 'release_to_seller', note: '支持卖家' },
+      {
+        cookies: adminCookies
+      }
+    );
+    assert.equal(resolveResponse.statusCode, 200);
+    assert.equal(resolveResponse.body.ok, true);
+    assert.equal(resolveResponse.body.order.status, 'COMPLETED');
+
+    const wallet = harness.db.prepare(`
+      SELECT available_balance
+      FROM game_wallets
+      JOIN game_users ON game_users.id = game_wallets.user_id
+      WHERE game_users.openid = ?
+    `).get('escrow-seller-open-id-dispute');
+    assert.equal(String(wallet.available_balance), '30.00');
   } finally {
     harness.cleanup();
   }

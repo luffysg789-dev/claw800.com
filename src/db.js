@@ -271,6 +271,16 @@ db.exec(`
     last_payment_status TEXT NOT NULL DEFAULT '',
     funded_at TEXT NOT NULL DEFAULT '',
     delivered_at TEXT NOT NULL DEFAULT '',
+    auto_release_at TEXT NOT NULL DEFAULT '',
+    disputed_at TEXT NOT NULL DEFAULT '',
+    disputed_by_user_id INTEGER DEFAULT NULL,
+    dispute_reason TEXT NOT NULL DEFAULT '',
+    arbitration_status TEXT NOT NULL DEFAULT '',
+    resolution_note TEXT NOT NULL DEFAULT '',
+    resolved_at TEXT NOT NULL DEFAULT '',
+    resolved_by TEXT NOT NULL DEFAULT '',
+    refund_to_buyer_at TEXT NOT NULL DEFAULT '',
+    release_type TEXT NOT NULL DEFAULT '',
     released_at TEXT NOT NULL DEFAULT '',
     cancelled_at TEXT NOT NULL DEFAULT '',
     released_by_user_id INTEGER DEFAULT NULL,
@@ -311,6 +321,46 @@ if (hasLegacySellerEmail) {
       ELSE seller_escrow_code
     END
   `);
+}
+const hasNexaEscrowAutoReleaseAt = db.prepare("SELECT 1 FROM pragma_table_info('nexa_escrow_orders') WHERE name = 'auto_release_at'").get();
+if (!hasNexaEscrowAutoReleaseAt) {
+  db.exec("ALTER TABLE nexa_escrow_orders ADD COLUMN auto_release_at TEXT NOT NULL DEFAULT ''");
+}
+const hasNexaEscrowDisputedAt = db.prepare("SELECT 1 FROM pragma_table_info('nexa_escrow_orders') WHERE name = 'disputed_at'").get();
+if (!hasNexaEscrowDisputedAt) {
+  db.exec("ALTER TABLE nexa_escrow_orders ADD COLUMN disputed_at TEXT NOT NULL DEFAULT ''");
+}
+const hasNexaEscrowDisputedByUserId = db.prepare("SELECT 1 FROM pragma_table_info('nexa_escrow_orders') WHERE name = 'disputed_by_user_id'").get();
+if (!hasNexaEscrowDisputedByUserId) {
+  db.exec("ALTER TABLE nexa_escrow_orders ADD COLUMN disputed_by_user_id INTEGER DEFAULT NULL");
+}
+const hasNexaEscrowDisputeReason = db.prepare("SELECT 1 FROM pragma_table_info('nexa_escrow_orders') WHERE name = 'dispute_reason'").get();
+if (!hasNexaEscrowDisputeReason) {
+  db.exec("ALTER TABLE nexa_escrow_orders ADD COLUMN dispute_reason TEXT NOT NULL DEFAULT ''");
+}
+const hasNexaEscrowArbitrationStatus = db.prepare("SELECT 1 FROM pragma_table_info('nexa_escrow_orders') WHERE name = 'arbitration_status'").get();
+if (!hasNexaEscrowArbitrationStatus) {
+  db.exec("ALTER TABLE nexa_escrow_orders ADD COLUMN arbitration_status TEXT NOT NULL DEFAULT ''");
+}
+const hasNexaEscrowResolutionNote = db.prepare("SELECT 1 FROM pragma_table_info('nexa_escrow_orders') WHERE name = 'resolution_note'").get();
+if (!hasNexaEscrowResolutionNote) {
+  db.exec("ALTER TABLE nexa_escrow_orders ADD COLUMN resolution_note TEXT NOT NULL DEFAULT ''");
+}
+const hasNexaEscrowResolvedAt = db.prepare("SELECT 1 FROM pragma_table_info('nexa_escrow_orders') WHERE name = 'resolved_at'").get();
+if (!hasNexaEscrowResolvedAt) {
+  db.exec("ALTER TABLE nexa_escrow_orders ADD COLUMN resolved_at TEXT NOT NULL DEFAULT ''");
+}
+const hasNexaEscrowResolvedBy = db.prepare("SELECT 1 FROM pragma_table_info('nexa_escrow_orders') WHERE name = 'resolved_by'").get();
+if (!hasNexaEscrowResolvedBy) {
+  db.exec("ALTER TABLE nexa_escrow_orders ADD COLUMN resolved_by TEXT NOT NULL DEFAULT ''");
+}
+const hasNexaEscrowRefundToBuyerAt = db.prepare("SELECT 1 FROM pragma_table_info('nexa_escrow_orders') WHERE name = 'refund_to_buyer_at'").get();
+if (!hasNexaEscrowRefundToBuyerAt) {
+  db.exec("ALTER TABLE nexa_escrow_orders ADD COLUMN refund_to_buyer_at TEXT NOT NULL DEFAULT ''");
+}
+const hasNexaEscrowReleaseType = db.prepare("SELECT 1 FROM pragma_table_info('nexa_escrow_orders') WHERE name = 'release_type'").get();
+if (!hasNexaEscrowReleaseType) {
+  db.exec("ALTER TABLE nexa_escrow_orders ADD COLUMN release_type TEXT NOT NULL DEFAULT ''");
 }
 
 db.exec(`
