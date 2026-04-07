@@ -560,7 +560,7 @@
     const safeUserPower = Math.max(0, Number(userPower || 0));
     const safeNetworkPower = Math.max(1, Number(networkPower || 1));
     const safeDailyCap = Math.max(0, Number(dailyCap || DAILY_CAP));
-    return roundToSingle((safeUserPower / safeNetworkPower) * (safeDailyCap / 24));
+    return roundToSingle((safeUserPower / safeNetworkPower) * (safeDailyCap / 1440));
   }
 
   function calculateEstimatedTodayOutput({ userPower, networkPower, dailyCap }) {
@@ -1142,7 +1142,7 @@
     });
     animateBalanceValue(appState, appState.state.balance);
     appState.elements.powerValue.textContent = formatPowerValue(appState.state.power);
-    appState.elements.rewardPerMinute.textContent = formatMiningNumber(reward * 60);
+    appState.elements.rewardPerMinute.textContent = formatMiningNumber(reward);
     appState.elements.totalUsers.textContent = formatWholeNumber(appState.network.totalUsers);
     appState.elements.totalMined.textContent = formatMiningNumber(appState.network.totalMined);
     appState.elements.todayMined.textContent = formatMiningNumber(appState.network.todayMined);

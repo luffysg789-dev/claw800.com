@@ -239,7 +239,7 @@ test('p-mining script includes the expected UI hooks', () => {
   assert.match(js, /function calculateEstimatedTodayOutput\(/);
   assert.match(js, /estimatedPerMinute:\s*'Est\. P \/ Hour'/);
   assert.match(js, /estimatedPerMinute:\s*'预计收益\/小时'/);
-  assert.match(js, /appState\.elements\.rewardPerMinute\.textContent = formatMiningNumber\(reward \* 60\);/);
+  assert.match(js, /appState\.elements\.rewardPerMinute\.textContent = formatMiningNumber\(reward\);/);
   assert.match(js, /\/api\/p-mining\/session/);
   assert.match(js, /\/api\/p-mining\/session\/logout/);
   assert.match(js, /\/api\/p-mining\/bootstrap/);
