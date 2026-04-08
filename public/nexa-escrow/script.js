@@ -51,7 +51,7 @@
       progressTitle: '交易进度',
       safeTitle: '安全提醒',
       safeBody: '请务必在平台内完成所有沟通。不要在确认收到商品/服务前点击“收到货”。如有疑问，请立即点击“申请仲裁”。',
-      actionFund: '确认担保',
+      actionFund: '支付担保金',
       actionDeliver: '发货',
       actionConfirmReceipt: '收到货',
       actionDispute: '申请仲裁',
@@ -602,7 +602,7 @@
     list.innerHTML = visibleOrders.map((order) => `
       <button class="nexa-escrow-order-item${order.tradeCode === appState.selectedTradeCode ? ' is-selected' : ''}" type="button" data-trade-code="${order.tradeCode}">
         <div class="nexa-escrow-order-item__top">
-          <div class="nexa-escrow-order-item__code">${order.tradeCode}</div>
+          <div class="nexa-escrow-order-item__code">订单号: ${order.tradeCode}</div>
           <span class="nexa-escrow-pill">${describeOrderStatus(appState, order)}</span>
         </div>
         <div class="nexa-escrow-order-item__summary">

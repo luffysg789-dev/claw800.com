@@ -255,6 +255,82 @@ test('nexa-escrow buyer can create an order and seller sees it automatically by 
   }
 });
 
+test('nexa-escrow seller-created order lets the buyer see and pay from order detail flow', async () => {
+  const harness = createHarness({
+    mockPaymentResponse() {
+      return {
+        code: '0',
+        message: 'success',
+        data: {
+          orderNo: 'escrow-order-no-seller-create',
+          timestamp: '1711111111',
+          nonce: 'nonce-escrow-seller-create',
+          signType: 'MD5',
+          paySign: 'pay-sign-escrow-seller-create',
+          apiKey: 'test-nexa-api-key'
+        }
+      };
+    }
+  });
+
+  try {
+    const buyerSync = await harness.request('POST', '/api/nexa-escrow/session', {
+      openId: 'escrow-buyer-open-id-3',
+      sessionKey: 'escrow-buyer-session-key-3',
+      nickname: 'Buyer User'
+    });
+    const buyerCookie = JSON.parse(buyerSync.headers['set-cookie'][0]);
+
+    const sellerSync = await harness.request('POST', '/api/nexa-escrow/session', {
+      openId: 'escrow-seller-open-id-3',
+      sessionKey: 'escrow-seller-session-key-3',
+      nickname: 'Seller User'
+    });
+    const sellerCookie = JSON.parse(sellerSync.headers['set-cookie'][0]);
+
+    const buyerBootstrap = await harness.request('GET', '/api/nexa-escrow/bootstrap', null, {
+      cookies: { [buyerCookie.name]: buyerCookie.value }
+    });
+
+    const sellerCreate = await harness.request('POST', '/api/nexa-escrow/orders', {
+      creatorRole: 'seller',
+      amount: '66.00',
+      counterpartyEscrowCode: buyerBootstrap.body.account.escrowCode,
+      description: '卖家发起担保测试'
+    }, {
+      cookies: { [sellerCookie.name]: sellerCookie.value }
+    });
+
+    assert.equal(sellerCreate.statusCode, 200);
+    assert.equal(sellerCreate.body.order.status, 'AWAITING_PAYMENT');
+
+    const tradeCode = sellerCreate.body.order.tradeCode;
+    const buyerOrdersResponse = await harness.request('GET', '/api/nexa-escrow/bootstrap', null, {
+      cookies: { [buyerCookie.name]: buyerCookie.value }
+    });
+    const buyerOrder = buyerOrdersResponse.body.orders.find((item) => item.tradeCode === tradeCode);
+
+    assert.ok(buyerOrder);
+    assert.equal(buyerOrder.status, 'AWAITING_PAYMENT');
+    assert.equal(buyerOrder.viewerRole, 'buyer');
+    assert.deepEqual(buyerOrder.availableActions, ['fund']);
+
+    const paymentCreate = await harness.request('POST', '/api/nexa-escrow/payment/create', {
+      tradeCode
+    }, {
+      cookies: { [buyerCookie.name]: buyerCookie.value }
+    });
+
+    assert.equal(paymentCreate.statusCode, 200);
+    assert.equal(paymentCreate.body.ok, true);
+    assert.equal(paymentCreate.body.orderNo, 'escrow-order-no-seller-create');
+    assert.equal(paymentCreate.body.tradeCode, tradeCode);
+    assert.equal(paymentCreate.body.payment.orderNo, 'escrow-order-no-seller-create');
+  } finally {
+    harness.cleanup();
+  }
+});
+
 test('nexa-escrow funded flow supports payment, seller delivery, and buyer release', async () => {
   const harness = createHarness({
     mockPaymentResponse(payload) {
