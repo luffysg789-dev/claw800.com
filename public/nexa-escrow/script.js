@@ -685,10 +685,14 @@
     if (card) {
       card.hidden = false;
     }
-    appState.elements.detailTitle.textContent = appState.locale === 'zh'
-      ? `交易码 ${order.tradeCode}`
-      : `Trade ${order.tradeCode}`;
-    appState.elements.detailPill.textContent = describeOrderStatus(appState, order);
+    if (appState.elements.detailTitle) {
+      appState.elements.detailTitle.textContent = appState.locale === 'zh'
+        ? `交易码 ${order.tradeCode}`
+        : `Trade ${order.tradeCode}`;
+    }
+    if (appState.elements.detailPill) {
+      appState.elements.detailPill.textContent = describeOrderStatus(appState, order);
+    }
     appState.elements.detailBody.innerHTML = `
       <div class="nexa-escrow-detail-grid">
         <div class="nexa-escrow-order-detail__line"><span>${t(appState.locale, 'detailAmount')}</span><strong>${order.amount} ${order.currency}</strong></div>
