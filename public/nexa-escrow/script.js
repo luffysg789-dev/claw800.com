@@ -3,6 +3,8 @@
   const NEXA_ESCROW_PENDING_PAYMENT_STORAGE_KEY = 'claw800:nexa-escrow:pending-payment';
   const NEXA_ESCROW_CODE_MODAL_STORAGE_KEY = 'claw800:nexa-escrow:code-modal:';
   const MAX_NEXA_ESCROW_SESSION_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+  const NEXA_ESCROW_PULL_REFRESH_TRIGGER_PX = 68;
+  const NEXA_ESCROW_PULL_REFRESH_MAX_PX = 92;
   const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth://oauth/authorize';
   const NEXA_PROTOCOL_ORDER_BASE = 'nexaauth://order';
   const NEXA_PUBLIC_CONFIG_ENDPOINT = '/api/nexa/public-config';
@@ -61,7 +63,9 @@
       actionDispute: '申请仲裁',
       actionCancel: '取消订单',
       actionDeliveredDone: '已发货',
+      actionCompletedDone: '已完成',
       confirmDeliverPrompt: '确认已经发货吗？',
+      confirmReceiptPrompt: '确认已经收到货物/服务，并同意放款给卖家吗？',
       viewerPending: '待确认',
       statusAwaitingPayment: '待买家支付担保金',
       statusPaymentPending: '支付处理中',
@@ -134,7 +138,9 @@
       actionDispute: 'Open Dispute',
       actionCancel: 'Cancel Order',
       actionDeliveredDone: 'Delivered',
+      actionCompletedDone: 'Completed',
       confirmDeliverPrompt: 'Confirm that you have delivered the goods or service?',
+      confirmReceiptPrompt: 'Confirm that you have received the goods or service and agree to release the funds to the seller?',
       viewerPending: 'Pending',
       statusAwaitingPayment: 'Waiting for buyer escrow payment',
       statusPaymentPending: 'Payment pending',
@@ -520,6 +526,9 @@
 
   function switchTab(appState, tab) {
     appState.activeTab = String(tab || 'create');
+    if (appState.activeTab !== 'orders') {
+      resetOrdersPullRefresh(appState);
+    }
     appState.elements.panels.forEach((panel) => {
       const active = panel.dataset.tab === appState.activeTab;
       panel.hidden = !active;
@@ -627,9 +636,13 @@
       dispute: t(appState.locale, 'actionDispute'),
       cancel: t(appState.locale, 'actionCancel')
     };
-    const showDeliveredInfo = String(order?.status || '').trim().toUpperCase() === 'DELIVERED'
-      && String(order?.viewerRole || '').trim().toLowerCase() === 'seller';
-    const infoAction = showDeliveredInfo ? t(appState.locale, 'actionDeliveredDone') : '';
+    const normalizedStatus = String(order?.status || '').trim().toUpperCase();
+    const normalizedViewerRole = String(order?.viewerRole || '').trim().toLowerCase();
+    const showDeliveredInfo = normalizedStatus === 'DELIVERED' && normalizedViewerRole === 'seller';
+    const showCompletedInfo = normalizedStatus === 'COMPLETED';
+    const infoAction = showCompletedInfo
+      ? t(appState.locale, 'actionCompletedDone')
+      : (showDeliveredInfo ? t(appState.locale, 'actionDeliveredDone') : '');
     appState.elements.infoAction.hidden = !infoAction;
     appState.elements.infoAction.textContent = infoAction;
     appState.elements.primaryAction.hidden = !primaryAction;
@@ -782,6 +795,44 @@
     renderAccount(appState);
   }
 
+  function resetOrdersPullRefresh(appState) {
+    appState.ordersPullStartY = 0;
+    appState.ordersPullDistance = 0;
+    const indicator = appState.elements.ordersPullRefresh;
+    if (!indicator) return;
+    indicator.style.height = '0px';
+    indicator.classList.remove('is-ready');
+    if (!appState.ordersRefreshing) {
+      indicator.classList.remove('is-refreshing');
+    }
+  }
+
+  function updateOrdersPullRefresh(appState, distance) {
+    const indicator = appState.elements.ordersPullRefresh;
+    if (!indicator) return;
+    const clamped = Math.max(0, Math.min(distance, NEXA_ESCROW_PULL_REFRESH_MAX_PX));
+    appState.ordersPullDistance = clamped;
+    indicator.style.height = `${clamped}px`;
+    indicator.classList.toggle('is-ready', clamped >= NEXA_ESCROW_PULL_REFRESH_TRIGGER_PX);
+  }
+
+  async function refreshEscrowOrders(appState) {
+    if (appState.ordersRefreshing) return;
+    appState.ordersRefreshing = true;
+    const indicator = appState.elements.ordersPullRefresh;
+    if (indicator) {
+      indicator.style.height = `${NEXA_ESCROW_PULL_REFRESH_TRIGGER_PX}px`;
+      indicator.classList.remove('is-ready');
+      indicator.classList.add('is-refreshing');
+    }
+    try {
+      await loadBootstrap(appState);
+    } finally {
+      appState.ordersRefreshing = false;
+      resetOrdersPullRefresh(appState);
+    }
+  }
+
   function createApp(root) {
     const storage = getStorage();
     const appState = {
@@ -794,6 +845,9 @@
       role: 'buyer',
       activeTab: 'create',
       orderFilter: 'all',
+      ordersPullStartY: 0,
+      ordersPullDistance: 0,
+      ordersRefreshing: false,
       elements: {
         tabButtons: Array.from(root.querySelectorAll('[data-tab-target]')),
         panels: Array.from(root.querySelectorAll('[data-tab]')),
@@ -808,6 +862,8 @@
         createButton: root.querySelector('#nexaEscrowCreateButton'),
         createStatus: root.querySelector('#nexaEscrowCreateStatus'),
         ordersList: root.querySelector('#nexaEscrowOrdersList'),
+        ordersPanel: root.querySelector('[data-tab="orders"]'),
+        ordersPullRefresh: root.querySelector('#nexaEscrowOrdersPullToRefresh'),
         orderDetail: root.querySelector('#nexaEscrowOrderDetail'),
         orderDetailClose: root.querySelector('#nexaEscrowOrderDetailClose'),
         detailTitle: root.querySelector('#nexaEscrowDetailTitle'),
@@ -857,6 +913,38 @@
       event.preventDefault();
       openEscrowOrderFromList(appState, target.dataset.detailTrigger);
     }, { passive: false });
+    appState.elements.ordersPanel?.addEventListener('touchstart', (event) => {
+      if (appState.activeTab !== 'orders' || appState.ordersRefreshing) return;
+      if (appState.elements.ordersPanel.scrollTop > 0) return;
+      appState.ordersPullStartY = Number(event.touches?.[0]?.clientY || 0);
+      appState.ordersPullDistance = 0;
+    }, { passive: true });
+    appState.elements.ordersPanel?.addEventListener('touchmove', (event) => {
+      if (appState.activeTab !== 'orders' || appState.ordersRefreshing) return;
+      if (appState.elements.ordersPanel.scrollTop > 0 || !appState.ordersPullStartY) {
+        resetOrdersPullRefresh(appState);
+        return;
+      }
+      const currentY = Number(event.touches?.[0]?.clientY || 0);
+      const delta = currentY - appState.ordersPullStartY;
+      if (delta <= 0) {
+        resetOrdersPullRefresh(appState);
+        return;
+      }
+      event.preventDefault();
+      updateOrdersPullRefresh(appState, delta * 0.6);
+    }, { passive: false });
+    appState.elements.ordersPanel?.addEventListener('touchend', () => {
+      if (appState.activeTab !== 'orders' || appState.ordersRefreshing) return;
+      const shouldRefresh = appState.ordersPullDistance >= NEXA_ESCROW_PULL_REFRESH_TRIGGER_PX;
+      if (shouldRefresh) {
+        refreshEscrowOrders(appState).catch(() => {
+          resetOrdersPullRefresh(appState);
+        });
+        return;
+      }
+      resetOrdersPullRefresh(appState);
+    });
     appState.elements.roleButtons.forEach((button) => {
       button.addEventListener('click', () => {
         appState.role = button.dataset.role;
@@ -888,6 +976,13 @@
               }
               if (action === 'mark_delivered') {
                 const confirmed = globalScope.window.confirm(t(appState.locale, 'confirmDeliverPrompt'));
+                if (!confirmed) {
+                  setStatus(appState.elements.detailStatus, '');
+                  return;
+                }
+              }
+              if (action === 'confirm_receipt') {
+                const confirmed = globalScope.window.confirm(t(appState.locale, 'confirmReceiptPrompt'));
                 if (!confirmed) {
                   setStatus(appState.elements.detailStatus, '');
                   return;

@@ -54,6 +54,8 @@ test('nexa-escrow html includes create and orders tabs plus escrow actions', () 
   assert.match(html, /data-order-filter="cancelled"/);
   assert.match(html, /data-order-filter="completed"/);
   assert.match(html, /id="nexaEscrowOrdersList"/);
+  assert.match(html, /id="nexaEscrowOrdersPullToRefresh"/);
+  assert.match(html, /id="nexaEscrowOrdersPullSpinner"/);
   assert.match(html, /id="nexaEscrowOrderDetail"/);
   assert.match(html, /id="nexaEscrowOrderDetailClose"/);
   assert.match(html, /id="nexaEscrowPrimaryAction"/);
@@ -90,6 +92,8 @@ test('nexa-escrow script includes Nexa auth, escrow bootstrap, order, and paymen
   assert.match(js, /function settlePendingEscrowPayment\(/);
   assert.match(js, /function submitEscrowAction\(/);
   assert.match(js, /function filterOrders\(/);
+  assert.match(js, /function refreshEscrowOrders\(/);
+  assert.match(js, /NEXA_ESCROW_PULL_REFRESH_TRIGGER_PX/);
   assert.match(js, /function openEscrowCodeModal\(/);
   assert.match(js, /function closeOrderDetail\(/);
   assert.match(js, /function openEscrowOrderFromList\(/);

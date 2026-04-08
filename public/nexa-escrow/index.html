@@ -63,7 +63,10 @@
           </article>
         </section>
 
-        <section class="nexa-escrow-panel" data-tab="orders" hidden>
+        <section class="nexa-escrow-panel nexa-escrow-panel--scrollable" data-tab="orders" hidden>
+          <div id="nexaEscrowOrdersPullToRefresh" class="nexa-escrow-pull-refresh" aria-hidden="true">
+            <div id="nexaEscrowOrdersPullSpinner" class="nexa-escrow-pull-refresh__spinner"></div>
+          </div>
           <article class="nexa-escrow-card">
             <div class="nexa-escrow-order-filters">
               <button class="nexa-escrow-order-filters__item is-active" type="button" data-order-filter="all" data-i18n="filterAll">全部</button>
