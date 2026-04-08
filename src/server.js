@@ -851,10 +851,10 @@ function ensureNexaEscrowUserAccount(session) {
     }
   }
 
-  let wallet = selectXiangqiWalletStmt.get(Number(user.id));
+  let wallet = selectNexaEscrowWalletStmt.get(Number(user.id));
   if (!wallet) {
-    insertXiangqiWalletStmt.run(Number(user.id));
-    wallet = selectXiangqiWalletStmt.get(Number(user.id));
+    insertNexaEscrowWalletStmt.run(Number(user.id));
+    wallet = selectNexaEscrowWalletStmt.get(Number(user.id));
   }
 
   return {
@@ -1294,12 +1294,12 @@ async function createNexaEscrowPaymentOrder({ req, session, tradeCode }) {
 
 function creditEscrowSellerWallet({ sellerUserId, amount, tradeCode }) {
   if (!sellerUserId) return;
-  const wallet = selectXiangqiWalletStmt.get(Number(sellerUserId));
+  const wallet = selectNexaEscrowWalletStmt.get(Number(sellerUserId));
   if (!wallet) return;
   const nextBalance = parseMoneyToCents(wallet.available_balance) + parseMoneyToCents(amount);
   const nextBalanceString = centsToMoneyString(nextBalance);
-  updateXiangqiWalletBalanceStmt.run(nextBalanceString, Number(sellerUserId));
-  insertXiangqiLedgerStmt.run(
+  updateNexaEscrowWalletBalanceStmt.run(nextBalanceString, Number(sellerUserId));
+  insertNexaEscrowWalletLedgerStmt.run(
     Number(sellerUserId),
     'escrow_release',
     String(amount || '0.00').trim(),
@@ -1312,12 +1312,12 @@ function creditEscrowSellerWallet({ sellerUserId, amount, tradeCode }) {
 
 function creditEscrowBuyerRefund({ buyerUserId, amount, tradeCode }) {
   if (!buyerUserId) return;
-  const wallet = selectXiangqiWalletStmt.get(Number(buyerUserId));
+  const wallet = selectNexaEscrowWalletStmt.get(Number(buyerUserId));
   if (!wallet) return;
   const nextBalance = parseMoneyToCents(wallet.available_balance) + parseMoneyToCents(amount);
   const nextBalanceString = centsToMoneyString(nextBalance);
-  updateXiangqiWalletBalanceStmt.run(nextBalanceString, Number(buyerUserId));
-  insertXiangqiLedgerStmt.run(
+  updateNexaEscrowWalletBalanceStmt.run(nextBalanceString, Number(buyerUserId));
+  insertNexaEscrowWalletLedgerStmt.run(
     Number(buyerUserId),
     'escrow_refund',
     String(amount || '0.00').trim(),
@@ -1327,6 +1327,74 @@ function creditEscrowBuyerRefund({ buyerUserId, amount, tradeCode }) {
     'Nexa 担保退款'
   );
 }
+
+const createPendingEscrowWithdrawal = db.transaction((payload) => {
+  const existing = selectNexaEscrowWithdrawalByOrderStmt.get(payload.partnerOrderNo);
+  if (existing) return { kind: 'duplicate' };
+
+  const wallet = selectNexaEscrowWalletStmt.get(payload.userId);
+  if (!wallet) return { kind: 'wallet_not_found' };
+
+  const availableBalanceCents = parseMoneyToCents(wallet.available_balance);
+  const amountCents = parseMoneyToCents(payload.amount);
+  if (availableBalanceCents < amountCents) return { kind: 'insufficient_balance' };
+
+  const nextBalanceCents = availableBalanceCents - amountCents;
+  const nextBalance = centsToMoneyString(nextBalanceCents);
+  updateNexaEscrowWalletBalanceStmt.run(nextBalance, payload.userId);
+  insertNexaEscrowWithdrawalStmt.run(payload.partnerOrderNo, payload.userId, centsToMoneyString(amountCents));
+  insertNexaEscrowWalletLedgerStmt.run(
+    payload.userId,
+    'withdraw_debit',
+    centsToMoneyString(-amountCents),
+    nextBalance,
+    'escrow_withdraw',
+    payload.partnerOrderNo,
+    '担保提现处理中'
+  );
+  return { kind: 'pending' };
+});
+
+const refundFailedEscrowWithdrawal = db.transaction((payload) => {
+  const withdrawal = selectNexaEscrowWithdrawalDetailByOrderStmt.get(payload.partnerOrderNo);
+  if (!withdrawal) return { kind: 'not_found' };
+  const currentStatus = String(withdrawal.status || '').toLowerCase();
+  if (currentStatus === 'failed') return { kind: 'already_processed' };
+  if (currentStatus !== 'pending') return { kind: 'not_pending' };
+
+  const wallet = selectNexaEscrowWalletStmt.get(withdrawal.user_id);
+  if (!wallet) return { kind: 'wallet_not_found' };
+
+  const nextBalanceCents = parseMoneyToCents(wallet.available_balance) + parseMoneyToCents(withdrawal.amount);
+  const nextBalance = centsToMoneyString(nextBalanceCents);
+  updateNexaEscrowWalletBalanceStmt.run(nextBalance, withdrawal.user_id);
+  insertNexaEscrowWalletLedgerStmt.run(
+    withdrawal.user_id,
+    'withdraw_refund',
+    centsToMoneyString(parseMoneyToCents(withdrawal.amount)),
+    nextBalance,
+    'escrow_withdraw',
+    withdrawal.partner_order_no,
+    '担保提现失败退回'
+  );
+  markNexaEscrowWithdrawalFailedStmt.run(serializeNotifyPayload(payload.rawBody), withdrawal.partner_order_no);
+  return { kind: 'refunded' };
+});
+
+const markEscrowWithdrawalSuccess = db.transaction((payload) => {
+  const withdrawal = selectNexaEscrowWithdrawalDetailByOrderStmt.get(payload.partnerOrderNo);
+  if (!withdrawal) return { kind: 'not_found' };
+  const currentStatus = String(withdrawal.status || '').toLowerCase();
+  if (currentStatus === 'success') return { kind: 'already_processed' };
+  if (currentStatus !== 'pending') return { kind: 'not_pending' };
+
+  updateNexaEscrowWithdrawalSuccessStmt.run(
+    String(payload.orderNo || '').trim(),
+    serializeNotifyPayload(payload.rawBody),
+    withdrawal.partner_order_no
+  );
+  return { kind: 'completed' };
+});
 
 function settleNexaEscrowPaymentSuccess(orderNo, payload = {}) {
   const normalizedOrderNo = String(orderNo || '').trim();
@@ -1978,7 +2046,7 @@ function settlePMiningPaymentSuccess(orderNo, responseData = {}) {
   })();
 }
 
-async function requestNexaWithdrawal({ req, withdrawal, reviewNote = '' }) {
+async function requestNexaWithdrawal({ req, withdrawal, reviewNote = '', notifyPath = '/api/xiangqi/withdraw/notify', remarkPrefix = '象棋提现' }) {
   const { apiKey, appSecret } = ensureNexaCredentialsConfigured();
   const baseUrl = getPublicBaseUrl(req);
   const payload = buildNexaWithdrawalCreatePayload({
@@ -1988,8 +2056,8 @@ async function requestNexaWithdrawal({ req, withdrawal, reviewNote = '' }) {
     amount: String(withdrawal.amount || '').trim(),
     currency: String(withdrawal.currency || NEXA_TIP_CURRENCY).trim(),
     openId: String(withdrawal.openid || '').trim(),
-    notifyUrl: `${baseUrl}/api/xiangqi/withdraw/notify`,
-    remark: String(reviewNote || '').trim() || `象棋提现 ${String(withdrawal.amount || '').trim()} USDT`
+    notifyUrl: `${baseUrl}${String(notifyPath || '/api/xiangqi/withdraw/notify').trim()}`,
+    remark: String(reviewNote || '').trim() || `${String(remarkPrefix || '象棋提现').trim()} ${String(withdrawal.amount || '').trim()} USDT`
   });
   const response = await postNexaJson('/partner/api/openapi/account/withdraw', payload);
   const data = unwrapNexaResult(response, 'Nexa 提现申请失败');
@@ -3650,6 +3718,151 @@ app.post('/api/nexa-escrow/payment/notify', (req, res) => {
   return res.json({ code: '0', msg: 'success' });
 });
 
+app.post('/api/nexa-escrow/withdraw/create', async (req, res) => {
+  let partnerOrderNo = '';
+  try {
+    const session = requireNexaEscrowSession(req);
+    const ensured = ensureNexaEscrowUserAccount(session);
+    const amount = String(req.body?.amount || '').trim();
+    parseMoneyToCents(amount);
+    partnerOrderNo = `escrow_wd_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
+
+    const result = createPendingEscrowWithdrawal({
+      partnerOrderNo,
+      userId: ensured.user.id,
+      amount
+    });
+
+    if (result.kind === 'wallet_not_found') {
+      return res.status(404).json({ ok: false, error: 'WALLET_NOT_FOUND' });
+    }
+    if (result.kind === 'insufficient_balance') {
+      return res.status(409).json({ ok: false, error: 'INSUFFICIENT_BALANCE' });
+    }
+    if (result.kind === 'duplicate') {
+      return res.status(409).json({ ok: false, error: 'WITHDRAWAL_ALREADY_EXISTS' });
+    }
+
+    const withdrawal = selectNexaEscrowWithdrawalDetailByOrderStmt.get(partnerOrderNo);
+    const nexaResult = await requestNexaWithdrawal({
+      req,
+      withdrawal,
+      notifyPath: '/api/nexa-escrow/withdraw/notify',
+      remarkPrefix: '担保提现'
+    });
+
+    if (String(nexaResult.status || '').trim().toUpperCase() === 'SUCCESS') {
+      markEscrowWithdrawalSuccess({
+        partnerOrderNo,
+        orderNo: nexaResult.orderNo,
+        rawBody: nexaResult.rawBody
+      });
+    }
+
+    return res.json({
+      ok: true,
+      partnerOrderNo,
+      orderNo: nexaResult.orderNo,
+      amount,
+      status: String(nexaResult.status || 'PENDING').trim().toLowerCase()
+    });
+  } catch (error) {
+    if (partnerOrderNo) {
+      refundFailedEscrowWithdrawal({
+        partnerOrderNo,
+        rawBody: { error: String(error?.message || 'Nexa 提现申请失败') }
+      });
+    }
+    if (error?.message === 'INVALID_AMOUNT') {
+      return res.status(400).json({ ok: false, error: 'INVALID_AMOUNT' });
+    }
+    const statusCode = Number(error?.statusCode || 502) || 502;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'Nexa 提现申请失败') });
+  }
+});
+
+app.post('/api/nexa-escrow/withdraw/query', async (req, res) => {
+  try {
+    const session = requireNexaEscrowSession(req);
+    const ensured = ensureNexaEscrowUserAccount(session);
+    const partnerOrderNo = String(req.body?.partnerOrderNo || '').trim();
+    if (!partnerOrderNo) {
+      return res.status(400).json({ ok: false, error: 'INVALID_PARTNER_ORDER_NO' });
+    }
+    const row = selectNexaEscrowWithdrawalDetailByOrderStmt.get(partnerOrderNo);
+    if (!row || Number(row.user_id || 0) !== ensured.user.id) {
+      return res.status(404).json({ ok: false, error: 'WITHDRAWAL_NOT_FOUND' });
+    }
+
+    let current = row;
+    if (String(row.status || '').trim().toLowerCase() === 'pending') {
+      const queried = await queryNexaWithdrawalOrder(partnerOrderNo);
+      const queriedStatus = String(queried.status || '').trim().toUpperCase();
+      if (queriedStatus === 'SUCCESS') {
+        markEscrowWithdrawalSuccess({
+          partnerOrderNo,
+          orderNo: queried.orderNo,
+          rawBody: queried.rawBody
+        });
+      } else if (queriedStatus === 'FAILED') {
+        refundFailedEscrowWithdrawal({
+          partnerOrderNo,
+          rawBody: queried.rawBody
+        });
+      }
+      current = selectNexaEscrowWithdrawalDetailByOrderStmt.get(partnerOrderNo);
+    }
+
+    return res.json({
+      ok: true,
+      item: {
+        partnerOrderNo: String(current.partner_order_no || '').trim(),
+        amount: String(current.amount || '0.00'),
+        status: String(current.status || '').trim().toLowerCase()
+      }
+    });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 502) || 502;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'Nexa 查询提现失败') });
+  }
+});
+
+app.post('/api/nexa-escrow/withdraw/notify', (req, res) => {
+  const partnerOrderNo = String(req.body.partnerOrderNo || '').trim();
+  const status = String(req.body.status || '').trim().toUpperCase();
+  if (!partnerOrderNo) {
+    return res.status(400).json({ ok: false, error: 'INVALID_PARTNER_ORDER_NO' });
+  }
+  if (!['FAILED', 'SUCCESS'].includes(status)) {
+    return res.status(400).json({ ok: false, error: 'UNSUPPORTED_WITHDRAW_STATUS' });
+  }
+
+  const result = status === 'SUCCESS'
+    ? markEscrowWithdrawalSuccess({
+        partnerOrderNo,
+        orderNo: String(req.body.orderNo || '').trim(),
+        rawBody: req.body
+      })
+    : refundFailedEscrowWithdrawal({
+        partnerOrderNo,
+        rawBody: req.body
+      });
+
+  if (result.kind === 'not_found') {
+    return res.status(404).json({ ok: false, error: 'WITHDRAWAL_NOT_FOUND' });
+  }
+  if (result.kind === 'wallet_not_found') {
+    return res.status(404).json({ ok: false, error: 'WALLET_NOT_FOUND' });
+  }
+  if (result.kind === 'not_pending') {
+    return res.status(409).json({ ok: false, error: 'WITHDRAWAL_NOT_PENDING' });
+  }
+  if (result.kind === 'already_processed') {
+    return res.json({ ok: true, status: 'already_processed' });
+  }
+  return res.json({ ok: true, status: status === 'SUCCESS' ? 'success' : 'refunded' });
+});
+
 app.post('/api/nexa-escrow/orders/action', (req, res) => {
   try {
     const session = requireNexaEscrowSession(req);
@@ -4085,6 +4298,9 @@ const XIANGQI_LEGACY_TEST_OPEN_IDS = new Set(['xiangqi-demo-local', 'xiangqi-bro
 
 const selectXiangqiWalletStmt = db.prepare(
   'SELECT user_id, available_balance, frozen_balance FROM game_wallets WHERE user_id = ?'
+);
+const selectNexaEscrowWalletStmt = db.prepare(
+  'SELECT user_id, available_balance, frozen_balance FROM nexa_escrow_wallets WHERE user_id = ?'
 );
 const selectXiangqiUserByIdStmt = db.prepare(
   'SELECT id, openid, nickname, avatar, escrow_code, created_at FROM game_users WHERE id = ?'
@@ -4620,6 +4836,9 @@ const insertNexaEscrowEventStmt = db.prepare(`
 const insertXiangqiWalletStmt = db.prepare(
   "INSERT INTO game_wallets (user_id, currency, available_balance, frozen_balance) VALUES (?, 'USDT', '0.00', '0.00')"
 );
+const insertNexaEscrowWalletStmt = db.prepare(
+  "INSERT INTO nexa_escrow_wallets (user_id, currency, available_balance, frozen_balance) VALUES (?, 'USDT', '0.00', '0.00')"
+);
 const selectRecentXiangqiLedgerStmt = db.prepare(`
   SELECT
     l.id,
@@ -4645,12 +4864,60 @@ const selectRecentXiangqiLedgerStmt = db.prepare(`
 const updateXiangqiWalletBalanceStmt = db.prepare(
   "UPDATE game_wallets SET available_balance = ?, updated_at = datetime('now') WHERE user_id = ?"
 );
+const updateNexaEscrowWalletBalanceStmt = db.prepare(
+  "UPDATE nexa_escrow_wallets SET available_balance = ?, updated_at = datetime('now') WHERE user_id = ?"
+);
 const updateXiangqiWalletBalancesStmt = db.prepare(
   "UPDATE game_wallets SET available_balance = ?, frozen_balance = ?, updated_at = datetime('now') WHERE user_id = ?"
 );
 const insertXiangqiLedgerStmt = db.prepare(`
   INSERT INTO game_wallet_ledger (user_id, type, amount, balance_after, related_type, related_id, remark)
   VALUES (?, ?, ?, ?, ?, ?, ?)
+`);
+const insertNexaEscrowWalletLedgerStmt = db.prepare(`
+  INSERT INTO nexa_escrow_wallet_ledger (user_id, type, amount, balance_after, related_type, related_id, remark)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
+`);
+const selectNexaEscrowWithdrawalByOrderStmt = db.prepare(
+  'SELECT partner_order_no, user_id, amount, status FROM nexa_escrow_withdrawals WHERE partner_order_no = ?'
+);
+const selectNexaEscrowWithdrawalDetailByOrderStmt = db.prepare(`
+  SELECT
+    w.id,
+    w.partner_order_no,
+    w.user_id,
+    w.amount,
+    w.currency,
+    w.status,
+    w.nexa_order_no,
+    w.notify_payload,
+    w.created_at,
+    w.finished_at,
+    u.openid
+  FROM nexa_escrow_withdrawals w
+  JOIN game_users u ON u.id = w.user_id
+  WHERE w.partner_order_no = ?
+`);
+const insertNexaEscrowWithdrawalStmt = db.prepare(`
+  INSERT INTO nexa_escrow_withdrawals (partner_order_no, user_id, amount, currency, status, notify_payload)
+  VALUES (?, ?, ?, 'USDT', 'pending', '')
+`);
+const updateNexaEscrowWithdrawalSuccessStmt = db.prepare(`
+  UPDATE nexa_escrow_withdrawals
+  SET status = 'success', nexa_order_no = ?, notify_payload = ?, finished_at = datetime('now')
+  WHERE partner_order_no = ?
+`);
+const markNexaEscrowWithdrawalFailedStmt = db.prepare(`
+  UPDATE nexa_escrow_withdrawals
+  SET status = 'failed', notify_payload = ?, finished_at = datetime('now')
+  WHERE partner_order_no = ?
+`);
+const selectLatestNexaEscrowWithdrawalByUserStmt = db.prepare(`
+  SELECT partner_order_no, amount, status, finished_at, created_at
+  FROM nexa_escrow_withdrawals
+  WHERE user_id = ?
+  ORDER BY id DESC
+  LIMIT 1
 `);
 const selectXiangqiDepositByOrderStmt = db.prepare(
   'SELECT partner_order_no, user_id, amount, status FROM nexa_game_deposits WHERE partner_order_no = ?'

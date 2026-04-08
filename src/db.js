@@ -253,6 +253,32 @@ db.exec(`
 `);
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS nexa_escrow_wallets (
+    user_id INTEGER PRIMARY KEY,
+    currency TEXT NOT NULL DEFAULT 'USDT',
+    available_balance TEXT NOT NULL DEFAULT '0',
+    frozen_balance TEXT NOT NULL DEFAULT '0',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY(user_id) REFERENCES game_users(id)
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS nexa_escrow_wallet_ledger (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    amount TEXT NOT NULL,
+    balance_after TEXT NOT NULL,
+    related_type TEXT NOT NULL DEFAULT '',
+    related_id TEXT NOT NULL DEFAULT '',
+    remark TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY(user_id) REFERENCES game_users(id)
+  );
+`);
+
+db.exec(`
   CREATE TABLE IF NOT EXISTS nexa_escrow_orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     trade_code TEXT NOT NULL UNIQUE,
@@ -377,8 +403,29 @@ db.exec(`
 `);
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS nexa_escrow_withdrawals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    partner_order_no TEXT NOT NULL UNIQUE,
+    user_id INTEGER NOT NULL,
+    amount TEXT NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'USDT',
+    status TEXT NOT NULL DEFAULT 'pending',
+    nexa_order_no TEXT NOT NULL DEFAULT '',
+    notify_payload TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    finished_at TEXT NOT NULL DEFAULT '',
+    FOREIGN KEY(user_id) REFERENCES game_users(id)
+  );
+`);
+
+db.exec(`
   CREATE INDEX IF NOT EXISTS idx_nexa_escrow_orders_trade_code
   ON nexa_escrow_orders(trade_code);
+`);
+
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_nexa_escrow_withdrawals_user
+  ON nexa_escrow_withdrawals(user_id, created_at DESC);
 `);
 
 db.exec(`

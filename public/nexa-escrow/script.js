@@ -32,6 +32,10 @@
       escrowCodeLabel: '担保号',
       walletLabel: '钱包余额',
       copyAction: '复制',
+      withdrawAction: '提现',
+      withdrawPrompt: '输入要提现到 Nexa 余额的 USDT 金额',
+      withdrawCreated: '提现申请已提交到 Nexa。',
+      withdrawOnlyNexa: '请在 Nexa App 内提现。',
       firstLoginHint: '首次登录提醒',
       codeModalTitle: '您的担保号是多少',
       codeModalConfirm: '我知道了',
@@ -99,6 +103,10 @@
       escrowCodeLabel: 'Escrow ID',
       walletLabel: 'Wallet Balance',
       copyAction: 'Copy',
+      withdrawAction: 'Withdraw',
+      withdrawPrompt: 'Enter the USDT amount to withdraw to Nexa balance',
+      withdrawCreated: 'Withdrawal has been submitted to Nexa.',
+      withdrawOnlyNexa: 'Please withdraw inside the Nexa App.',
       firstLoginHint: 'First login reminder',
       codeModalTitle: 'Your escrow ID',
       codeModalConfirm: 'Got it',
@@ -400,6 +408,32 @@
     renderOrders(appState);
   }
 
+  async function beginEscrowWithdrawFlow(appState) {
+    if (!hasNexaEnvironment()) {
+      setStatus(appState.elements.accountStatus, t(appState.locale, 'withdrawOnlyNexa'), 'error');
+      return;
+    }
+    const amount = String(globalScope.window.prompt(t(appState.locale, 'withdrawPrompt')) || '').trim();
+    if (!amount) return;
+    setStatus(appState.elements.accountStatus, t(appState.locale, 'processing'));
+    const response = await postJson('/api/nexa-escrow/withdraw/create', { amount });
+    if (String(response?.partnerOrderNo || '').trim()) {
+      await queryEscrowWithdrawalStatus(response.partnerOrderNo).catch(() => null);
+    }
+    await loadBootstrap(appState);
+    setStatus(
+      appState.elements.accountStatus,
+      String(response?.status || '').trim().toLowerCase() === 'success'
+        ? t(appState.locale, 'actionSuccess')
+        : t(appState.locale, 'withdrawCreated'),
+      'success'
+    );
+  }
+
+  async function queryEscrowWithdrawalStatus(partnerOrderNo) {
+    return postJson('/api/nexa-escrow/withdraw/query', { partnerOrderNo });
+  }
+
   function mergeOrder(orders, nextOrder) {
     const list = Array.isArray(orders) ? orders.slice() : [];
     const tradeCode = String(nextOrder?.tradeCode || '').trim();
@@ -617,7 +651,7 @@
       return;
     }
     list.innerHTML = visibleOrders.map((order) => `
-      <button class="nexa-escrow-order-item${order.tradeCode === appState.selectedTradeCode ? ' is-selected' : ''}" type="button" data-trade-code="${order.tradeCode}">
+      <article class="nexa-escrow-order-item${order.tradeCode === appState.selectedTradeCode ? ' is-selected' : ''}" data-trade-code="${order.tradeCode}">
         <div class="nexa-escrow-order-item__top">
           <div class="nexa-escrow-order-item__code">订单号: ${order.tradeCode}</div>
           <span class="nexa-escrow-pill">${describeOrderStatus(appState, order)}</span>
@@ -641,9 +675,9 @@
         </div>
         <div class="nexa-escrow-order-item__desc">${order.description || '--'}</div>
         <div class="nexa-escrow-order-item__footer">
-          <span class="nexa-escrow-order-item__view">${t(appState.locale, 'viewDetail')}</span>
+          <button class="nexa-escrow-order-item__view" type="button" data-detail-trigger="${order.tradeCode}">${t(appState.locale, 'viewDetail')}</button>
         </div>
-      </button>
+      </article>
     `).join('');
     if (appState.selectedTradeCode && !visibleOrders.some((item) => item.tradeCode === appState.selectedTradeCode)) {
       appState.selectedTradeCode = '';
@@ -662,6 +696,9 @@
     if (!appState.elements.accountCode || !appState.elements.accountWallet) return;
     appState.elements.accountCode.textContent = String(appState.account?.escrowCode || 'N000000');
     appState.elements.accountWallet.textContent = `${String(appState.account?.wallet || '0.00')} USDT`;
+    if (appState.elements.withdrawBtn) {
+      appState.elements.withdrawBtn.textContent = t(appState.locale, 'withdrawAction');
+    }
   }
 
   function openEscrowCodeModal(appState) {
@@ -727,6 +764,8 @@
             accountCode: root.querySelector('#nexaEscrowAccountCode'),
             accountWallet: root.querySelector('#nexaEscrowAccountWallet'),
             accountCodeCopy: root.querySelector('#nexaEscrowAccountCodeCopy'),
+            withdrawBtn: root.querySelector('#nexaEscrowWithdrawBtn'),
+            accountStatus: root.querySelector('#nexaEscrowAccountStatus'),
             codeModal: globalScope.document.querySelector('#nexaEscrowCodeModal'),
             codeModalValue: globalScope.document.querySelector('#nexaEscrowCodeModalValue'),
             codeModalConfirm: globalScope.document.querySelector('#nexaEscrowCodeModalConfirm')
@@ -743,15 +782,15 @@
       });
     });
     appState.elements.ordersList?.addEventListener('click', (event) => {
-      const target = event.target instanceof Element ? event.target.closest('[data-trade-code]') : null;
+      const target = event.target instanceof Element ? event.target.closest('[data-detail-trigger]') : null;
       if (!target) return;
-      openEscrowOrderFromList(appState, target.dataset.tradeCode);
+      openEscrowOrderFromList(appState, target.dataset.detailTrigger);
     });
     appState.elements.ordersList?.addEventListener('touchend', (event) => {
-      const target = event.target instanceof Element ? event.target.closest('[data-trade-code]') : null;
+      const target = event.target instanceof Element ? event.target.closest('[data-detail-trigger]') : null;
       if (!target) return;
       event.preventDefault();
-      openEscrowOrderFromList(appState, target.dataset.tradeCode);
+      openEscrowOrderFromList(appState, target.dataset.detailTrigger);
     }, { passive: false });
     appState.elements.roleButtons.forEach((button) => {
       button.addEventListener('click', () => {
@@ -797,6 +836,11 @@
       try {
         await copyEscrowCode(appState);
       } catch {}
+    });
+    appState.elements.withdrawBtn?.addEventListener('click', () => {
+      beginEscrowWithdrawFlow(appState).catch((error) => {
+        setStatus(appState.elements.accountStatus, error instanceof Error ? error.message : '提现失败', 'error');
+      });
     });
 
     applyTranslations(appState);
@@ -845,6 +889,7 @@
     beginNexaLoginFlow,
     createEscrowOrder,
     beginEscrowPayment,
+    beginEscrowWithdrawFlow,
     settlePendingEscrowPayment,
     submitEscrowAction
   };

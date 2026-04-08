@@ -9,7 +9,7 @@ const dbModulePath = path.join(__dirname, '..', 'src', 'db.js');
 const serverModulePath = path.join(__dirname, '..', 'src', 'server.js');
 const nexaPayModulePath = path.join(__dirname, '..', 'src', 'nexa-pay.js');
 
-function createHarness({ mockPaymentResponse, mockQueryResponse, seedNexaEnv = true } = {}) {
+function createHarness({ mockPaymentResponse, mockQueryResponse, mockWithdrawResponse, mockWithdrawQueryResponse, seedNexaEnv = true } = {}) {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claw800-nexa-escrow-auth-api-'));
   const dbPath = path.join(tmpDir, 'claw800.db');
   const previousDbPath = process.env.CLAW800_DB_PATH;
@@ -26,13 +26,19 @@ function createHarness({ mockPaymentResponse, mockQueryResponse, seedNexaEnv = t
   delete require.cache[require.resolve(nexaPayModulePath)];
 
   const nexaPay = require(nexaPayModulePath);
-  if (mockPaymentResponse || mockQueryResponse) {
+  if (mockPaymentResponse || mockQueryResponse || mockWithdrawResponse || mockWithdrawQueryResponse) {
     nexaPay.postNexaJson = async (endpointPath, payload) => {
       if (endpointPath === '/partner/api/openapi/payment/create' && mockPaymentResponse) {
         return mockPaymentResponse(payload);
       }
       if (endpointPath === '/partner/api/openapi/payment/query' && mockQueryResponse) {
         return mockQueryResponse(payload);
+      }
+      if (endpointPath === '/partner/api/openapi/account/withdraw' && mockWithdrawResponse) {
+        return mockWithdrawResponse(payload);
+      }
+      if (endpointPath === '/partner/api/openapi/account/withdrawal/query' && mockWithdrawQueryResponse) {
+        return mockWithdrawQueryResponse(payload);
       }
       throw new Error(`Unexpected Nexa endpoint: ${endpointPath}`);
     };
@@ -194,6 +200,116 @@ test('nexa-escrow bootstrap returns synced account state and empty orders for a 
     assert.match(response.body.account.escrowCode, /^N\d{6}$/);
     assert.equal(Array.isArray(response.body.orders), true);
     assert.equal(response.body.orders.length, 0);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('nexa-escrow bootstrap wallet only reflects the dedicated escrow wallet balance', async () => {
+  const harness = createHarness();
+
+  try {
+    const syncResponse = await harness.request('POST', '/api/nexa-escrow/session', {
+      openId: 'escrow-open-id-wallet-scope',
+      sessionKey: 'escrow-session-key-wallet-scope',
+      nickname: 'Wallet Scope User'
+    });
+    const serialized = JSON.parse(syncResponse.headers['set-cookie'][0]);
+
+    await harness.request('GET', '/api/nexa-escrow/bootstrap', null, {
+      cookies: {
+        [serialized.name]: serialized.value
+      }
+    });
+
+    const userId = harness.db.prepare('SELECT id FROM game_users WHERE openid = ?').get('escrow-open-id-wallet-scope').id;
+    harness.db
+      .prepare("INSERT INTO game_wallets (user_id, currency, available_balance, frozen_balance) VALUES (?, 'USDT', '16.86', '0.00')")
+      .run(userId);
+
+    const response = await harness.request('GET', '/api/nexa-escrow/bootstrap', null, {
+      cookies: {
+        [serialized.name]: serialized.value
+      }
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.ok, true);
+    assert.equal(response.body.account.wallet, '0.00');
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('nexa-escrow withdrawal debits the dedicated wallet and queries Nexa withdrawal status', async () => {
+  const harness = createHarness({
+    mockWithdrawResponse() {
+      return {
+        code: '0',
+        message: 'success',
+        data: {
+          orderNo: 'escrow-withdraw-order-no-1',
+          status: 'PENDING'
+        }
+      };
+    },
+    mockWithdrawQueryResponse() {
+      return {
+        code: '0',
+        message: 'success',
+        data: {
+          orderNo: 'escrow-withdraw-order-no-1',
+          status: 'SUCCESS',
+          amount: '5.00',
+          currency: 'USDT'
+        }
+      };
+    }
+  });
+
+  try {
+    const syncResponse = await harness.request('POST', '/api/nexa-escrow/session', {
+      openId: 'escrow-open-id-withdraw',
+      sessionKey: 'escrow-session-key-withdraw',
+      nickname: 'Withdraw User'
+    });
+    const serialized = JSON.parse(syncResponse.headers['set-cookie'][0]);
+
+    await harness.request('GET', '/api/nexa-escrow/bootstrap', null, {
+      cookies: {
+        [serialized.name]: serialized.value
+      }
+    });
+    const userId = harness.db.prepare('SELECT id FROM game_users WHERE openid = ?').get('escrow-open-id-withdraw').id;
+    harness.db.prepare("UPDATE nexa_escrow_wallets SET available_balance = '20.00' WHERE user_id = ?").run(userId);
+
+    const createResponse = await harness.request('POST', '/api/nexa-escrow/withdraw/create', {
+      amount: '5.00'
+    }, {
+      cookies: {
+        [serialized.name]: serialized.value
+      }
+    });
+
+    assert.equal(createResponse.statusCode, 200);
+    assert.equal(createResponse.body.ok, true);
+    assert.equal(createResponse.body.status, 'pending');
+    assert.equal(createResponse.body.amount, '5.00');
+
+    const walletAfterCreate = harness.db.prepare('SELECT available_balance FROM nexa_escrow_wallets WHERE user_id = ?').get(userId);
+    assert.equal(String(walletAfterCreate.available_balance), '15.00');
+
+    const queryResponse = await harness.request('POST', '/api/nexa-escrow/withdraw/query', {
+      partnerOrderNo: createResponse.body.partnerOrderNo
+    }, {
+      cookies: {
+        [serialized.name]: serialized.value
+      }
+    });
+
+    assert.equal(queryResponse.statusCode, 200);
+    assert.equal(queryResponse.body.ok, true);
+    assert.equal(String(queryResponse.body.item.status || '').toLowerCase(), 'success');
   } finally {
     harness.cleanup();
   }
@@ -475,8 +591,8 @@ test('nexa-escrow funded flow supports payment, seller delivery, and buyer relea
 
     const wallet = harness.db.prepare(`
       SELECT available_balance
-      FROM game_wallets
-      JOIN game_users ON game_users.id = game_wallets.user_id
+      FROM nexa_escrow_wallets
+      JOIN game_users ON game_users.id = nexa_escrow_wallets.user_id
       WHERE game_users.openid = ?
     `).get('escrow-seller-open-id-2');
 
@@ -572,8 +688,8 @@ test('nexa-escrow auto releases to the seller after 7 days without dispute', asy
 
     const wallet = harness.db.prepare(`
       SELECT available_balance
-      FROM game_wallets
-      JOIN game_users ON game_users.id = game_wallets.user_id
+      FROM nexa_escrow_wallets
+      JOIN game_users ON game_users.id = nexa_escrow_wallets.user_id
       WHERE game_users.openid = ?
     `).get('escrow-seller-open-id-auto');
     assert.equal(String(wallet.available_balance), '12.00');
@@ -684,8 +800,8 @@ test('nexa-escrow dispute blocks auto release and admin can resolve the order', 
 
     const wallet = harness.db.prepare(`
       SELECT available_balance
-      FROM game_wallets
-      JOIN game_users ON game_users.id = game_wallets.user_id
+      FROM nexa_escrow_wallets
+      JOIN game_users ON game_users.id = nexa_escrow_wallets.user_id
       WHERE game_users.openid = ?
     `).get('escrow-seller-open-id-dispute');
     assert.equal(String(wallet.available_balance), '30.00');

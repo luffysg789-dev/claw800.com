@@ -116,8 +116,10 @@
               <div class="nexa-escrow-account-item">
                 <span class="nexa-escrow-label" data-i18n="walletLabel">钱包余额</span>
                 <strong id="nexaEscrowAccountWallet">0.00 USDT</strong>
+                <button id="nexaEscrowWithdrawBtn" class="nexa-escrow-secondary nexa-escrow-account-item__action" type="button">提现</button>
               </div>
             </div>
+            <p id="nexaEscrowAccountStatus" class="nexa-escrow-status" hidden></p>
           </article>
         </section>
       </section>
@@ -137,6 +139,6 @@
     <script>
       window.ClawGamesConfig?.bootstrapGamePage?.('nexa-escrow');
     </script>
-    <script src="/nexa-escrow/script.js?v=7"></script>
+    <script src="/nexa-escrow/script.js?v=8"></script>
   </body>
 </html>

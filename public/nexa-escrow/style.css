@@ -291,6 +291,11 @@ body {
   font-weight: 700;
 }
 
+.nexa-escrow-account-item__action {
+  margin-top: 4px;
+  width: 100%;
+}
+
 .nexa-escrow-modal[hidden] {
   display: none;
 }
@@ -343,9 +348,6 @@ body {
   display: grid;
   gap: 12px;
   text-align: left;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
 }
 
 .nexa-escrow-order-item.is-selected {
@@ -454,9 +456,18 @@ body {
 }
 
 .nexa-escrow-order-item__view {
+  appearance: none;
+  border: 1px solid rgba(47, 109, 255, 0.28);
+  border-radius: 999px;
+  min-height: 34px;
+  padding: 0 14px;
+  background: rgba(47, 109, 255, 0.14);
   color: #dce8ff;
   font-size: 0.86rem;
   font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .nexa-escrow-order-detail {
