@@ -138,6 +138,11 @@ test('nexa-escrow script includes Nexa auth, escrow bootstrap, order, and paymen
   assert.match(js, /AWAITING_PAYMENT', 'PAYMENT_PENDING', 'FUNDED', 'DELIVERED'/);
   assert.match(js, /actionDispute/);
   assert.match(js, /actionConfirmReceipt/);
+  assert.match(js, /actionCancelledDone: '已取消'/);
+  assert.match(js, /confirmCancelPrompt: '确认取消这笔订单吗？'/);
+  assert.match(js, /const showCancelledInfo = normalizedStatus === 'CANCELLED';/);
+  assert.match(js, /showCancelledInfo\s*\?\s*t\(appState\.locale, 'actionCancelledDone'\)/);
+  assert.match(js, /primaryAction\.hidden = !primaryAction \|\| showCancelledInfo/);
   assert.doesNotMatch(js, /已登录/);
   assert.match(fs.readFileSync(cssPath, 'utf8'), /\.nexa-escrow-order-item__desc\s*\{[\s\S]*white-space:\s*nowrap/);
 });

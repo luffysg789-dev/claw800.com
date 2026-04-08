@@ -67,8 +67,10 @@
       actionCancel: '取消订单',
       actionDeliveredDone: '已发货',
       actionCompletedDone: '已完成',
+      actionCancelledDone: '已取消',
       confirmDeliverPrompt: '确认已经发货吗？',
       confirmReceiptPrompt: '确认已经收到货物/服务，并同意放款给卖家吗？',
+      confirmCancelPrompt: '确认取消这笔订单吗？',
       viewerPending: '待确认',
       statusAwaitingPayment: '待买家支付担保金',
       statusPaymentPending: '支付处理中',
@@ -147,8 +149,10 @@
       actionCancel: 'Cancel Order',
       actionDeliveredDone: 'Delivered',
       actionCompletedDone: 'Completed',
+      actionCancelledDone: 'Cancelled',
       confirmDeliverPrompt: 'Confirm that you have delivered the goods or service?',
       confirmReceiptPrompt: 'Confirm that you have received the goods or service and agree to release the funds to the seller?',
+      confirmCancelPrompt: 'Confirm cancelling this order?',
       viewerPending: 'Pending',
       statusAwaitingPayment: 'Waiting for buyer escrow payment',
       statusPaymentPending: 'Payment pending',
@@ -715,12 +719,15 @@
     const normalizedViewerRole = String(order?.viewerRole || '').trim().toLowerCase();
     const showDeliveredInfo = normalizedStatus === 'DELIVERED' && normalizedViewerRole === 'seller';
     const showCompletedInfo = normalizedStatus === 'COMPLETED';
+    const showCancelledInfo = normalizedStatus === 'CANCELLED';
     const infoAction = showCompletedInfo
       ? t(appState.locale, 'actionCompletedDone')
-      : (showDeliveredInfo ? t(appState.locale, 'actionDeliveredDone') : '');
+      : (showCancelledInfo
+          ? t(appState.locale, 'actionCancelledDone')
+          : (showDeliveredInfo ? t(appState.locale, 'actionDeliveredDone') : ''));
     appState.elements.infoAction.hidden = !infoAction;
     appState.elements.infoAction.textContent = infoAction;
-    appState.elements.primaryAction.hidden = !primaryAction;
+    appState.elements.primaryAction.hidden = !primaryAction || showCancelledInfo;
     appState.elements.secondaryAction.hidden = !secondaryAction;
     appState.elements.primaryAction.textContent = actionText[primaryAction] || primaryAction || '';
     appState.elements.secondaryAction.textContent = actionText[secondaryAction] || secondaryAction || '';
@@ -1211,6 +1218,13 @@
               }
               if (action === 'confirm_receipt') {
                 const confirmed = globalScope.window.confirm(t(appState.locale, 'confirmReceiptPrompt'));
+                if (!confirmed) {
+                  setStatus(appState.elements.detailStatus, '');
+                  return;
+                }
+              }
+              if (action === 'cancel') {
+                const confirmed = globalScope.window.confirm(t(appState.locale, 'confirmCancelPrompt'));
                 if (!confirmed) {
                   setStatus(appState.elements.detailStatus, '');
                   return;
