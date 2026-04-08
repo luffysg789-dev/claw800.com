@@ -411,6 +411,10 @@ body {
   gap: 4px;
 }
 
+.nexa-escrow-order-item__cell .nexa-escrow-label {
+  white-space: nowrap;
+}
+
 .nexa-escrow-order-item__cell strong {
   color: var(--escrow-text);
   font-size: 0.94rem;

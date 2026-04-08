@@ -557,6 +557,10 @@
     appState.elements.primaryAction.dataset.action = primaryAction || '';
     appState.elements.secondaryAction.dataset.action = secondaryAction || '';
     setStatus(appState.elements.detailStatus, describeOrderStatus(appState, order), 'success');
+    const selectedOrderNode = appState.elements.ordersList?.querySelector?.(`[data-trade-code="${appState.selectedTradeCode}"]`);
+    if (selectedOrderNode && card) {
+      selectedOrderNode.insertAdjacentElement('afterend', card);
+    }
   }
 
   function closeOrderDetail(appState) {
@@ -569,6 +573,11 @@
   function openEscrowOrderFromList(appState, tradeCode) {
     const normalizedTradeCode = String(tradeCode || '').trim();
     if (!normalizedTradeCode) return;
+    if (String(appState.selectedTradeCode || '').trim() === normalizedTradeCode) {
+      closeOrderDetail(appState);
+      renderOrders(appState);
+      return;
+    }
     appState.selectedTradeCode = normalizedTradeCode;
     renderOrders(appState);
     renderOrderDetail(appState);
@@ -636,6 +645,13 @@
     if (appState.selectedTradeCode && !visibleOrders.some((item) => item.tradeCode === appState.selectedTradeCode)) {
       appState.selectedTradeCode = '';
       closeOrderDetail(appState);
+      return;
+    }
+    if (appState.selectedTradeCode && !appState.elements.orderDetail.hidden) {
+      const selectedOrderNode = list.querySelector(`[data-trade-code="${appState.selectedTradeCode}"]`);
+      if (selectedOrderNode) {
+        selectedOrderNode.insertAdjacentElement('afterend', appState.elements.orderDetail);
+      }
     }
   }
 
