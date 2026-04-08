@@ -475,6 +475,10 @@ body {
   margin: 0;
 }
 
+.nexa-escrow-order-detail[hidden] {
+  display: none;
+}
+
 .nexa-escrow-order-detail__head-actions {
   display: flex;
   align-items: center;
