@@ -842,7 +842,7 @@ function renderCategories(items) {
     index = end;
     if (index < orderedItems.length) requestAnimationFrame(appendChunk);
   };
-  requestAnimationFrame(appendChunk);
+  appendChunk();
 }
 
 function applyLanguage(markReady = true) {
@@ -988,7 +988,7 @@ function renderSitesChunked(items) {
     }
   };
 
-  requestAnimationFrame(appendChunk);
+  appendChunk();
 }
 
 async function loadSites({ limit = 0, background = false } = {}) {
@@ -1172,6 +1172,10 @@ searchInput.addEventListener('keydown', (e) => {
     window.clearTimeout(searchInputTimer);
     loadSites();
   }
+});
+
+window.addEventListener('pageshow', () => {
+  renderHomeSitesFromCurrentState();
 });
 
 (async () => {
