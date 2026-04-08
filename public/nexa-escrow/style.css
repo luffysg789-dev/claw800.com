@@ -842,9 +842,26 @@ body {
     font-size: 1.4rem;
   }
 
-  .nexa-escrow-detail-grid,
+  .nexa-escrow-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
   .nexa-escrow-order-detail__actions {
     grid-template-columns: 1fr;
+  }
+
+  .nexa-escrow-order-detail__line--block,
+  .nexa-escrow-order-detail__line--card {
+    padding: 10px 12px;
+  }
+
+  .nexa-escrow-order-detail__line {
+    gap: 4px;
+  }
+
+  .nexa-escrow-order-detail__line strong {
+    font-size: 0.94rem;
   }
 
   .nexa-escrow-order-item__grid {
