@@ -326,6 +326,20 @@ test('nexa-escrow seller-created order lets the buyer see and pay from order det
     assert.equal(paymentCreate.body.orderNo, 'escrow-order-no-seller-create');
     assert.equal(paymentCreate.body.tradeCode, tradeCode);
     assert.equal(paymentCreate.body.payment.orderNo, 'escrow-order-no-seller-create');
+
+    const buyerPendingBootstrap = await harness.request('GET', '/api/nexa-escrow/bootstrap', null, {
+      cookies: { [buyerCookie.name]: buyerCookie.value }
+    });
+    const sellerPendingBootstrap = await harness.request('GET', '/api/nexa-escrow/bootstrap', null, {
+      cookies: { [sellerCookie.name]: sellerCookie.value }
+    });
+    const buyerPendingOrder = buyerPendingBootstrap.body.orders.find((item) => item.tradeCode === tradeCode);
+    const sellerPendingOrder = sellerPendingBootstrap.body.orders.find((item) => item.tradeCode === tradeCode);
+
+    assert.equal(buyerPendingOrder.status, 'PAYMENT_PENDING');
+    assert.deepEqual(buyerPendingOrder.availableActions, ['fund']);
+    assert.equal(sellerPendingOrder.status, 'PAYMENT_PENDING');
+    assert.deepEqual(sellerPendingOrder.availableActions, ['cancel']);
   } finally {
     harness.cleanup();
   }

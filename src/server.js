@@ -947,10 +947,10 @@ function buildNexaEscrowAvailableActions(order, userId) {
   const creatorUserId = Number(order?.creator_user_id || 0) || 0;
   const normalizedUserId = Number(userId || 0) || 0;
 
-  if ((status === 'AWAITING_BUYER' || status === 'AWAITING_SELLER' || status === 'AWAITING_PAYMENT') && creatorUserId === normalizedUserId) {
+  if ((status === 'AWAITING_BUYER' || status === 'AWAITING_SELLER' || status === 'AWAITING_PAYMENT' || status === 'PAYMENT_PENDING') && creatorUserId === normalizedUserId) {
     actions.push('cancel');
   }
-  if (status === 'AWAITING_PAYMENT' && viewerRole === 'buyer') {
+  if ((status === 'AWAITING_PAYMENT' || status === 'PAYMENT_PENDING') && viewerRole === 'buyer') {
     actions.push('fund');
   }
   if (status === 'FUNDED' && viewerRole === 'seller') {
@@ -1166,7 +1166,9 @@ async function createNexaEscrowPaymentOrder({ req, session, tradeCode }) {
   if (!order) throw buildNexaEscrowBanError('ORDER_NOT_FOUND', 404);
   if (Number(order.buyer_user_id || 0) !== ensured.user.id) throw buildNexaEscrowBanError('ONLY_BUYER_CAN_FUND', 403);
   if (!Number(order.seller_user_id || 0)) throw buildNexaEscrowBanError('WAITING_FOR_COUNTERPARTY');
-  if (String(order.status || '').trim().toUpperCase() !== 'AWAITING_PAYMENT') throw buildNexaEscrowBanError('ORDER_NOT_PAYABLE');
+  if (!['AWAITING_PAYMENT', 'PAYMENT_PENDING'].includes(String(order.status || '').trim().toUpperCase())) {
+    throw buildNexaEscrowBanError('ORDER_NOT_PAYABLE');
+  }
 
   const { apiKey, appSecret } = ensureNexaCredentialsConfigured();
   const baseUrl = getPublicBaseUrl(req);
