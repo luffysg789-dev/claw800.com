@@ -568,8 +568,8 @@
       </div>
       <div class="nexa-escrow-order-detail__line nexa-escrow-order-detail__line--block"><span>${t(appState.locale, 'detailDescription')}</span><strong>${order.description || '--'}</strong></div>
       <div class="nexa-escrow-detail-grid">
-        <div class="nexa-escrow-order-detail__line nexa-escrow-order-detail__line--card"><span>${t(appState.locale, 'detailBuyer')}</span><strong>${order.buyerEscrowCode || '--'}</strong></div>
-        <div class="nexa-escrow-order-detail__line nexa-escrow-order-detail__line--card"><span>${t(appState.locale, 'detailSeller')}</span><strong>${order.sellerEscrowCode || '--'}</strong></div>
+        <div class="nexa-escrow-order-detail__line nexa-escrow-order-detail__line--card nexa-escrow-order-detail__line--buyer"><span>${t(appState.locale, 'detailBuyer')}</span><strong>${order.buyerEscrowCode || '--'}</strong></div>
+        <div class="nexa-escrow-order-detail__line nexa-escrow-order-detail__line--card nexa-escrow-order-detail__line--seller"><span>${t(appState.locale, 'detailSeller')}</span><strong>${order.sellerEscrowCode || '--'}</strong></div>
       </div>
     `;
     renderOrderProgress(appState, order);
@@ -662,16 +662,6 @@
             <strong>${order.amount} ${order.currency}</strong>
           </div>
           <div class="nexa-escrow-order-item__time">${order.createdAt || '--'}</div>
-        </div>
-        <div class="nexa-escrow-order-item__grid">
-          <div class="nexa-escrow-order-item__cell nexa-escrow-order-item__cell--buyer">
-            <span class="nexa-escrow-label">${t(appState.locale, 'detailBuyer')}</span>
-            <strong>${order.buyerEscrowCode || '--'}</strong>
-          </div>
-          <div class="nexa-escrow-order-item__cell nexa-escrow-order-item__cell--seller">
-            <span class="nexa-escrow-label">${t(appState.locale, 'detailSeller')}</span>
-            <strong>${order.sellerEscrowCode || '--'}</strong>
-          </div>
         </div>
         <div class="nexa-escrow-order-item__desc">${order.description || '--'}</div>
         <div class="nexa-escrow-order-item__footer">

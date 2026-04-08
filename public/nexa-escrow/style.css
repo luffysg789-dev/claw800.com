@@ -532,6 +532,23 @@ body {
   padding: 14px;
 }
 
+.nexa-escrow-order-detail__line--buyer {
+  background: rgba(220, 66, 66, 0.92);
+  border-color: rgba(255, 110, 110, 0.3);
+}
+
+.nexa-escrow-order-detail__line--seller {
+  background: rgba(30, 156, 87, 0.92);
+  border-color: rgba(102, 216, 148, 0.3);
+}
+
+.nexa-escrow-order-detail__line--buyer span,
+.nexa-escrow-order-detail__line--buyer strong,
+.nexa-escrow-order-detail__line--seller span,
+.nexa-escrow-order-detail__line--seller strong {
+  color: #fff;
+}
+
 .nexa-escrow-order-progress,
 .nexa-escrow-safety-card {
   border-radius: 18px;
