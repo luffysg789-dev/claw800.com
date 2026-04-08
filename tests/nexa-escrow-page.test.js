@@ -62,8 +62,10 @@ test('nexa-escrow html includes create and orders tabs plus escrow actions', () 
   assert.match(html, /id="nexaEscrowRoleSeller"/);
   assert.match(html, /id="nexaEscrowAmountInput"/);
   assert.match(html, /id="nexaEscrowCounterpartyInput"/);
+  assert.match(html, /class="nexa-escrow-field nexa-escrow-field--inline"/);
   assert.match(html, /id="nexaEscrowDescriptionInput"/);
   assert.match(html, /id="nexaEscrowDescriptionInput"[\s\S]*maxlength="30"/);
+  assert.match(html, /手续费仅需千分之2/);
   assert.match(html, /id="nexaEscrowCreateButton"[\s\S]*data-i18n="createAndPayAction"[\s\S]*确认发起并付款/);
   assert.match(html, /data-order-filter="all"/);
   assert.match(html, /data-order-filter="active"/);
@@ -80,6 +82,7 @@ test('nexa-escrow html includes create and orders tabs plus escrow actions', () 
   assert.match(html, /id="nexaEscrowSecondaryAction"/);
   assert.match(html, /id="nexaEscrowHeaderCode"/);
   assert.match(html, /id="nexaEscrowHeaderCopy"/);
+  assert.doesNotMatch(html, />n000000</);
   assert.match(html, /id="nexaEscrowWithdrawBtn"/);
   assert.match(html, /id="nexaEscrowNicknameInput"/);
   assert.match(html, /id="nexaEscrowNicknameSaveBtn"/);
@@ -88,6 +91,8 @@ test('nexa-escrow html includes create and orders tabs plus escrow actions', () 
   assert.match(html, /id="nexaEscrowWithdrawAmountInput"/);
   assert.match(html, /id="nexaEscrowAccountStatus"/);
   assert.match(html, /id="nexaEscrowCodeModal"/);
+  assert.match(html, /id="nexaEscrowCodeModalInput"/);
+  assert.match(html, /id="nexaEscrowCodeModalHint"/);
   assert.doesNotMatch(html, /nexa-escrow-back/);
   assert.match(html, /\/nexa-escrow\/script\.js/);
 });
@@ -135,6 +140,7 @@ test('nexa-escrow script includes Nexa auth, escrow bootstrap, order, and paymen
   assert.match(js, /nicknameRequired: '请填写昵称'/);
   assert.match(js, /nicknameInvalid: '昵称仅支持中文、英文、数字，长度 2-12 位'/);
   assert.match(js, /\/api\/nexa-escrow\/profile\/nickname/);
+  assert.match(js, /if \(!String\(appState\.account\?\.escrowNickname \|\| ''\)\.trim\(\)\) \{/);
   assert.match(js, /function maskEscrowNickname\(/);
   assert.match(js, /function formatEscrowIdentityLine\(/);
   assert.match(js, /if \(!normalized\) return 'nexa玩家';/);
@@ -146,6 +152,8 @@ test('nexa-escrow script includes Nexa auth, escrow bootstrap, order, and paymen
   assert.match(js, /hasExpandedDetail && order\.tradeCode === appState\.selectedTradeCode \? t\(appState\.locale, 'closeDetail'\) : t\(appState\.locale, 'viewDetail'\)/);
   assert.match(js, /function applyTranslations\(/);
   assert.match(js, /function copyEscrowCode\(/);
+  assert.match(js, /headerCode\.classList\.toggle\('is-loading', !escrowCode\)/);
+  assert.match(js, /headerCopy\.classList\.toggle\('is-loading', !escrowCode\)/);
   assert.match(js, /function beginEscrowWithdrawFlow\(/);
   assert.match(js, /\/api\/nexa-escrow\/withdraw\/create/);
   assert.match(js, /\/api\/nexa-escrow\/withdraw\/query/);
@@ -160,6 +168,7 @@ test('nexa-escrow script includes Nexa auth, escrow bootstrap, order, and paymen
   assert.match(js, /primaryAction\.hidden = !primaryAction \|\| showCancelledInfo/);
   assert.doesNotMatch(js, /已登录/);
   assert.match(fs.readFileSync(cssPath, 'utf8'), /\.nexa-escrow-order-item__desc\s*\{[\s\S]*white-space:\s*nowrap/);
+  assert.match(fs.readFileSync(cssPath, 'utf8'), /\.nexa-escrow-field--inline\s*\{[\s\S]*grid-template-columns:\s*110px minmax\(0,\s*1fr\)/);
 });
 
 test('admin panel includes nexa escrow orders, users, and withdrawal review entry points', () => {

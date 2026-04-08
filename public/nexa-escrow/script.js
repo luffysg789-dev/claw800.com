@@ -17,7 +17,7 @@
       tabAccount: '账户中心',
       roleBuyer: '我是买家',
       roleSeller: '我是卖家',
-      amountLabel: '交易金额 (USDT)',
+      amountLabel: '金额 (USDT)',
       counterpartySellerLabel: '卖方担保号',
       counterpartyBuyerLabel: '买方担保号',
       counterpartySellerPlaceholder: '输入卖方担保号，例如 n123456',
@@ -48,8 +48,8 @@
       invalidEscrowCode: '请填写正确担保号',
       descriptionTooLong: '交易描述最多 30 个字',
       firstLoginHint: '首次登录提醒',
-      codeModalTitle: '您的担保号是多少',
-      codeModalConfirm: '我知道了',
+      codeModalTitle: '请输入昵称',
+      codeModalConfirm: '确定',
       creatingOrder: '正在创建担保单...',
       joiningOrder: '正在加入担保单...',
       joiningOrderSuccess: '已加入担保单。',
@@ -136,8 +136,8 @@
       invalidEscrowCode: 'Please enter a valid escrow ID',
       descriptionTooLong: 'Description must be 30 characters or fewer',
       firstLoginHint: 'First login reminder',
-      codeModalTitle: 'Your escrow ID',
-      codeModalConfirm: 'Got it',
+      codeModalTitle: 'Set your nickname',
+      codeModalConfirm: 'Confirm',
       creatingOrder: 'Creating escrow order...',
       joiningOrder: 'Joining escrow order...',
       joiningOrderSuccess: 'Escrow order joined.',
@@ -864,10 +864,14 @@
   }
 
   function renderAccount(appState) {
-    const escrowCode = normalizeEscrowCode(appState.account?.escrowCode) || 'n000000';
+    const escrowCode = normalizeEscrowCode(appState.account?.escrowCode) || '';
     const escrowNickname = String(appState.account?.escrowNickname || '').trim();
     if (appState.elements.headerCode) {
       appState.elements.headerCode.textContent = escrowCode;
+      appState.elements.headerCode.classList.toggle('is-loading', !escrowCode);
+    }
+    if (appState.elements.headerCopy) {
+      appState.elements.headerCopy.classList.toggle('is-loading', !escrowCode);
     }
     if (appState.elements.nicknameInput) {
       appState.elements.nicknameInput.value = escrowNickname;
@@ -892,8 +896,10 @@
 
   function openEscrowCodeModal(appState) {
     const modal = appState.elements.codeModal;
-    if (!modal || !appState.account?.escrowCode) return;
-    appState.elements.codeModalValue.textContent = String(appState.account.escrowCode);
+    if (!modal) return;
+    if (appState.elements.codeModalInput) {
+      appState.elements.codeModalInput.value = '';
+    }
     modal.hidden = false;
   }
 
@@ -901,9 +907,6 @@
     const modal = appState.elements.codeModal;
     if (!modal) return;
     modal.hidden = true;
-    if (appState.session?.openId) {
-      markEscrowCodeModalSeen(appState.storage, appState.session.openId);
-    }
   }
 
   async function loadBootstrap(appState) {
@@ -931,19 +934,32 @@
   }
 
   async function saveEscrowNickname(appState) {
-    const nickname = String(appState.elements.nicknameInput?.value || '').trim();
+    const nickname = String(
+      appState.elements.codeModal?.hidden === false
+        ? (appState.elements.codeModalInput?.value || '')
+        : (appState.elements.nicknameInput?.value || '')
+    ).trim();
     if (!nickname) {
-      setStatus(appState.elements.accountStatus, t(appState.locale, 'nicknameRequired'), 'error');
+      const targetStatus = appState.elements.codeModal?.hidden === false
+        ? appState.elements.codeModalHint
+        : appState.elements.accountStatus;
+      setStatus(targetStatus, t(appState.locale, 'nicknameRequired'), 'error');
       return;
     }
-    setStatus(appState.elements.accountStatus, t(appState.locale, 'processing'));
+    const targetStatus = appState.elements.codeModal?.hidden === false
+      ? appState.elements.codeModalHint
+      : appState.elements.accountStatus;
+    setStatus(targetStatus, t(appState.locale, 'processing'));
     const response = await postJson('/api/nexa-escrow/profile/nickname', { nickname });
     appState.account = {
       ...(appState.account || {}),
       ...(response.account || {})
     };
     renderAccount(appState);
-    setStatus(appState.elements.accountStatus, t(appState.locale, 'nicknameSaved'), 'success');
+    setStatus(targetStatus, t(appState.locale, 'nicknameSaved'), 'success');
+    if (appState.elements.codeModal?.hidden === false) {
+      closeEscrowCodeModal(appState);
+    }
   }
 
   function delay(ms) {
@@ -1121,10 +1137,11 @@
             withdrawAmountInput: globalScope.document.querySelector('#nexaEscrowWithdrawAmountInput'),
             withdrawCancel: globalScope.document.querySelector('#nexaEscrowWithdrawCancel'),
             withdrawConfirm: globalScope.document.querySelector('#nexaEscrowWithdrawConfirm'),
-            toast: globalScope.document.querySelector('#nexaEscrowToast'),
-            codeModal: globalScope.document.querySelector('#nexaEscrowCodeModal'),
-            codeModalValue: globalScope.document.querySelector('#nexaEscrowCodeModalValue'),
-            codeModalConfirm: globalScope.document.querySelector('#nexaEscrowCodeModalConfirm')
+        toast: globalScope.document.querySelector('#nexaEscrowToast'),
+        codeModal: globalScope.document.querySelector('#nexaEscrowCodeModal'),
+        codeModalInput: globalScope.document.querySelector('#nexaEscrowCodeModalInput'),
+        codeModalHint: globalScope.document.querySelector('#nexaEscrowCodeModalHint'),
+        codeModalConfirm: globalScope.document.querySelector('#nexaEscrowCodeModalConfirm')
       }
     };
 
@@ -1300,7 +1317,13 @@
       });
     });
     appState.elements.codeModalConfirm?.addEventListener('click', () => {
-      closeEscrowCodeModal(appState);
+      saveEscrowNickname(appState).catch((error) => {
+        const message = error instanceof Error ? error.message : '';
+        const resolvedMessage = message === 'ESCROW_NICKNAME_REQUIRED'
+          ? t(appState.locale, 'nicknameRequired')
+          : (message === 'ESCROW_NICKNAME_INVALID' ? t(appState.locale, 'nicknameInvalid') : (message === 'ESCROW_NICKNAME_LOCKED' ? t(appState.locale, 'nicknameLocked') : message || '保存失败'));
+        setStatus(appState.elements.codeModalHint, resolvedMessage, 'error');
+      });
     });
     appState.elements.accountCodeCopy?.addEventListener('click', async () => {
       try {
@@ -1374,7 +1397,7 @@
       setStatus(appState.elements.createStatus, error instanceof Error ? error.message : '加载失败', 'error');
     });
     await settlePendingEscrowPayment(appState).catch(() => {});
-    if (appState.session?.openId && !hasSeenEscrowCodeModal(appState.storage, appState.session.openId)) {
+    if (!String(appState.account?.escrowNickname || '').trim()) {
       openEscrowCodeModal(appState);
     }
   }

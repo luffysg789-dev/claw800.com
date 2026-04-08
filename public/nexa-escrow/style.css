@@ -147,6 +147,12 @@ body {
   font-weight: 700;
 }
 
+.nexa-escrow-header__code.is-loading,
+.nexa-escrow-header__copy.is-loading {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .nexa-escrow-header__copy {
   color: #6fa0ff;
   font-size: 0.98em;
@@ -308,6 +314,21 @@ body {
   scroll-margin-bottom: 260px;
 }
 
+.nexa-escrow-field--inline {
+  grid-template-columns: 110px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.nexa-escrow-field--inline > span {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.nexa-escrow-field--inline > .nexa-escrow-input {
+  min-width: 0;
+}
+
 .nexa-escrow-input,
 .nexa-escrow-textarea {
   width: 100%;
@@ -323,6 +344,13 @@ body {
 .nexa-escrow-textarea {
   min-height: 96px;
   resize: vertical;
+}
+
+.nexa-escrow-fee-hint {
+  margin: -2px 0 0;
+  color: var(--escrow-muted);
+  font-size: 0.84rem;
+  line-height: 1.35;
 }
 
 .nexa-escrow-input::placeholder,
@@ -882,5 +910,10 @@ body {
     min-height: 36px;
     padding: 0 6px;
     font-size: 0.8rem;
+  }
+
+  .nexa-escrow-field--inline {
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: 8px;
   }
 }

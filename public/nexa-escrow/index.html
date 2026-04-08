@@ -25,8 +25,8 @@
           </div>
           <div class="nexa-escrow-header__identity">
             我的担保号:
-            <button id="nexaEscrowHeaderCode" class="nexa-escrow-header__code" type="button">n000000</button>
-            <button id="nexaEscrowHeaderCopy" class="nexa-escrow-header__copy" type="button" aria-label="复制担保号">⧉</button>
+            <button id="nexaEscrowHeaderCode" class="nexa-escrow-header__code is-loading" type="button"></button>
+            <button id="nexaEscrowHeaderCopy" class="nexa-escrow-header__copy is-loading" type="button" aria-label="复制担保号">⧉</button>
           </div>
         </header>
 
@@ -43,12 +43,12 @@
               <button id="nexaEscrowRoleSeller" class="nexa-escrow-role-toggle__item" type="button" data-role="seller" data-i18n="roleSeller">我是卖家</button>
             </div>
 
-            <label class="nexa-escrow-field">
+            <label class="nexa-escrow-field nexa-escrow-field--inline">
               <span data-i18n="amountLabel">交易金额 (USDT)</span>
               <input id="nexaEscrowAmountInput" class="nexa-escrow-input" type="number" min="0" step="0.01" inputmode="decimal" pattern="[0-9]*" placeholder="0.00" />
             </label>
 
-            <label class="nexa-escrow-field">
+            <label class="nexa-escrow-field nexa-escrow-field--inline">
               <span id="nexaEscrowCounterpartyLabel" data-i18n="counterpartySellerLabel">卖方担保号</span>
               <input id="nexaEscrowCounterpartyInput" class="nexa-escrow-input" type="text" placeholder="输入对方担保号，例如 n123456" data-i18n-placeholder="counterpartySellerPlaceholder" />
             </label>
@@ -58,6 +58,7 @@
               <textarea id="nexaEscrowDescriptionInput" class="nexa-escrow-textarea" maxlength="30" placeholder="例如：购买虚拟主机服务、设计稿定金等" data-i18n-placeholder="descriptionPlaceholder"></textarea>
             </label>
 
+            <p class="nexa-escrow-fee-hint">手续费仅需千分之2</p>
             <button id="nexaEscrowCreateButton" class="nexa-escrow-primary" type="button" data-i18n="createAndPayAction">确认发起并付款</button>
             <p id="nexaEscrowCreateStatus" class="nexa-escrow-status" hidden></p>
           </article>
@@ -147,9 +148,17 @@
       <div class="nexa-escrow-modal__backdrop"></div>
       <div class="nexa-escrow-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="nexaEscrowCodeModalTitle">
         <p class="nexa-escrow-label" data-i18n="firstLoginHint">首次登录提醒</p>
-        <h2 id="nexaEscrowCodeModalTitle" data-i18n="codeModalTitle">您的担保号是多少</h2>
-        <div class="nexa-escrow-code-chip" id="nexaEscrowCodeModalValue">n000000</div>
-        <button id="nexaEscrowCodeModalConfirm" class="nexa-escrow-primary" type="button" data-i18n="codeModalConfirm">我知道了</button>
+        <h2 id="nexaEscrowCodeModalTitle" data-i18n="codeModalTitle">请输入昵称</h2>
+        <input
+          id="nexaEscrowCodeModalInput"
+          class="nexa-escrow-input"
+          type="text"
+          maxlength="12"
+          placeholder="请输入昵称"
+          autocomplete="off"
+        />
+        <p id="nexaEscrowCodeModalHint" class="nexa-escrow-status" data-i18n="nicknameHint">昵称一旦生成，无法修改</p>
+        <button id="nexaEscrowCodeModalConfirm" class="nexa-escrow-primary" type="button" data-i18n="codeModalConfirm">确定</button>
       </div>
     </div>
 
