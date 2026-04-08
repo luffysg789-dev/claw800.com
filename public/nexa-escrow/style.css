@@ -65,6 +65,12 @@ body {
   min-width: 0;
 }
 
+.nexa-escrow-brand__title {
+  display: grid;
+  gap: 2px;
+  line-height: 1;
+}
+
 .nexa-escrow-brand__icon {
   width: 52px;
   height: 52px;
@@ -73,7 +79,15 @@ body {
   align-items: center;
   justify-content: center;
   background: linear-gradient(180deg, #3674ff, #2657ef);
-  font-size: 1.65rem;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.nexa-escrow-brand__icon-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter: drop-shadow(0 4px 10px rgba(18, 33, 77, 0.18));
 }
 
 .nexa-escrow-label {
@@ -88,15 +102,46 @@ body {
   font-size: 1.08rem;
 }
 
+.nexa-escrow-brand__title h1 {
+  margin: 0;
+}
+
+.nexa-escrow-brand__title p {
+  margin: 0;
+  color: #fff;
+  font-size: 1.02rem;
+  font-weight: 700;
+}
+
 .nexa-escrow-header__identity {
   color: #cfe0ff;
   font-size: 1.08rem;
   font-weight: 700;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.nexa-escrow-header__identity span {
+.nexa-escrow-header__code,
+.nexa-escrow-header__copy {
+  appearance: none;
+  border: 0;
+  background: transparent;
   color: #fff;
+  padding: 0;
+  cursor: pointer;
+}
+
+.nexa-escrow-header__code {
+  font: inherit;
+  font-weight: 700;
+}
+
+.nexa-escrow-header__copy {
+  color: #6fa0ff;
+  font-size: 0.98em;
+  line-height: 1;
 }
 
 .nexa-escrow-pill {
@@ -344,6 +389,25 @@ body {
   padding: 20px;
   display: grid;
   gap: 14px;
+}
+
+.nexa-escrow-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 40;
+  border-radius: 999px;
+  background: rgba(16, 20, 28, 0.92);
+  color: #fff;
+  padding: 10px 16px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.3);
+}
+
+.nexa-escrow-toast[hidden] {
+  display: none;
 }
 
 .nexa-escrow-modal__dialog h2 {
@@ -660,6 +724,10 @@ body {
 
   .nexa-escrow-brand h1 {
     font-size: 0.96rem;
+  }
+
+  .nexa-escrow-brand__title p {
+    font-size: 0.92rem;
   }
 
   .nexa-escrow-header__identity {

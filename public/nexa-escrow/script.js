@@ -483,6 +483,17 @@
     helper.remove();
   }
 
+  function showEscrowToast(appState, message) {
+    const toast = appState.elements.toast;
+    if (!toast) return;
+    toast.textContent = String(message || '').trim();
+    toast.hidden = false;
+    globalScope.window.clearTimeout(appState.toastTimer);
+    appState.toastTimer = globalScope.window.setTimeout(() => {
+      toast.hidden = true;
+    }, 1600);
+  }
+
   function switchTab(appState, tab) {
     appState.activeTab = String(tab || 'create');
     appState.elements.panels.forEach((panel) => {
@@ -655,6 +666,7 @@
   function renderOrders(appState) {
     const list = appState.elements.ordersList;
     if (!list) return;
+    const hasExpandedDetail = Boolean(appState.selectedTradeCode) && appState.elements.orderDetail?.hidden === false;
     appState.elements.orderFilterButtons.forEach((button) => {
       button.classList.toggle('is-active', button.dataset.orderFilter === appState.orderFilter);
     });
@@ -666,7 +678,7 @@
       return;
     }
     list.innerHTML = visibleOrders.map((order) => `
-      <article class="nexa-escrow-order-item${order.tradeCode === appState.selectedTradeCode ? ' is-selected' : ''}" data-trade-code="${order.tradeCode}">
+      <article class="nexa-escrow-order-item${hasExpandedDetail && order.tradeCode === appState.selectedTradeCode ? ' is-selected' : ''}" data-trade-code="${order.tradeCode}">
         <div class="nexa-escrow-order-item__top">
           <div class="nexa-escrow-order-item__code">订单号: ${order.tradeCode}</div>
           <span class="nexa-escrow-pill">${describeOrderStatus(appState, order)}</span>
@@ -771,11 +783,13 @@
         primaryAction: root.querySelector('#nexaEscrowPrimaryAction'),
         secondaryAction: root.querySelector('#nexaEscrowSecondaryAction'),
             headerCode: root.querySelector('#nexaEscrowHeaderCode'),
+            headerCopy: root.querySelector('#nexaEscrowHeaderCopy'),
             accountCode: root.querySelector('#nexaEscrowAccountCode'),
             accountWallet: root.querySelector('#nexaEscrowAccountWallet'),
             accountCodeCopy: root.querySelector('#nexaEscrowAccountCodeCopy'),
             withdrawBtn: root.querySelector('#nexaEscrowWithdrawBtn'),
             accountStatus: root.querySelector('#nexaEscrowAccountStatus'),
+            toast: globalScope.document.querySelector('#nexaEscrowToast'),
             codeModal: globalScope.document.querySelector('#nexaEscrowCodeModal'),
             codeModalValue: globalScope.document.querySelector('#nexaEscrowCodeModalValue'),
             codeModalConfirm: globalScope.document.querySelector('#nexaEscrowCodeModalConfirm')
@@ -846,7 +860,16 @@
       try {
         await copyEscrowCode(appState);
         setStatus(appState.elements.accountStatus, '复制成功', 'success');
+        showEscrowToast(appState, '复制成功');
       } catch {}
+    });
+    [appState.elements.headerCode, appState.elements.headerCopy].forEach((button) => {
+      button?.addEventListener('click', async () => {
+        try {
+          await copyEscrowCode(appState);
+          showEscrowToast(appState, '复制成功');
+        } catch {}
+      });
     });
     appState.elements.withdrawBtn?.addEventListener('click', () => {
       beginEscrowWithdrawFlow(appState).catch((error) => {
