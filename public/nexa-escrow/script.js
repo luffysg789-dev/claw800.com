@@ -22,7 +22,7 @@
       descriptionLabel: '交易描述',
       descriptionPlaceholder: '例如：购买虚拟主机服务、设计稿定金等',
       createAction: '确认发起',
-      ordersHeadline: '买家付款、卖家交付、买家放款',
+      ordersHeadline: '我的担保订单',
       accountHeadline: '你的 Nexa 担保身份',
       filterAll: '全部',
       filterActive: '进行中',
