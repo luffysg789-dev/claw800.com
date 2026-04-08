@@ -58,6 +58,7 @@
       actionCancel: '取消订单',
       viewerPending: '待确认',
       statusAwaitingPayment: '待买家支付担保金',
+      statusPaymentPending: '支付处理中',
       statusFunded: '资金已托管',
       statusDelivered: '卖家已发货，等待买家确认',
       statusDisputed: '争议中，等待平台仲裁',
@@ -124,6 +125,7 @@
       actionCancel: 'Cancel Order',
       viewerPending: 'Pending',
       statusAwaitingPayment: 'Waiting for buyer escrow payment',
+      statusPaymentPending: 'Payment pending',
       statusFunded: 'Funds are held by the platform',
       statusDelivered: 'Seller delivered, waiting for buyer confirmation',
       statusDisputed: 'Disputed and awaiting platform arbitration',
@@ -474,6 +476,7 @@
   function describeOrderStatus(appState, order) {
     const status = String(order?.status || '').trim().toUpperCase();
     if (status === 'AWAITING_PAYMENT') return t(appState.locale, 'statusAwaitingPayment');
+    if (status === 'PAYMENT_PENDING') return t(appState.locale, 'statusPaymentPending');
     if (status === 'FUNDED') return t(appState.locale, 'statusFunded');
     if (status === 'DELIVERED') return t(appState.locale, 'statusDelivered');
     if (status === 'DISPUTED') return t(appState.locale, 'statusDisputed');
