@@ -572,6 +572,18 @@
     }, 80);
   }
 
+  function updateEscrowKeyboardInset(appState) {
+    const createPanel = appState.elements.createPanel;
+    if (!createPanel) return;
+    const viewport = globalScope.window.visualViewport;
+    if (!viewport || appState.activeTab !== 'create' || !appState.activeInputNode || !createPanel.contains(appState.activeInputNode)) {
+      createPanel.style.paddingBottom = '';
+      return;
+    }
+    const keyboardInset = Math.max(0, Math.round(globalScope.window.innerHeight - viewport.height - viewport.offsetTop));
+    createPanel.style.paddingBottom = keyboardInset > 0 ? `${keyboardInset + 20}px` : '';
+  }
+
   function switchTab(appState, tab) {
     appState.activeTab = String(tab || 'create');
     if (appState.activeTab !== 'orders') {
@@ -588,6 +600,7 @@
     appState.elements.tabButtons.forEach((button) => {
       button.classList.toggle('is-active', button.dataset.tabTarget === appState.activeTab);
     });
+    updateEscrowKeyboardInset(appState);
   }
 
   function renderCreateRole(appState) {
@@ -1135,15 +1148,18 @@
     [appState.elements.amountInput, appState.elements.counterpartyInput, appState.elements.descriptionInput, appState.elements.withdrawAmountInput].forEach((input) => {
       input?.addEventListener('focus', () => {
         appState.activeInputNode = input;
+        updateEscrowKeyboardInset(appState);
         scrollEscrowFieldIntoView(appState, input);
       });
       input?.addEventListener('blur', () => {
         if (appState.activeInputNode === input) {
           appState.activeInputNode = null;
         }
+        updateEscrowKeyboardInset(appState);
       });
     });
     globalScope.window.visualViewport?.addEventListener?.('resize', () => {
+      updateEscrowKeyboardInset(appState);
       if (appState.activeInputNode) {
         scrollEscrowFieldIntoView(appState, appState.activeInputNode);
       }
