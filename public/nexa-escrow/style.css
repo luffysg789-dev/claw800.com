@@ -356,7 +356,8 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(255, 255, 255, 0.03);
   padding: 14px;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
   text-align: left;
 }
@@ -464,8 +465,9 @@ body {
 .nexa-escrow-order-item__footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 10px;
+  margin-top: auto;
 }
 
 .nexa-escrow-order-item__initiator {
@@ -475,6 +477,7 @@ body {
 }
 
 .nexa-escrow-order-item__view {
+  margin-left: auto;
   appearance: none;
   border: 1px solid rgba(47, 109, 255, 0.28);
   border-radius: 999px;
@@ -638,12 +641,23 @@ body {
   }
 
   .nexa-escrow-header {
-    align-items: flex-start;
-    flex-direction: column;
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+
+  .nexa-escrow-brand {
+    flex: 1;
+    min-width: 0;
+    gap: 10px;
+  }
+
+  .nexa-escrow-brand h1 {
+    font-size: 0.96rem;
   }
 
   .nexa-escrow-header__identity {
-    font-size: 0.82rem;
+    flex-shrink: 0;
+    font-size: 0.72rem;
   }
 
   .nexa-escrow-brand__icon {
