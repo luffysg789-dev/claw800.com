@@ -26,6 +26,7 @@ test('nexa-escrow shell keeps header fixed while panels scroll within remaining 
   assert.match(css, /\.nexa-escrow-shell\s*\{[\s\S]*height:\s*100%/);
   assert.match(css, /\.nexa-escrow-panel\s*\{[\s\S]*height:\s*100%/);
   assert.match(css, /\.nexa-escrow-panel--scrollable\s*\{[\s\S]*overflow-y:\s*auto/);
+  assert.match(css, /\.nexa-escrow-panel--scrollable\s*\{[\s\S]*align-content:\s*start/);
   assert.match(css, /\.nexa-escrow-panel\[data-tab="account"\]\s*\{[\s\S]*align-content:\s*start/);
   assert.match(css, /\.nexa-escrow-panel\[data-tab="account"\]\s*>\s*\.nexa-escrow-card\s*\{[\s\S]*align-self:\s*start/);
 });

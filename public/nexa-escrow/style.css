@@ -213,6 +213,8 @@ body {
   padding-top: 0;
   touch-action: pan-y;
   min-height: 0;
+  align-content: start;
+  grid-auto-rows: max-content;
 }
 
 .nexa-escrow-panel[data-tab="account"] {
