@@ -548,25 +548,36 @@
     return node.closest('[data-tab]') || null;
   }
 
+  function getEscrowFieldAnchor(node) {
+    if (!node) return null;
+    return node.closest('.nexa-escrow-field') || node;
+  }
+
   function scrollEscrowFieldIntoView(appState, node) {
     if (!node) return;
     const container = getScrollableEscrowContainer(appState, node);
+    const anchor = getEscrowFieldAnchor(node);
     globalScope.window.setTimeout(() => {
       try {
-        node.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+        anchor.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
       } catch {
         try {
-          node.scrollIntoView();
+          anchor.scrollIntoView();
         } catch {}
       }
       if (container && typeof container.scrollTop === 'number') {
         const containerRect = container.getBoundingClientRect();
-        const nodeRect = node.getBoundingClientRect();
-        const padding = 18;
-        if (nodeRect.bottom > containerRect.bottom - padding) {
-          container.scrollTop += nodeRect.bottom - containerRect.bottom + padding;
-        } else if (nodeRect.top < containerRect.top + padding) {
-          container.scrollTop -= containerRect.top - nodeRect.top + padding;
+        const anchorRect = anchor.getBoundingClientRect();
+        const viewport = globalScope.window.visualViewport;
+        const visibleBottom = Math.min(
+          containerRect.bottom,
+          viewport ? viewport.offsetTop + viewport.height - 18 : containerRect.bottom - 18
+        );
+        const visibleTop = containerRect.top + 18;
+        if (anchorRect.bottom > visibleBottom) {
+          container.scrollTop += anchorRect.bottom - visibleBottom + 16;
+        } else if (anchorRect.top < visibleTop) {
+          container.scrollTop -= visibleTop - anchorRect.top + 12;
         }
       }
     }, 80);

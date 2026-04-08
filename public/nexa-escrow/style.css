@@ -304,6 +304,8 @@ body {
   display: grid;
   gap: 8px;
   font-size: 0.95rem;
+  scroll-margin-top: 18px;
+  scroll-margin-bottom: 260px;
 }
 
 .nexa-escrow-input,
