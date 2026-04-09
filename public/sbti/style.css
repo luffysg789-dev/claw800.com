@@ -85,7 +85,7 @@ body {
 .sbti-hero__title {
   margin: 0;
   text-align: center;
-  font-size: clamp(1.5rem, 3vw, 2.8rem);
+  font-size: clamp(0.78rem, 1.6vw, 1.42rem);
   line-height: 1.12;
 }
 
@@ -117,6 +117,14 @@ body {
   justify-content: center;
 }
 
+.sbti-hero__button-row {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
 .sbti-hero__tip {
   margin: 0;
   max-width: 720px;
@@ -127,7 +135,8 @@ body {
 }
 
 .sbti-primary-button,
-.sbti-secondary-button {
+.sbti-secondary-button,
+.sbti-random-button {
   appearance: none;
   border: none;
   border-radius: 24px;
@@ -139,7 +148,12 @@ body {
 }
 
 .sbti-primary-button {
-  background: linear-gradient(180deg, #82998b 0%, #62796c 100%);
+  background: #5f8768;
+  color: #fff;
+}
+
+.sbti-random-button {
+  background: #c8544c;
   color: #fff;
 }
 
@@ -155,6 +169,7 @@ body {
 }
 
 .sbti-primary-button:not(:disabled):hover,
+.sbti-random-button:hover,
 .sbti-secondary-button:hover {
   transform: translateY(-1px);
 }
@@ -466,7 +481,7 @@ body {
 
   .sbti-hero__title {
     text-align: center;
-    font-size: clamp(2.2rem, 10vw, 3.4rem);
+    font-size: clamp(1.08rem, 5.2vw, 1.52rem);
     line-height: 1.2;
   }
 
@@ -481,9 +496,18 @@ body {
     line-height: 1.6;
   }
 
-  .sbti-hero__actions .sbti-primary-button {
+  .sbti-hero__button-row {
+    width: 100%;
+    gap: 10px;
+  }
+
+  .sbti-hero__button-row .sbti-primary-button,
+  .sbti-hero__button-row .sbti-random-button {
     width: auto;
-    min-width: 168px;
+    min-width: 0;
+    flex: 0 1 auto;
+    white-space: nowrap;
+    padding-inline: 14px;
   }
 
   .sbti-question-card {
@@ -529,7 +553,8 @@ body {
   }
 
   .sbti-primary-button,
-  .sbti-secondary-button {
+  .sbti-secondary-button,
+  .sbti-random-button {
     width: 100%;
     padding: 16px 18px;
     border-radius: 20px;

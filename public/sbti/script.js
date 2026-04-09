@@ -486,6 +486,7 @@
   const posterImage = document.getElementById('sbtiPosterImage');
   const funNote = document.getElementById('sbtiFunNote');
   const homeButton = document.getElementById('sbtiHomeButton');
+  const randomResultButton = document.getElementById('sbtiRandomResultButton');
 
   const DEFAULT_FUN_NOTE = '本测试仅供娱乐，别拿它当诊断、面试、相亲、分手、招魂、算命或人生判决书。你可以笑，但别太当真。';
 
@@ -672,6 +673,10 @@
 
   function renderSbtiResult() {
     const result = computeSbtiResult();
+    renderSbtiResultFromData(result);
+  }
+
+  function renderSbtiResultFromData(result) {
     const type = result.finalType;
     state.currentResult = result;
     resultCn.textContent = type.cn;
@@ -697,6 +702,34 @@
     showScreen('result');
   }
 
+  function showRandomSbtiResult() {
+    const randomType = Object.values(TYPE_LIBRARY)[Math.floor(Math.random() * Object.keys(TYPE_LIBRARY).length)];
+    const fakeLevels = {
+      S1: 'M', S2: 'L', S3: 'L',
+      E1: 'L', E2: 'H', E3: 'L',
+      A1: 'M', A2: 'L', A3: 'L',
+      Ac1: 'M', Ac2: 'M', Ac3: 'L',
+      So1: 'L', So2: 'H', So3: 'L'
+    };
+    const fakeScores = {
+      S1: 4, S2: 3, S3: 3,
+      E1: 2, E2: 5, E3: 2,
+      A1: 4, A2: 3, A3: 3,
+      Ac1: 4, Ac2: 4, Ac3: 3,
+      So1: 2, So2: 5, So3: 2
+    };
+
+    renderSbtiResultFromData({
+      rawScores: fakeScores,
+      levels: fakeLevels,
+      finalType: randomType,
+      modeKicker: '你的主类型',
+      badge: '匹配度 70% · 精准命中 9/15 维',
+      sub: '维度命中度较高，当前结果可视为你的第一人格画像。',
+      special: false
+    });
+  }
+
   function restartSbtiQuiz() {
     state.answers = {};
     state.currentResult = null;
@@ -717,6 +750,7 @@
   }
 
   document.getElementById('sbtiStartButton').addEventListener('click', startTest);
+  randomResultButton.addEventListener('click', showRandomSbtiResult);
 
   questionList.addEventListener('click', (event) => {
     const option = event.target.closest('[data-question-option]');
