@@ -1430,6 +1430,13 @@ test('nexa-escrow dispute blocks auto release and admin can resolve the order', 
     assert.equal(resolveResponse.body.ok, true);
     assert.equal(resolveResponse.body.order.status, 'COMPLETED');
 
+    const buyerBootstrapAfterResolve = await harness.request('GET', '/api/nexa-escrow/bootstrap', null, {
+      cookies: { [buyerCookie.name]: buyerCookie.value }
+    });
+    const resolvedBuyerOrder = buyerBootstrapAfterResolve.body.orders.find((item) => item.tradeCode === tradeCode);
+    assert.ok(resolvedBuyerOrder);
+    assert.equal(String(resolvedBuyerOrder.status || '').toUpperCase(), 'COMPLETED');
+
     const wallet = harness.db.prepare(`
       SELECT available_balance
       FROM nexa_escrow_wallets

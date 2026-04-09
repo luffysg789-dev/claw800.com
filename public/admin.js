@@ -317,8 +317,8 @@ const texts = {
     nexaEscrowUsersEmpty: '当前没有担保用户。',
     nexaEscrowUsersSave: '保存担保号',
     nexaEscrowUsersSaved: '担保号已更新。',
-    nexaEscrowResolveSeller: '判给卖家',
-    nexaEscrowResolveBuyer: '退款买家',
+    nexaEscrowResolveSeller: '资金给卖方',
+    nexaEscrowResolveBuyer: '资金给买方',
     nexaEscrowResolved: '担保订单已处理。',
     nexaEscrowWithdrawalsApprove: '通过提现',
     nexaEscrowWithdrawalsReject: '驳回提现',
@@ -577,8 +577,8 @@ const texts = {
     nexaEscrowUsersEmpty: 'No escrow users yet.',
     nexaEscrowUsersSave: 'Save Escrow ID',
     nexaEscrowUsersSaved: 'Escrow ID updated.',
-    nexaEscrowResolveSeller: 'Release to Seller',
-    nexaEscrowResolveBuyer: 'Refund Buyer',
+    nexaEscrowResolveSeller: 'Release Funds to Seller',
+    nexaEscrowResolveBuyer: 'Release Funds to Buyer',
     nexaEscrowResolved: 'Escrow order resolved.',
     nexaEscrowWithdrawalsApprove: 'Approve Withdrawal',
     nexaEscrowWithdrawalsReject: 'Reject Withdrawal',
@@ -1262,6 +1262,19 @@ function renderNexaEscrowOrdersList(items) {
     return;
   }
 
+  function describeAdminEscrowOrderStatus(status) {
+    const normalizedStatus = String(status || '').trim().toUpperCase();
+    if (normalizedStatus === 'AWAITING_PAYMENT') return '待买家支付担保金';
+    if (normalizedStatus === 'PAYMENT_PENDING') return '支付处理中';
+    if (normalizedStatus === 'FUNDED') return '等待卖家发货';
+    if (normalizedStatus === 'DELIVERED') return '已发货，等买家放款';
+    if (normalizedStatus === 'DISPUTED') return '申诉中';
+    if (normalizedStatus === 'COMPLETED') return '已完成';
+    if (normalizedStatus === 'REFUNDED') return '已退款';
+    if (normalizedStatus === 'CANCELLED') return '已取消';
+    return String(status || '-').trim() || '-';
+  }
+
   nexaEscrowOrdersList.innerHTML = items
     .map((item) => {
       const tradeCode = String(item.tradeCode || '').trim();
@@ -1277,7 +1290,7 @@ function renderNexaEscrowOrdersList(items) {
           <p class="small">买方担保号: ${escapeHtml(buyerCode || '-')}</p>
           <p class="small">卖方担保号: ${escapeHtml(sellerCode || '-')}</p>
           <p class="small">金额: ${escapeHtml(amount)} USDT</p>
-          <p class="small">状态: ${escapeHtml(status || '-')}</p>
+          <p class="small">状态: ${escapeHtml(describeAdminEscrowOrderStatus(status))}</p>
           <p class="small">描述: ${escapeHtml(description || '-')}</p>
           ${canResolve ? `
             <div class="review-actions">

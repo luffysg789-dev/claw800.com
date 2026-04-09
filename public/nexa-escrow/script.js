@@ -77,7 +77,7 @@
       actionFund: '支付担保金',
       actionDeliver: '发货',
       actionConfirmReceipt: '收到货',
-      actionDispute: '申请仲裁',
+      actionDispute: '去申诉',
       actionCancel: '取消订单',
       actionDeliveredDone: '已发货',
       actionCompletedDone: '已完成',
@@ -807,13 +807,16 @@
     };
     const normalizedStatus = String(order?.status || '').trim().toUpperCase();
     const normalizedViewerRole = String(order?.viewerRole || '').trim().toLowerCase();
+    const showFundedSellerOnlyDeliver = normalizedStatus === 'FUNDED' && normalizedViewerRole === 'seller';
     const showDeliveredInfo = normalizedStatus === 'DELIVERED' && normalizedViewerRole === 'seller';
     const showCompletedInfo = normalizedStatus === 'COMPLETED';
     const showCancelledInfo = normalizedStatus === 'CANCELLED';
     const sellerDeliveredDisputeAction = showDeliveredInfo && primaryAction === 'dispute' ? primaryAction : '';
     const showCompletedDisputeOnly = showCompletedInfo && primaryAction === 'dispute';
     const effectivePrimaryAction = showDeliveredInfo || showCompletedInfo ? '' : primaryAction;
-    const effectiveSecondaryAction = showDeliveredInfo
+    const effectiveSecondaryAction = showFundedSellerOnlyDeliver
+      ? ''
+      : showDeliveredInfo
       ? sellerDeliveredDisputeAction
       : (showCompletedInfo ? '' : secondaryAction);
     const infoAction = showCompletedInfo

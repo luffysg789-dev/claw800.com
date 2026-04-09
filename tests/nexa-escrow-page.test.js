@@ -195,7 +195,8 @@ test('nexa-escrow script includes Nexa auth, escrow bootstrap, order, and paymen
   assert.match(js, /const sellerDeliveredDisputeAction = showDeliveredInfo && primaryAction === 'dispute' \? primaryAction : '';/);
   assert.match(js, /const showCompletedDisputeOnly = showCompletedInfo && primaryAction === 'dispute';/);
   assert.match(js, /const effectivePrimaryAction = showDeliveredInfo \|\| showCompletedInfo \? '' : primaryAction;/);
-  assert.match(js, /const effectiveSecondaryAction = showDeliveredInfo[\s\S]*sellerDeliveredDisputeAction[\s\S]*showCompletedInfo \? '' : secondaryAction/);
+  assert.match(js, /const showFundedSellerOnlyDeliver = normalizedStatus === 'FUNDED' && normalizedViewerRole === 'seller';/);
+  assert.match(js, /const effectiveSecondaryAction = showFundedSellerOnlyDeliver[\s\S]*showDeliveredInfo[\s\S]*sellerDeliveredDisputeAction[\s\S]*showCompletedInfo \? '' : secondaryAction/);
   assert.match(js, /showCancelledInfo\s*\?\s*t\(appState\.locale, 'actionCancelledDone'\)/);
   assert.match(js, /primaryAction\.hidden = !effectivePrimaryAction \|\| showCancelledInfo/);
   assert.doesNotMatch(js, /已登录/);
@@ -229,4 +230,7 @@ test('admin panel includes nexa escrow orders, users, and withdrawal review entr
   assert.match(js, /requestTutorialJson\(\[`\/api\/admin\/nexa-escrow-users\/\$\{encodeURIComponent\(String\(userId\)\)\}\/code`\]/);
   assert.match(js, /requestTutorialJson\(\[`\/api\/admin\/nexa-escrow-withdrawals\/\$\{encodeURIComponent\(partnerOrderNo\)\}\/approve`\]/);
   assert.match(js, /requestTutorialJson\(\[`\/api\/admin\/nexa-escrow-withdrawals\/\$\{encodeURIComponent\(partnerOrderNo\)\}\/reject`\]/);
+  assert.match(js, /nexaEscrowResolveSeller:\s*'资金给卖方'/);
+  assert.match(js, /nexaEscrowResolveBuyer:\s*'资金给买方'/);
+  assert.match(js, /return '申诉中'/);
 });
