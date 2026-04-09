@@ -55,7 +55,7 @@
       withdrawOnlyNexa: '请在 Nexa App 内提现。',
       withdrawStatusReviewPending: '待审核',
       withdrawStatusPending: '处理中',
-      withdrawStatusSuccess: '已通过到账',
+      withdrawStatusSuccess: '已到账',
       withdrawStatusFailed: '提现失败',
       withdrawStatusRejected: '已驳回',
       invalidEscrowCode: '请填写正确担保号',
