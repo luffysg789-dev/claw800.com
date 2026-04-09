@@ -491,8 +491,35 @@ test('nexa-escrow nickname must be unique across users', async () => {
   }
 });
 
-test('nexa-escrow withdrawal enters review-pending status and debits the dedicated wallet', async () => {
-  const harness = createHarness();
+test('nexa-escrow withdrawals below 100 USDT auto-submit and still appear in admin/user records', async () => {
+  const harness = createHarness({
+    mockWithdrawResponse(payload) {
+      return {
+        code: '0',
+        message: 'success',
+        data: {
+          amount: payload.amount,
+          currency: payload.currency,
+          status: 'PENDING',
+          openid: payload.openId,
+          createTime: '2026-04-08 10:00:00',
+          orderNo: payload.orderNo
+        }
+      };
+    },
+    mockWithdrawQueryResponse(payload) {
+      return {
+        code: '0',
+        message: 'success',
+        data: {
+          amount: '5.00',
+          currency: 'USDT',
+          status: 'PENDING',
+          orderNo: payload.orderNo
+        }
+      };
+    }
+  });
 
   try {
     const syncResponse = await harness.request('POST', '/api/nexa-escrow/session', {
@@ -508,7 +535,7 @@ test('nexa-escrow withdrawal enters review-pending status and debits the dedicat
       }
     });
     const userId = harness.db.prepare('SELECT id FROM game_users WHERE openid = ?').get('escrow-open-id-withdraw').id;
-    harness.db.prepare("UPDATE nexa_escrow_wallets SET available_balance = '20.00' WHERE user_id = ?").run(userId);
+    harness.db.prepare("UPDATE nexa_escrow_wallets SET available_balance = '200.00' WHERE user_id = ?").run(userId);
 
     const createResponse = await harness.request('POST', '/api/nexa-escrow/withdraw/create', {
       amount: '5.00'
@@ -520,11 +547,11 @@ test('nexa-escrow withdrawal enters review-pending status and debits the dedicat
 
     assert.equal(createResponse.statusCode, 200);
     assert.equal(createResponse.body.ok, true);
-    assert.equal(createResponse.body.status, 'review_pending');
+    assert.equal(createResponse.body.status, 'pending');
     assert.equal(createResponse.body.amount, '5.00');
 
     const walletAfterCreate = harness.db.prepare('SELECT available_balance FROM nexa_escrow_wallets WHERE user_id = ?').get(userId);
-    assert.equal(String(walletAfterCreate.available_balance), '15.00');
+    assert.equal(String(walletAfterCreate.available_balance), '195.00');
 
     const queryResponse = await harness.request('POST', '/api/nexa-escrow/withdraw/query', {
       partnerOrderNo: createResponse.body.partnerOrderNo
@@ -536,7 +563,7 @@ test('nexa-escrow withdrawal enters review-pending status and debits the dedicat
 
     assert.equal(queryResponse.statusCode, 200);
     assert.equal(queryResponse.body.ok, true);
-    assert.equal(String(queryResponse.body.item.status || '').toLowerCase(), 'review_pending');
+    assert.equal(String(queryResponse.body.item.status || '').toLowerCase(), 'pending');
 
     const bootstrapAfterCreate = await harness.request('GET', '/api/nexa-escrow/bootstrap', null, {
       cookies: {
@@ -546,7 +573,17 @@ test('nexa-escrow withdrawal enters review-pending status and debits the dedicat
     assert.equal(bootstrapAfterCreate.statusCode, 200);
     assert.equal(bootstrapAfterCreate.body.ok, true);
     assert.equal(bootstrapAfterCreate.body.account.latestWithdrawal.partnerOrderNo, createResponse.body.partnerOrderNo);
-    assert.equal(String(bootstrapAfterCreate.body.account.latestWithdrawal.status || '').toLowerCase(), 'review_pending');
+    assert.equal(String(bootstrapAfterCreate.body.account.latestWithdrawal.status || '').toLowerCase(), 'pending');
+
+    const adminCookies = await loginAdmin(harness);
+    const adminListResponse = await harness.request('GET', '/api/admin/nexa-escrow-withdrawals', undefined, {
+      cookies: adminCookies
+    });
+    assert.equal(adminListResponse.statusCode, 200);
+    assert.equal(adminListResponse.body.ok, true);
+    const createdItem = adminListResponse.body.items.find((item) => item.partnerOrderNo === createResponse.body.partnerOrderNo);
+    assert.ok(createdItem);
+    assert.equal(String(createdItem.status || '').toLowerCase(), 'pending');
   } finally {
     harness.cleanup();
   }
@@ -573,7 +610,7 @@ test('admin can review nexa escrow withdrawals after users submit them', async (
         code: '0',
         message: 'success',
         data: {
-          amount: '6.50',
+          amount: '106.50',
           currency: 'USDT',
           status: 'SUCCESS',
           orderNo: payload.orderNo
@@ -596,10 +633,10 @@ test('admin can review nexa escrow withdrawals after users submit them', async (
     });
 
     const userId = harness.db.prepare('SELECT id FROM game_users WHERE openid = ?').get('escrow-open-id-admin-withdraw-review').id;
-    harness.db.prepare("UPDATE nexa_escrow_wallets SET available_balance = '20.00' WHERE user_id = ?").run(userId);
+    harness.db.prepare("UPDATE nexa_escrow_wallets SET available_balance = '200.00' WHERE user_id = ?").run(userId);
 
     const createResponse = await harness.request('POST', '/api/nexa-escrow/withdraw/create', {
-      amount: '6.50'
+      amount: '106.50'
     }, {
       cookies: {
         [serialized.name]: serialized.value

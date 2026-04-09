@@ -1452,6 +1452,14 @@ const createPendingEscrowWithdrawal = db.transaction((payload) => {
   return { kind: 'review_pending' };
 });
 
+function shouldAutoApproveEscrowWithdrawal(amount) {
+  try {
+    return parseMoneyToCents(amount) < 10000n;
+  } catch {
+    return false;
+  }
+}
+
 function markReviewedEscrowWithdrawal({
   partnerOrderNo,
   status,
@@ -4010,6 +4018,42 @@ app.post('/api/nexa-escrow/withdraw/create', async (req, res) => {
     }
     if (result.kind === 'duplicate') {
       return res.status(409).json({ ok: false, error: 'WITHDRAWAL_ALREADY_EXISTS' });
+    }
+
+    if (result.kind === 'review_pending' && shouldAutoApproveEscrowWithdrawal(amount)) {
+      const withdrawal = selectNexaEscrowWithdrawalDetailByOrderStmt.get(partnerOrderNo);
+      if (!withdrawal) {
+        return res.status(404).json({ ok: false, error: 'WITHDRAWAL_NOT_FOUND' });
+      }
+      try {
+        const nexaResult = await requestNexaWithdrawal({
+          req,
+          withdrawal,
+          notifyPath: '/api/nexa-escrow/withdraw/notify',
+          remarkPrefix: '担保提现'
+        });
+        const settled = settleReviewedEscrowWithdrawalApproval({
+          partnerOrderNo,
+          nexaStatus: nexaResult.status,
+          orderNo: nexaResult.orderNo,
+          rawBody: nexaResult.rawBody,
+          reviewNote: 'AUTO_APPROVED_BELOW_100',
+          reviewedBy: 'system'
+        });
+        return res.json({
+          ok: true,
+          partnerOrderNo,
+          amount,
+          status: settled.status || settled.kind
+        });
+      } catch (autoApproveError) {
+        return res.json({
+          ok: true,
+          partnerOrderNo,
+          amount,
+          status: 'review_pending'
+        });
+      }
     }
 
     return res.json({

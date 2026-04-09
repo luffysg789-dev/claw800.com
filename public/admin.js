@@ -203,7 +203,7 @@ const texts = {
     navGames: '游戏列表',
     navNexaEscrowOrders: '担保订单',
     navNexaEscrowUsers: '担保用户',
-    navNexaEscrowWithdrawals: '担保提现审核',
+    navNexaEscrowWithdrawals: '担保提现记录',
     navXiangqiDeposits: '象棋充值订单',
     navXiangqiWithdrawals: '象棋提现审核',
     navPassword: '修改密码',
