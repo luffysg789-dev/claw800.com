@@ -112,7 +112,18 @@ body {
 }
 
 .sbti-hero__actions {
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
+}
+
+.sbti-hero__tip {
+  margin: 0;
+  max-width: 720px;
+  font-size: 0.82rem;
+  line-height: 1.7;
+  color: var(--sbti-muted);
+  text-align: center;
 }
 
 .sbti-primary-button,
@@ -462,6 +473,12 @@ body {
   .sbti-hero__actions {
     width: 100%;
     justify-content: center;
+  }
+
+  .sbti-hero__tip {
+    max-width: 100%;
+    font-size: 0.72rem;
+    line-height: 1.6;
   }
 
   .sbti-hero__actions .sbti-primary-button {
