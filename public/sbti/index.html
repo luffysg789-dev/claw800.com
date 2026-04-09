@@ -4,22 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Claw800 SBTI</title>
-    <link rel="stylesheet" href="/sbti/style.css?v=20260410-01" />
+    <link rel="stylesheet" href="/sbti/style.css?v=20260410-04" />
   </head>
   <body>
     <main class="sbti-shell" data-sbti-app>
+      <a class="sbti-back-link" href="/games.html" aria-label="返回游戏大厅">
+        <span aria-hidden="true">‹</span>
+      </a>
+
       <section class="sbti-card sbti-hero" id="sbtiIntroScreen">
-        <div class="sbti-hero__badge">SBTI</div>
         <div class="sbti-hero__header">
-          <h1 class="sbti-hero__title">社交脑洞测试</h1>
-          <p class="sbti-hero__subtitle">
-            用 31 道轻量问题，测出你在节奏、表达、判断与行动上的天然偏好。
-          </p>
-        </div>
-        <div class="sbti-hero__meta">
-          <span>31 题</span>
-          <span>约 4 分钟</span>
-          <span>手机 / PC 通用</span>
+          <h1 class="sbti-hero__title">MBTI已经过时 SBTI来了</h1>
         </div>
         <div class="sbti-hero__actions">
           <button class="sbti-primary-button" id="sbtiStartButton" type="button">开始测试</button>
@@ -27,19 +22,14 @@
       </section>
 
       <section class="sbti-card sbti-test-screen" id="sbtiTestScreen" hidden>
-        <div class="sbti-test-screen__header">
-          <div>
-            <p class="sbti-section-label">SBTI Question Flow</p>
-            <h2 class="sbti-section-title">按第一反应作答</h2>
+        <div class="sbti-progress">
+          <div class="sbti-progress__track">
+            <span class="sbti-progress__bar" id="sbtiProgressBar"></span>
           </div>
-          <div class="sbti-progress">
-            <div class="sbti-progress__track">
-              <span class="sbti-progress__bar" id="sbtiProgressBar"></span>
-            </div>
-            <span class="sbti-progress__text" id="sbtiProgressText">0 / 31</span>
-          </div>
+          <span class="sbti-progress__text" id="sbtiProgressText">0 / 31</span>
         </div>
         <div class="sbti-question-list" id="sbtiQuestionList"></div>
+        <p class="sbti-test-hint" id="sbtiTestHint">全选完才会放行。世界已经够乱了，起码把题做完整。</p>
         <div class="sbti-submit-bar">
           <button class="sbti-secondary-button" id="sbtiBackButton" type="button">返回首页</button>
           <button class="sbti-primary-button" id="sbtiSubmitButton" type="button" disabled>提交并查看结果</button>
@@ -47,34 +37,55 @@
       </section>
 
       <section class="sbti-card sbti-result-screen" id="sbtiResultScreen" hidden>
-        <div class="sbti-result-screen__header">
-          <div class="sbti-result-pill">你的类型</div>
-          <h2 class="sbti-result-code" id="sbtiResultCode">SBTI</h2>
-          <p class="sbti-result-name" id="sbtiResultName"></p>
-          <p class="sbti-result-summary" id="sbtiResultSummary"></p>
-        </div>
+        <article class="sbti-result-poster" id="sbtiPosterBox">
+          <div class="sbti-result-poster__heading">你的人格类型是：</div>
+          <h2 class="sbti-result-cn" id="sbtiResultCn">思考者</h2>
+          <div class="sbti-result-code" id="sbtiResultCode">THIN-K</div>
+          <div class="sbti-result-image-wrap">
+            <img class="sbti-result-image" id="sbtiPosterImage" alt="" />
+          </div>
+          <p class="sbti-result-caption" id="sbtiPosterCaption"></p>
+        </article>
 
-        <section class="sbti-result-block sbti-result-block--highlight">
-          <h3 class="sbti-result-block__title">你给人的感觉</h3>
-          <p class="sbti-result-block__body" id="sbtiResultAura"></p>
-        </section>
+        <article class="sbti-result-panel">
+          <div class="sbti-result-panel__kicker" id="sbtiResultModeKicker">你的主类型</div>
+          <h3 class="sbti-result-panel__title" id="sbtiResultName">THIN-K（思考者）</h3>
+          <div class="sbti-result-panel__badge" id="sbtiMatchBadge">匹配度 70% · 精准命中 8/15 维</div>
+          <p class="sbti-result-panel__sub" id="sbtiResultSub">维度命中度较高，当前结果可视为你的第一人格画像。</p>
+        </article>
 
-        <section class="sbti-result-block">
-          <h3 class="sbti-result-block__title">维度倾向</h3>
+        <article class="sbti-result-panel">
+          <h3 class="sbti-result-section-title">该人格的简单解读</h3>
+          <p class="sbti-result-panel__body" id="sbtiResultDesc"></p>
+        </article>
+
+        <article class="sbti-result-panel">
+          <h3 class="sbti-result-section-title">十五维度评分</h3>
           <div class="sbti-result-grid" id="sbtiResultGrid"></div>
-        </section>
+        </article>
 
-        <section class="sbti-result-block">
-          <h3 class="sbti-result-block__title">建议</h3>
-          <ul class="sbti-result-list" id="sbtiResultTips"></ul>
-        </section>
+        <article class="sbti-result-panel sbti-result-panel--note">
+          <h3 class="sbti-result-section-title">友情提示</h3>
+          <p class="sbti-result-panel__body" id="sbtiFunNote"></p>
+        </article>
+
+        <article class="sbti-result-panel sbti-result-panel--author">
+          <h3 class="sbti-result-section-title">作者的话</h3>
+          <div class="sbti-result-author" id="sbtiAuthorNote">
+            <p>本测试首发于b站up主蛆肉儿串儿（UID417038183），初衷是劝诫一位爱喝酒的朋友戒酒。</p>
+            <p>由于作者的人格是SHIT愤世者，所以平等的攻击了各位，在此抱歉！！不过我是一个绝世大美女，你们一定会原谅我，有B站的朋友们也可以关注我。</p>
+            <p>关于这个测试，我没法很好的平衡娱乐和专业性，因此对于一些人格的阐释较为模糊或完全不准（如屌丝可能并非真的屌丝），如有冒犯非常抱歉！！</p>
+            <p>再鉴于时间精力有限，就随便搞了一个先这样玩玩，后续会慢慢完善修改的，总之好玩为主，还请不要用于盈利呀。</p>
+          </div>
+        </article>
 
         <div class="sbti-result-actions">
           <button class="sbti-secondary-button" id="sbtiRestartButton" type="button">重新测试</button>
+          <button class="sbti-secondary-button" id="sbtiHomeButton" type="button">回到首页</button>
         </div>
       </section>
     </main>
 
-    <script src="/sbti/script.js?v=20260410-01"></script>
+    <script src="/sbti/script.js?v=20260410-04"></script>
   </body>
 </html>

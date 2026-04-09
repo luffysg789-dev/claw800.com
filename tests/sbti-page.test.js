@@ -43,6 +43,9 @@ test('sbti html includes intro, test, and result screens', () => {
   assert.match(html, /id="sbtiSubmitButton"/);
   assert.match(html, /id="sbtiResultCode"/);
   assert.match(html, /id="sbtiRestartButton"/);
+  assert.match(html, /id="sbtiHomeButton"/);
+  assert.match(html, /十五维度评分/);
+  assert.match(html, /作者的话/);
   assert.match(html, /\/sbti\/style\.css\?v=/);
   assert.match(html, /\/sbti\/script\.js\?v=/);
 });
@@ -50,13 +53,20 @@ test('sbti html includes intro, test, and result screens', () => {
 test('sbti script exposes quiz data and result rendering hooks', () => {
   const js = fs.readFileSync(jsPath, 'utf8');
 
-  assert.match(js, /const SBTI_QUESTIONS = \[/);
-  assert.match(js, /const SBTI_TYPES = \{/);
+  assert.match(js, /const dimensionMeta = \{/);
+  assert.match(js, /const questions = \[/);
+  assert.match(js, /const specialQuestions = \[/);
+  assert.match(js, /const TYPE_LIBRARY = \{/);
+  assert.match(js, /const TYPE_IMAGES = \{/);
+  assert.match(js, /const NORMAL_TYPES = \[/);
+  assert.match(js, /const DIM_EXPLANATIONS = \{/);
   assert.match(js, /function renderSbtiQuestions\(/);
   assert.match(js, /function updateSbtiProgress\(/);
   assert.match(js, /function computeSbtiResult\(/);
   assert.match(js, /function renderSbtiResult\(/);
   assert.match(js, /function restartSbtiQuiz\(/);
+  assert.match(js, /const DEFAULT_FUN_NOTE =/);
+  assert.match(js, /sbti-result-metric__rating/);
 });
 
 test('sbti css includes card layout and responsive mobile rules', () => {
