@@ -1118,6 +1118,8 @@ function buildNexaEscrowBootstrapPayload(session) {
   maybeAutoCancelPendingPaymentEscrowOrders();
   maybeAutoCancelPendingShipmentEscrowOrders();
   maybeAutoReleaseDeliveredEscrowOrders();
+  maybeTimeoutPendingEscrowWithdrawalsForUser(ensured.user.id);
+  const latestWallet = selectNexaEscrowWalletStmt.get(ensured.user.id);
   const latestWithdrawal = selectLatestNexaEscrowWithdrawalByUserStmt.get(ensured.user.id);
   const withdrawals = listRecentNexaEscrowWithdrawalsByUserStmt.all(ensured.user.id, 50);
   const orders = listNexaEscrowOrdersByUserStmt.all(
@@ -1134,7 +1136,7 @@ function buildNexaEscrowBootstrapPayload(session) {
       nickname: ensured.user.nickname,
       escrowNickname: ensured.user.escrowNickname,
       escrowCode: ensured.user.escrowCode,
-      wallet: ensured.wallet.availableBalance,
+      wallet: String(latestWallet?.available_balance || ensured.wallet.availableBalance || '0.00'),
       latestWithdrawal: latestWithdrawal ? {
         partnerOrderNo: String(latestWithdrawal.partner_order_no || '').trim(),
         amount: String(latestWithdrawal.amount || '0.00').trim(),
@@ -1493,6 +1495,25 @@ function shouldAutoApproveEscrowWithdrawal(amount) {
   }
 }
 
+const NEXA_ESCROW_WITHDRAW_PENDING_TIMEOUT_MS = 5 * 60 * 1000;
+
+function parseSqliteUtcDateTimeToMs(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return 0;
+  const isoString = raw.includes('T') ? raw : raw.replace(' ', 'T');
+  const timestamp = Date.parse(`${isoString}Z`);
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function hasPendingEscrowWithdrawalTimedOut(withdrawal, nowMs = Date.now()) {
+  if (!withdrawal) return false;
+  const currentStatus = String(withdrawal.status || '').trim().toLowerCase();
+  if (currentStatus !== 'pending') return false;
+  const createdAtMs = parseSqliteUtcDateTimeToMs(withdrawal.created_at);
+  if (!createdAtMs) return false;
+  return nowMs - createdAtMs >= NEXA_ESCROW_WITHDRAW_PENDING_TIMEOUT_MS;
+}
+
 function markReviewedEscrowWithdrawal({
   partnerOrderNo,
   status,
@@ -1587,6 +1608,35 @@ const refundFailedEscrowWithdrawal = db.transaction((payload) => {
   markNexaEscrowWithdrawalFailedStmt.run(serializeNotifyPayload(payload.rawBody), withdrawal.partner_order_no);
   return { kind: 'refunded' };
 });
+
+function maybeTimeoutPendingEscrowWithdrawal(partnerOrderNo, options = {}) {
+  const row = options.row || selectNexaEscrowWithdrawalDetailByOrderStmt.get(partnerOrderNo);
+  if (!row) return null;
+  if (!hasPendingEscrowWithdrawalTimedOut(row, options.nowMs)) {
+    return row;
+  }
+  refundFailedEscrowWithdrawal({
+    partnerOrderNo: row.partner_order_no,
+    rawBody: {
+      code: 'ESCROW_WITHDRAW_TIMEOUT',
+      message: '超时未到账自动退款'
+    }
+  });
+  return selectNexaEscrowWithdrawalDetailByOrderStmt.get(row.partner_order_no);
+}
+
+function maybeTimeoutPendingEscrowWithdrawalsForUser(userId, options = {}) {
+  const rows = listRecentNexaEscrowWithdrawalsByUserStmt.all(Number(userId || 0), 50);
+  let changed = false;
+  rows.forEach((row) => {
+    const beforeStatus = String(row.status || '').trim().toLowerCase();
+    const nextRow = maybeTimeoutPendingEscrowWithdrawal(row.partner_order_no, { row, nowMs: options.nowMs });
+    if (beforeStatus === 'pending' && String(nextRow?.status || '').trim().toLowerCase() === 'failed') {
+      changed = true;
+    }
+  });
+  return changed;
+}
 
 const settleReviewedEscrowWithdrawalApproval = db.transaction((payload) => {
   const withdrawal = selectNexaEscrowWithdrawalDetailByOrderStmt.get(payload.partnerOrderNo);
@@ -4221,7 +4271,9 @@ app.post('/api/nexa-escrow/withdraw/query', async (req, res) => {
           rawBody: queried.rawBody
         });
       }
-      current = selectNexaEscrowWithdrawalDetailByOrderStmt.get(partnerOrderNo);
+      current = maybeTimeoutPendingEscrowWithdrawal(partnerOrderNo, {
+        row: selectNexaEscrowWithdrawalDetailByOrderStmt.get(partnerOrderNo)
+      });
     }
 
     return res.json({
@@ -4364,23 +4416,26 @@ app.get('/api/admin/nexa-escrow-withdrawals', requireAdmin, (req, res) => {
   try {
     const status = String(req.query?.status || '').trim().toLowerCase();
     const limit = Math.min(200, Math.max(1, Number(req.query?.limit || 50) || 50));
-    const items = listAdminNexaEscrowWithdrawalsStmt.all(status, status, limit).map((row) => ({
-      partnerOrderNo: String(row.partner_order_no || '').trim(),
-      userId: Number(row.user_id || 0),
-      openId: String(row.openid || '').trim(),
-      nickname: String(row.nickname || '').trim(),
-      escrowCode: normalizeNexaEscrowCode(row.escrow_code || ''),
-      amount: String(row.amount || '0.00'),
-      currency: String(row.currency || 'USDT').trim(),
-      status: String(row.status || '').trim(),
-      nexaOrderNo: String(row.nexa_order_no || '').trim(),
-      reviewNote: String(row.review_note || '').trim(),
-      failureReason: extractEscrowWithdrawalFailureReason(row),
-      reviewedBy: String(row.reviewed_by || '').trim(),
-      reviewedAt: String(row.reviewed_at || '').trim(),
-      createdAt: String(row.created_at || '').trim(),
-      finishedAt: String(row.finished_at || '').trim()
-    }));
+    const items = listAdminNexaEscrowWithdrawalsStmt.all(status, status, limit).map((row) => {
+      const effectiveRow = maybeTimeoutPendingEscrowWithdrawal(row.partner_order_no, { row }) || row;
+      return {
+        partnerOrderNo: String(effectiveRow.partner_order_no || '').trim(),
+        userId: Number(effectiveRow.user_id || 0),
+        openId: String(effectiveRow.openid || '').trim(),
+        nickname: String(effectiveRow.nickname || '').trim(),
+        escrowCode: normalizeNexaEscrowCode(effectiveRow.escrow_code || ''),
+        amount: String(effectiveRow.amount || '0.00'),
+        currency: String(effectiveRow.currency || 'USDT').trim(),
+        status: String(effectiveRow.status || '').trim(),
+        nexaOrderNo: String(effectiveRow.nexa_order_no || '').trim(),
+        reviewNote: String(effectiveRow.review_note || '').trim(),
+        failureReason: extractEscrowWithdrawalFailureReason(effectiveRow),
+        reviewedBy: String(effectiveRow.reviewed_by || '').trim(),
+        reviewedAt: String(effectiveRow.reviewed_at || '').trim(),
+        createdAt: String(effectiveRow.created_at || '').trim(),
+        finishedAt: String(effectiveRow.finished_at || '').trim()
+      };
+    });
     return res.json({ ok: true, items });
   } catch (error) {
     return res.status(500).json({ ok: false, error: String(error?.message || 'ESCROW_ADMIN_WITHDRAWALS_FAILED') });
