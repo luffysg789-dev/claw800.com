@@ -88,9 +88,11 @@ test('nexa-escrow html includes create and orders tabs plus escrow actions', () 
   assert.match(html, /id="nexaEscrowNicknameSaveBtn"/);
   assert.match(html, /id="nexaEscrowNicknameHint"/);
   assert.match(html, /id="nexaEscrowLatestWithdrawal"/);
-  assert.match(html, /id="nexaEscrowLatestWithdrawalAmount"/);
-  assert.match(html, /id="nexaEscrowLatestWithdrawalStatus"/);
-  assert.match(html, /id="nexaEscrowLatestWithdrawalTime"/);
+  assert.match(html, /id="nexaEscrowWithdrawalList"/);
+  assert.match(html, /id="nexaEscrowWithdrawalPagination"/);
+  assert.match(html, /id="nexaEscrowWithdrawalPrev"/);
+  assert.match(html, /id="nexaEscrowWithdrawalNext"/);
+  assert.match(html, /id="nexaEscrowWithdrawalPageInfo"/);
   assert.match(html, /id="nexaEscrowWithdrawModal"/);
   assert.match(html, /id="nexaEscrowWithdrawAmountInput"/);
   assert.match(html, /id="nexaEscrowAccountStatus"/);
@@ -184,7 +186,13 @@ test('nexa-escrow script includes Nexa auth, escrow bootstrap, order, and paymen
   assert.match(js, /withdrawStatusReviewPending: '待审核'/);
   assert.match(js, /withdrawStatusPending: '处理中'/);
   assert.match(js, /withdrawStatusSuccess: '已通过到账'/);
+  assert.match(js, /const NEXA_ESCROW_WITHDRAWALS_PER_PAGE = 5;/);
+  assert.match(js, /function formatEscrowLocalDateTime\(/);
   assert.match(js, /function syncLatestEscrowWithdrawalStatus\(/);
+  assert.match(js, /withdrawalList: root\.querySelector\('#nexaEscrowWithdrawalList'\)/);
+  assert.match(js, /withdrawalPrev: root\.querySelector\('#nexaEscrowWithdrawalPrev'\)/);
+  assert.match(js, /withdrawalNext: root\.querySelector\('#nexaEscrowWithdrawalNext'\)/);
+  assert.match(js, /withdrawalPageInfo: root\.querySelector\('#nexaEscrowWithdrawalPageInfo'\)/);
   assert.match(js, /orderFilterButtons/);
   assert.match(js, /AWAITING_PAYMENT', 'PAYMENT_PENDING', 'FUNDED', 'DELIVERED'/);
   assert.match(js, /actionDispute/);

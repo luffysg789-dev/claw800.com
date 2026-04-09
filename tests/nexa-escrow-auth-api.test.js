@@ -574,6 +574,8 @@ test('nexa-escrow withdrawals below 100 USDT auto-submit and still appear in adm
     assert.equal(bootstrapAfterCreate.body.ok, true);
     assert.equal(bootstrapAfterCreate.body.account.latestWithdrawal.partnerOrderNo, createResponse.body.partnerOrderNo);
     assert.equal(String(bootstrapAfterCreate.body.account.latestWithdrawal.status || '').toLowerCase(), 'pending');
+    assert.ok(Array.isArray(bootstrapAfterCreate.body.account.withdrawals));
+    assert.equal(bootstrapAfterCreate.body.account.withdrawals[0].partnerOrderNo, createResponse.body.partnerOrderNo);
 
     const adminCookies = await loginAdmin(harness);
     const adminListResponse = await harness.request('GET', '/api/admin/nexa-escrow-withdrawals', undefined, {
@@ -692,6 +694,14 @@ test('admin can review nexa escrow withdrawals after users submit them', async (
     const approvedItem = listAfterApproveResponse.body.items.find((item) => item.partnerOrderNo === createResponse.body.partnerOrderNo);
     assert.ok(approvedItem);
     assert.equal(String(approvedItem.status || '').toLowerCase(), 'success');
+
+    const bootstrapAfterApprove = await harness.request('GET', '/api/nexa-escrow/bootstrap', null, {
+      cookies: {
+        [serialized.name]: serialized.value
+      }
+    });
+    assert.equal(bootstrapAfterApprove.statusCode, 200);
+    assert.equal(String(bootstrapAfterApprove.body.account.withdrawals[0].status || '').toLowerCase(), 'success');
   } finally {
     harness.cleanup();
   }

@@ -122,11 +122,12 @@
                 <button id="nexaEscrowWithdrawBtn" class="nexa-escrow-primary nexa-escrow-account-item__action" type="button">提现</button>
                 <div id="nexaEscrowLatestWithdrawal" class="nexa-escrow-withdrawal-record" hidden>
                   <span class="nexa-escrow-label" data-i18n="latestWithdrawalLabel">最新提现记录</span>
-                  <div class="nexa-escrow-withdrawal-record__row">
-                    <strong id="nexaEscrowLatestWithdrawalAmount">0.00 USDT</strong>
-                    <span id="nexaEscrowLatestWithdrawalStatus" class="nexa-escrow-withdrawal-record__status">待审核</span>
+                  <div id="nexaEscrowWithdrawalList" class="nexa-escrow-withdrawal-list"></div>
+                  <div id="nexaEscrowWithdrawalPagination" class="nexa-escrow-withdrawal-pagination" hidden>
+                    <button id="nexaEscrowWithdrawalPrev" class="nexa-escrow-secondary nexa-escrow-withdrawal-pagination__button" type="button">上一页</button>
+                    <span id="nexaEscrowWithdrawalPageInfo" class="nexa-escrow-withdrawal-pagination__info">1 / 1</span>
+                    <button id="nexaEscrowWithdrawalNext" class="nexa-escrow-secondary nexa-escrow-withdrawal-pagination__button" type="button">下一页</button>
                   </div>
-                  <span id="nexaEscrowLatestWithdrawalTime" class="nexa-escrow-withdrawal-record__time">--</span>
                 </div>
               </div>
             </div>

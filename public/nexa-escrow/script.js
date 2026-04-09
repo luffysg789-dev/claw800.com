@@ -6,6 +6,7 @@
   const NEXA_ESCROW_PULL_REFRESH_TRIGGER_PX = 68;
   const NEXA_ESCROW_PULL_REFRESH_MAX_PX = 92;
   const NEXA_ESCROW_REFRESH_FEEDBACK_MS = 520;
+  const NEXA_ESCROW_WITHDRAWALS_PER_PAGE = 5;
   const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth://oauth/authorize';
   const NEXA_PROTOCOL_ORDER_BASE = 'nexaauth://order';
   const NEXA_PUBLIC_CONFIG_ENDPOINT = '/api/nexa/public-config';
@@ -76,7 +77,7 @@
       safeBody: '请务必收到货物/服务后再点击“确认收货”。如有疑问，请立即点击“申请仲裁”。',
       actionFund: '支付担保金',
       actionDeliver: '发货',
-      actionConfirmReceipt: '收到货',
+      actionConfirmReceipt: '收到货去放款',
       actionDispute: '去申诉',
       actionCancel: '取消订单',
       actionDeliveredDone: '已发货',
@@ -601,6 +602,25 @@
     }, 1600);
   }
 
+  function parseEscrowUtcDate(value) {
+    const normalized = String(value || '').trim();
+    if (!normalized) return null;
+    const parsed = new Date(normalized.includes('T') ? normalized : `${normalized.replace(' ', 'T')}Z`);
+    return Number.isFinite(parsed.getTime()) ? parsed : null;
+  }
+
+  function formatEscrowLocalDateTime(value) {
+    const parsed = parseEscrowUtcDate(value);
+    if (!parsed) return '--';
+    const year = parsed.getFullYear();
+    const month = String(parsed.getMonth() + 1).padStart(2, '0');
+    const day = String(parsed.getDate()).padStart(2, '0');
+    const hours = String(parsed.getHours()).padStart(2, '0');
+    const minutes = String(parsed.getMinutes()).padStart(2, '0');
+    const seconds = String(parsed.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  }
+
   function describeEscrowWithdrawalStatus(appState, status) {
     const normalizedStatus = String(status || '').trim().toLowerCase();
     if (normalizedStatus === 'review_pending') return t(appState.locale, 'withdrawStatusReviewPending');
@@ -976,7 +996,7 @@
           <div class="nexa-escrow-order-item__amount">
             <strong>${order.amount} <span class="nexa-escrow-order-item__currency">${order.currency}</span></strong>
           </div>
-          <div class="nexa-escrow-order-item__time">${order.createdAt || '--'}</div>
+          <div class="nexa-escrow-order-item__time">${formatEscrowLocalDateTime(order.createdAt)}</div>
         </div>
         <div class="nexa-escrow-order-item__desc">${order.description || '--'}</div>
         <div class="nexa-escrow-order-item__footer">
@@ -1030,10 +1050,15 @@
     if (appState.elements.withdrawBtn) {
       appState.elements.withdrawBtn.textContent = t(appState.locale, 'withdrawAction');
     }
-    const latestWithdrawal = appState.account?.latestWithdrawal || null;
+    const withdrawals = Array.isArray(appState.account?.withdrawals) ? appState.account.withdrawals : [];
+    const latestWithdrawal = withdrawals[0] || appState.account?.latestWithdrawal || null;
     if (appState.elements.latestWithdrawal) {
       appState.elements.latestWithdrawal.hidden = !latestWithdrawal;
     }
+    const totalPages = Math.max(1, Math.ceil(withdrawals.length / NEXA_ESCROW_WITHDRAWALS_PER_PAGE));
+    appState.withdrawalsPage = Math.min(Math.max(1, Number(appState.withdrawalsPage || 1)), totalPages);
+    const pageStart = (appState.withdrawalsPage - 1) * NEXA_ESCROW_WITHDRAWALS_PER_PAGE;
+    const pageItems = withdrawals.slice(pageStart, pageStart + NEXA_ESCROW_WITHDRAWALS_PER_PAGE);
     if (appState.elements.latestWithdrawalAmount) {
       appState.elements.latestWithdrawalAmount.textContent = latestWithdrawal
         ? `${String(latestWithdrawal.amount || '0.00')} USDT`
@@ -1046,8 +1071,36 @@
     }
     if (appState.elements.latestWithdrawalTime) {
       appState.elements.latestWithdrawalTime.textContent = latestWithdrawal
-        ? String(latestWithdrawal.finishedAt || latestWithdrawal.createdAt || '--').trim() || '--'
+        ? formatEscrowLocalDateTime(latestWithdrawal.finishedAt || latestWithdrawal.createdAt || '--')
         : '--';
+    }
+    if (appState.elements.withdrawalList) {
+      appState.elements.withdrawalList.innerHTML = pageItems.map((item) => {
+        const statusText = describeEscrowWithdrawalStatus(appState, item.status);
+        const normalizedStatus = String(item.status || '').trim().toLowerCase();
+        const statusTone = normalizedStatus === 'success' ? ' is-success' : ((normalizedStatus === 'review_pending' || normalizedStatus === 'pending') ? ' is-pending' : '');
+        return `
+          <div class="nexa-escrow-withdrawal-list__item">
+            <div class="nexa-escrow-withdrawal-list__row">
+              <strong class="nexa-escrow-withdrawal-list__amount">${String(item.amount || '0.00')} USDT</strong>
+              <span class="nexa-escrow-withdrawal-list__status${statusTone}">${statusText}</span>
+            </div>
+            <span class="nexa-escrow-withdrawal-list__time">${formatEscrowLocalDateTime(item.finishedAt || item.createdAt || '--')}</span>
+          </div>
+        `;
+      }).join('');
+    }
+    if (appState.elements.withdrawalPagination) {
+      appState.elements.withdrawalPagination.hidden = withdrawals.length <= NEXA_ESCROW_WITHDRAWALS_PER_PAGE;
+    }
+    if (appState.elements.withdrawalPageInfo) {
+      appState.elements.withdrawalPageInfo.textContent = `${appState.withdrawalsPage} / ${totalPages}`;
+    }
+    if (appState.elements.withdrawalPrev) {
+      appState.elements.withdrawalPrev.disabled = appState.withdrawalsPage <= 1;
+    }
+    if (appState.elements.withdrawalNext) {
+      appState.elements.withdrawalNext.disabled = appState.withdrawalsPage >= totalPages;
     }
   }
 
@@ -1080,23 +1133,35 @@
   }
 
   async function syncLatestEscrowWithdrawalStatus(appState) {
-    const latestWithdrawal = appState.account?.latestWithdrawal || null;
-    const partnerOrderNo = String(latestWithdrawal?.partnerOrderNo || '').trim();
-    const status = String(latestWithdrawal?.status || '').trim().toLowerCase();
-    if (!partnerOrderNo || (status !== 'review_pending' && status !== 'pending')) return;
-    const response = await queryEscrowWithdrawalStatus(partnerOrderNo);
-    if (!response?.item) return;
+    const withdrawals = Array.isArray(appState.account?.withdrawals) ? appState.account.withdrawals : [];
+    const pendingItems = withdrawals.filter((item) => {
+      const normalizedStatus = String(item?.status || '').trim().toLowerCase();
+      return normalizedStatus === 'pending';
+    });
+    if (!pendingItems.length) return;
+    const responses = await Promise.all(pendingItems.map(async (item) => {
+      const partnerOrderNo = String(item?.partnerOrderNo || '').trim();
+      if (!partnerOrderNo) return null;
+      const response = await queryEscrowWithdrawalStatus(partnerOrderNo);
+      return response?.item ? { partnerOrderNo, item: response.item } : null;
+    }));
+    const nextByOrder = new Map(responses.filter(Boolean).map((entry) => [entry.partnerOrderNo, entry.item]));
+    if (!nextByOrder.size) return;
     appState.account = {
       ...(appState.account || {}),
-      latestWithdrawal: {
-        ...(latestWithdrawal || {}),
-        partnerOrderNo,
-        amount: String(response.item.amount || latestWithdrawal?.amount || '0.00'),
-        status: String(response.item.status || status).trim().toLowerCase(),
-        createdAt: String(latestWithdrawal?.createdAt || '').trim(),
-        finishedAt: String(response.item.finishedAt || latestWithdrawal?.finishedAt || '').trim()
-      }
+      withdrawals: withdrawals.map((item) => {
+        const partnerOrderNo = String(item?.partnerOrderNo || '').trim();
+        const nextItem = nextByOrder.get(partnerOrderNo);
+        if (!nextItem) return item;
+        return {
+          ...item,
+          amount: String(nextItem.amount || item.amount || '0.00'),
+          status: String(nextItem.status || item.status || '').trim().toLowerCase(),
+          finishedAt: String(nextItem.finishedAt || item.finishedAt || '').trim()
+        };
+      })
     };
+    appState.account.latestWithdrawal = appState.account.withdrawals[0] || null;
     renderAccount(appState);
   }
 
@@ -1338,6 +1403,7 @@
       role: 'buyer',
       activeTab: 'create',
       orderFilter: 'all',
+      withdrawalsPage: 1,
       bootstrapRefreshing: false,
       ordersPullStartY: 0,
       ordersPullDistance: 0,
@@ -1390,6 +1456,11 @@
         latestWithdrawalAmount: root.querySelector('#nexaEscrowLatestWithdrawalAmount'),
         latestWithdrawalStatus: root.querySelector('#nexaEscrowLatestWithdrawalStatus'),
         latestWithdrawalTime: root.querySelector('#nexaEscrowLatestWithdrawalTime'),
+        withdrawalList: root.querySelector('#nexaEscrowWithdrawalList'),
+        withdrawalPagination: root.querySelector('#nexaEscrowWithdrawalPagination'),
+        withdrawalPrev: root.querySelector('#nexaEscrowWithdrawalPrev'),
+        withdrawalNext: root.querySelector('#nexaEscrowWithdrawalNext'),
+        withdrawalPageInfo: root.querySelector('#nexaEscrowWithdrawalPageInfo'),
             accountCodeCopy: root.querySelector('#nexaEscrowAccountCodeCopy'),
             withdrawBtn: root.querySelector('#nexaEscrowWithdrawBtn'),
             accountStatus: root.querySelector('#nexaEscrowAccountStatus'),
@@ -1419,6 +1490,14 @@
         appState.orderFilter = String(button.dataset.orderFilter || 'all');
         renderOrders(appState);
       });
+    });
+    appState.elements.withdrawalPrev?.addEventListener('click', () => {
+      appState.withdrawalsPage = Math.max(1, Number(appState.withdrawalsPage || 1) - 1);
+      renderAccount(appState);
+    });
+    appState.elements.withdrawalNext?.addEventListener('click', () => {
+      appState.withdrawalsPage = Number(appState.withdrawalsPage || 1) + 1;
+      renderAccount(appState);
     });
     appState.elements.ordersList?.addEventListener('click', (event) => {
       const target = event.target instanceof Element ? event.target.closest('[data-detail-trigger]') : null;

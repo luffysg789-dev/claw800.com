@@ -585,6 +585,73 @@ body {
   font-size: 0.8rem;
 }
 
+.nexa-escrow-withdrawal-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.nexa-escrow-withdrawal-list__item {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--escrow-border);
+}
+
+.nexa-escrow-withdrawal-list__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.nexa-escrow-withdrawal-list__amount {
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: var(--escrow-text);
+}
+
+.nexa-escrow-withdrawal-list__status {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--escrow-muted);
+}
+
+.nexa-escrow-withdrawal-list__status.is-success {
+  color: var(--escrow-success);
+}
+
+.nexa-escrow-withdrawal-list__status.is-pending {
+  color: #f0b84f;
+}
+
+.nexa-escrow-withdrawal-list__time {
+  font-size: 0.78rem;
+  color: var(--escrow-muted);
+}
+
+.nexa-escrow-withdrawal-pagination {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.nexa-escrow-withdrawal-pagination__button {
+  min-width: 72px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+}
+
+.nexa-escrow-withdrawal-pagination__info {
+  color: var(--escrow-muted);
+  font-size: 0.8rem;
+}
+
 .nexa-escrow-modal[hidden] {
   display: none;
 }

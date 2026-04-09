@@ -1113,6 +1113,7 @@ function buildNexaEscrowBootstrapPayload(session) {
   maybeAutoCancelPendingShipmentEscrowOrders();
   maybeAutoReleaseDeliveredEscrowOrders();
   const latestWithdrawal = selectLatestNexaEscrowWithdrawalByUserStmt.get(ensured.user.id);
+  const withdrawals = listRecentNexaEscrowWithdrawalsByUserStmt.all(ensured.user.id, 50);
   const orders = listNexaEscrowOrdersByUserStmt.all(
     ensured.user.id,
     ensured.user.id,
@@ -1134,7 +1135,14 @@ function buildNexaEscrowBootstrapPayload(session) {
         status: String(latestWithdrawal.status || '').trim().toLowerCase(),
         createdAt: String(latestWithdrawal.created_at || '').trim(),
         finishedAt: String(latestWithdrawal.finished_at || '').trim()
-      } : null
+      } : null,
+      withdrawals: withdrawals.map((item) => ({
+        partnerOrderNo: String(item.partner_order_no || '').trim(),
+        amount: String(item.amount || '0.00').trim(),
+        status: String(item.status || '').trim().toLowerCase(),
+        createdAt: String(item.created_at || '').trim(),
+        finishedAt: String(item.finished_at || '').trim()
+      }))
     },
     orders
   };
@@ -5453,6 +5461,13 @@ const selectLatestNexaEscrowWithdrawalByUserStmt = db.prepare(`
   WHERE user_id = ?
   ORDER BY id DESC
   LIMIT 1
+`);
+const listRecentNexaEscrowWithdrawalsByUserStmt = db.prepare(`
+  SELECT partner_order_no, amount, status, finished_at, created_at
+  FROM nexa_escrow_withdrawals
+  WHERE user_id = ?
+  ORDER BY id DESC
+  LIMIT ?
 `);
 const selectXiangqiDepositByOrderStmt = db.prepare(
   'SELECT partner_order_no, user_id, amount, status FROM nexa_game_deposits WHERE partner_order_no = ?'
