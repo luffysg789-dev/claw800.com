@@ -32,7 +32,10 @@
 
         <nav class="nexa-escrow-tabs">
           <button class="nexa-escrow-tabs__item is-active" type="button" data-tab-target="create" data-i18n="tabCreate">发起担保</button>
-          <button class="nexa-escrow-tabs__item" type="button" data-tab-target="orders" data-i18n="tabOrders">我的订单</button>
+          <button class="nexa-escrow-tabs__item nexa-escrow-tabs__item--orders" type="button" data-tab-target="orders">
+            <span data-i18n="tabOrders">我的订单</span>
+            <span id="nexaEscrowOrdersDot" class="nexa-escrow-tabs__dot" hidden aria-hidden="true"></span>
+          </button>
           <button class="nexa-escrow-tabs__item" type="button" data-tab-target="account" data-i18n="tabAccount">账户中心</button>
         </nav>
 

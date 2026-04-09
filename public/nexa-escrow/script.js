@@ -711,6 +711,20 @@
     }
   }
 
+  function hasPendingEscrowOrders(appState) {
+    const orders = Array.isArray(appState.orders) ? appState.orders : [];
+    return orders.some((order) => {
+      const status = String(order?.status || '').trim().toUpperCase();
+      return ['AWAITING_PAYMENT', 'PAYMENT_PENDING', 'FUNDED', 'DELIVERED', 'DISPUTED'].includes(status);
+    });
+  }
+
+  function syncEscrowOrdersDot(appState) {
+    if (!appState.elements.ordersDot) return;
+    const shouldShow = hasPendingEscrowOrders(appState);
+    appState.elements.ordersDot.hidden = !shouldShow;
+  }
+
   function describeOrderStatus(appState, order) {
     const status = String(order?.status || '').trim().toUpperCase();
     if (status === 'AWAITING_PAYMENT') return t(appState.locale, 'statusAwaitingPayment');
@@ -937,6 +951,7 @@
   function renderOrders(appState) {
     const list = appState.elements.ordersList;
     if (!list) return;
+    syncEscrowOrdersDot(appState);
     const hasExpandedDetail = Boolean(appState.selectedTradeCode) && appState.elements.orderDetail?.hidden === false;
     appState.elements.orderFilterButtons.forEach((button) => {
       button.classList.toggle('is-active', button.dataset.orderFilter === appState.orderFilter);
@@ -1058,6 +1073,7 @@
       renderOrders(appState);
     }
     renderAccount(appState);
+    syncEscrowOrdersDot(appState);
   }
 
   async function syncLatestEscrowWithdrawalStatus(appState) {
@@ -1345,6 +1361,7 @@
         ordersList: root.querySelector('#nexaEscrowOrdersList'),
         ordersCard: root.querySelector('#nexaEscrowOrdersCard'),
         ordersPanel: root.querySelector('[data-tab="orders"]'),
+        ordersDot: root.querySelector('#nexaEscrowOrdersDot'),
         ordersPullRefresh: root.querySelector('#nexaEscrowOrdersPullToRefresh'),
         accountCard: root.querySelector('#nexaEscrowAccountCard'),
         accountPanel: root.querySelector('[data-tab="account"]'),

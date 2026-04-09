@@ -195,6 +195,25 @@ body {
   font-weight: 700;
 }
 
+.nexa-escrow-tabs__item--orders {
+  position: relative;
+}
+
+.nexa-escrow-tabs__dot {
+  position: absolute;
+  top: 9px;
+  right: 12px;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #ef5858;
+  box-shadow: 0 0 0 2px rgba(23, 26, 33, 0.94);
+}
+
+.nexa-escrow-tabs__dot[hidden] {
+  display: none;
+}
+
 .nexa-escrow-tabs__item.is-active,
 .nexa-escrow-role-toggle__item.is-active {
   background: linear-gradient(180deg, #3674ff, #2657ef);
