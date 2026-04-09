@@ -1435,6 +1435,7 @@ function renderNexaEscrowWithdrawalsList(items) {
       const escrowCode = String(item.escrowCode || '').trim();
       const amount = String(item.amount || '0.00').trim();
       const status = String(item.status || '').trim();
+      const failureReason = String(item.failureReason || '').trim();
       const createdAt = String(item.createdAt || '').trim();
       const canReview = String(status || '').trim().toLowerCase() === 'review_pending';
       return `
@@ -1444,6 +1445,7 @@ function renderNexaEscrowWithdrawalsList(items) {
           <p class="small">担保号: ${escapeHtml(escrowCode || '-')}</p>
           <p class="small">金额: ${escapeHtml(amount)} USDT</p>
           <p class="small">状态: ${escapeHtml(status || '-')}</p>
+          ${failureReason ? `<p class="small">失败原因: ${escapeHtml(failureReason)}</p>` : ''}
           <p class="small">申请时间: ${escapeHtml(createdAt || '-')}</p>
           ${canReview ? `
             <div class="review-actions">

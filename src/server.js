@@ -4375,6 +4375,7 @@ app.get('/api/admin/nexa-escrow-withdrawals', requireAdmin, (req, res) => {
       status: String(row.status || '').trim(),
       nexaOrderNo: String(row.nexa_order_no || '').trim(),
       reviewNote: String(row.review_note || '').trim(),
+      failureReason: extractEscrowWithdrawalFailureReason(row),
       reviewedBy: String(row.reviewed_by || '').trim(),
       reviewedAt: String(row.reviewed_at || '').trim(),
       createdAt: String(row.created_at || '').trim(),
@@ -5543,6 +5544,7 @@ const listAdminNexaEscrowWithdrawalsStmt = db.prepare(`
     w.currency,
     w.status,
     w.nexa_order_no,
+    w.notify_payload,
     w.review_note,
     w.reviewed_by,
     w.reviewed_at,
@@ -5889,6 +5891,44 @@ function serializeNotifyPayload(payload) {
   } catch {
     return '';
   }
+}
+
+function parseSerializedPayload(raw) {
+  try {
+    const parsed = JSON.parse(String(raw || '').trim() || '{}');
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function extractEscrowWithdrawalFailureReason(row) {
+  const reviewNote = String(row?.review_note || '').trim();
+  const payload = parseSerializedPayload(row?.notify_payload);
+  const payloadMessage = [
+    payload?.message,
+    payload?.msg,
+    payload?.error,
+    payload?.note,
+    payload?.data?.message,
+    payload?.data?.msg,
+    payload?.data?.error,
+    payload?.data?.note
+  ].find((item) => String(item || '').trim());
+  const payloadCode = String(
+    payload?.code
+    || payload?.statusCode
+    || payload?.data?.code
+    || payload?.data?.statusCode
+    || ''
+  ).trim();
+  if (payloadMessage && payloadCode) {
+    return `${payloadCode}: ${String(payloadMessage).trim()}`;
+  }
+  if (payloadMessage) {
+    return String(payloadMessage).trim();
+  }
+  return reviewNote;
 }
 
 function getXiangqiRoomStreamSet(roomCode) {

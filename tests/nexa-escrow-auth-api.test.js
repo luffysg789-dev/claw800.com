@@ -794,6 +794,53 @@ test('fresh nexa-escrow auto-withdrawals keep pending status during early failed
   }
 });
 
+test('admin escrow withdrawal list exposes real failure reasons from notify payload', async () => {
+  const harness = createHarness();
+
+  try {
+    const syncResponse = await harness.request('POST', '/api/nexa-escrow/session', {
+      openId: 'escrow-open-id-withdraw-failure-reason',
+      sessionKey: 'escrow-session-key-withdraw-failure-reason',
+      nickname: 'Withdraw Failure Reason User'
+    });
+    const serialized = JSON.parse(syncResponse.headers['set-cookie'][0]);
+    await harness.request('GET', '/api/nexa-escrow/bootstrap', null, {
+      cookies: {
+        [serialized.name]: serialized.value
+      }
+    });
+
+    const userId = harness.db
+      .prepare('SELECT id FROM game_users WHERE openid = ?')
+      .get('escrow-open-id-withdraw-failure-reason').id;
+
+    harness.db.prepare(`
+      INSERT INTO nexa_escrow_withdrawals
+        (partner_order_no, user_id, amount, currency, status, notify_payload, created_at, finished_at)
+      VALUES
+        (?, ?, '1.00', 'USDT', 'failed', ?, datetime('now'), datetime('now'))
+    `).run(
+      'escrow-withdraw-failed-001',
+      userId,
+      JSON.stringify({ code: '10000002', message: 'Signature error' })
+    );
+
+    const adminCookies = await loginAdmin(harness);
+    const adminListResponse = await harness.request('GET', '/api/admin/nexa-escrow-withdrawals', undefined, {
+      cookies: adminCookies
+    });
+
+    assert.equal(adminListResponse.statusCode, 200);
+    assert.equal(adminListResponse.body.ok, true);
+    const failedItem = adminListResponse.body.items.find((item) => item.partnerOrderNo === 'escrow-withdraw-failed-001');
+    assert.ok(failedItem);
+    assert.equal(String(failedItem.status || '').toLowerCase(), 'failed');
+    assert.equal(failedItem.failureReason, '10000002: Signature error');
+  } finally {
+    harness.cleanup();
+  }
+});
+
 test('admin can review nexa escrow withdrawals after users submit them', async () => {
   const harness = createHarness({
     mockWithdrawResponse(payload) {
