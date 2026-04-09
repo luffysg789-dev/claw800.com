@@ -393,7 +393,9 @@
 
   function formatEscrowFeeHint(appState) {
     const settings = normalizeEscrowSettings(appState.settings);
-    return `注:最低 ${settings.minAmount}U，最高 ${settings.maxAmount}U，手续费${settings.feePermille}`;
+    const minAmount = String(settings.minAmount || '0').split('.')[0] || '0';
+    const maxAmount = String(settings.maxAmount || '0').split('.')[0] || '0';
+    return `注:最低 ${minAmount}U，最高 ${maxAmount}U，手续费${settings.feePermille}`;
   }
 
   function getEscrowAmountTooLowText(appState) {

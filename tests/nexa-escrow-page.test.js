@@ -201,6 +201,8 @@ test('nexa-escrow script includes Nexa auth, escrow bootstrap, order, and paymen
   assert.match(js, /feeHint:\s*root\.querySelector\('#nexaEscrowFeeHint'\)/);
   assert.match(js, /appState\.settings = normalizeEscrowSettings\(response\.settings \|\| \{\}\);/);
   assert.match(js, /function formatEscrowLocalDateTime\(/);
+  assert.match(js, /const minAmount = String\(settings\.minAmount \|\| '0'\)\.split\('\.'\)\[0\] \|\| '0';/);
+  assert.match(js, /const maxAmount = String\(settings\.maxAmount \|\| '0'\)\.split\('\.'\)\[0\] \|\| '0';/);
   assert.match(js, /function syncLatestEscrowWithdrawalStatus\(/);
   assert.match(js, /withdrawalList: root\.querySelector\('#nexaEscrowWithdrawalList'\)/);
   assert.match(js, /withdrawalPrev: root\.querySelector\('#nexaEscrowWithdrawalPrev'\)/);
