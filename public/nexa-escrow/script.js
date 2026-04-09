@@ -1049,6 +1049,10 @@
     appState.account = response.account || null;
     appState.orders = Array.isArray(response.orders) ? response.orders : [];
     renderOrders(appState);
+    if (appState.selectedTradeCode && appState.elements.orderDetail?.hidden === false) {
+      renderOrderDetail(appState);
+      renderOrders(appState);
+    }
     renderAccount(appState);
   }
 
