@@ -56,7 +56,6 @@ const NEXA_ESCROW_DEFAULT_MAX_AMOUNT = '100000.00';
 const NEXA_ESCROW_DEFAULT_FEE_PERMILLE = '0';
 const NEXA_ESCROW_HARD_MIN_AMOUNT_CENTS = 100n;
 const NEXA_ESCROW_HARD_MAX_AMOUNT_CENTS = 10000000n;
-const NEXA_ESCROW_WITHDRAW_FAILURE_GRACE_MS = 5 * 60 * 1000;
 const PMINING_TOTAL_SUPPLY = 210000000000;
 const PMINING_DAILY_CAP = 71917808;
 const PMINING_CLAIM_COOLDOWN_MS = 60 * 60 * 1000;
@@ -4221,16 +4220,6 @@ app.post('/api/nexa-escrow/withdraw/query', async (req, res) => {
           orderNo: queried.orderNo,
           rawBody: queried.rawBody
         });
-      } else if (queriedStatus === 'FAILED') {
-        const createdAtMs = parseSqliteUtcTimestamp(row.created_at);
-        const withinFailureGraceWindow =
-          createdAtMs > 0 && Date.now() - createdAtMs < NEXA_ESCROW_WITHDRAW_FAILURE_GRACE_MS;
-        if (!withinFailureGraceWindow) {
-          refundFailedEscrowWithdrawal({
-            partnerOrderNo,
-            rawBody: queried.rawBody
-          });
-        }
       }
       current = selectNexaEscrowWithdrawalDetailByOrderStmt.get(partnerOrderNo);
     }

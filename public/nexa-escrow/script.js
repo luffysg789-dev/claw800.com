@@ -7,6 +7,7 @@
   const NEXA_ESCROW_PULL_REFRESH_MAX_PX = 92;
   const NEXA_ESCROW_REFRESH_FEEDBACK_MS = 520;
   const NEXA_ESCROW_WITHDRAWALS_PER_PAGE = 5;
+  const NEXA_ESCROW_WITHDRAW_POLL_INTERVAL_MS = 15000;
   const DEFAULT_NEXA_ESCROW_SETTINGS = Object.freeze({
     minAmount: '1.00',
     maxAmount: '100000.00',
@@ -1226,6 +1227,7 @@
     };
     appState.account.latestWithdrawal = appState.account.withdrawals[0] || null;
     renderAccount(appState);
+    appState.lastWithdrawalPollAt = Date.now();
   }
 
   function maskEscrowNickname(nickname) {
@@ -1328,6 +1330,18 @@
       });
       if (hasExpiredReceipt && !appState.bootstrapRefreshing && !appState.ordersRefreshing) {
         refreshEscrowOrders(appState).catch(() => {});
+      }
+      const hasPendingWithdrawals = Array.isArray(appState.account?.withdrawals)
+        && appState.account.withdrawals.some((item) => String(item?.status || '').trim().toLowerCase() === 'pending');
+      const shouldPollWithdrawals =
+        appState.activeTab === 'account'
+        && hasPendingWithdrawals
+        && !appState.bootstrapRefreshing
+        && !appState.accountRefreshing
+        && Date.now() - Number(appState.lastWithdrawalPollAt || 0) >= NEXA_ESCROW_WITHDRAW_POLL_INTERVAL_MS;
+      if (shouldPollWithdrawals) {
+        appState.lastWithdrawalPollAt = Date.now();
+        syncLatestEscrowWithdrawalStatus(appState).catch(() => {});
       }
     }, 1000);
   }
@@ -1468,6 +1482,7 @@
       activeTab: 'create',
       orderFilter: 'all',
       withdrawalsPage: 1,
+      lastWithdrawalPollAt: 0,
       bootstrapRefreshing: false,
       ordersPullStartY: 0,
       ordersPullDistance: 0,

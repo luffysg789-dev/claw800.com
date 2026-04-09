@@ -186,7 +186,10 @@ test('nexa-escrow script includes Nexa auth, escrow bootstrap, order, and paymen
   assert.match(js, /latestWithdrawalLabel: '最新提现记录'/);
   assert.match(js, /withdrawStatusReviewPending: '待审核'/);
   assert.match(js, /withdrawStatusPending: '处理中'/);
-  assert.match(js, /withdrawStatusSuccess: '已通过到账'/);
+  assert.match(js, /withdrawStatusSuccess: '已到账'/);
+  assert.match(js, /const NEXA_ESCROW_WITHDRAW_POLL_INTERVAL_MS = 15000;/);
+  assert.match(js, /lastWithdrawalPollAt:\s*0/);
+  assert.match(js, /syncLatestEscrowWithdrawalStatus\(appState\)\.catch\(\(\) => \{\}\);/);
   assert.match(js, /const NEXA_ESCROW_WITHDRAWALS_PER_PAGE = 5;/);
   assert.match(js, /const DEFAULT_NEXA_ESCROW_SETTINGS = Object\.freeze\(\{/);
   assert.match(js, /minAmount:\s*'1\.00'/);
