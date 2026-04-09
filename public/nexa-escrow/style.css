@@ -457,6 +457,38 @@ body {
   gap: 8px;
 }
 
+.nexa-escrow-account-item__nickname-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.nexa-escrow-account-item__nickname-row .nexa-escrow-label {
+  white-space: nowrap;
+}
+
+.nexa-escrow-account-item__nickname-input {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 0.82rem;
+  line-height: 1.2;
+  color: var(--escrow-text);
+}
+
+.nexa-escrow-account-item__nickname-input::placeholder {
+  color: #7f8695;
+}
+
+.nexa-escrow-account-item__nickname-input:disabled {
+  opacity: 1;
+  color: var(--escrow-text);
+  -webkit-text-fill-color: var(--escrow-text);
+}
+
 .nexa-escrow-account-item__head {
   display: flex;
   align-items: center;
