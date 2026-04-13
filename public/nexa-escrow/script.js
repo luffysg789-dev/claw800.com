@@ -8,6 +8,7 @@
   const NEXA_ESCROW_REFRESH_FEEDBACK_MS = 520;
   const NEXA_ESCROW_WITHDRAWALS_PER_PAGE = 5;
   const NEXA_ESCROW_WITHDRAW_POLL_INTERVAL_MS = 15000;
+  const NEXA_ESCROW_PAYMENT_RETURN_GRACE_MS = 30 * 60 * 1000;
   const DEFAULT_NEXA_ESCROW_SETTINGS = Object.freeze({
     minAmount: '1.00',
     maxAmount: '100000.00',
@@ -84,7 +85,7 @@
       safeTitle: '安全提醒',
       safeBody: '请务必收到货物/服务后再点击“确认收货”。如有疑问，请立即点击“去申诉”。申诉处理请联系nexa客服。',
       actionFund: '支付担保金',
-      actionDeliver: '发货',
+      actionDeliver: '确认发货/确认已付法币',
       actionConfirmReceipt: '收到货去放款',
       actionDispute: '去申诉',
       actionCancel: '取消订单',
@@ -279,6 +280,13 @@
     } catch {
       return null;
     }
+  }
+
+  function hasRecentPendingPaymentReturn(storage = getStorage()) {
+    const pending = loadPendingPayment(storage);
+    if (!pending?.orderNo) return false;
+    const createdAt = Number(pending.createdAt || 0);
+    return Number.isFinite(createdAt) && createdAt > 0 && Date.now() - createdAt <= NEXA_ESCROW_PAYMENT_RETURN_GRACE_MS;
   }
 
   function savePendingPayment(storage = getStorage(), order) {
@@ -1819,7 +1827,8 @@
     const appState = createApp(root);
 
     const synced = await syncSessionFromAuthCode(appState).catch(() => false);
-    if (hasNexaEnvironment() && !synced) {
+    const isPaymentReturn = hasRecentPendingPaymentReturn(appState.storage);
+    if (hasNexaEnvironment() && !synced && !isPaymentReturn) {
       clearCachedSession(appState.storage);
       appState.session = null;
       await clearServerSession();

@@ -122,7 +122,9 @@ test('nexa-escrow script includes Nexa auth, escrow bootstrap, order, and paymen
   assert.match(js, /\/api\/nexa-escrow\/orders\/action/);
   assert.match(js, /function beginNexaLoginFlow\(/);
   assert.match(js, /async function clearServerSession\(\)/);
-  assert.match(js, /hasNexaEnvironment\(\) && !synced/);
+  assert.match(js, /function hasRecentPendingPaymentReturn\(/);
+  assert.match(js, /const isPaymentReturn = hasRecentPendingPaymentReturn\(appState\.storage\);/);
+  assert.match(js, /hasNexaEnvironment\(\) && !synced && !isPaymentReturn/);
   assert.match(js, /function createEscrowOrder\(/);
   assert.match(js, /function beginEscrowPayment\(/);
   assert.match(js, /function settlePendingEscrowPayment\(/);
