@@ -22,8 +22,8 @@
       tabCreate: '发起担保',
       tabOrders: '我的订单',
       tabAccount: '账户中心',
-      roleBuyer: '付u方/买物方',
-      roleSeller: '买u方/发货方',
+      roleBuyer: '我要卖u/付u买物',
+      roleSeller: '我要买u/收u发货',
       amountLabel: '金额 (USDT)',
       counterpartySellerLabel: '卖方担保号',
       counterpartyBuyerLabel: '买方担保号',
@@ -466,6 +466,12 @@
     } catch {
       return null;
     }
+  }
+
+  async function clearServerSession() {
+    try {
+      await postJson('/api/nexa-escrow/session/logout', {});
+    } catch {}
   }
 
   async function createEscrowOrder(appState) {
@@ -1813,6 +1819,13 @@
     const appState = createApp(root);
 
     const synced = await syncSessionFromAuthCode(appState).catch(() => false);
+    if (hasNexaEnvironment() && !synced) {
+      clearCachedSession(appState.storage);
+      appState.session = null;
+      await clearServerSession();
+      await beginNexaLoginFlow().catch(() => {});
+      return;
+    }
     if (!appState.session && !synced) {
       const currentSession = await readServerSession();
       if (currentSession) {

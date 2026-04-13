@@ -114,12 +114,15 @@ test('nexa-escrow script includes Nexa auth, escrow bootstrap, order, and paymen
   assert.match(js, /const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth:\/\/oauth\/authorize';/);
   assert.match(js, /const NEXA_PROTOCOL_ORDER_BASE = 'nexaauth:\/\/order';/);
   assert.match(js, /\/api\/nexa-escrow\/session/);
+  assert.match(js, /\/api\/nexa-escrow\/session\/logout/);
   assert.match(js, /\/api\/nexa-escrow\/bootstrap/);
   assert.match(js, /\/api\/nexa-escrow\/orders/);
   assert.match(js, /\/api\/nexa-escrow\/payment\/create/);
   assert.match(js, /\/api\/nexa-escrow\/payment\/query/);
   assert.match(js, /\/api\/nexa-escrow\/orders\/action/);
   assert.match(js, /function beginNexaLoginFlow\(/);
+  assert.match(js, /async function clearServerSession\(\)/);
+  assert.match(js, /hasNexaEnvironment\(\) && !synced/);
   assert.match(js, /function createEscrowOrder\(/);
   assert.match(js, /function beginEscrowPayment\(/);
   assert.match(js, /function settlePendingEscrowPayment\(/);
@@ -139,8 +142,8 @@ test('nexa-escrow script includes Nexa auth, escrow bootstrap, order, and paymen
   assert.match(js, /function updateEscrowKeyboardInset\(/);
   assert.match(js, /visualViewport\?\.addEventListener\?\.\('resize'/);
   assert.match(js, /renderOrderDetail\(appState\);\s*renderOrders\(appState\);/);
-  assert.match(js, /roleBuyer: '付u方\/买物方'/);
-  assert.match(js, /roleSeller: '买u方\/发货方'/);
+  assert.match(js, /roleBuyer: '我要卖u\/付u买物'/);
+  assert.match(js, /roleSeller: '我要买u\/收u发货'/);
   assert.match(js, /viewerBuyer: '我是买家'/);
   assert.match(js, /viewerSeller: '我是卖家'/);
   assert.match(js, /descriptionTooLong: '交易描述最多 30 个字'/);
