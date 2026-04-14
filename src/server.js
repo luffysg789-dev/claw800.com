@@ -862,11 +862,16 @@ function getEscrowNicknameLengthWeight(value) {
 }
 
 function isValidEscrowNickname(value) {
+  return !getEscrowNicknameValidationError(value);
+}
+
+function getEscrowNicknameValidationError(value) {
   const normalized = normalizeEscrowNickname(value);
-  if (!normalized) return false;
-  if (!/^[\u4e00-\u9fa5A-Za-z0-9]+$/u.test(normalized)) return false;
+  if (!normalized) return 'ESCROW_NICKNAME_REQUIRED';
+  if (!/^[\u4e00-\u9fa5A-Za-z0-9]+$/u.test(normalized)) return 'ESCROW_NICKNAME_PUNCTUATION';
   const lengthWeight = getEscrowNicknameLengthWeight(normalized);
-  return lengthWeight >= 2 && lengthWeight <= 12;
+  if (lengthWeight > 12) return 'ESCROW_NICKNAME_TOO_LONG';
+  return '';
 }
 
 function requireNexaEscrowSession(req) {
@@ -4067,8 +4072,9 @@ app.post('/api/nexa-escrow/profile/nickname', (req, res) => {
     if (!escrowNickname) {
       return res.status(400).json({ ok: false, error: 'ESCROW_NICKNAME_REQUIRED' });
     }
-    if (!isValidEscrowNickname(escrowNickname)) {
-      return res.status(400).json({ ok: false, error: 'ESCROW_NICKNAME_INVALID' });
+    const nicknameError = getEscrowNicknameValidationError(escrowNickname);
+    if (nicknameError) {
+      return res.status(400).json({ ok: false, error: nicknameError });
     }
     const existingNicknameOwner = selectGameUserByEscrowNicknameStmt.get(escrowNickname);
     if (existingNicknameOwner && Number(existingNicknameOwner.id) !== Number(ensured.user.id)) {

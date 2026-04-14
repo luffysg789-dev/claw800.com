@@ -49,6 +49,8 @@
       nicknameLocked: '昵称已生成，无法修改',
       nicknameRequired: '请填写昵称',
       nicknameInvalid: '昵称最多 6 个中文或 12 个字母数字',
+      nicknamePunctuation: '昵称不能输入标点符号',
+      nicknameTooLong: '昵称最多 6 个中文或 12 个字母数字',
       nicknameTaken: '此昵称已被占用，请重新填写',
       copyAction: '复制',
       withdrawAction: '提现',
@@ -150,6 +152,8 @@
       nicknameLocked: 'Nickname is already locked.',
       nicknameRequired: 'Please enter a nickname',
       nicknameInvalid: 'Nickname supports up to 6 Chinese characters or 12 letters/numbers',
+      nicknamePunctuation: 'Nickname cannot include punctuation',
+      nicknameTooLong: 'Nickname supports up to 6 Chinese characters or 12 letters/numbers',
       nicknameTaken: 'Nickname is already taken. Please choose another one.',
       copyAction: 'Copy',
       withdrawAction: 'Withdraw',
@@ -1276,8 +1280,9 @@
     const targetStatus = appState.elements.codeModal?.hidden === false
       ? appState.elements.codeModalHint
       : appState.elements.accountStatus;
-    if (!isValidEscrowNickname(nickname)) {
-      setStatus(targetStatus, t(appState.locale, 'nicknameInvalid'), 'error');
+    const nicknameError = getEscrowNicknameValidationError(nickname);
+    if (nicknameError) {
+      setStatus(targetStatus, getEscrowNicknameErrorText(appState.locale, nicknameError), 'error');
       return;
     }
     setStatus(targetStatus, t(appState.locale, 'processing'));
@@ -1451,12 +1456,27 @@
     ), 0);
   }
 
-  function isValidEscrowNickname(value) {
+  function getEscrowNicknameValidationError(value) {
     const normalized = String(value || '').trim();
-    if (!normalized) return false;
-    if (!/^[\u4e00-\u9fa5A-Za-z0-9]+$/u.test(normalized)) return false;
+    if (!normalized) return 'ESCROW_NICKNAME_REQUIRED';
+    if (!/^[\u4e00-\u9fa5A-Za-z0-9]+$/u.test(normalized)) return 'ESCROW_NICKNAME_PUNCTUATION';
     const lengthWeight = getEscrowNicknameLengthWeight(normalized);
-    return lengthWeight >= 2 && lengthWeight <= 12;
+    if (lengthWeight > 12) return 'ESCROW_NICKNAME_TOO_LONG';
+    return '';
+  }
+
+  function isValidEscrowNickname(value) {
+    return !getEscrowNicknameValidationError(value);
+  }
+
+  function getEscrowNicknameErrorText(locale, message) {
+    if (message === 'ESCROW_NICKNAME_REQUIRED') return t(locale, 'nicknameRequired');
+    if (message === 'ESCROW_NICKNAME_PUNCTUATION') return t(locale, 'nicknamePunctuation');
+    if (message === 'ESCROW_NICKNAME_TOO_LONG') return t(locale, 'nicknameTooLong');
+    if (message === 'ESCROW_NICKNAME_INVALID') return t(locale, 'nicknameInvalid');
+    if (message === 'ESCROW_NICKNAME_TAKEN') return t(locale, 'nicknameTaken');
+    if (message === 'ESCROW_NICKNAME_LOCKED') return t(locale, 'nicknameLocked');
+    return String(message || '保存失败');
   }
 
   async function refreshEscrowAccount(appState) {
@@ -1760,14 +1780,7 @@
     appState.elements.codeModalConfirm?.addEventListener('click', () => {
       saveEscrowNickname(appState).catch((error) => {
         const message = error instanceof Error ? error.message : '';
-        const resolvedMessage = message === 'ESCROW_NICKNAME_REQUIRED'
-          ? t(appState.locale, 'nicknameRequired')
-          : (message === 'ESCROW_NICKNAME_INVALID'
-            ? t(appState.locale, 'nicknameInvalid')
-            : (message === 'ESCROW_NICKNAME_TAKEN'
-              ? t(appState.locale, 'nicknameTaken')
-              : (message === 'ESCROW_NICKNAME_LOCKED' ? t(appState.locale, 'nicknameLocked') : message || '保存失败')));
-        setStatus(appState.elements.codeModalHint, resolvedMessage, 'error');
+        setStatus(appState.elements.codeModalHint, getEscrowNicknameErrorText(appState.locale, message), 'error');
       });
     });
     appState.elements.accountCodeCopy?.addEventListener('click', async () => {
@@ -1793,14 +1806,7 @@
         appState.elements.nicknameSaveBtn?.addEventListener('click', () => {
           saveEscrowNickname(appState).catch((error) => {
             const message = error instanceof Error ? error.message : '';
-            const resolvedMessage = message === 'ESCROW_NICKNAME_REQUIRED'
-              ? t(appState.locale, 'nicknameRequired')
-              : (message === 'ESCROW_NICKNAME_INVALID'
-                ? t(appState.locale, 'nicknameInvalid')
-                : (message === 'ESCROW_NICKNAME_TAKEN'
-                  ? t(appState.locale, 'nicknameTaken')
-                  : (message === 'ESCROW_NICKNAME_LOCKED' ? t(appState.locale, 'nicknameLocked') : message || '保存失败')));
-            setStatus(appState.elements.accountStatus, resolvedMessage, 'error');
+            setStatus(appState.elements.accountStatus, getEscrowNicknameErrorText(appState.locale, message), 'error');
           });
         });
         appState.elements.withdrawCancel?.addEventListener('click', () => {

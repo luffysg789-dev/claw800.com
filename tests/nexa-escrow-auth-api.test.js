@@ -696,6 +696,46 @@ test('nexa-escrow nickname must be unique across users', async () => {
   }
 });
 
+test('nexa-escrow nickname accepts Chinese English number mixes and rejects punctuation', async () => {
+  const harness = createHarness();
+
+  try {
+    const validSync = await harness.request('POST', '/api/nexa-escrow/session', {
+      openId: 'escrow-nickname-mixed-open-id',
+      sessionKey: 'escrow-nickname-mixed-session-key',
+      nickname: 'Mixed User'
+    });
+    const validCookie = JSON.parse(validSync.headers['set-cookie'][0]);
+
+    const validNicknameResponse = await harness.request('POST', '/api/nexa-escrow/profile/nickname', {
+      nickname: '苹果A12'
+    }, {
+      cookies: { [validCookie.name]: validCookie.value }
+    });
+    assert.equal(validNicknameResponse.statusCode, 200);
+    assert.equal(validNicknameResponse.body.ok, true);
+    assert.equal(validNicknameResponse.body.account.escrowNickname, '苹果A12');
+
+    const punctuationSync = await harness.request('POST', '/api/nexa-escrow/session', {
+      openId: 'escrow-nickname-punctuation-open-id',
+      sessionKey: 'escrow-nickname-punctuation-session-key',
+      nickname: 'Punctuation User'
+    });
+    const punctuationCookie = JSON.parse(punctuationSync.headers['set-cookie'][0]);
+
+    const punctuationNicknameResponse = await harness.request('POST', '/api/nexa-escrow/profile/nickname', {
+      nickname: '苹果-A12'
+    }, {
+      cookies: { [punctuationCookie.name]: punctuationCookie.value }
+    });
+    assert.equal(punctuationNicknameResponse.statusCode, 400);
+    assert.equal(punctuationNicknameResponse.body.ok, false);
+    assert.equal(punctuationNicknameResponse.body.error, 'ESCROW_NICKNAME_PUNCTUATION');
+  } finally {
+    harness.cleanup();
+  }
+});
+
 test('nexa-escrow withdrawals below 100 USDT auto-submit and still appear in admin/user records', async () => {
   const harness = createHarness({
     mockWithdrawResponse(payload) {

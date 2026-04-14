@@ -161,6 +161,10 @@ test('nexa-escrow script includes Nexa auth, escrow bootstrap, order, and paymen
   assert.match(js, /nicknameLocked: '昵称已生成，无法修改'/);
   assert.match(js, /nicknameRequired: '请填写昵称'/);
   assert.match(js, /nicknameInvalid: '昵称最多 6 个中文或 12 个字母数字'/);
+  assert.match(js, /nicknamePunctuation: '昵称不能输入标点符号'/);
+  assert.match(js, /nicknameTooLong: '昵称最多 6 个中文或 12 个字母数字'/);
+  assert.match(js, /function getEscrowNicknameValidationError\(/);
+  assert.match(js, /ESCROW_NICKNAME_PUNCTUATION/);
   assert.match(js, /nicknameTaken: '此昵称已被占用，请重新填写'/);
   assert.match(js, /\/api\/nexa-escrow\/profile\/nickname/);
   assert.match(js, /if \(!String\(appState\.account\?\.escrowNickname \|\| ''\)\.trim\(\)\) \{/);
