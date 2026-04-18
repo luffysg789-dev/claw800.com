@@ -45,6 +45,8 @@ const PMINING_SESSION_COOKIE_NAME = 'p_mining_session';
 const PMINING_SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const TIGANG_SESSION_COOKIE_NAME = 'tigang_master_session';
 const TIGANG_SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+const NCHAT_SESSION_COOKIE_NAME = 'nchat_session';
+const NCHAT_SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 // Use COOKIE_SECURE=true in production HTTPS; keep false for localhost HTTP.
 const COOKIE_SECURE = String(process.env.COOKIE_SECURE || '') === 'true';
 const TRUST_PROXY = String(process.env.TRUST_PROXY || 'loopback, linklocal, uniquelocal').trim();
@@ -89,6 +91,7 @@ const PMINING_POWER_PAYMENT_OPTIONS = {
 const pMiningPaymentOrders = new Map();
 const nexaEscrowPaymentOrders = new Map();
 const nexaEscrowEventStreams = new Map();
+const nchatEventStreams = new Map();
 const xiangqiRoomEventStreams = new Map();
 let preferredNexaPaymentVariantName = 'github-doc-strict';
 
@@ -403,6 +406,40 @@ function buildNexaEscrowCookieSession(payload = {}) {
     openId: String(payload.openId || '').trim(),
     sessionKey: String(payload.sessionKey || '').trim(),
     nickname: String(payload.nickname || 'Nexa User').trim() || 'Nexa User',
+    avatar: String(payload.avatar || '').trim(),
+    savedAt: Date.now()
+  };
+}
+
+function encodeNchatSessionCookie(session) {
+  return Buffer.from(JSON.stringify(session), 'utf8').toString('base64url');
+}
+
+function decodeNchatSessionCookie(raw) {
+  try {
+    const decoded = Buffer.from(String(raw || '').trim(), 'base64url').toString('utf8');
+    const parsed = JSON.parse(decoded);
+    if (!parsed || typeof parsed !== 'object') return null;
+    const openId = String(parsed.openId || '').trim();
+    const sessionKey = String(parsed.sessionKey || '').trim();
+    if (!openId || !sessionKey) return null;
+    return {
+      openId,
+      sessionKey,
+      nickname: String(parsed.nickname || '').trim(),
+      avatar: String(parsed.avatar || '').trim(),
+      savedAt: Number(parsed.savedAt || 0) || Date.now()
+    };
+  } catch {
+    return null;
+  }
+}
+
+function buildNchatCookieSession(payload = {}) {
+  return {
+    openId: String(payload.openId || '').trim(),
+    sessionKey: String(payload.sessionKey || '').trim(),
+    nickname: String(payload.nickname || '').trim(),
     avatar: String(payload.avatar || '').trim(),
     savedAt: Date.now()
   };
@@ -884,6 +921,215 @@ function requireNexaEscrowSession(req) {
     throw error;
   }
   return session;
+}
+
+function requireNchatSession(req) {
+  const session = decodeNchatSessionCookie(req.cookies?.[NCHAT_SESSION_COOKIE_NAME]);
+  if (!session) {
+    const error = new Error('UNAUTHORIZED');
+    error.statusCode = 401;
+    throw error;
+  }
+  return session;
+}
+
+function createNchatChatId() {
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const chatId = String(crypto.randomInt(0, 100000000)).padStart(8, '0');
+    if (!selectNchatUserByChatIdStmt.get(chatId)) return chatId;
+  }
+  throw new Error('NCHAT_CHAT_ID_GENERATION_FAILED');
+}
+
+function formatNchatUser(row) {
+  return {
+    id: Number(row?.id || 0) || 0,
+    openId: String(row?.openid || '').trim(),
+    chatId: String(row?.chat_id || '').trim(),
+    nickname: String(row?.nickname || '').trim(),
+    avatarUrl: String(row?.avatar_url || '').trim(),
+    createdAt: String(row?.created_at || '').trim(),
+    updatedAt: String(row?.updated_at || '').trim()
+  };
+}
+
+function getNchatUserSummary(userId) {
+  if (!userId) return null;
+  const row = selectNchatUserByIdStmt.get(Number(userId));
+  if (!row) return null;
+  return formatNchatUser(row);
+}
+
+function ensureNchatUserAccount(session) {
+  const openId = String(session?.openId || '').trim();
+  if (!openId) {
+    const error = new Error('UNAUTHORIZED');
+    error.statusCode = 401;
+    throw error;
+  }
+
+  let row = selectNchatUserByOpenIdStmt.get(openId);
+  if (!row) {
+    insertNchatUserStmt.run(
+      openId,
+      createNchatChatId(),
+      String(session?.nickname || '').trim(),
+      String(session?.avatar || '').trim()
+    );
+    row = selectNchatUserByOpenIdStmt.get(openId);
+  } else if (
+    (!String(row.nickname || '').trim() && String(session?.nickname || '').trim()) ||
+    (!String(row.avatar_url || '').trim() && String(session?.avatar || '').trim())
+  ) {
+    updateNchatUserIdentityHintsStmt.run(
+      String(session?.nickname || '').trim(),
+      String(session?.avatar || '').trim(),
+      Number(row.id)
+    );
+    row = selectNchatUserByOpenIdStmt.get(openId);
+  }
+
+  return formatNchatUser(row);
+}
+
+function getOrderedNchatPair(firstUserId, secondUserId) {
+  const a = Number(firstUserId || 0) || 0;
+  const b = Number(secondUserId || 0) || 0;
+  return a < b ? [a, b] : [b, a];
+}
+
+function ensureNchatConversationForUsers(firstUserId, secondUserId) {
+  const [lowId, highId] = getOrderedNchatPair(firstUserId, secondUserId);
+  if (!lowId || !highId || lowId === highId) {
+    const error = new Error('INVALID_NCHAT_FRIEND_TARGET');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  let conversation = selectNchatConversationByUsersStmt.get(lowId, highId);
+  if (!conversation) {
+    const tx = db.transaction(() => {
+      insertNchatConversationStmt.run(lowId, highId);
+      const created = selectNchatConversationByUsersStmt.get(lowId, highId);
+      insertNchatFriendshipStmt.run(lowId, highId, Number(created.id));
+      insertNchatFriendshipStmt.run(highId, lowId, Number(created.id));
+      upsertNchatInboxStateStmt.run(lowId, Number(created.id), 0, null);
+      upsertNchatInboxStateStmt.run(highId, Number(created.id), 0, null);
+      return created;
+    });
+    conversation = tx();
+  } else {
+    insertNchatFriendshipStmt.run(lowId, highId, Number(conversation.id));
+    insertNchatFriendshipStmt.run(highId, lowId, Number(conversation.id));
+    upsertNchatInboxStateStmt.run(lowId, Number(conversation.id), 0, null);
+    upsertNchatInboxStateStmt.run(highId, Number(conversation.id), 0, null);
+  }
+
+  return conversation;
+}
+
+function requireNchatConversationForUser(conversationId, userId) {
+  const conversation = selectNchatConversationByIdStmt.get(Number(conversationId || 0));
+  const normalizedUserId = Number(userId || 0) || 0;
+  if (!conversation || !normalizedUserId) {
+    const error = new Error('NCHAT_CONVERSATION_NOT_FOUND');
+    error.statusCode = 404;
+    throw error;
+  }
+  if (Number(conversation.user_low_id) !== normalizedUserId && Number(conversation.user_high_id) !== normalizedUserId) {
+    const error = new Error('FORBIDDEN');
+    error.statusCode = 403;
+    throw error;
+  }
+  return conversation;
+}
+
+function formatNchatConversation(conversation, viewerUserId) {
+  const normalizedViewerUserId = Number(viewerUserId || 0) || 0;
+  const peerUserId = Number(conversation?.user_low_id || 0) === normalizedViewerUserId
+    ? Number(conversation?.user_high_id || 0)
+    : Number(conversation?.user_low_id || 0);
+  const peer = getNchatUserSummary(peerUserId);
+  const inboxState = selectNchatInboxStateStmt.get(normalizedViewerUserId, Number(conversation?.id || 0));
+  return {
+    id: Number(conversation?.id || 0) || 0,
+    chatId: String(peer?.chatId || '').trim(),
+    nickname: String(peer?.nickname || '').trim() || 'Nchat 用户',
+    avatarUrl: String(peer?.avatarUrl || '').trim(),
+    unreadCount: Number(inboxState?.unread_count || 0) || 0,
+    lastMessagePreview: String(conversation?.last_message_text || '').trim(),
+    lastMessageAt: String(conversation?.last_message_at || '').trim(),
+    updatedAt: String(conversation?.updated_at || '').trim()
+  };
+}
+
+function formatNchatMessage(message, viewerUserId) {
+  const normalizedViewerUserId = Number(viewerUserId || 0) || 0;
+  return {
+    id: Number(message?.id || 0) || 0,
+    conversationId: Number(message?.conversation_id || 0) || 0,
+    senderUserId: Number(message?.sender_user_id || 0) || 0,
+    receiverUserId: Number(message?.receiver_user_id || 0) || 0,
+    content: String(message?.content || '').trim(),
+    createdAt: String(message?.created_at || '').trim(),
+    isSelf: Number(message?.sender_user_id || 0) === normalizedViewerUserId
+  };
+}
+
+function buildNchatBootstrapPayload(session) {
+  const user = ensureNchatUserAccount(session);
+  const conversations = listNchatConversationsByUserStmt
+    .all(user.id, user.id)
+    .map((row) => ({
+      id: Number(row.conversation_id || 0) || 0,
+      chatId: String(row.peer_chat_id || '').trim(),
+      nickname: String(row.peer_nickname || '').trim() || 'Nchat 用户',
+      avatarUrl: String(row.peer_avatar_url || '').trim(),
+      unreadCount: Number(row.unread_count || 0) || 0,
+      lastMessagePreview: String(row.last_message_text || '').trim(),
+      lastMessageAt: String(row.last_message_at || '').trim(),
+      updatedAt: String(row.updated_at || '').trim()
+    }));
+
+  return {
+    user,
+    conversations,
+    profileSetupRequired: !String(user.nickname || '').trim() || !String(user.avatarUrl || '').trim()
+  };
+}
+
+function getNchatEventStreamSet(openId) {
+  const key = String(openId || '').trim();
+  if (!key) return null;
+  const existing = nchatEventStreams.get(key);
+  if (existing) return existing;
+  const next = new Set();
+  nchatEventStreams.set(key, next);
+  return next;
+}
+
+function emitNchatEvent(openId, event, payload = {}) {
+  const listeners = getNchatEventStreamSet(openId);
+  if (!listeners || !listeners.size) return;
+  const data = `event: ${String(event || 'nchat.message')}\ndata: ${JSON.stringify(payload)}\n\n`;
+  for (const res of listeners) {
+    try {
+      res.write(data);
+      if (typeof res.flush === 'function') res.flush();
+    } catch {}
+  }
+}
+
+function emitNchatConversationUpdate(conversationId) {
+  const conversation = selectNchatConversationByIdStmt.get(Number(conversationId || 0));
+  if (!conversation) return;
+  const lowUser = getNchatUserSummary(Number(conversation.user_low_id || 0));
+  const highUser = getNchatUserSummary(Number(conversation.user_high_id || 0));
+  [lowUser, highUser].filter(Boolean).forEach((user) => {
+    emitNchatEvent(user.openId, 'nchat.conversation-updated', {
+      conversationId: Number(conversation.id || 0)
+    });
+  });
 }
 
 function ensureNexaEscrowUserAccount(session) {
@@ -2632,6 +2878,7 @@ const DEFAULT_SKILLS_PAGE_BOT_PROMPT_EN = 'claw800.com is a curated OpenClaw ski
 const DEFAULT_SKILLS_PAGE_INSTALL_PROMPT_ZH = '你是 OpenClaw 用户的技能安装助手。现在请帮我安装技能「{{name}}」。\n技能简介：{{description}}\n技能分类：{{category}}\n详情链接：{{url}}\n请按这个流程执行：\n1. 先打开详情链接，阅读 README、SKILL.md 或安装说明。\n2. 用中文告诉我这个技能做什么、是否安全、安装后会影响什么。\n3. 如果需要环境变量、依赖或权限，先明确列出来，再征求我确认。\n4. 只有在我确认后，才开始安装。\n5. 安装完成后，告诉我验证方法、使用方法，以及如何卸载或回滚。\n不要跳过确认步骤，也不要一次性安装无关技能。';
 const DEFAULT_SKILLS_PAGE_INSTALL_PROMPT_EN = 'You are an OpenClaw skill installation assistant. Help me install the skill "{{name}}".\nSkill summary: {{description}}\nSkill category: {{category}}\nDetail URL: {{url}}\nFollow this process:\n1. Open the detail page and read the README, SKILL.md, or install docs.\n2. Explain what the skill does, whether it looks safe, and what it may change.\n3. List any dependencies, env vars, permissions, or prerequisites before installing.\n4. Wait for my confirmation before you run or install anything.\n5. After installation, tell me how to verify it, use it, and uninstall or roll it back.\nDo not skip confirmation and do not install unrelated skills.';
 const GAME_ROUTE_MAP = {
+  'nchat': '/nchat/',
   'sbti': '/sbti/',
   'nexa-escrow': '/nexa-escrow/',
   'tigang-master': '/tigang-master/',
@@ -4039,6 +4286,275 @@ app.get('/api/nexa/public-config', (_req, res) => {
   }
 });
 
+app.post('/api/nchat/session', (req, res) => {
+  try {
+    const session = buildNchatCookieSession(req.body || {});
+    if (!session.openId || !session.sessionKey) {
+      return res.status(400).json({ ok: false, error: 'openId 和 sessionKey 必填' });
+    }
+
+    const user = ensureNchatUserAccount(session);
+    res.cookie(NCHAT_SESSION_COOKIE_NAME, encodeNchatSessionCookie(session), {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: COOKIE_SECURE,
+      path: '/',
+      maxAge: NCHAT_SESSION_MAX_AGE_MS
+    });
+
+    return res.json({
+      ok: true,
+      session: {
+        ...session,
+        expiresAt: session.savedAt + NCHAT_SESSION_MAX_AGE_MS
+      },
+      user
+    });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 400) || 400;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'NCHAT_SESSION_SYNC_FAILED') });
+  }
+});
+
+app.get('/api/nchat/session', (req, res) => {
+  const session = decodeNchatSessionCookie(req.cookies?.[NCHAT_SESSION_COOKIE_NAME]);
+  if (!session) {
+    return res.status(401).json({ ok: false, error: 'UNAUTHORIZED' });
+  }
+  return res.json({
+    ok: true,
+    session: {
+      ...session,
+      expiresAt: Number(session.savedAt || Date.now()) + NCHAT_SESSION_MAX_AGE_MS
+    }
+  });
+});
+
+app.post('/api/nchat/session/logout', (_req, res) => {
+  res.clearCookie(NCHAT_SESSION_COOKIE_NAME, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: COOKIE_SECURE,
+    path: '/'
+  });
+  return res.json({ ok: true });
+});
+
+app.get('/api/nchat/bootstrap', (req, res) => {
+  try {
+    const session = requireNchatSession(req);
+    return res.json({
+      ok: true,
+      ...buildNchatBootstrapPayload(session)
+    });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 401) || 401;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'UNAUTHORIZED') });
+  }
+});
+
+app.post('/api/nchat/profile', (req, res) => {
+  try {
+    const session = requireNchatSession(req);
+    const user = ensureNchatUserAccount(session);
+    const nickname = String(req.body?.nickname || '').trim();
+    const avatarUrl = String(req.body?.avatarUrl || '').trim();
+    if (!nickname) {
+      return res.status(400).json({ ok: false, error: 'NCHAT_NICKNAME_REQUIRED' });
+    }
+    if (!avatarUrl) {
+      return res.status(400).json({ ok: false, error: 'NCHAT_AVATAR_REQUIRED' });
+    }
+    updateNchatUserProfileStmt.run(nickname, avatarUrl, user.id);
+    const payload = buildNchatBootstrapPayload(session);
+    return res.json({
+      ok: true,
+      user: payload.user,
+      profileSetupRequired: payload.profileSetupRequired
+    });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 400) || 400;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'NCHAT_PROFILE_SAVE_FAILED') });
+  }
+});
+
+app.get('/api/nchat/search', (req, res) => {
+  try {
+    const session = requireNchatSession(req);
+    const user = ensureNchatUserAccount(session);
+    const keyword = String(req.query?.q || '').trim();
+    if (!keyword) {
+      return res.json({ ok: true, items: [] });
+    }
+    const normalizedChatId = /^\d{8}$/.test(keyword) ? keyword : '';
+    const items = searchNchatUsersByKeywordStmt
+      .all(
+        user.id,
+        normalizedChatId,
+        `%${keyword.replace(/[%_]/g, '')}%`,
+        normalizedChatId
+      )
+      .map((row) => {
+        const friendRow = selectNchatFriendshipStmt.get(user.id, Number(row.id));
+        return {
+          id: Number(row.id || 0) || 0,
+          chatId: String(row.chat_id || '').trim(),
+          nickname: String(row.nickname || '').trim() || 'Nchat 用户',
+          avatarUrl: String(row.avatar_url || '').trim(),
+          isFriend: Boolean(friendRow)
+        };
+      });
+    return res.json({ ok: true, items });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 400) || 400;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'NCHAT_SEARCH_FAILED') });
+  }
+});
+
+app.post('/api/nchat/friends', (req, res) => {
+  try {
+    const session = requireNchatSession(req);
+    const user = ensureNchatUserAccount(session);
+    const targetChatId = String(req.body?.targetChatId || '').trim();
+    const targetUserId = Number(req.body?.targetUserId || 0) || 0;
+    const target = targetUserId
+      ? getNchatUserSummary(targetUserId)
+      : formatNchatUser(selectNchatUserByChatIdStmt.get(targetChatId));
+    if (!target?.id || Number(target.id) === Number(user.id)) {
+      return res.status(400).json({ ok: false, error: 'NCHAT_INVALID_FRIEND_TARGET' });
+    }
+    const conversation = ensureNchatConversationForUsers(user.id, target.id);
+    emitNchatConversationUpdate(Number(conversation.id));
+    return res.json({
+      ok: true,
+      conversation: formatNchatConversation(conversation, user.id)
+    });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 400) || 400;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'NCHAT_ADD_FRIEND_FAILED') });
+  }
+});
+
+app.get('/api/nchat/conversations/:conversationId/messages', (req, res) => {
+  try {
+    const session = requireNchatSession(req);
+    const user = ensureNchatUserAccount(session);
+    const conversation = requireNchatConversationForUser(req.params.conversationId, user.id);
+    const items = listNchatMessagesByConversationStmt
+      .all(Number(conversation.id))
+      .map((message) => formatNchatMessage(message, user.id));
+    return res.json({ ok: true, items });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 400) || 400;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'NCHAT_MESSAGES_FETCH_FAILED') });
+  }
+});
+
+app.post('/api/nchat/conversations/:conversationId/messages', (req, res) => {
+  try {
+    const session = requireNchatSession(req);
+    const user = ensureNchatUserAccount(session);
+    const conversation = requireNchatConversationForUser(req.params.conversationId, user.id);
+    const content = String(req.body?.content || '').trim();
+    if (!content) {
+      return res.status(400).json({ ok: false, error: 'NCHAT_MESSAGE_REQUIRED' });
+    }
+    const receiverUserId = Number(conversation.user_low_id || 0) === Number(user.id)
+      ? Number(conversation.user_high_id || 0)
+      : Number(conversation.user_low_id || 0);
+    const tx = db.transaction(() => {
+      upsertNchatInboxStateStmt.run(Number(user.id), Number(conversation.id), 0, null);
+      upsertNchatInboxStateStmt.run(receiverUserId, Number(conversation.id), 0, null);
+      const result = insertNchatMessageStmt.run(Number(conversation.id), Number(user.id), receiverUserId, content);
+      const message = selectNchatMessageByIdStmt.get(Number(result.lastInsertRowid || 0));
+      incrementNchatInboxUnreadStmt.run(receiverUserId, Number(conversation.id));
+      updateNchatConversationLastMessageStmt.run(content, Number(conversation.id));
+      return message;
+    });
+    const message = tx();
+    const senderSummary = getNchatUserSummary(Number(user.id));
+    const receiverSummary = getNchatUserSummary(receiverUserId);
+    emitNchatEvent(String(receiverSummary?.openId || '').trim(), 'nchat.message', {
+      conversationId: Number(conversation.id),
+      message: formatNchatMessage(message, receiverUserId)
+    });
+    emitNchatEvent(String(senderSummary?.openId || '').trim(), 'nchat.conversation-updated', {
+      conversationId: Number(conversation.id)
+    });
+    emitNchatEvent(String(receiverSummary?.openId || '').trim(), 'nchat.conversation-updated', {
+      conversationId: Number(conversation.id)
+    });
+    return res.json({
+      ok: true,
+      message: formatNchatMessage(message, user.id)
+    });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 400) || 400;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'NCHAT_MESSAGE_SEND_FAILED') });
+  }
+});
+
+app.post('/api/nchat/conversations/:conversationId/read', (req, res) => {
+  try {
+    const session = requireNchatSession(req);
+    const user = ensureNchatUserAccount(session);
+    const conversation = requireNchatConversationForUser(req.params.conversationId, user.id);
+    const latestMessage = selectLatestNchatMessageByConversationStmt.get(Number(conversation.id));
+    upsertNchatInboxStateStmt.run(Number(user.id), Number(conversation.id), 0, null);
+    clearNchatInboxUnreadStmt.run(Number(latestMessage?.id || 0) || null, Number(user.id), Number(conversation.id));
+    emitNchatConversationUpdate(Number(conversation.id));
+    return res.json({
+      ok: true,
+      unreadCount: 0
+    });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 400) || 400;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'NCHAT_READ_FAILED') });
+  }
+});
+
+app.get('/api/nchat/events', (req, res) => {
+  let session;
+  try {
+    session = requireNchatSession(req);
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 401) || 401;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'UNAUTHORIZED') });
+  }
+
+  const openId = String(session.openId || '').trim();
+  if (!openId) {
+    return res.status(401).json({ ok: false, error: 'UNAUTHORIZED' });
+  }
+
+  res.statusCode = 200;
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  if (typeof res.flushHeaders === 'function') res.flushHeaders();
+
+  const listeners = getNchatEventStreamSet(openId);
+  listeners.add(res);
+  const heartbeat = setInterval(() => {
+    try {
+      res.write('event: ping\ndata: {}\n\n');
+    } catch {}
+  }, 60000);
+
+  const cleanup = () => {
+    clearInterval(heartbeat);
+    listeners.delete(res);
+    if (!listeners.size) {
+      nchatEventStreams.delete(openId);
+    }
+  };
+  req.on('close', cleanup);
+  res.on('close', cleanup);
+
+  res.write('event: nchat.conversation-updated\ndata: {"bootstrap":true}\n\n');
+});
+
 app.post('/api/nexa-escrow/session', (req, res) => {
   const session = buildNexaEscrowCookieSession(req.body || {});
   if (!session.openId || !session.sessionKey) {
@@ -4502,6 +5018,25 @@ app.get('/api/admin/nexa-tip-orders', requireAdmin, (_req, res) => {
     return res.json({ ok: true, items });
   } catch (error) {
     return res.status(500).json({ ok: false, error: String(error?.message || 'NEXA_TIP_ADMIN_ORDERS_FAILED') });
+  }
+});
+
+app.get('/api/admin/nchat-users', requireAdmin, (_req, res) => {
+  try {
+    const items = listAdminNchatUsersStmt.all().map((row) => ({
+      userId: Number(row.id || 0) || 0,
+      openId: String(row.openid || '').trim(),
+      chatId: String(row.chat_id || '').trim(),
+      nickname: String(row.nickname || '').trim(),
+      avatarUrl: String(row.avatar_url || '').trim(),
+      friendCount: Number(row.friend_count || 0) || 0,
+      conversationCount: Number(row.conversation_count || 0) || 0,
+      createdAt: String(row.created_at || '').trim(),
+      updatedAt: String(row.updated_at || '').trim()
+    }));
+    return res.json({ ok: true, items });
+  } catch (error) {
+    return res.status(500).json({ ok: false, error: String(error?.message || 'NCHAT_ADMIN_USERS_FAILED') });
   }
 });
 
@@ -5102,6 +5637,131 @@ const updateGameUserEscrowCodeStmt = db.prepare(
 const updateGameUserEscrowNicknameStmt = db.prepare(
   'UPDATE game_users SET escrow_nickname = ?, updated_at = datetime(\'now\') WHERE id = ?'
 );
+const selectNchatUserByIdStmt = db.prepare(
+  'SELECT id, openid, chat_id, nickname, avatar_url, created_at, updated_at FROM nchat_users WHERE id = ?'
+);
+const selectNchatUserByOpenIdStmt = db.prepare(
+  'SELECT id, openid, chat_id, nickname, avatar_url, created_at, updated_at FROM nchat_users WHERE openid = ?'
+);
+const selectNchatUserByChatIdStmt = db.prepare(
+  'SELECT id, openid, chat_id, nickname, avatar_url, created_at, updated_at FROM nchat_users WHERE chat_id = ?'
+);
+const insertNchatUserStmt = db.prepare(
+  'INSERT INTO nchat_users (openid, chat_id, nickname, avatar_url) VALUES (?, ?, ?, ?)'
+);
+const updateNchatUserProfileStmt = db.prepare(
+  'UPDATE nchat_users SET nickname = ?, avatar_url = ?, updated_at = datetime(\'now\') WHERE id = ?'
+);
+const updateNchatUserIdentityHintsStmt = db.prepare(
+  'UPDATE nchat_users SET nickname = CASE WHEN TRIM(COALESCE(nickname, \'\')) = \'\' THEN ? ELSE nickname END, avatar_url = CASE WHEN TRIM(COALESCE(avatar_url, \'\')) = \'\' THEN ? ELSE avatar_url END, updated_at = datetime(\'now\') WHERE id = ?'
+);
+const searchNchatUsersByKeywordStmt = db.prepare(`
+  SELECT id, openid, chat_id, nickname, avatar_url, created_at, updated_at
+  FROM nchat_users
+  WHERE id <> ?
+    AND (
+      chat_id = ?
+      OR nickname LIKE ?
+    )
+  ORDER BY
+    CASE WHEN chat_id = ? THEN 0 ELSE 1 END,
+    CASE WHEN TRIM(COALESCE(nickname, '')) <> '' THEN 0 ELSE 1 END,
+    updated_at DESC,
+    id DESC
+  LIMIT 20
+`);
+const selectNchatConversationByIdStmt = db.prepare(
+  'SELECT id, user_low_id, user_high_id, last_message_text, last_message_at, created_at, updated_at FROM nchat_conversations WHERE id = ?'
+);
+const selectNchatConversationByUsersStmt = db.prepare(
+  'SELECT id, user_low_id, user_high_id, last_message_text, last_message_at, created_at, updated_at FROM nchat_conversations WHERE user_low_id = ? AND user_high_id = ?'
+);
+const insertNchatConversationStmt = db.prepare(
+  'INSERT INTO nchat_conversations (user_low_id, user_high_id) VALUES (?, ?)'
+);
+const updateNchatConversationLastMessageStmt = db.prepare(
+  'UPDATE nchat_conversations SET last_message_text = ?, last_message_at = datetime(\'now\'), updated_at = datetime(\'now\') WHERE id = ?'
+);
+const insertNchatFriendshipStmt = db.prepare(
+  'INSERT OR IGNORE INTO nchat_friendships (user_id, friend_user_id, conversation_id) VALUES (?, ?, ?)'
+);
+const selectNchatFriendshipStmt = db.prepare(
+  'SELECT user_id, friend_user_id, conversation_id, created_at FROM nchat_friendships WHERE user_id = ? AND friend_user_id = ?'
+);
+const upsertNchatInboxStateStmt = db.prepare(`
+  INSERT INTO nchat_inbox_state (user_id, conversation_id, unread_count, last_read_message_id, created_at, updated_at)
+  VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
+  ON CONFLICT(user_id, conversation_id) DO UPDATE SET
+    unread_count = excluded.unread_count,
+    last_read_message_id = COALESCE(excluded.last_read_message_id, nchat_inbox_state.last_read_message_id),
+    updated_at = datetime('now')
+`);
+const incrementNchatInboxUnreadStmt = db.prepare(
+  'UPDATE nchat_inbox_state SET unread_count = unread_count + 1, updated_at = datetime(\'now\') WHERE user_id = ? AND conversation_id = ?'
+);
+const clearNchatInboxUnreadStmt = db.prepare(
+  'UPDATE nchat_inbox_state SET unread_count = 0, last_read_message_id = ?, updated_at = datetime(\'now\') WHERE user_id = ? AND conversation_id = ?'
+);
+const selectNchatInboxStateStmt = db.prepare(
+  'SELECT user_id, conversation_id, unread_count, last_read_message_id, created_at, updated_at FROM nchat_inbox_state WHERE user_id = ? AND conversation_id = ?'
+);
+const listNchatConversationsByUserStmt = db.prepare(`
+  SELECT
+    s.conversation_id,
+    s.unread_count,
+    s.last_read_message_id,
+    c.last_message_text,
+    c.last_message_at,
+    c.created_at,
+    c.updated_at,
+    u.id AS peer_user_id,
+    u.chat_id AS peer_chat_id,
+    u.nickname AS peer_nickname,
+    u.avatar_url AS peer_avatar_url
+  FROM nchat_inbox_state s
+  JOIN nchat_conversations c ON c.id = s.conversation_id
+  JOIN nchat_users u
+    ON u.id = CASE
+      WHEN c.user_low_id = ? THEN c.user_high_id
+      ELSE c.user_low_id
+    END
+  WHERE s.user_id = ?
+  ORDER BY
+    CASE
+      WHEN TRIM(COALESCE(c.last_message_at, '')) <> '' THEN c.last_message_at
+      ELSE c.created_at
+    END DESC,
+    c.id DESC
+`);
+const insertNchatMessageStmt = db.prepare(
+  'INSERT INTO nchat_messages (conversation_id, sender_user_id, receiver_user_id, content) VALUES (?, ?, ?, ?)'
+);
+const selectNchatMessageByIdStmt = db.prepare(
+  'SELECT id, conversation_id, sender_user_id, receiver_user_id, content, created_at FROM nchat_messages WHERE id = ?'
+);
+const selectLatestNchatMessageByConversationStmt = db.prepare(
+  'SELECT id, conversation_id, sender_user_id, receiver_user_id, content, created_at FROM nchat_messages WHERE conversation_id = ? ORDER BY id DESC LIMIT 1'
+);
+const listNchatMessagesByConversationStmt = db.prepare(
+  'SELECT id, conversation_id, sender_user_id, receiver_user_id, content, created_at FROM nchat_messages WHERE conversation_id = ? ORDER BY id ASC'
+);
+const listAdminNchatUsersStmt = db.prepare(`
+  SELECT
+    u.id,
+    u.openid,
+    u.chat_id,
+    u.nickname,
+    u.avatar_url,
+    u.created_at,
+    u.updated_at,
+    COUNT(DISTINCT f.friend_user_id) AS friend_count,
+    COUNT(DISTINCT s.conversation_id) AS conversation_count
+  FROM nchat_users u
+  LEFT JOIN nchat_friendships f ON f.user_id = u.id
+  LEFT JOIN nchat_inbox_state s ON s.user_id = u.id
+  GROUP BY u.id
+  ORDER BY u.updated_at DESC, u.id DESC
+`);
 const selectPMiningUserByUserIdStmt = db.prepare(`
   SELECT
     user_id,

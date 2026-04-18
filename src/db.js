@@ -265,6 +265,74 @@ db.exec(`
 `);
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS nchat_users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    openid TEXT NOT NULL UNIQUE,
+    chat_id TEXT NOT NULL UNIQUE,
+    nickname TEXT NOT NULL DEFAULT '',
+    avatar_url TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS nchat_conversations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_low_id INTEGER NOT NULL,
+    user_high_id INTEGER NOT NULL,
+    last_message_text TEXT NOT NULL DEFAULT '',
+    last_message_at TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(user_low_id, user_high_id),
+    FOREIGN KEY(user_low_id) REFERENCES nchat_users(id),
+    FOREIGN KEY(user_high_id) REFERENCES nchat_users(id)
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS nchat_friendships (
+    user_id INTEGER NOT NULL,
+    friend_user_id INTEGER NOT NULL,
+    conversation_id INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY(user_id, friend_user_id),
+    FOREIGN KEY(user_id) REFERENCES nchat_users(id),
+    FOREIGN KEY(friend_user_id) REFERENCES nchat_users(id),
+    FOREIGN KEY(conversation_id) REFERENCES nchat_conversations(id)
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS nchat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id INTEGER NOT NULL,
+    sender_user_id INTEGER NOT NULL,
+    receiver_user_id INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY(conversation_id) REFERENCES nchat_conversations(id),
+    FOREIGN KEY(sender_user_id) REFERENCES nchat_users(id),
+    FOREIGN KEY(receiver_user_id) REFERENCES nchat_users(id)
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS nchat_inbox_state (
+    user_id INTEGER NOT NULL,
+    conversation_id INTEGER NOT NULL,
+    unread_count INTEGER NOT NULL DEFAULT 0,
+    last_read_message_id INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY(user_id, conversation_id),
+    FOREIGN KEY(user_id) REFERENCES nchat_users(id),
+    FOREIGN KEY(conversation_id) REFERENCES nchat_conversations(id)
+  );
+`);
+
+db.exec(`
   CREATE TABLE IF NOT EXISTS nexa_escrow_wallets (
     user_id INTEGER PRIMARY KEY,
     currency TEXT NOT NULL DEFAULT 'USDT',
@@ -729,6 +797,17 @@ db.exec(`
 `);
 
 const DEFAULT_GAMES_CATALOG = [
+  {
+    slug: 'nchat',
+    name: 'Nchat',
+    description: 'Nexa App 内的轻量聊天 H5，支持授权登录、搜索加好友与实时单聊。',
+    cover_image: '',
+    secondary_image: '',
+    sound_file: '',
+    background_music_file: '',
+    is_enabled: 1,
+    sort_order: 57
+  },
   {
     slug: 'sbti',
     name: 'SBTI',

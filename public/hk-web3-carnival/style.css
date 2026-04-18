@@ -1,0 +1,561 @@
+:root {
+  color-scheme: light;
+  --carnival-bg: #f5f7fb;
+  --carnival-card: #ffffff;
+  --carnival-border: #e4e9f2;
+  --carnival-text: #19202d;
+  --carnival-muted: #677489;
+  --carnival-accent: #2078ff;
+  --carnival-accent-strong: #0f61df;
+  --carnival-live: #18a058;
+  --carnival-upcoming: #f39b1b;
+  --carnival-ended: #8a94a6;
+  --carnival-shadow: 0 18px 36px rgba(22, 30, 45, 0.08);
+  --carnival-radius: 24px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background:
+    radial-gradient(circle at top left, rgba(35, 120, 255, 0.08), transparent 24%),
+    linear-gradient(180deg, #f9fbff 0%, #f3f6fb 100%);
+  color: var(--carnival-text);
+  font-family: "SF Pro Display", "PingFang SC", "Noto Sans SC", sans-serif;
+}
+
+body {
+  padding: 28px 18px 48px;
+}
+
+a {
+  color: inherit;
+}
+
+.carnival-shell {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 24px;
+}
+
+.carnival-back-link {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--carnival-border);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--carnival-shadow);
+  color: var(--carnival-text);
+  font-size: 2rem;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.carnival-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 320px;
+  padding: 44px;
+  border-radius: 30px;
+  background-color: #111827;
+  background-size: cover;
+  background-position: center;
+  box-shadow: var(--carnival-shadow);
+}
+
+.carnival-hero__overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(125deg, rgba(6, 12, 26, 0.9) 0%, rgba(10, 17, 33, 0.65) 48%, rgba(10, 17, 33, 0.3) 100%),
+    linear-gradient(180deg, rgba(14, 25, 46, 0.15), rgba(14, 25, 46, 0.55));
+}
+
+.carnival-hero__content {
+  position: relative;
+  z-index: 1;
+  max-width: 860px;
+  display: grid;
+  gap: 16px;
+  color: #fff;
+  margin: 0 auto;
+  justify-items: center;
+  text-align: center;
+}
+
+.carnival-hero__eyebrow {
+  display: none;
+}
+
+.carnival-hero__title {
+  margin: 0;
+  font-size: clamp(2rem, 4.1vw, 3.2rem);
+  line-height: 1.16;
+}
+
+.carnival-hero__description {
+  margin: 0;
+  max-width: 760px;
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.carnival-hero__meta {
+  display: none;
+}
+
+.carnival-hero__meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-weight: 600;
+}
+
+.carnival-hero__actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.carnival-hero__download,
+.carnival-hero__contact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 176px;
+  min-height: 54px;
+  padding: 0 28px;
+  border: 0;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #356dff 0%, #2159ff 100%);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  font-size: 1.02rem;
+  cursor: pointer;
+  box-shadow: 0 16px 28px rgba(32, 89, 255, 0.28);
+}
+
+.carnival-hero__download {
+  text-decoration: none;
+}
+
+.carnival-search-panel,
+.carnival-list-panel {
+  padding: 24px;
+  border-radius: var(--carnival-radius);
+  background: var(--carnival-card);
+  border: 1px solid var(--carnival-border);
+  box-shadow: var(--carnival-shadow);
+}
+
+.carnival-search-box {
+  display: grid;
+}
+
+.carnival-filter-row {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.carnival-field {
+  display: grid;
+  gap: 8px;
+}
+
+.carnival-field--search input {
+  height: 52px;
+}
+
+.carnival-field--filter select {
+  height: 48px;
+}
+
+.carnival-field__label {
+  color: var(--carnival-muted);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.carnival-field__label--desktop {
+  display: inline;
+}
+
+.carnival-field input,
+.carnival-field select {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px solid var(--carnival-border);
+  background: #f9fbff;
+  color: var(--carnival-text);
+  font: inherit;
+  outline: none;
+  appearance: none;
+}
+
+.carnival-field input:focus,
+.carnival-field select:focus {
+  border-color: rgba(32, 120, 255, 0.6);
+  box-shadow: 0 0 0 3px rgba(32, 120, 255, 0.12);
+}
+
+.carnival-list-panel__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.carnival-list-panel__title {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.carnival-list-panel__count {
+  color: var(--carnival-muted);
+  font-size: 0.96rem;
+}
+
+.carnival-event-list {
+  display: grid;
+  gap: 16px;
+}
+
+.carnival-event-card {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr) auto;
+  gap: 18px;
+  padding: 18px;
+  border: 1px solid var(--carnival-border);
+  border-radius: 22px;
+  background: #fff;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.carnival-event-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 30px rgba(24, 35, 58, 0.08);
+}
+
+.carnival-date-badge {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 6px;
+  min-height: 120px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #f5f8ff 0%, #eef3ff 100%);
+}
+
+.carnival-date-badge__month {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--carnival-muted);
+  text-transform: uppercase;
+}
+
+.carnival-date-badge__line {
+  width: 22px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(103, 116, 137, 0.28);
+}
+
+.carnival-date-badge__day {
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+
+.carnival-event-card__main {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 16px;
+  text-decoration: none;
+}
+
+.carnival-event-card__image {
+  overflow: hidden;
+  border-radius: 18px;
+  background: #edf1f7;
+  aspect-ratio: 16 / 10;
+}
+
+.carnival-event-card__image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.carnival-event-card__body {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.carnival-event-card__topline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.carnival-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.carnival-status--upcoming {
+  background: var(--carnival-upcoming);
+}
+
+.carnival-status--live {
+  background: var(--carnival-live);
+}
+
+.carnival-status--ended {
+  background: var(--carnival-ended);
+}
+
+.carnival-type {
+  color: var(--carnival-muted);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.carnival-event-card__title {
+  margin: 0;
+  font-size: 1.18rem;
+  line-height: 1.45;
+}
+
+.carnival-event-card__meta {
+  display: grid;
+  gap: 8px;
+  color: var(--carnival-muted);
+  font-size: 0.95rem;
+}
+
+.carnival-event-card__meta-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.carnival-event-card__meta-icon {
+  flex: 0 0 auto;
+  width: 18px;
+  text-align: center;
+}
+
+.carnival-event-card__action {
+  display: grid;
+  align-content: center;
+}
+
+.carnival-book-button,
+.carnival-load-more {
+  min-width: 104px;
+  min-height: 42px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--carnival-accent) 0%, var(--carnival-accent-strong) 100%);
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  text-decoration: none;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.carnival-empty {
+  margin: 16px 0 0;
+  color: var(--carnival-muted);
+  text-align: center;
+}
+
+.carnival-load-more-wrap {
+  display: flex;
+  justify-content: center;
+  padding-top: 12px;
+}
+
+.carnival-modal[hidden] {
+  display: none !important;
+}
+
+.carnival-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.carnival-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(9, 14, 26, 0.68);
+  cursor: pointer;
+}
+
+.carnival-modal__dialog {
+  position: relative;
+  z-index: 1;
+  width: min(360px, calc(100vw - 32px));
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+}
+
+.carnival-modal__image {
+  width: 100%;
+  display: block;
+  border-radius: 28px;
+  box-shadow: 0 20px 40px rgba(7, 12, 24, 0.3);
+}
+
+.carnival-modal__title {
+  margin: 0;
+  color: #fff;
+  font-size: 0.96rem;
+}
+
+@media (max-width: 860px) {
+  body {
+    padding: 18px 12px 36px;
+  }
+
+  .carnival-shell {
+    gap: 16px;
+  }
+
+  .carnival-hero,
+  .carnival-search-panel,
+  .carnival-list-panel {
+    padding: 18px;
+    border-radius: 22px;
+  }
+
+  .carnival-hero {
+    min-height: 228px;
+    padding: 28px 18px;
+    background-position: center top;
+  }
+
+  .carnival-hero__content {
+    gap: 12px;
+    max-width: 100%;
+  }
+
+  .carnival-hero__title {
+    font-size: 1.95rem;
+    line-height: 1.2;
+  }
+
+  .carnival-hero__description {
+    font-size: 0.92rem;
+    line-height: 1.45;
+  }
+
+  .carnival-search-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .carnival-search-panel {
+    padding: 14px 14px 16px;
+  }
+
+  .carnival-filter-row {
+    margin-top: 10px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .carnival-field {
+    gap: 0;
+  }
+
+  .carnival-field__label--desktop {
+    display: none;
+  }
+
+  .carnival-field--search input {
+    height: 44px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+  }
+
+  .carnival-field--filter select {
+    height: 38px;
+    padding: 0 10px;
+    border-radius: 10px;
+    font-size: 0.88rem;
+    color: #3f6cb8;
+    background:
+      linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
+    border-color: #cfe0ff;
+  }
+
+  .carnival-hero__download,
+  .carnival-hero__contact {
+    min-width: 134px;
+    min-height: 44px;
+    padding: 0 18px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+  }
+
+  .carnival-event-card {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .carnival-date-badge {
+    min-height: 82px;
+    grid-auto-flow: column;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .carnival-event-card__main {
+    grid-template-columns: 1fr;
+  }
+
+  .carnival-event-card__action {
+    justify-content: stretch;
+  }
+
+  .carnival-book-button,
+  .carnival-load-more {
+    width: 100%;
+  }
+}

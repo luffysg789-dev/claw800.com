@@ -58,6 +58,7 @@ const adminSkillsSection = document.getElementById('adminSkillsSection');
 const adminGamesSection = document.getElementById('adminGamesSection');
 const adminPMiningOrdersSection = document.getElementById('adminPMiningOrdersSection');
 const adminNexaTipOrdersSection = document.getElementById('adminNexaTipOrdersSection');
+const adminNchatUsersSection = document.getElementById('adminNchatUsersSection');
 const adminNexaEscrowSection = document.getElementById('adminNexaEscrowSection');
 const adminNexaEscrowUsersSection = document.getElementById('adminNexaEscrowUsersSection');
 const adminNexaEscrowWithdrawalsSection = document.getElementById('adminNexaEscrowWithdrawalsSection');
@@ -74,6 +75,8 @@ const pMiningOrdersList = document.getElementById('pMiningOrdersList');
 const pMiningOrdersMessage = document.getElementById('pMiningOrdersMessage');
 const nexaTipOrdersList = document.getElementById('nexaTipOrdersList');
 const nexaTipOrdersMessage = document.getElementById('nexaTipOrdersMessage');
+const nchatUsersList = document.getElementById('nchatUsersList');
+const nchatUsersMessage = document.getElementById('nchatUsersMessage');
 const nexaEscrowOrdersList = document.getElementById('nexaEscrowOrdersList');
 const nexaEscrowOrdersMessage = document.getElementById('nexaEscrowOrdersMessage');
 const nexaEscrowUsersList = document.getElementById('nexaEscrowUsersList');
@@ -212,6 +215,7 @@ const texts = {
     navGames: '游戏列表',
     navPMiningOrders: '挖矿算力订单',
     navNexaTipOrders: '打赏订单',
+    navNchatUsers: '聊天用户',
     navNexaEscrowOrders: '担保订单',
     navNexaEscrowUsers: '担保用户',
     navNexaEscrowWithdrawals: '担保提现记录',
@@ -325,6 +329,7 @@ const texts = {
     gamesListTitle: '游戏列表',
     pMiningOrdersTitle: '挖矿算力订单',
     nexaTipOrdersTitle: '打赏订单',
+    nchatUsersTitle: '聊天用户',
     nexaEscrowOrdersTitle: '担保订单',
     nexaEscrowUsersTitle: '担保用户',
     nexaEscrowWithdrawalsTitle: '担保提现记录',
@@ -343,6 +348,7 @@ const texts = {
     nexaEscrowWithdrawalsRejected: '担保提现已驳回，金额已退回担保钱包。',
     pMiningOrdersEmpty: '当前没有挖矿算力订单。',
     nexaTipOrdersEmpty: '当前没有打赏订单。',
+    nchatUsersEmpty: '当前还没有聊天用户。',
     xiangqiDepositsEmpty: '当前没有象棋充值订单。',
     xiangqiWithdrawalsTitle: '象棋提现审核',
     xiangqiWithdrawalsApprove: '通过并打款',
@@ -481,6 +487,7 @@ const texts = {
     navGames: 'Games',
     navPMiningOrders: 'P-Mining Orders',
     navNexaTipOrders: 'Tip Orders',
+    navNchatUsers: 'Chat Users',
     navNexaEscrowOrders: 'Escrow Orders',
     navNexaEscrowUsers: 'Escrow Users',
     navNexaEscrowWithdrawals: 'Escrow Withdrawals',
@@ -594,6 +601,7 @@ const texts = {
     gamesListTitle: 'Games',
     pMiningOrdersTitle: 'P-Mining Power Orders',
     nexaTipOrdersTitle: 'Game Tip Orders',
+    nchatUsersTitle: 'Chat Users',
     nexaEscrowOrdersTitle: 'Escrow Orders',
     nexaEscrowUsersTitle: 'Escrow Users',
     nexaEscrowWithdrawalsTitle: 'Escrow Withdrawal Records',
@@ -612,6 +620,7 @@ const texts = {
     nexaEscrowWithdrawalsRejected: 'Escrow withdrawal rejected and refunded.',
     pMiningOrdersEmpty: 'No P-Mining power orders yet.',
     nexaTipOrdersEmpty: 'No tip orders yet.',
+    nchatUsersEmpty: 'No chat users yet.',
     xiangqiDepositsEmpty: 'No Xiangqi deposit orders yet.',
     xiangqiWithdrawalsTitle: 'Xiangqi Withdrawals',
     xiangqiWithdrawalsApprove: 'Approve',
@@ -1056,6 +1065,7 @@ function applyLanguage() {
   document.getElementById('navGames').textContent = dict.navGames;
   document.getElementById('navPMiningOrders').textContent = dict.navPMiningOrders;
   document.getElementById('navNexaTipOrders').textContent = dict.navNexaTipOrders;
+  document.getElementById('navNchatUsers').textContent = dict.navNchatUsers;
   document.getElementById('navNexaEscrowOrders').textContent = dict.navNexaEscrowOrders;
   document.getElementById('navNexaEscrowUsers').textContent = dict.navNexaEscrowUsers;
   document.getElementById('navNexaEscrowWithdrawals').textContent = dict.navNexaEscrowWithdrawals;
@@ -1123,6 +1133,7 @@ function applyLanguage() {
   document.getElementById('gamesListTitle').textContent = dict.gamesListTitle;
   document.getElementById('pMiningOrdersTitle').textContent = dict.pMiningOrdersTitle;
   document.getElementById('nexaTipOrdersTitle').textContent = dict.nexaTipOrdersTitle;
+  document.getElementById('nchatUsersTitle').textContent = dict.nchatUsersTitle;
   document.getElementById('nexaEscrowOrdersTitle').textContent = dict.nexaEscrowOrdersTitle;
   document.getElementById('nexaEscrowUsersTitle').textContent = dict.nexaEscrowUsersTitle;
   document.getElementById('nexaEscrowWithdrawalsTitle').textContent = dict.nexaEscrowWithdrawalsTitle;
@@ -1198,6 +1209,7 @@ function setView(view) {
   adminGamesSection.classList.toggle('hidden', view !== 'games');
   adminPMiningOrdersSection.classList.toggle('hidden', view !== 'p-mining-orders');
   adminNexaTipOrdersSection.classList.toggle('hidden', view !== 'nexa-tip-orders');
+  adminNchatUsersSection.classList.toggle('hidden', view !== 'nchat-users');
   adminNexaEscrowSection.classList.toggle('hidden', view !== 'nexa-escrow-orders');
   adminNexaEscrowUsersSection.classList.toggle('hidden', view !== 'nexa-escrow-users');
   adminNexaEscrowWithdrawalsSection.classList.toggle('hidden', view !== 'nexa-escrow-withdrawals');
@@ -1237,6 +1249,9 @@ function setView(view) {
   }
   if (view === 'nexa-tip-orders') {
     loadNexaTipOrdersList();
+  }
+  if (view === 'nchat-users') {
+    loadNchatUsersList();
   }
   if (view === 'nexa-escrow-orders') {
     loadNexaEscrowOrdersList();
@@ -1412,6 +1427,59 @@ async function loadNexaTipOrdersList() {
     return;
   }
   renderNexaTipOrdersList(result.data?.items || []);
+}
+
+function renderNchatUsersList(items) {
+  if (!nchatUsersList) return;
+  if (!Array.isArray(items) || !items.length) {
+    nchatUsersList.innerHTML = `<p class="empty">${escapeHtml(t('nchatUsersEmpty'))}</p>`;
+    return;
+  }
+
+  nchatUsersList.innerHTML = items
+    .map((item) => {
+      const nickname = String(item.nickname || '').trim();
+      const chatId = String(item.chatId || '').trim();
+      const openId = String(item.openId || '').trim();
+      const friendCount = Number(item.friendCount || 0) || 0;
+      const conversationCount = Number(item.conversationCount || 0) || 0;
+      const createdAt = formatAdminLocalDateTime(item.createdAt);
+      const updatedAt = formatAdminLocalDateTime(item.updatedAt);
+      return `
+        <article class="review-card">
+          <h3>${escapeHtml(nickname || '未设置昵称')}</h3>
+          <p class="small">聊天号: ${escapeHtml(chatId || '-')}</p>
+          <p class="small">OpenID: ${escapeHtml(openId || '-')}</p>
+          <p class="small">好友数: ${escapeHtml(String(friendCount))}</p>
+          <p class="small">会话数: ${escapeHtml(String(conversationCount))}</p>
+          <p class="small">创建时间: ${escapeHtml(createdAt || '-')}</p>
+          <p class="small">最近更新: ${escapeHtml(updatedAt || '-')}</p>
+        </article>
+      `;
+    })
+    .join('');
+}
+
+async function loadNchatUsersList() {
+  if (!nchatUsersList || !nchatUsersMessage) return;
+  nchatUsersMessage.textContent = '';
+  nchatUsersMessage.className = 'message';
+  const result = await requestTutorialJson(['/api/admin/nchat-users'], { method: 'GET' });
+  if (!result.res) {
+    nchatUsersMessage.textContent = t('operationFailed');
+    nchatUsersMessage.className = 'message error';
+    return;
+  }
+  if (result.res.status === 401) {
+    showLogin();
+    return;
+  }
+  if (!result.res.ok) {
+    nchatUsersMessage.textContent = localizeApiError(result.data?.error || t('operationFailed'));
+    nchatUsersMessage.className = 'message error';
+    return;
+  }
+  renderNchatUsersList(result.data?.items || []);
 }
 
 function renderNexaEscrowOrdersList(items) {
@@ -3836,6 +3904,7 @@ document.getElementById('navSkills').addEventListener('click', () => setView('sk
 document.getElementById('navGames').addEventListener('click', () => setView('games'));
 document.getElementById('navPMiningOrders').addEventListener('click', () => setView('p-mining-orders'));
 document.getElementById('navNexaTipOrders').addEventListener('click', () => setView('nexa-tip-orders'));
+document.getElementById('navNchatUsers').addEventListener('click', () => setView('nchat-users'));
 document.getElementById('navNexaEscrowOrders').addEventListener('click', () => setView('nexa-escrow-orders'));
 document.getElementById('navNexaEscrowUsers').addEventListener('click', () => setView('nexa-escrow-users'));
 document.getElementById('navNexaEscrowWithdrawals').addEventListener('click', () => setView('nexa-escrow-withdrawals'));
