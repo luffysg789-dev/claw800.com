@@ -76,7 +76,9 @@
 
   function renderHero() {
     hero.style.backgroundImage = `url(${data.summary.thumb})`;
-    heroTitle.textContent = data.summary.name;
+    if (!heroTitle.textContent.trim()) {
+      heroTitle.textContent = data.summary.name;
+    }
     heroDescription.textContent = data.summary.description;
     heroDateRange.textContent = `${data.summary.startDate} - ${data.summary.endDate}`;
     heroTotal.textContent = `${data.summary.total} 场活动`;
