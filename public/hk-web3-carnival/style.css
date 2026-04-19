@@ -64,6 +64,26 @@ a {
   box-shadow: var(--carnival-shadow);
 }
 
+.carnival-hero__back {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  z-index: 2;
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 32px;
+  line-height: 1;
+  box-shadow: 0 10px 24px rgba(7, 14, 28, 0.2);
+}
+
 .carnival-hero__overlay {
   position: absolute;
   inset: 0;
@@ -470,6 +490,14 @@ a {
     min-height: 228px;
     padding: 28px 18px;
     background-position: center top;
+  }
+
+  .carnival-hero__back {
+    top: 14px;
+    left: 14px;
+    width: 36px;
+    height: 36px;
+    font-size: 28px;
   }
 
   .carnival-hero__content {
