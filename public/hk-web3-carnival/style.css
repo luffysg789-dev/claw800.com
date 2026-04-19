@@ -521,8 +521,11 @@ a {
   }
 
   .carnival-hero__description {
-    font-size: 0.92rem;
-    line-height: 1.45;
+    max-width: 100%;
+    font-size: 0.74rem;
+    line-height: 1.1;
+    white-space: nowrap;
+    letter-spacing: -0.02em;
   }
 
   .carnival-search-grid {
@@ -583,8 +586,10 @@ a {
 
   .carnival-hero__hint {
     max-width: 100%;
-    font-size: 0.8rem;
-    line-height: 1.45;
+    font-size: 0.66rem;
+    line-height: 1.1;
+    white-space: nowrap;
+    letter-spacing: -0.02em;
   }
 
   .carnival-modal {
