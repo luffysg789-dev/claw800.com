@@ -4,6 +4,9 @@
   const NCHAT_LOCAL_PROFILE_ID_STORAGE_KEY = 'claw800:nchat:local-profile-id';
   const NCHAT_LOCAL_PROFILE_STORAGE_KEY = 'claw800:nchat:local-profile';
   const NCHAT_LOCAL_DEMO_MESSAGES_STORAGE_KEY = 'claw800:nchat:local-demo-messages';
+  const NCHAT_BOOTSTRAP_CACHE_STORAGE_KEY = 'claw800:nchat:bootstrap-cache';
+  const NCHAT_AVATAR_MAX_SIZE = 320;
+  const NCHAT_AVATAR_JPEG_QUALITY = 0.78;
   const NEXA_PUBLIC_CONFIG_ENDPOINT = '/api/nexa/public-config';
   const NCHAT_GUARD_TEXT = '请在 Nexa App 内打开 Nchat';
   const NCHAT_DEMO_CONVERSATION_ID = 'demo-support';
@@ -109,6 +112,48 @@
     try {
       storage?.removeItem?.(NCHAT_SESSION_STORAGE_KEY);
     } catch {}
+  }
+
+  function getBootstrapCacheKey(state) {
+    const openId = String(state.session?.openId || '').trim();
+    if (!openId) return '';
+    return `${NCHAT_BOOTSTRAP_CACHE_STORAGE_KEY}:${openId}`;
+  }
+
+  function saveCachedBootstrap(state, bootstrap) {
+    const cacheKey = getBootstrapCacheKey(state);
+    if (!cacheKey || !bootstrap?.user || !Array.isArray(bootstrap.conversations)) return;
+    try {
+      state.storage?.setItem?.(
+        cacheKey,
+        JSON.stringify({
+          user: bootstrap.user,
+          conversations: bootstrap.conversations,
+          profileSetupRequired: Boolean(bootstrap.profileSetupRequired),
+          cachedAt: Date.now()
+        })
+      );
+    } catch {}
+  }
+
+  function loadCachedBootstrap(state) {
+    const cacheKey = getBootstrapCacheKey(state);
+    if (!cacheKey) return null;
+    try {
+      const raw = String(state.storage?.getItem?.(cacheKey) || '').trim();
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed?.user || !Array.isArray(parsed.conversations)) return null;
+      return {
+        ok: true,
+        user: parsed.user,
+        conversations: parsed.conversations,
+        profileSetupRequired: Boolean(parsed.profileSetupRequired),
+        cachedAt: Number(parsed.cachedAt || 0) || 0
+      };
+    } catch {
+      return null;
+    }
   }
 
   async function clearServerSession() {
@@ -491,6 +536,21 @@
     };
   }
 
+  function appendRealtimeMessage(state, message) {
+    if (!message?.content) return;
+    const messageId = String(message.id || '').trim();
+    const current = Array.isArray(state.messages) ? state.messages : [];
+    if (messageId && current.some((item) => String(item?.id || '').trim() === messageId)) return;
+    state.messages = [
+      ...current,
+      {
+        ...message,
+        isSelf: Boolean(message.isSelf),
+        isPending: false
+      }
+    ];
+  }
+
   function updateMyProfile(state) {
     const avatarUrl = String(state.user?.avatarUrl || '').trim() || getDefaultAvatarDataUrl();
     state.elements.myAvatar.src = avatarUrl;
@@ -605,7 +665,7 @@
     return bootstrap;
   }
 
-  function applyBootstrapPayload(state, bootstrap) {
+  function applyBootstrapPayload(state, bootstrap, options = {}) {
     state.user = bootstrap.user || null;
     if (isLocalPreview()) {
       const localProfile = loadLocalPreviewProfile(state.storage);
@@ -624,6 +684,13 @@
     renderConversationList(state);
     state.elements.profileModal.hidden = !state.profileSetupRequired;
     updateStatus(state, '已连接');
+    if (!options.skipCache) {
+      saveCachedBootstrap(state, {
+        user: state.user,
+        conversations: state.conversations,
+        profileSetupRequired: state.profileSetupRequired
+      });
+    }
   }
 
   async function openConversation(state, conversationId) {
@@ -679,11 +746,61 @@
     });
   }
 
+  function loadImageFromDataUrl(dataUrl) {
+    return new Promise((resolve, reject) => {
+      const ImageCtor = globalScope.Image;
+      if (!ImageCtor) {
+        reject(new Error('IMAGE_UNAVAILABLE'));
+        return;
+      }
+      const image = new ImageCtor();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('IMAGE_LOAD_FAILED'));
+      image.src = dataUrl;
+    });
+  }
+
+  async function compressAvatarFile(file) {
+    const dataUrl = await fileToDataUrl(file);
+    if (!dataUrl) return '';
+    const documentRef = globalScope.document;
+    if (!documentRef?.createElement) return dataUrl;
+
+    const image = await loadImageFromDataUrl(dataUrl).catch(() => null);
+    const sourceWidth = Number(image?.naturalWidth || image?.width || 0);
+    const sourceHeight = Number(image?.naturalHeight || image?.height || 0);
+    if (!image || !sourceWidth || !sourceHeight) return dataUrl;
+
+    const canvas = documentRef.createElement('canvas');
+    canvas.width = NCHAT_AVATAR_MAX_SIZE;
+    canvas.height = NCHAT_AVATAR_MAX_SIZE;
+    const context = canvas.getContext('2d');
+    if (!context) return dataUrl;
+
+    const sourceSize = Math.min(sourceWidth, sourceHeight);
+    const sourceX = Math.max(0, (sourceWidth - sourceSize) / 2);
+    const sourceY = Math.max(0, (sourceHeight - sourceSize) / 2);
+    context.fillStyle = '#111318';
+    context.fillRect(0, 0, NCHAT_AVATAR_MAX_SIZE, NCHAT_AVATAR_MAX_SIZE);
+    context.drawImage(
+      image,
+      sourceX,
+      sourceY,
+      sourceSize,
+      sourceSize,
+      0,
+      0,
+      NCHAT_AVATAR_MAX_SIZE,
+      NCHAT_AVATAR_MAX_SIZE
+    );
+    return canvas.toDataURL('image/jpeg', NCHAT_AVATAR_JPEG_QUALITY);
+  }
+
   async function submitProfile(state) {
     const nickname = String(state.elements.profileNicknameInput.value || '').trim();
     const avatarFile = state.elements.profileAvatarInput.files?.[0] || null;
     const fallbackAvatar = String(state.user?.avatarUrl || '').trim();
-    const avatarUrl = avatarFile ? await fileToDataUrl(avatarFile) : fallbackAvatar;
+    const avatarUrl = avatarFile ? await compressAvatarFile(avatarFile) : fallbackAvatar;
     if (!nickname) {
       setProfileFeedback(state, '请填写昵称');
       return;
@@ -744,9 +861,13 @@
     state.elements.profileAvatarInput.addEventListener('change', async () => {
       const avatarFile = state.elements.profileAvatarInput.files?.[0] || null;
       if (!avatarFile || !state.elements.profileAvatarPreview) return;
-      const avatarUrl = await fileToDataUrl(avatarFile).catch(() => '');
+      setProfileFeedback(state, '头像正在压缩，请稍等...');
+      const avatarUrl = await compressAvatarFile(avatarFile).catch(() => '');
       if (avatarUrl) {
         state.elements.profileAvatarPreview.src = avatarUrl;
+        setProfileFeedback(state, '');
+      } else {
+        setProfileFeedback(state, '头像压缩失败，请换一张图片');
       }
     });
 
@@ -852,18 +973,29 @@
     }
 
     const source = new EventSource('/api/nchat/events', { withCredentials: true });
-    source.addEventListener('nchat.message', async (event) => {
+    source.addEventListener('nchat.message', (event) => {
       const payload = JSON.parse(String(event.data || '{}'));
-      await refreshBootstrap(state).catch(() => null);
       if (String(payload.conversationId || '') === String(state.activeConversationId || '')) {
-        const history = await loadMessages(state.activeConversationId).catch(() => null);
-        if (history?.ok) {
-          state.messages = history.items || [];
-          renderMessages(state);
-          await markConversationRead(state.activeConversationId).catch(() => null);
-          await refreshBootstrap(state).catch(() => null);
-        }
+        appendRealtimeMessage(state, payload.message);
+        updateConversationPreview(state, state.activeConversationId, {
+          lastMessagePreview: payload.message?.content || '',
+          lastMessageAt: payload.message?.createdAt || new Date().toISOString(),
+          updatedAt: payload.message?.createdAt || new Date().toISOString(),
+          unreadCount: 0
+        });
+        renderConversationList(state);
+        renderMessages(state);
+        markConversationRead(state.activeConversationId).catch(() => null);
+        refreshBootstrap(state).catch(() => null);
+        return;
       }
+      updateConversationPreview(state, payload.conversationId, {
+        lastMessagePreview: payload.message?.content || '',
+        lastMessageAt: payload.message?.createdAt || new Date().toISOString(),
+        updatedAt: payload.message?.createdAt || new Date().toISOString()
+      });
+      renderConversationList(state);
+      refreshBootstrap(state).catch(() => null);
     });
     source.addEventListener('nchat.conversation-updated', async () => {
       await refreshBootstrap(state).catch(() => null);
@@ -931,6 +1063,9 @@
       if (immediateBootstrap) {
         applyBootstrapPayload(state, immediateBootstrap);
       } else {
+        if (loadCachedBootstrap(state)) {
+          applyBootstrapPayload(state, loadCachedBootstrap(state), { skipCache: true });
+        }
         await refreshBootstrap(state);
       }
       connectRealtime(state);

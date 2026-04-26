@@ -23,6 +23,8 @@ test('nchat is wired as a standalone Nexa-only app route', () => {
   assert.match(db, /slug:\s*'nchat'/);
   assert.match(server, /'nchat':\s*'\/nchat\/'/);
   assert.match(server, /app\.post\('\/api\/nchat\/session'[\s\S]*\.\.\.buildNchatBootstrapPayload\(session\)/);
+  assert.match(server, /app\.get\('\/api\/nchat\/events'[\s\S]*res\.setHeader\('Cache-Control', 'no-store, no-cache, no-transform, must-revalidate, proxy-revalidate'\)/);
+  assert.match(server, /res\.write\('event: nchat\.conversation-updated\\ndata: \{"bootstrap":true\}\\n\\n'\);[\s\S]*if \(typeof res\.flush === 'function'\) res\.flush\(\);/);
 });
 
 test('nchat html includes app shell, tabs, and profile setup hooks', () => {
@@ -86,6 +88,7 @@ test('nchat script includes nexaauth, session/bootstrap/search/message, and real
   assert.match(js, /const NCHAT_LOCAL_PROFILE_ID_STORAGE_KEY = 'claw800:nchat:local-profile-id';/);
   assert.match(js, /const NCHAT_LOCAL_PROFILE_STORAGE_KEY = 'claw800:nchat:local-profile';/);
   assert.match(js, /const NCHAT_LOCAL_DEMO_MESSAGES_STORAGE_KEY = 'claw800:nchat:local-demo-messages';/);
+  assert.match(js, /const NCHAT_BOOTSTRAP_CACHE_STORAGE_KEY = 'claw800:nchat:bootstrap-cache';/);
   assert.match(js, /function beginNexaLoginFlow\(/);
   assert.match(js, /function ensureLocalPreviewSession\(/);
   assert.match(js, /function loadLocalPreviewProfile\(/);
@@ -108,12 +111,23 @@ test('nchat script includes nexaauth, session/bootstrap/search/message, and real
   assert.match(js, /\/api\/nchat\/events/);
   assert.match(js, /renderConversationList/);
   assert.match(js, /state\.pendingBootstrap = extractBootstrapFromResponse\(serverResponse\);/);
+  assert.match(js, /function saveCachedBootstrap\(state, bootstrap\)/);
+  assert.match(js, /function loadCachedBootstrap\(state\)/);
+  assert.match(js, /if \(loadCachedBootstrap\(state\)\) \{[\s\S]*applyBootstrapPayload\(state, loadCachedBootstrap\(state\), \{ skipCache: true \}\);[\s\S]*\}/);
   assert.match(js, /const immediateBootstrap = consumePendingBootstrap\(state\);/);
   assert.match(js, /if \(immediateBootstrap\) \{[\s\S]*applyBootstrapPayload\(state, immediateBootstrap\);[\s\S]*\} else \{[\s\S]*await refreshBootstrap\(state\);[\s\S]*\}/);
   assert.match(js, /function upsertConversation\(/);
   assert.match(js, /function createOptimisticMessage\(/);
+  assert.match(js, /const NCHAT_AVATAR_MAX_SIZE = 320;/);
+  assert.match(js, /const NCHAT_AVATAR_JPEG_QUALITY = 0\.78;/);
+  assert.match(js, /function compressAvatarFile\(file\)/);
+  assert.match(js, /canvas\.toDataURL\('image\/jpeg', NCHAT_AVATAR_JPEG_QUALITY\)/);
+  assert.match(js, /avatarFile \? await compressAvatarFile\(avatarFile\) : fallbackAvatar/);
+  assert.match(js, /const avatarUrl = await compressAvatarFile\(avatarFile\)\.catch\(\(\) => ''\);/);
   assert.match(js, /button\.textContent = '连接中\.\.\.'/);
   assert.match(js, /state\.messages = \[\.\.\.\(state\.messages \|\| \[\]\), pendingMessage\]/);
+  assert.match(js, /function appendRealtimeMessage\(state, message\)/);
+  assert.match(js, /appendRealtimeMessage\(state, payload\.message\);[\s\S]*renderMessages\(state\);[\s\S]*markConversationRead\(state\.activeConversationId\)\.catch\(\(\) => null\);/);
   assert.match(js, /refreshBootstrap\(state\)\.catch\(\(\) => null\)/);
   assert.match(js, /applyUnreadBadge/);
   assert.match(js, /nchat-message-block__time/);

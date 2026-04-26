@@ -4528,7 +4528,7 @@ app.get('/api/nchat/events', (req, res) => {
 
   res.statusCode = 200;
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Cache-Control', 'no-store, no-cache, no-transform, must-revalidate, proxy-revalidate');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
   if (typeof res.flushHeaders === 'function') res.flushHeaders();
@@ -4552,6 +4552,7 @@ app.get('/api/nchat/events', (req, res) => {
   res.on('close', cleanup);
 
   res.write('event: nchat.conversation-updated\ndata: {"bootstrap":true}\n\n');
+  if (typeof res.flush === 'function') res.flush();
 });
 
 app.post('/api/nexa-escrow/session', (req, res) => {
