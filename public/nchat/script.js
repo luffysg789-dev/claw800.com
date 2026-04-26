@@ -5,6 +5,7 @@
   const NCHAT_LOCAL_PROFILE_STORAGE_KEY = 'claw800:nchat:local-profile';
   const NCHAT_LOCAL_DEMO_MESSAGES_STORAGE_KEY = 'claw800:nchat:local-demo-messages';
   const NCHAT_BOOTSTRAP_CACHE_STORAGE_KEY = 'claw800:nchat:bootstrap-cache';
+  const NCHAT_CONVERSATION_CACHE_STORAGE_KEY = 'claw800:nchat:conversation-cache';
   const NCHAT_AVATAR_MAX_SIZE = 320;
   const NCHAT_AVATAR_JPEG_QUALITY = 0.78;
   const NCHAT_REALTIME_POLL_INTERVAL_MS = 1000;
@@ -162,6 +163,54 @@
     if (!cachedBootstrap) return false;
     applyBootstrapPayload(state, cachedBootstrap, { skipCache: true });
     return true;
+  }
+
+  function getConversationCacheKey(state, conversationId) {
+    const openId = String(state.session?.openId || '').trim();
+    const normalizedId = String(conversationId || '').trim();
+    if (!openId || !normalizedId) return '';
+    return `${NCHAT_CONVERSATION_CACHE_STORAGE_KEY}:${openId}:${normalizedId}`;
+  }
+
+  function loadCachedConversationMessages(state, conversationId) {
+    const cacheKey = getConversationCacheKey(state, conversationId);
+    if (!cacheKey) return [];
+    try {
+      const raw = String(state.storage?.getItem?.(cacheKey) || '').trim();
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed?.items)) return [];
+      return parsed.items
+        .map((item) => ({
+          id: String(item?.id || '').trim(),
+          conversationId: String(item?.conversationId || conversationId).trim(),
+          content: String(item?.content || '').trim(),
+          createdAt: String(item?.createdAt || '').trim(),
+          isSelf: Boolean(item?.isSelf),
+          isPending: false
+        }))
+        .filter((item) => item.content);
+    } catch {
+      return [];
+    }
+  }
+
+  function saveCachedConversationMessages(state, conversationId, messages) {
+    const cacheKey = getConversationCacheKey(state, conversationId);
+    if (!cacheKey) return;
+    const items = (Array.isArray(messages) ? messages : [])
+      .filter((item) => item && item.content && !item.isPending)
+      .slice(-10)
+      .map((item) => ({
+        id: String(item.id || '').trim(),
+        conversationId: String(item.conversationId || conversationId).trim(),
+        content: String(item.content || '').trim(),
+        createdAt: String(item.createdAt || '').trim(),
+        isSelf: Boolean(item.isSelf)
+      }));
+    try {
+      state.storage?.setItem?.(cacheKey, JSON.stringify({ items, cachedAt: Date.now() }));
+    } catch {}
   }
 
   async function clearServerSession() {
@@ -479,6 +528,9 @@
       </div>
     `).join('');
     state.elements.messageList.scrollTop = state.elements.messageList.scrollHeight;
+    if (state.activeConversationId && state.activeConversationId !== NCHAT_DEMO_CONVERSATION_ID) {
+      saveCachedConversationMessages(state, state.activeConversationId, rows);
+    }
   }
 
   function renderSearchResults(state, items) {
@@ -844,6 +896,14 @@
     state.elements.composerInput.disabled = false;
     state.elements.composerInput.placeholder = '输入消息';
     state.elements.composerSend.disabled = false;
+    const cachedMessages = loadCachedConversationMessages(state, normalizedId);
+    if (cachedMessages.length) {
+      state.messages = cachedMessages;
+      renderMessages(state);
+    } else {
+      state.messages = [];
+      renderMessages(state);
+    }
     const history = await loadMessages(normalizedId);
     state.messages = history.items || [];
     renderMessages(state);
