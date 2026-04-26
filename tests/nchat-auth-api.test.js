@@ -533,11 +533,13 @@ test('nchat bidirectional event streams both receive realtime messages', async (
       content: 'from alpha'
     }, { cookies: alpha.cookies });
     await bravoStream.waitFor(/event:\s*nchat\.message[\s\S]*from alpha/);
+    await alphaStream.waitFor(/event:\s*nchat\.message[\s\S]*from alpha/);
 
     await harness.request('POST', `/api/nchat/conversations/${conversationId}/messages`, {
       content: 'from bravo'
     }, { cookies: bravo.cookies });
     await alphaStream.waitFor(/event:\s*nchat\.message[\s\S]*from bravo/);
+    await bravoStream.waitFor(/event:\s*nchat\.message[\s\S]*from bravo/);
 
     alphaStream.close();
     bravoStream.close();

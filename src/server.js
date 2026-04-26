@@ -4485,6 +4485,10 @@ app.post('/api/nchat/conversations/:conversationId/messages', (req, res) => {
       conversationId: Number(conversation.id),
       message: formatNchatMessage(message, receiverUserId)
     });
+    emitNchatEvent(String(senderSummary?.openId || '').trim(), 'nchat.message', {
+      conversationId: Number(conversation.id),
+      message: formatNchatMessage(message, Number(user.id))
+    });
     emitNchatEvent(String(senderSummary?.openId || '').trim(), 'nchat.conversation-updated', {
       conversationId: Number(conversation.id)
     });
