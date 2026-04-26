@@ -7,6 +7,7 @@
   const NCHAT_BOOTSTRAP_CACHE_STORAGE_KEY = 'claw800:nchat:bootstrap-cache';
   const NCHAT_AVATAR_MAX_SIZE = 320;
   const NCHAT_AVATAR_JPEG_QUALITY = 0.78;
+  const NCHAT_REALTIME_POLL_INTERVAL_MS = 1000;
   const NEXA_PUBLIC_CONFIG_ENDPOINT = '/api/nexa/public-config';
   const NCHAT_GUARD_TEXT = '请在 Nexa App 内打开 Nchat';
   const NCHAT_DEMO_CONVERSATION_ID = 'demo-support';
@@ -699,6 +700,48 @@
     state.elements.profileClose.hidden = Boolean(state.profileSetupRequired);
   }
 
+  async function runRealtimePoll(state) {
+    if (state.realtimePollInFlight || !state.session?.openId) return;
+    if (globalScope.document?.hidden) return;
+    state.realtimePollInFlight = true;
+    try {
+      await refreshBootstrap(state).catch(() => null);
+      if (state.activeConversationId && state.activeConversationId !== NCHAT_DEMO_CONVERSATION_ID) {
+        await syncActiveConversationMessages(state).catch(() => null);
+      }
+    } finally {
+      state.realtimePollInFlight = false;
+    }
+  }
+
+  function stopRealtimePolling(state) {
+    if (state.realtimePollTimer) {
+      globalScope.clearInterval(state.realtimePollTimer);
+      state.realtimePollTimer = null;
+    }
+  }
+
+  function startRealtimePolling(state) {
+    stopRealtimePolling(state);
+    if (!state.session?.openId) return;
+    state.realtimePollTimer = globalScope.setInterval(() => {
+      runRealtimePoll(state).catch(() => null);
+    }, NCHAT_REALTIME_POLL_INTERVAL_MS);
+  }
+
+  function bindRealtimeVisibility(state) {
+    const documentRef = globalScope.document;
+    if (!documentRef?.addEventListener || state.visibilityBound) return;
+    state.visibilityBound = true;
+    documentRef.addEventListener('visibilitychange', () => {
+      if (documentRef.hidden) return;
+      runRealtimePoll(state).catch(() => null);
+    });
+    globalScope.addEventListener?.('focus', () => {
+      runRealtimePoll(state).catch(() => null);
+    });
+  }
+
   function switchTab(state, tab) {
     state.activeTab = tab;
     state.elements.chatPanel.hidden = tab !== 'chat';
@@ -721,6 +764,8 @@
   }
 
   async function refreshBootstrap(state) {
+    state.bootstrapRequestSeq = (Number(state.bootstrapRequestSeq || 0) || 0) + 1;
+    const requestSeq = state.bootstrapRequestSeq;
     const bootstrap = await loadBootstrap().catch((error) => {
       if (isLocalPreview()) {
         applyLocalPreviewBootstrap(state);
@@ -728,6 +773,15 @@
       }
       throw error;
     });
+    if (requestSeq !== state.bootstrapRequestSeq) {
+      return {
+        ok: true,
+        skipped: true,
+        user: state.user,
+        conversations: state.conversations,
+        profileSetupRequired: state.profileSetupRequired
+      };
+    }
     if (!bootstrap) {
       return {
         ok: true,
@@ -1055,6 +1109,7 @@
 
     const source = new EventSource('/api/nchat/events', { withCredentials: true });
     source.addEventListener('nchat.message', (event) => {
+      state.lastRealtimeEventAt = Date.now();
       const payload = JSON.parse(String(event.data || '{}'));
       if (String(payload.conversationId || '') === String(state.activeConversationId || '')) {
         appendRealtimeMessage(state, payload.message);
@@ -1080,6 +1135,7 @@
       refreshBootstrap(state).catch(() => null);
     });
     source.addEventListener('nchat.conversation-updated', async (event) => {
+      state.lastRealtimeEventAt = Date.now();
       const payload = JSON.parse(String(event.data || '{}'));
       await refreshBootstrap(state).catch(() => null);
       if (!state.activeConversationId) return;
@@ -1091,6 +1147,7 @@
       updateStatus(state, '连接中断，正在重连');
     };
     source.onopen = () => {
+      state.lastRealtimeEventAt = Date.now();
       updateStatus(state, '已连接');
     };
     state.eventSource = source;
@@ -1153,6 +1210,8 @@
         applyCachedBootstrapIfAvailable(state);
       }
       connectRealtime(state);
+      startRealtimePolling(state);
+      bindRealtimeVisibility(state);
       await refreshBootstrap(state);
       refreshBootstrap(state).catch(() => null);
     } catch (error) {
@@ -1179,6 +1238,11 @@
       activeConversationId: '',
       activeTab: 'chat',
       eventSource: null,
+      bootstrapRequestSeq: 0,
+      realtimePollTimer: null,
+      realtimePollInFlight: false,
+      visibilityBound: false,
+      lastRealtimeEventAt: 0,
       elements: {
         guard: root.querySelector('#nchatGuard'),
         status: root.querySelector('#nchatStatus'),
