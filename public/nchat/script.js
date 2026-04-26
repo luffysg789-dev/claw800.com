@@ -537,6 +537,19 @@
     });
   }
 
+  function incrementConversationUnread(state, conversationId) {
+    const normalizedId = String(conversationId || '').trim();
+    if (!normalizedId) return;
+    const current = Array.isArray(state.conversations) ? state.conversations : [];
+    state.conversations = current.map((item) => {
+      if (String(item?.id || '') !== normalizedId) return item;
+      return {
+        ...item,
+        unreadCount: (Number(item.unreadCount || 0) || 0) + 1
+      };
+    });
+  }
+
   function createOptimisticMessage(content) {
     return {
       id: `pending-${Date.now()}`,
@@ -570,6 +583,36 @@
     if (state.elements.profileAvatarPreview) {
       state.elements.profileAvatarPreview.src = avatarUrl;
     }
+  }
+
+  function applyOptimisticProfile(state, profile) {
+    const nickname = String(profile?.nickname || '').trim();
+    const avatarUrl = String(profile?.avatarUrl || '').trim();
+    state.user = {
+      ...(state.user || {}),
+      nickname,
+      avatarUrl
+    };
+    if (state.session) {
+      state.session.nickname = nickname;
+      state.session.avatar = avatarUrl;
+      saveCachedSession(state.storage, state.session);
+    }
+    if (isLocalPreview()) {
+      saveLocalPreviewProfile(state.storage, { nickname, avatarUrl });
+    }
+    state.profileSetupRequired = false;
+    state.pendingProfileAvatarUrl = '';
+    updateMyProfile(state);
+    updateProfileCloseVisibility(state);
+    state.elements.profileAvatarInput.value = '';
+    state.elements.profileModal.hidden = true;
+    state.elements.profileSave.disabled = false;
+    saveCachedBootstrap(state, {
+      user: state.user,
+      conversations: state.conversations,
+      profileSetupRequired: false
+    });
   }
 
   function setProfileFeedback(state, message = '') {
@@ -637,6 +680,11 @@
     });
   }
 
+  function updateProfileCloseVisibility(state) {
+    if (!state.elements.profileClose) return;
+    state.elements.profileClose.hidden = Boolean(state.profileSetupRequired);
+  }
+
   function switchTab(state, tab) {
     state.activeTab = tab;
     state.elements.chatPanel.hidden = tab !== 'chat';
@@ -649,10 +697,12 @@
   function openProfileModal(state) {
     state.elements.profileNicknameInput.value = String(state.user?.nickname || '').trim();
     state.elements.profileAvatarInput.value = '';
+    state.pendingProfileAvatarUrl = '';
     setProfileFeedback(state, '');
     if (state.elements.profileAvatarPreview) {
       state.elements.profileAvatarPreview.src = String(state.user?.avatarUrl || '').trim() || getDefaultAvatarDataUrl();
     }
+    updateProfileCloseVisibility(state);
     state.elements.profileModal.hidden = false;
   }
 
@@ -694,6 +744,7 @@
     updateMyProfile(state);
     renderConversationList(state);
     state.elements.profileModal.hidden = !state.profileSetupRequired;
+    updateProfileCloseVisibility(state);
     updateStatus(state, '已连接');
     if (!options.skipCache) {
       saveCachedBootstrap(state, {
@@ -811,7 +862,7 @@
     const nickname = String(state.elements.profileNicknameInput.value || '').trim();
     const avatarFile = state.elements.profileAvatarInput.files?.[0] || null;
     const fallbackAvatar = String(state.user?.avatarUrl || '').trim();
-    const avatarUrl = avatarFile ? await compressAvatarFile(avatarFile) : fallbackAvatar;
+    const avatarUrl = avatarFile ? String(state.pendingProfileAvatarUrl || '') || await compressAvatarFile(avatarFile) : fallbackAvatar;
     if (!nickname) {
       setProfileFeedback(state, '请填写昵称');
       return;
@@ -822,37 +873,23 @@
     }
     setProfileFeedback(state, '');
     state.elements.profileSave.disabled = true;
+    applyOptimisticProfile(state, { nickname, avatarUrl });
     if (isLocalPreview()) {
-      saveLocalPreviewProfile(state.storage, { nickname, avatarUrl });
-      state.user = {
-        ...(state.user || {}),
-        nickname,
-        avatarUrl
-      };
-      if (state.session) {
-        state.session.nickname = nickname;
-        state.session.avatar = avatarUrl;
-        saveCachedSession(state.storage, state.session);
-      }
-      updateMyProfile(state);
-      state.profileSetupRequired = false;
-      state.elements.profileModal.hidden = true;
-      state.elements.profileSave.disabled = false;
       return;
     }
-    const response = await saveProfile({ nickname, avatarUrl });
-    state.user = response.user || null;
-    if (state.session) {
-      state.session.nickname = nickname;
-      state.session.avatar = avatarUrl;
-      saveCachedSession(state.storage, state.session);
-    }
-    await refreshBootstrap(state);
-    updateMyProfile(state);
-    state.profileSetupRequired = Boolean(response.profileSetupRequired);
-    state.elements.profileModal.hidden = false;
-    if (!state.profileSetupRequired) state.elements.profileModal.hidden = true;
-    state.elements.profileSave.disabled = false;
+    saveProfile({ nickname, avatarUrl })
+      .then(async (response) => {
+        state.user = response.user || state.user || null;
+        if (state.session) {
+          state.session.nickname = nickname;
+          state.session.avatar = avatarUrl;
+          saveCachedSession(state.storage, state.session);
+        }
+        await refreshBootstrap(state);
+      })
+      .catch(() => {
+        setProfileFeedback(state, '资料已先保存到本地，网络恢复后请再同步一次');
+      });
   }
 
   function bindEvents(state) {
@@ -869,12 +906,20 @@
       }
     });
 
+    state.elements.profileClose.addEventListener('click', () => {
+      if (state.profileSetupRequired) return;
+      setProfileFeedback(state, '');
+      state.elements.profileAvatarInput.value = '';
+      state.elements.profileModal.hidden = true;
+    });
+
     state.elements.profileAvatarInput.addEventListener('change', async () => {
       const avatarFile = state.elements.profileAvatarInput.files?.[0] || null;
       if (!avatarFile || !state.elements.profileAvatarPreview) return;
       setProfileFeedback(state, '头像正在压缩，请稍等...');
       const avatarUrl = await compressAvatarFile(avatarFile).catch(() => '');
       if (avatarUrl) {
+        state.pendingProfileAvatarUrl = avatarUrl;
         state.elements.profileAvatarPreview.src = avatarUrl;
         setProfileFeedback(state, '');
       } else {
@@ -1005,6 +1050,7 @@
         lastMessageAt: payload.message?.createdAt || new Date().toISOString(),
         updatedAt: payload.message?.createdAt || new Date().toISOString()
       });
+      incrementConversationUnread(state, payload.conversationId);
       renderConversationList(state);
       refreshBootstrap(state).catch(() => null);
     });
@@ -1099,6 +1145,7 @@
       messages: [],
       profileSetupRequired: false,
       pendingBootstrap: null,
+      pendingProfileAvatarUrl: '',
       activeConversationId: '',
       activeTab: 'chat',
       eventSource: null,
@@ -1123,6 +1170,7 @@
         profileNicknameInput: root.querySelector('#nchatProfileNicknameInput'),
         profileFeedback: root.querySelector('#nchatProfileFeedback'),
         profileSave: root.querySelector('#nchatProfileSave'),
+        profileClose: root.querySelector('#nchatProfileClose'),
         profileEditButton: root.querySelector('#nchatProfileEditButton'),
         myAvatar: root.querySelector('#nchatMyAvatar'),
         myNickname: root.querySelector('#nchatMyNickname'),

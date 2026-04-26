@@ -17,15 +17,6 @@
 
       <section class="nchat-shell">
         <section id="nchatChatPanel" class="nchat-panel">
-          <header class="nchat-header">
-            <div class="nchat-brand">
-              <div>
-                <h1>Nchat</h1>
-              </div>
-            </div>
-            <div id="nchatStatus" class="nchat-status">连接中</div>
-          </header>
-
           <div class="nchat-search">
             <input id="nchatSearchInput" type="search" placeholder="搜索昵称或聊天号" />
           </div>
@@ -42,7 +33,7 @@
               <p>聊天号 <strong id="nchatMyChatId">00000000</strong></p>
             </div>
             <div class="nchat-profile-card__actions">
-              <button id="nchatProfileEditButton" class="nchat-secondary-button" type="button">编辑资料</button>
+              <button id="nchatProfileEditButton" class="nchat-secondary-button" type="button">编辑</button>
             </div>
           </article>
         </section>
@@ -88,7 +79,10 @@
             <input id="nchatProfileNicknameInput" type="text" placeholder="填写昵称" />
           </label>
           <div id="nchatProfileFeedback" class="nchat-profile-feedback" hidden></div>
-          <button id="nchatProfileSave" class="nchat-primary-button" type="button">保存进入</button>
+          <div class="nchat-modal__actions">
+            <button id="nchatProfileClose" class="nchat-modal__close" type="button" hidden>关闭</button>
+            <button id="nchatProfileSave" class="nchat-primary-button" type="button">保存进入</button>
+          </div>
         </div>
       </div>
     </main>

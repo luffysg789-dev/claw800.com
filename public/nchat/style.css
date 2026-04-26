@@ -208,6 +208,7 @@ input {
   border-radius: 24px;
   padding: 16px;
   cursor: pointer;
+  text-align: left;
 }
 
 .nchat-conversation-row.is-unread {
@@ -226,6 +227,7 @@ input {
 
 .nchat-conversation-row__main {
   min-width: 0;
+  text-align: left;
 }
 
 .nchat-conversation-row__top {
@@ -517,6 +519,23 @@ input {
   color: #ffb6b6;
   font-size: 0.92rem;
   line-height: 1.45;
+}
+
+.nchat-modal__actions {
+  display: grid;
+  grid-template-columns: 0.72fr 1fr;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.nchat-modal__close {
+  min-height: 52px;
+  border-radius: 18px;
+  border: 1px solid var(--nchat-line);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--nchat-text);
+  cursor: pointer;
+  font-weight: 800;
 }
 
 .nchat-primary-button {
