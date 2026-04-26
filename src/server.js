@@ -4536,18 +4536,25 @@ app.get('/api/nchat/events', (req, res) => {
 
   res.statusCode = 200;
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Content-Encoding', 'identity');
   res.setHeader('Cache-Control', 'no-store, no-cache, no-transform, must-revalidate, proxy-revalidate');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
   if (typeof res.flushHeaders === 'function') res.flushHeaders();
+
+  // Warm up mobile WebViews and reverse proxies so SSE chunks flush immediately.
+  res.write(`:${' '.repeat(2048)}\n`);
+  res.write('retry: 1000\n\n');
+  if (typeof res.flush === 'function') res.flush();
 
   const listeners = getNchatEventStreamSet(openId);
   listeners.add(res);
   const heartbeat = setInterval(() => {
     try {
       res.write('event: ping\ndata: {}\n\n');
+      if (typeof res.flush === 'function') res.flush();
     } catch {}
-  }, 60000);
+  }, 15000);
 
   const cleanup = () => {
     clearInterval(heartbeat);

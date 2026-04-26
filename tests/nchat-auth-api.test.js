@@ -489,6 +489,8 @@ test('nchat receiver event stream gets notified when sender sends a message', as
     }, { cookies: sender.cookies });
 
     assert.equal(stream.statusCode, 200);
+    assert.equal(stream.headers['content-encoding'], 'identity');
+    assert.match(String(stream.chunk || ''), /retry:\s*1000/);
     assert.match(String(stream.chunk || ''), /event:\s*nchat\.(message|conversation-updated)/);
     stream.close?.();
   } finally {
