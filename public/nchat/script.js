@@ -550,6 +550,20 @@
     });
   }
 
+  function clearConversationUnread(state, conversationId) {
+    const normalizedId = String(conversationId || '').trim();
+    if (!normalizedId) return;
+    const current = Array.isArray(state.conversations) ? state.conversations : [];
+    state.conversations = current.map((item) => {
+      if (String(item?.id || '') !== normalizedId) return item;
+      return {
+        ...item,
+        unreadCount: 0
+      };
+    });
+    renderConversationList(state);
+  }
+
   function createOptimisticMessage(content) {
     return {
       id: `pending-${Date.now()}`,
@@ -763,6 +777,7 @@
     state.elements.conversationTitle.textContent = row?.nickname || '聊天';
     state.elements.conversationSubtitle.textContent = row?.chatId || '';
     state.elements.conversationView.hidden = false;
+    clearConversationUnread(state, normalizedId);
     if (normalizedId === NCHAT_DEMO_CONVERSATION_ID) {
       state.elements.composerInput.value = '';
       state.elements.composerInput.disabled = false;

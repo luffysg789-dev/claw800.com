@@ -146,6 +146,8 @@ test('nchat script includes nexaauth, session/bootstrap/search/message, and real
   assert.match(js, /state\.messages = \[\.\.\.\(state\.messages \|\| \[\]\), pendingMessage\]/);
   assert.match(js, /function appendRealtimeMessage\(state, message\)/);
   assert.match(js, /function incrementConversationUnread\(state, conversationId\)/);
+  assert.match(js, /function clearConversationUnread\(state, conversationId\)/);
+  assert.match(js, /clearConversationUnread\(state, normalizedId\);[\s\S]*if \(normalizedId === NCHAT_DEMO_CONVERSATION_ID\)/);
   assert.match(js, /appendRealtimeMessage\(state, payload\.message\);[\s\S]*renderMessages\(state\);[\s\S]*markConversationRead\(state\.activeConversationId\)\.catch\(\(\) => null\);/);
   assert.match(js, /incrementConversationUnread\(state, payload\.conversationId\);[\s\S]*renderConversationList\(state\);[\s\S]*refreshBootstrap\(state\)\.catch\(\(\) => null\);/);
   assert.match(js, /refreshBootstrap\(state\)\.catch\(\(\) => null\)/);
