@@ -4,21 +4,6 @@ const { getGameCardMediaMarkup } = typeof window === 'undefined'
 
 const DEFAULT_GAMES = [
   {
-    slug: 'hk-web3-carnival',
-    name: '2026 · 香港 Web3 嘉年华',
-    description: '收录香港 Web3 嘉年华期间的活动、论坛、社交酒会与报名入口。',
-    cover_image: '',
-    secondary_image: '',
-    sound_file: '',
-    background_music_file: '',
-    is_enabled: 1,
-    showInGamesHub: 1,
-    sort_order: 58,
-    route: '/hk/',
-    icon: '📍',
-    actionText: '查看活动'
-  },
-  {
     slug: 'nchat',
     name: 'Nchat',
     description: 'Nexa App 内的轻量聊天 H5，支持授权登录、搜索加好友与实时单聊。',
@@ -221,7 +206,6 @@ const DEFAULT_GAMES = [
 ];
 
 const GAME_ACTION_TEXT = {
-  'hk-web3-carnival': '查看活动',
   nchat: '进入聊天',
   sbti: '开始测试',
   'nexa-escrow': '进入担保',

@@ -1191,7 +1191,12 @@ window.addEventListener('pageshow', () => {
   }
   markPageReady();
   try {
-    await Promise.all([loadSiteConfig(), loadCategories(), loadSites({ limit: HOME_INITIAL_SITE_LIMIT })]);
+    const bootResults = await Promise.allSettled([loadSiteConfig(), loadCategories(), loadSites({ limit: HOME_INITIAL_SITE_LIMIT })]);
+    const initialSitesFailed = bootResults[2]?.status === 'rejected';
+    const hasInitialHomeSites = getVisibleSiteItems(homeAllSitesCache.length ? homeAllSitesCache : allSitesCache).length > 0;
+    if (initialSitesFailed || (!favoriteSitesOnly && !currentCategory && !searchInput.value.trim() && !hasInitialHomeSites)) {
+      await loadSites();
+    }
   } catch {
     // Keep the page interactive and render whatever data/cache we have.
   }
