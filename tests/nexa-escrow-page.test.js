@@ -287,4 +287,6 @@ test('admin panel includes nexa escrow orders, users, and withdrawal review entr
   assert.match(js, /nexaEscrowResolveSeller:\s*'资金给卖方'/);
   assert.match(js, /nexaEscrowResolveBuyer:\s*'资金给买方'/);
   assert.match(js, /return '申诉中'/);
+  assert.match(js, /const escrowNickname = String\(item\.escrowNickname \|\| item\.nickname \|\| ''\)\.trim\(\);/);
+  assert.match(js, /<p class="small">昵称: \$\{escapeHtml\(escrowNickname \|\| '-'\)\}<\/p>/);
 });

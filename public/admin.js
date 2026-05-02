@@ -1647,6 +1647,7 @@ function renderNexaEscrowWithdrawalsList(items) {
     .map((item) => {
       const partnerOrderNo = String(item.partnerOrderNo || '').trim();
       const openId = String(item.openId || '').trim();
+      const escrowNickname = String(item.escrowNickname || item.nickname || '').trim();
       const escrowCode = String(item.escrowCode || '').trim();
       const amount = String(item.amount || '0.00').trim();
       const status = String(item.status || '').trim();
@@ -1657,6 +1658,7 @@ function renderNexaEscrowWithdrawalsList(items) {
         <article class="review-card">
           <h3>${escapeHtml(partnerOrderNo)}</h3>
           <p class="small">OpenID: ${escapeHtml(openId || '-')}</p>
+          <p class="small">昵称: ${escapeHtml(escrowNickname || '-')}</p>
           <p class="small">担保号: ${escapeHtml(escrowCode || '-')}</p>
           <p class="small">金额: ${escapeHtml(amount)} USDT</p>
           <p class="small">状态: ${escapeHtml(status || '-')}</p>

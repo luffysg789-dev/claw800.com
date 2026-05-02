@@ -1153,6 +1153,7 @@ test('admin escrow withdrawal list exposes real failure reasons from notify payl
     assert.equal(adminListResponse.body.ok, true);
     const failedItem = adminListResponse.body.items.find((item) => item.partnerOrderNo === 'escrow-withdraw-failed-001');
     assert.ok(failedItem);
+    assert.equal(failedItem.escrowNickname, '');
     assert.equal(String(failedItem.status || '').toLowerCase(), 'failed');
     assert.equal(failedItem.failureReason, '10000002: Signature error');
   } finally {

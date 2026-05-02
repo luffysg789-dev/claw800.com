@@ -5127,6 +5127,7 @@ app.get('/api/admin/nexa-escrow-withdrawals', requireAdmin, (req, res) => {
         userId: Number(effectiveRow.user_id || 0),
         openId: String(effectiveRow.openid || '').trim(),
         nickname: String(effectiveRow.nickname || '').trim(),
+        escrowNickname: normalizeEscrowNickname(effectiveRow.escrow_nickname),
         escrowCode: normalizeNexaEscrowCode(effectiveRow.escrow_code || ''),
         amount: String(effectiveRow.amount || '0.00'),
         currency: String(effectiveRow.currency || 'USDT').trim(),
@@ -6476,6 +6477,7 @@ const selectNexaEscrowWithdrawalDetailByOrderStmt = db.prepare(`
     w.finished_at,
     u.openid,
     u.nickname,
+    u.escrow_nickname,
     u.escrow_code
   FROM nexa_escrow_withdrawals w
   JOIN game_users u ON u.id = w.user_id
