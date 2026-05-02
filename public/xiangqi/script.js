@@ -1252,7 +1252,7 @@ function renderMatch() {
 }
 
 async function syncSessionAndWallet() {
-  state.session = loadCachedNexaSession();
+  state.session = isNexaAppEnvironment() ? null : loadCachedNexaSession();
   updateLoginButtonState();
   if (!state.session?.openId || !state.session?.sessionKey) {
     const cachedUser = loadCachedUser();
@@ -1316,6 +1316,13 @@ async function exchangeSessionFromUrlCode() {
     setStatus(String(error?.message || 'Nexa 登录失败，请重试。'));
     return false;
   }
+}
+
+function shouldForceFreshNexaAuthorization() {
+  if (isLocalDevelopmentHost()) return false;
+  if (!isNexaAppEnvironment()) return false;
+  const authCode = extractAuthCodeFromUrl();
+  return !authCode;
 }
 
 async function beginLoginFlow() {
@@ -1955,6 +1962,13 @@ async function init() {
   bindActions();
   syncJoinRoomClearButton();
   startCountdownLoop();
+
+  if (shouldForceFreshNexaAuthorization()) {
+    clearCachedSession();
+    state.session = null;
+    await beginLoginFlow().catch(() => {});
+    return;
+  }
 
   await exchangeSessionFromUrlCode().catch(() => {});
   await syncSessionAndWallet().catch(() => {});

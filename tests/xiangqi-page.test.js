@@ -304,7 +304,17 @@ test('xiangqi script bootstraps page state and board coordinates', () => {
   assert.match(js, /else if \(state\.room\) \{\s*setStatus\('等待对手加入'\);\s*\}/);
   assert.match(js, /function applyShellMode\(/);
   assert.match(js, /classList\.toggle\('is-room-mode'/);
-  assert.match(js, /state\.session = loadCachedNexaSession\(\);/);
+  assert.match(js, /function shouldForceFreshNexaAuthorization\(/);
+  assert.match(js, /if \(isLocalDevelopmentHost\(\)\) return false;/);
+  assert.match(js, /if \(!isNexaAppEnvironment\(\)\) return false;/);
+  assert.match(js, /const authCode = extractAuthCodeFromUrl\(\);/);
+  assert.match(js, /return !authCode;/);
+  assert.match(js, /if \(shouldForceFreshNexaAuthorization\(\)\) \{/);
+  assert.match(js, /clearCachedSession\(\);/);
+  assert.match(js, /state\.session = null;/);
+  assert.match(js, /await beginLoginFlow\(\)\.catch\(\(\) => \{\}\);/);
+  assert.match(js, /return;/);
+  assert.match(js, /state\.session = isNexaAppEnvironment\(\) \? null : loadCachedNexaSession\(\);/);
   assert.match(js, /const cachedUser = loadCachedUser\(\);/);
   assert.match(js, /if \(!isNexaAppEnvironment\(\) && isLocalDevelopmentHost\(\) && cachedUser\?\.userId\) \{/);
   assert.match(js, /await refreshWallet\(\);/);
