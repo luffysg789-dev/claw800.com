@@ -278,6 +278,11 @@ test('admin panel includes nexa escrow orders, users, and withdrawal review entr
   assert.match(js, /requestTutorialJson\(\['\/api\/admin\/nexa-escrow-orders'\]/);
   assert.match(js, /requestTutorialJson\(\['\/api\/admin\/nexa-escrow-users'\]/);
   assert.match(js, /requestTutorialJson\(\['\/api\/admin\/nexa-escrow-withdrawals'\]/);
+  assert.match(js, /const escrowNickname = String\(item\.escrowNickname \|\| ''\)\.trim\(\);/);
+  assert.match(js, /const nickname = String\(item\.nickname \|\| ''\)\.trim\(\);/);
+  assert.match(js, /<h3>\$\{escapeHtml\(escrowNickname \|\| nickname \|\| openId \|\| `#\$\{userId\}`\)\}<\/h3>/);
+  assert.match(js, /<p class="small">担保昵称: \$\{escapeHtml\(escrowNickname \|\| '-'\)\}<\/p>/);
+  assert.match(js, /<p class="small">普通昵称: \$\{escapeHtml\(nickname \|\| '-'\)\}<\/p>/);
   assert.match(js, /nexaEscrowMinAmount:/);
   assert.match(js, /nexaEscrowMaxAmount:/);
   assert.match(js, /nexaEscrowFeePermille:/);

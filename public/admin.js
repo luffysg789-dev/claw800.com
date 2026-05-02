@@ -1564,14 +1564,17 @@ function renderNexaEscrowUsersList(items) {
     .map((item) => {
       const userId = Number(item.userId || 0);
       const openId = String(item.openId || '').trim();
-      const nickname = String(item.escrowNickname || item.nickname || '').trim();
+      const escrowNickname = String(item.escrowNickname || '').trim();
+      const nickname = String(item.nickname || '').trim();
       const escrowCode = String(item.escrowCode || '').trim();
       const walletBalance = String(item.walletBalance || '0.00').trim();
       const frozenBalance = String(item.frozenBalance || '0.00').trim();
       return `
         <article class="review-card">
-          <h3>${escapeHtml(nickname || openId || `#${userId}`)}</h3>
+          <h3>${escapeHtml(escrowNickname || nickname || openId || `#${userId}`)}</h3>
           <p class="small">OpenID: ${escapeHtml(openId || '-')}</p>
+          <p class="small">担保昵称: ${escapeHtml(escrowNickname || '-')}</p>
+          <p class="small">普通昵称: ${escapeHtml(nickname || '-')}</p>
           <p class="small">钱包余额: ${escapeHtml(walletBalance)} USDT</p>
           <p class="small">冻结余额: ${escapeHtml(frozenBalance)} USDT</p>
           <div class="toolbar">
