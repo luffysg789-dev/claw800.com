@@ -178,7 +178,10 @@ test('nexa-escrow script includes Nexa auth, escrow bootstrap, order, and paymen
   assert.match(js, /ESCROW_NICKNAME_PUNCTUATION/);
   assert.match(js, /nicknameTaken: '此昵称已被占用，请重新填写'/);
   assert.match(js, /\/api\/nexa-escrow\/profile\/nickname/);
-  assert.match(js, /if \(!String\(appState\.account\?\.escrowNickname \|\| ''\)\.trim\(\)\) \{/);
+  assert.match(js, /const nicknameRequired = !String\(appState\.account\?\.escrowNickname \|\| ''\)\.trim\(\);/);
+  assert.match(js, /button\.addEventListener\('click', \(\) => \{[\s\S]*if \(nicknameRequired && nextTab !== 'account'\) \{[\s\S]*openEscrowCodeModal\(appState\);[\s\S]*return;[\s\S]*\}/);
+  assert.match(js, /if \(isEscrowNicknameRequired\(appState\)\) \{/);
+  assert.match(js, /switchTab\(appState, 'account'\);[\s\S]*openEscrowCodeModal\(appState\);/);
   assert.match(js, /function maskEscrowNickname\(/);
   assert.match(js, /function formatEscrowIdentityLine\(/);
   assert.match(js, /if \(!normalized\) return 'nexa玩家';/);
@@ -278,6 +281,8 @@ test('admin panel includes nexa escrow orders, users, and withdrawal review entr
   assert.match(js, /requestTutorialJson\(\['\/api\/admin\/nexa-escrow-orders'\]/);
   assert.match(js, /requestTutorialJson\(\['\/api\/admin\/nexa-escrow-users'\]/);
   assert.match(js, /requestTutorialJson\(\['\/api\/admin\/nexa-escrow-withdrawals'\]/);
+  assert.match(js, /const createdAt = formatAdminLocalDateTime\(item\.createdAt\);/);
+  assert.match(js, /<p class="small">创建时间: \$\{escapeHtml\(createdAt \|\| '-'\)\}<\/p>/);
   assert.match(js, /const escrowNickname = String\(item\.escrowNickname \|\| ''\)\.trim\(\);/);
   assert.match(js, /const nickname = String\(item\.nickname \|\| ''\)\.trim\(\);/);
   assert.match(js, /<h3>\$\{escapeHtml\(escrowNickname \|\| nickname \|\| openId \|\| `#\$\{userId\}`\)\}<\/h3>/);

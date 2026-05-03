@@ -1510,10 +1510,12 @@ function renderNexaEscrowOrdersList(items) {
       const amount = String(item.amount || '0.00').trim();
       const status = String(item.status || '').trim();
       const description = String(item.description || '').trim();
+      const createdAt = formatAdminLocalDateTime(item.createdAt);
       const canResolve = status === 'DISPUTED';
       return `
         <article class="review-card">
           <h3>${escapeHtml(tradeCode)}</h3>
+          <p class="small">创建时间: ${escapeHtml(createdAt || '-')}</p>
           <p class="small">买方担保号: ${escapeHtml(buyerCode || '-')}</p>
           <p class="small">卖方担保号: ${escapeHtml(sellerCode || '-')}</p>
           <p class="small">金额: ${escapeHtml(amount)} USDT</p>

@@ -1199,6 +1199,10 @@
     modal.hidden = true;
   }
 
+  function isEscrowNicknameRequired(appState) {
+    return !String(appState.account?.escrowNickname || '').trim();
+  }
+
   async function loadBootstrap(appState) {
     const response = await getJson('/api/nexa-escrow/bootstrap');
     appState.account = response.account || null;
@@ -1615,6 +1619,13 @@
     appState.elements.tabButtons.forEach((button) => {
       button.addEventListener('click', () => {
         const nextTab = String(button.dataset.tabTarget || 'create');
+        const nicknameRequired = !String(appState.account?.escrowNickname || '').trim();
+        if (nicknameRequired && nextTab !== 'account') {
+          switchTab(appState, 'account');
+          openEscrowCodeModal(appState);
+          setStatus(appState.elements.codeModalHint, t(appState.locale, 'nicknameHint'));
+          return;
+        }
         switchTab(appState, nextTab);
         if (nextTab === 'orders' || nextTab === 'account') {
           refreshCurrentEscrowTab(appState).catch(() => {});
@@ -1884,7 +1895,8 @@
     });
     connectEscrowOrderEvents(appState);
     await settlePendingEscrowPayment(appState).catch(() => {});
-    if (!String(appState.account?.escrowNickname || '').trim()) {
+    if (isEscrowNicknameRequired(appState)) {
+      switchTab(appState, 'account');
       openEscrowCodeModal(appState);
     }
   }

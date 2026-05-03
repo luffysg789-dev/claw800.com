@@ -1177,6 +1177,14 @@ function ensureNexaEscrowUserAccount(session) {
   };
 }
 
+function ensureNexaEscrowNicknameReady(session) {
+  const ensured = ensureNexaEscrowUserAccount(session);
+  if (!String(ensured.user.escrowNickname || '').trim()) {
+    throw buildNexaEscrowBanError('ESCROW_NICKNAME_REQUIRED');
+  }
+  return ensured;
+}
+
 function createNexaEscrowTradeCode() {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   for (let attempt = 0; attempt < 20; attempt += 1) {
@@ -1407,6 +1415,7 @@ function buildNexaEscrowBootstrapPayload(session) {
       openId: ensured.user.openId,
       nickname: ensured.user.nickname,
       escrowNickname: ensured.user.escrowNickname,
+      nicknameRequired: !String(ensured.user.escrowNickname || '').trim(),
       escrowCode: ensured.user.escrowCode,
       wallet: String(latestWallet?.available_balance || ensured.wallet.availableBalance || '0.00'),
       latestWithdrawal: latestWithdrawal ? {
@@ -6014,6 +6023,7 @@ const listAdminPMiningOrdersStmt = db.prepare(`
     u.openid
   FROM p_mining_payment_orders p
   JOIN game_users u ON u.id = p.user_id
+  WHERE UPPER(COALESCE(p.status, '')) = 'SUCCESS'
   ORDER BY datetime(p.created_at) DESC, p.rowid DESC
   LIMIT 200
 `);

@@ -354,6 +354,23 @@ test('admin can list p-mining power orders and nexa tip orders', async () => {
       '2026-04-10 08:00:00',
       '2026-04-10 08:01:00'
     );
+    harness.db.prepare(`
+      INSERT INTO p_mining_payment_orders (
+        order_no, partner_order_no, user_id, tier, power_amount, usdt_amount, status, nexa_order_no, notify_payload, paid_at, settled_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      'pm_order_2',
+      'pm_partner_2',
+      userId,
+      'starter',
+      100,
+      '10.00',
+      'PENDING',
+      '',
+      '{}',
+      '',
+      ''
+    );
 
     const tipCreateResponse = await harness.request('POST', '/api/nexa/tip/create', {
       gameSlug: 'gomoku',
@@ -374,6 +391,10 @@ test('admin can list p-mining power orders and nexa tip orders', async () => {
     assert.equal(Array.isArray(pMiningOrdersResponse.body.items), true);
     assert.equal(pMiningOrdersResponse.body.items.length, 1);
     assert.equal(pMiningOrdersResponse.body.items[0].partnerOrderNo, 'pm_partner_1');
+    assert.equal(
+      pMiningOrdersResponse.body.items.some((item) => item.partnerOrderNo === 'pm_partner_2'),
+      false
+    );
     assert.equal(pMiningOrdersResponse.body.items[0].openId, 'admin-orders-open-id');
 
     const tipOrdersResponse = await harness.request('GET', '/api/admin/nexa-tip-orders', undefined, {
@@ -402,6 +423,17 @@ test('admin nexa escrow user list shows escrow nickname after user saves it', as
     });
     const serialized = JSON.parse(syncResponse.headers['set-cookie'][0]);
 
+    const adminCookies = await loginAdmin(harness);
+    const usersBeforeSaveResponse = await harness.request('GET', '/api/admin/nexa-escrow-users', undefined, {
+      cookies: adminCookies
+    });
+    assert.equal(usersBeforeSaveResponse.statusCode, 200);
+    assert.equal(usersBeforeSaveResponse.body.ok, true);
+    assert.equal(
+      usersBeforeSaveResponse.body.items.some((item) => item.openId === 'escrow-admin-nickname-open-id'),
+      false
+    );
+
     const saveNicknameResponse = await harness.request('POST', '/api/nexa-escrow/profile/nickname', {
       nickname: '苹果'
     }, {
@@ -410,8 +442,6 @@ test('admin nexa escrow user list shows escrow nickname after user saves it', as
       }
     });
     assert.equal(saveNicknameResponse.statusCode, 200);
-
-    const adminCookies = await loginAdmin(harness);
     const usersResponse = await harness.request('GET', '/api/admin/nexa-escrow-users', undefined, {
       cookies: adminCookies
     });
@@ -453,6 +483,53 @@ test('nexa-escrow bootstrap returns synced account state and empty orders for a 
     });
     assert.equal(Array.isArray(response.body.orders), true);
     assert.equal(response.body.orders.length, 0);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('nexa-escrow bootstrap marks nickname as required until escrow nickname is saved', async () => {
+  const harness = createHarness();
+
+  try {
+    const syncResponse = await harness.request('POST', '/api/nexa-escrow/session', {
+      openId: 'escrow-bootstrap-nickname-required-open-id',
+      sessionKey: 'escrow-bootstrap-nickname-required-session-key',
+      nickname: 'Bootstrap Nickname Required'
+    });
+    const serialized = JSON.parse(syncResponse.headers['set-cookie'][0]);
+    const cookies = {
+      [serialized.name]: serialized.value
+    };
+
+    const beforeSaveResponse = await harness.request('GET', '/api/nexa-escrow/bootstrap', null, {
+      cookies
+    });
+
+    assert.equal(beforeSaveResponse.statusCode, 200);
+    assert.equal(beforeSaveResponse.body.ok, true);
+    assert.equal(beforeSaveResponse.body.account.nicknameRequired, true);
+    assert.equal(beforeSaveResponse.body.account.escrowNickname, '');
+
+    const saveResponse = await harness.request('POST', '/api/nexa-escrow/profile/nickname', {
+      nickname: '担保苹果'
+    }, {
+      cookies
+    });
+
+    assert.equal(saveResponse.statusCode, 200);
+    assert.equal(saveResponse.body.ok, true);
+    assert.equal(saveResponse.body.account.nicknameRequired, false);
+    assert.equal(saveResponse.body.account.escrowNickname, '担保苹果');
+
+    const afterSaveResponse = await harness.request('GET', '/api/nexa-escrow/bootstrap', null, {
+      cookies
+    });
+
+    assert.equal(afterSaveResponse.statusCode, 200);
+    assert.equal(afterSaveResponse.body.ok, true);
+    assert.equal(afterSaveResponse.body.account.nicknameRequired, false);
+    assert.equal(afterSaveResponse.body.account.escrowNickname, '担保苹果');
   } finally {
     harness.cleanup();
   }
@@ -923,6 +1000,7 @@ test('nexa-escrow withdrawals below 100 USDT auto-submit and still appear in adm
     harness.cleanup();
   }
 });
+
 
 test('fresh nexa-escrow auto-withdrawals keep pending status during early failed-query grace window', async () => {
   const harness = createHarness({
