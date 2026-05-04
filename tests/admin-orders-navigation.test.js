@@ -29,7 +29,8 @@ test('admin sidebar groups payment order entry points under the orders page', ()
 
 test('admin orders page routes each grouped button to the existing order lists', () => {
   assert.match(adminJs, /const adminOrdersSection = document\.getElementById\('adminOrdersSection'\);/);
-  assert.match(adminJs, /adminOrdersSection\.classList\.toggle\('hidden', view !== 'orders'\);/);
+  assert.match(adminJs, /const orderViews = \['orders', 'p-mining-orders', 'nexa-tip-orders', 'nexa-escrow-orders', 'xiangqi-deposits'\];/);
+  assert.match(adminJs, /adminOrdersSection\.classList\.toggle\('hidden', !orderViews\.includes\(view\)\);/);
   assert.match(adminJs, /document\.getElementById\('navOrders'\)\.addEventListener\('click', \(\) => setView\('orders'\)\);/);
   assert.match(adminJs, /document\.getElementById\('ordersPMiningBtn'\)\.addEventListener\('click', \(\) => setView\('p-mining-orders'\)\);/);
   assert.match(adminJs, /document\.getElementById\('ordersNexaTipBtn'\)\.addEventListener\('click', \(\) => setView\('nexa-tip-orders'\)\);/);

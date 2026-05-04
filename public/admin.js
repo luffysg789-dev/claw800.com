@@ -1202,6 +1202,7 @@ function applyLanguage() {
 
 function setView(view) {
   currentView = view;
+  const orderViews = ['orders', 'p-mining-orders', 'nexa-tip-orders', 'nexa-escrow-orders', 'xiangqi-deposits'];
   adminAddSection.classList.toggle('hidden', view !== 'add');
   adminVisitStatsSection.classList.toggle('hidden', view !== 'visit-stats');
   adminSiteConfigSection.classList.toggle('hidden', view !== 'site-config');
@@ -1214,7 +1215,7 @@ function setView(view) {
   adminSkillsFetchSection.classList.toggle('hidden', view !== 'skills-fetch');
   adminSkillsSection.classList.toggle('hidden', view !== 'skills');
   adminGamesSection.classList.toggle('hidden', view !== 'games');
-  adminOrdersSection.classList.toggle('hidden', view !== 'orders');
+  adminOrdersSection.classList.toggle('hidden', !orderViews.includes(view));
   adminPMiningOrdersSection.classList.toggle('hidden', view !== 'p-mining-orders');
   adminNexaTipOrdersSection.classList.toggle('hidden', view !== 'nexa-tip-orders');
   adminNchatUsersSection.classList.toggle('hidden', view !== 'nchat-users');
