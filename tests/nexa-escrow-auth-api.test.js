@@ -380,6 +380,29 @@ test('admin can list p-mining power orders and nexa tip orders', async () => {
     });
     assert.equal(tipCreateResponse.statusCode, 200);
     assert.equal(tipCreateResponse.body.ok, true);
+    harness.db.prepare(`
+      UPDATE nexa_tip_orders
+      SET status = 'SUCCESS',
+          paid_time = '2026-04-10 09:01:00'
+      WHERE open_id = ? AND game_slug = ?
+    `).run('tip-buyer-open-id', 'gomoku');
+    harness.db.prepare(`
+      INSERT INTO nexa_tip_orders (
+        order_no, partner_order_no, game_slug, game_name, open_id, amount, currency, status, create_time, paid_time, notify_payload
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      'tip_order_2',
+      'tip_partner_2',
+      'gomoku',
+      '五子棋',
+      'tip-buyer-open-id',
+      '0.10',
+      'USDT',
+      'PENDING',
+      '2026-04-10 09:00:00',
+      '',
+      '{}'
+    );
 
     const adminCookies = await loginAdmin(harness);
 
@@ -404,9 +427,13 @@ test('admin can list p-mining power orders and nexa tip orders', async () => {
     assert.equal(tipOrdersResponse.body.ok, true);
     assert.equal(Array.isArray(tipOrdersResponse.body.items), true);
     assert.equal(tipOrdersResponse.body.items.length, 1);
+    assert.equal(
+      tipOrdersResponse.body.items.some((item) => item.partnerOrderNo === 'tip_partner_2'),
+      false
+    );
     assert.equal(tipOrdersResponse.body.items[0].gameSlug, 'gomoku');
     assert.equal(tipOrdersResponse.body.items[0].openId, 'tip-buyer-open-id');
-    assert.equal(tipOrdersResponse.body.items[0].status, 'PENDING');
+    assert.equal(tipOrdersResponse.body.items[0].status, 'SUCCESS');
   } finally {
     harness.cleanup();
   }

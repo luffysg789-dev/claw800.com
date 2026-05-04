@@ -6041,6 +6041,7 @@ const listAdminNexaTipOrdersStmt = db.prepare(`
     paid_time,
     created_at
   FROM nexa_tip_orders
+  WHERE UPPER(COALESCE(status, '')) = 'SUCCESS'
   ORDER BY datetime(created_at) DESC, rowid DESC
   LIMIT 200
 `);
