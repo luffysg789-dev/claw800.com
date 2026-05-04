@@ -307,7 +307,8 @@ test('admin panel includes a xiangqi deposits entry point', () => {
   const html = fs.readFileSync(adminHtmlPath, 'utf8');
   const js = fs.readFileSync(adminJsPath, 'utf8');
 
-  assert.match(html, /id="navXiangqiDeposits"/);
+  assert.match(html, /id="navOrders"/);
+  assert.match(html, /id="ordersXiangqiDepositsBtn"/);
   assert.match(html, /id="adminXiangqiDepositsSection"/);
   assert.match(html, /id="xiangqiDepositsList"/);
   assert.match(js, /const adminXiangqiDepositsSection = document\.getElementById\('adminXiangqiDepositsSection'\);/);

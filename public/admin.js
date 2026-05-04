@@ -56,6 +56,7 @@ const tutorialList = document.getElementById('tutorialList');
 const adminSkillsFetchSection = document.getElementById('adminSkillsFetchSection');
 const adminSkillsSection = document.getElementById('adminSkillsSection');
 const adminGamesSection = document.getElementById('adminGamesSection');
+const adminOrdersSection = document.getElementById('adminOrdersSection');
 const adminPMiningOrdersSection = document.getElementById('adminPMiningOrdersSection');
 const adminNexaTipOrdersSection = document.getElementById('adminNexaTipOrdersSection');
 const adminNchatUsersSection = document.getElementById('adminNchatUsersSection');
@@ -213,13 +214,10 @@ const texts = {
     navSkillsFetch: '技能抓取',
     navSkills: '技能列表',
     navGames: '游戏列表',
-    navPMiningOrders: '挖矿算力订单',
-    navNexaTipOrders: '打赏订单',
+    navOrders: '订单',
     navNchatUsers: '聊天用户',
-    navNexaEscrowOrders: '担保订单',
     navNexaEscrowUsers: '担保用户',
     navNexaEscrowWithdrawals: '担保提现记录',
-    navXiangqiDeposits: '象棋充值订单',
     navXiangqiWithdrawals: '象棋提现审核',
     navPassword: '修改密码',
     navPending: '等待审核',
@@ -327,6 +325,11 @@ const texts = {
     skillsCreateSuccess: '技能已新增',
     skillsCreateRouteMissing: '技能新增接口不存在（404）。请重启后端后再试。',
     gamesListTitle: '游戏列表',
+    ordersTitle: '订单',
+    ordersPMiningBtn: '挖矿算力订单',
+    ordersNexaTipBtn: '打赏订单',
+    ordersNexaEscrowBtn: '担保订单',
+    ordersXiangqiDepositsBtn: '象棋充值订单',
     pMiningOrdersTitle: '挖矿算力订单',
     nexaTipOrdersTitle: '打赏订单',
     nchatUsersTitle: '聊天用户',
@@ -485,13 +488,10 @@ const texts = {
     navSkillsFetch: 'Skill Fetch',
     navSkills: 'Skills',
     navGames: 'Games',
-    navPMiningOrders: 'P-Mining Orders',
-    navNexaTipOrders: 'Tip Orders',
+    navOrders: 'Orders',
     navNchatUsers: 'Chat Users',
-    navNexaEscrowOrders: 'Escrow Orders',
     navNexaEscrowUsers: 'Escrow Users',
     navNexaEscrowWithdrawals: 'Escrow Withdrawals',
-    navXiangqiDeposits: 'Xiangqi Deposits',
     navXiangqiWithdrawals: 'Xiangqi Withdrawals',
     navPassword: 'Change Password',
     navPending: 'Pending',
@@ -599,6 +599,11 @@ const texts = {
     skillsCreateSuccess: 'Skill added.',
     skillsCreateRouteMissing: 'Skill create API not found (404). Please restart the backend and try again.',
     gamesListTitle: 'Games',
+    ordersTitle: 'Orders',
+    ordersPMiningBtn: 'P-Mining Orders',
+    ordersNexaTipBtn: 'Tip Orders',
+    ordersNexaEscrowBtn: 'Escrow Orders',
+    ordersXiangqiDepositsBtn: 'Xiangqi Deposits',
     pMiningOrdersTitle: 'P-Mining Power Orders',
     nexaTipOrdersTitle: 'Game Tip Orders',
     nchatUsersTitle: 'Chat Users',
@@ -1063,13 +1068,10 @@ function applyLanguage() {
   document.getElementById('navSkillsFetch').textContent = dict.navSkillsFetch;
   document.getElementById('navSkills').textContent = dict.navSkills;
   document.getElementById('navGames').textContent = dict.navGames;
-  document.getElementById('navPMiningOrders').textContent = dict.navPMiningOrders;
-  document.getElementById('navNexaTipOrders').textContent = dict.navNexaTipOrders;
+  document.getElementById('navOrders').textContent = dict.navOrders;
   document.getElementById('navNchatUsers').textContent = dict.navNchatUsers;
-  document.getElementById('navNexaEscrowOrders').textContent = dict.navNexaEscrowOrders;
   document.getElementById('navNexaEscrowUsers').textContent = dict.navNexaEscrowUsers;
   document.getElementById('navNexaEscrowWithdrawals').textContent = dict.navNexaEscrowWithdrawals;
-  document.getElementById('navXiangqiDeposits').textContent = dict.navXiangqiDeposits;
   document.getElementById('navXiangqiWithdrawals').textContent = dict.navXiangqiWithdrawals;
   document.getElementById('navPassword').textContent = dict.navPassword;
   document.getElementById('navPending').textContent = dict.navPending;
@@ -1131,6 +1133,11 @@ function applyLanguage() {
   document.getElementById('skillsFetchTitle').textContent = dict.skillsFetchTitle;
   document.getElementById('skillsListTitle').textContent = dict.skillsListTitle;
   document.getElementById('gamesListTitle').textContent = dict.gamesListTitle;
+  document.getElementById('ordersTitle').textContent = dict.ordersTitle;
+  document.getElementById('ordersPMiningBtn').textContent = dict.ordersPMiningBtn;
+  document.getElementById('ordersNexaTipBtn').textContent = dict.ordersNexaTipBtn;
+  document.getElementById('ordersNexaEscrowBtn').textContent = dict.ordersNexaEscrowBtn;
+  document.getElementById('ordersXiangqiDepositsBtn').textContent = dict.ordersXiangqiDepositsBtn;
   document.getElementById('pMiningOrdersTitle').textContent = dict.pMiningOrdersTitle;
   document.getElementById('nexaTipOrdersTitle').textContent = dict.nexaTipOrdersTitle;
   document.getElementById('nchatUsersTitle').textContent = dict.nchatUsersTitle;
@@ -1207,6 +1214,7 @@ function setView(view) {
   adminSkillsFetchSection.classList.toggle('hidden', view !== 'skills-fetch');
   adminSkillsSection.classList.toggle('hidden', view !== 'skills');
   adminGamesSection.classList.toggle('hidden', view !== 'games');
+  adminOrdersSection.classList.toggle('hidden', view !== 'orders');
   adminPMiningOrdersSection.classList.toggle('hidden', view !== 'p-mining-orders');
   adminNexaTipOrdersSection.classList.toggle('hidden', view !== 'nexa-tip-orders');
   adminNchatUsersSection.classList.toggle('hidden', view !== 'nchat-users');
@@ -3909,13 +3917,14 @@ document.getElementById('navTutorialAdd').addEventListener('click', () => {
 document.getElementById('navSkillsFetch').addEventListener('click', () => setView('skills-fetch'));
 document.getElementById('navSkills').addEventListener('click', () => setView('skills'));
 document.getElementById('navGames').addEventListener('click', () => setView('games'));
-document.getElementById('navPMiningOrders').addEventListener('click', () => setView('p-mining-orders'));
-document.getElementById('navNexaTipOrders').addEventListener('click', () => setView('nexa-tip-orders'));
+document.getElementById('navOrders').addEventListener('click', () => setView('orders'));
+document.getElementById('ordersPMiningBtn').addEventListener('click', () => setView('p-mining-orders'));
+document.getElementById('ordersNexaTipBtn').addEventListener('click', () => setView('nexa-tip-orders'));
+document.getElementById('ordersNexaEscrowBtn').addEventListener('click', () => setView('nexa-escrow-orders'));
+document.getElementById('ordersXiangqiDepositsBtn').addEventListener('click', () => setView('xiangqi-deposits'));
 document.getElementById('navNchatUsers').addEventListener('click', () => setView('nchat-users'));
-document.getElementById('navNexaEscrowOrders').addEventListener('click', () => setView('nexa-escrow-orders'));
 document.getElementById('navNexaEscrowUsers').addEventListener('click', () => setView('nexa-escrow-users'));
 document.getElementById('navNexaEscrowWithdrawals').addEventListener('click', () => setView('nexa-escrow-withdrawals'));
-document.getElementById('navXiangqiDeposits').addEventListener('click', () => setView('xiangqi-deposits'));
 document.getElementById('navXiangqiWithdrawals').addEventListener('click', () => setView('xiangqi-withdrawals'));
 document.getElementById('navPassword').addEventListener('click', () => setView('password'));
 document.getElementById('navPending').addEventListener('click', () => setView('pending'));

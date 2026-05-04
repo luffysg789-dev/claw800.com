@@ -262,7 +262,8 @@ test('admin panel includes nexa escrow orders, users, and withdrawal review entr
   const html = fs.readFileSync(adminHtmlPath, 'utf8');
   const js = fs.readFileSync(adminJsPath, 'utf8');
 
-  assert.match(html, /id="navNexaEscrowOrders"/);
+  assert.match(html, /id="navOrders"/);
+  assert.match(html, /id="ordersNexaEscrowBtn"/);
   assert.match(html, /id="navNexaEscrowUsers"/);
   assert.match(html, /id="navNexaEscrowWithdrawals"/);
   assert.match(html, /id="adminNexaEscrowSection"/);
