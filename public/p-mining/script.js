@@ -981,7 +981,7 @@
   function shouldForceFreshNexaAuthorization({ isNexaEnvironment, hasAuthCode, cachedSession }) {
     if (!isNexaEnvironment) return false;
     if (hasAuthCode) return false;
-    return Boolean(String(cachedSession?.openId || '').trim() && String(cachedSession?.sessionKey || '').trim());
+    return false;
   }
 
   function getClaimUiState({ lastClaimAt, now, isProcessing }) {
