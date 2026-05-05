@@ -6,7 +6,7 @@
     <title>u卡场景查询</title>
     <meta name="description" content="点击平台，查询支持该支付场景的 U 卡和卡头。" />
     <link rel="icon" href="/favicon.ico" />
-    <link rel="stylesheet" href="/u-card-query/style.css?v=20260505-10" />
+    <link rel="stylesheet" href="/u-card-query/style.css?v=20260505-11" />
   </head>
   <body>
     <main class="u-card-app">
@@ -19,9 +19,15 @@
                   <path d="M15 18l-6-6 6-6" />
                 </svg>
               </a>
-              <h2>选择平台</h2>
+              <h2 id="platformSectionTitle">选择平台</h2>
             </div>
-            <span id="platformCount">0</span>
+            <div class="section-actions">
+              <span id="platformCount">0</span>
+              <div class="lang-toggle" aria-label="语言切换">
+                <button id="langZh" class="lang-toggle-btn active" type="button" data-lang="zh">中文</button>
+                <button id="langEn" class="lang-toggle-btn" type="button" data-lang="en">EN</button>
+              </div>
+            </div>
           </div>
           <div id="platformGrid" class="platform-grid"></div>
         </div>
@@ -38,6 +44,6 @@
       </section>
     </main>
 
-    <script src="/u-card-query/script.js?v=20260505-03"></script>
+    <script src="/u-card-query/script.js?v=20260505-04"></script>
   </body>
 </html>

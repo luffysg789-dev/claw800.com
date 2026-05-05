@@ -102,6 +102,41 @@ body {
   white-space: nowrap;
 }
 
+.section-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.lang-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #f7faf7;
+}
+
+.lang-toggle-btn {
+  min-width: 44px;
+  min-height: 28px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.lang-toggle-btn.active {
+  background: var(--brand);
+  color: #fff;
+}
+
 .platform-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
