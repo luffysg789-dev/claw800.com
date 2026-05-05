@@ -86,6 +86,18 @@ test('p-mining purchase is a standalone tab placed between invite and records', 
   assert.match(html, /<section class="p-mining-panel" data-tab="purchase" hidden>[\s\S]*id="pMiningPurchasePanel"/);
 });
 
+test('p-mining purchase explains invite rewards and server support funding', () => {
+  const html = fs.readFileSync(htmlPath, 'utf8');
+  const css = fs.readFileSync(cssPath, 'utf8');
+  const js = fs.readFileSync(jsPath, 'utf8');
+
+  assert.match(html, /data-i18n="powerPurchaseInviteReward"/);
+  assert.match(html, /data-i18n="powerPurchaseProjectSupport"/);
+  assert.match(js, /powerPurchaseInviteReward:\s*'1\/购买算力给邀请人奖励 10% 的算力。'/);
+  assert.match(js, /powerPurchaseProjectSupport:\s*'2\/购买算力即是支持项目发展,资金将用于购买服务器'/);
+  assert.match(css, /\.p-mining-purchase-note\s*\{/);
+});
+
 test('p-mining css includes dark glass tokens, bottom nav, and circular claim layout', () => {
   assert.equal(fs.existsSync(cssPath), true);
 

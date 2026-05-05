@@ -531,6 +531,19 @@ body {
   box-shadow: 0 12px 24px rgba(20, 154, 70, 0.24);
 }
 
+.p-mining-purchase-note {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  color: var(--p-mining-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.p-mining-purchase-note p {
+  margin: 0;
+}
+
 .p-mining-text-input {
   flex: 1;
   min-width: 0;
