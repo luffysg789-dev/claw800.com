@@ -34,7 +34,7 @@ const I18N = {
   },
   en: {
     docTitle: 'U Card Scenario Query',
-    selectPlatform: 'Select Platform',
+    selectPlatform: 'Select',
     platformCount: (count) => `${count} platforms`,
     resultTitle: 'Supported Cards',
     supportedCardsTitle: (name) => `Cards that support ${name}`,

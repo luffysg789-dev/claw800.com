@@ -11,7 +11,7 @@ const jsPath = path.join(rootDir, 'public', 'u-card-query', 'script.js');
 test('U card query page includes language toggle after platform count', () => {
   const html = fs.readFileSync(htmlPath, 'utf8');
   assert.match(html, /<span id="platformCount">0<\/span>[\s\S]*?<div class="lang-toggle"/);
-  assert.match(html, /id="langZh"[\s\S]*data-lang="zh"[\s\S]*中文/);
+  assert.match(html, /id="langZh"[\s\S]*data-lang="zh"[\s\S]*>中<\/button>/);
   assert.match(html, /id="langEn"[\s\S]*data-lang="en"[\s\S]*EN/);
   assert.match(html, /\/u-card-query\/style\.css\?v=20260505-11/);
   assert.match(html, /\/u-card-query\/script\.js\?v=20260505-04/);
@@ -20,6 +20,7 @@ test('U card query page includes language toggle after platform count', () => {
 test('U card query script translates fixed UI and selected results', () => {
   const js = fs.readFileSync(jsPath, 'utf8');
   assert.match(js, /currentLang = localStorage\.getItem\('uCardQueryLang'\) === 'en' \? 'en' : 'zh'/);
+  assert.match(js, /selectPlatform:\s*'Select'/);
   assert.match(js, /supportedCardsTitle:\s*\(name\) => `Cards that support \$\{name\}`/);
   assert.match(js, /clickPlatformHint:\s*'After clicking a platform, cards available for payment will appear here\.'/);
   assert.match(js, /\['微信', 'WeChat'\]/);
