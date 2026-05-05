@@ -24,17 +24,14 @@ body {
 .u-card-app {
   width: min(1120px, calc(100% - 28px));
   margin: 0 auto;
-  padding: 22px 0 42px;
+  padding: 28px 0 42px;
 }
 
-.topbar {
-  margin-bottom: 18px;
-}
-
-.title-row {
+.section-title-with-back {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .back-link {
@@ -67,13 +64,6 @@ body {
 .back-link:hover {
   border-color: #95c9a7;
   background: var(--brand-soft);
-}
-
-.topbar h1 {
-  margin: 0;
-  font-size: clamp(24px, 4vw, 38px);
-  line-height: 1.05;
-  letter-spacing: 0;
 }
 
 .query-shell {

@@ -6,25 +6,21 @@
     <title>u卡场景查询</title>
     <meta name="description" content="点击平台，查询支持该支付场景的 U 卡和卡头。" />
     <link rel="icon" href="/favicon.ico" />
-    <link rel="stylesheet" href="/u-card-query/style.css?v=20260505-09" />
+    <link rel="stylesheet" href="/u-card-query/style.css?v=20260505-10" />
   </head>
   <body>
     <main class="u-card-app">
-      <header class="topbar">
-        <div class="title-row">
-          <a class="back-link" href="/games.html" aria-label="返回游戏与工具" title="返回游戏与工具">
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-          </a>
-          <h1>u卡场景查询</h1>
-        </div>
-      </header>
-
       <section class="query-shell">
         <div class="platform-panel">
           <div class="section-head">
-            <h2>选择平台</h2>
+            <div class="section-title-with-back">
+              <a class="back-link" href="/games.html" aria-label="返回游戏与工具" title="返回游戏与工具">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M15 18l-6-6 6-6" />
+                </svg>
+              </a>
+              <h2>选择平台</h2>
+            </div>
             <span id="platformCount">0</span>
           </div>
           <div id="platformGrid" class="platform-grid"></div>
