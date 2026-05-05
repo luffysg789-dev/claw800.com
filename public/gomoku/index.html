@@ -10,37 +10,32 @@
     />
     <link rel="icon" href="/favicon.ico" />
     <link rel="stylesheet" href="/game-tip.css?v=20260321-01" />
-    <link rel="stylesheet" href="/gomoku/style.css?v=20260317-01" />
+    <link rel="stylesheet" href="/gomoku/style.css?v=20260317-02" />
   </head>
   <body>
     <main class="gomoku-page">
       <section class="gomoku-container">
         <div class="gomoku-shell">
           <header class="gomoku-header">
-            <div class="gomoku-intro-row">
-              <a class="gomoku-back" href="/games.html" aria-label="返回游戏与工具大全" title="返回游戏与工具大全">
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <path
-                    fill="currentColor"
-                    d="M15.7 5.3a1 1 0 010 1.4L10.41 12l5.29 5.3a1 1 0 01-1.42 1.4l-6-6a1 1 0 010-1.4l6-6a1 1 0 011.42 0z"
-                  />
-                </svg>
-              </a>
-              <div class="gomoku-title-wrap">
-                <p id="gamePageSubtitle" class="gomoku-subtitle">
-                  15x15 棋盘，支持真人对战与人机对战，电脑和手机都能顺手下。
-                </p>
-              </div>
-            </div>
             <a class="gomoku-home-link" href="/games.html">返回首页</a>
           </header>
 
           <section class="gomoku-game-layout">
             <div class="gomoku-board-panel">
               <div class="gomoku-board-head">
-                <div>
-                  <p class="gomoku-section-eyebrow">对局中</p>
-                  <h2 id="gomokuStatusTitle">等待</h2>
+                <div class="gomoku-status-title-wrap">
+                  <a class="gomoku-back" href="/games.html" aria-label="返回游戏与工具大全" title="返回游戏与工具大全">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path
+                        fill="currentColor"
+                        d="M15.7 5.3a1 1 0 010 1.4L10.41 12l5.29 5.3a1 1 0 01-1.42 1.4l-6-6a1 1 0 010-1.4l6-6a1 1 0 011.42 0z"
+                      />
+                    </svg>
+                  </a>
+                  <div>
+                    <p class="gomoku-section-eyebrow">对局中</p>
+                    <h2 id="gomokuStatusTitle">等待</h2>
+                  </div>
                 </div>
                 <div class="gomoku-status-pills">
                   <span id="gomokuTurnBadge" class="gomoku-status-pill is-accent">黑棋先行</span>

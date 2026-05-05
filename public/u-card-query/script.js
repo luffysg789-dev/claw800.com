@@ -43,7 +43,7 @@ function renderPlatforms(items) {
 }
 
 function renderCards(platform, items) {
-  resultTitle.textContent = platform ? `${platform.name} 支持的卡` : '支持的卡';
+  resultTitle.textContent = platform ? `支持 ${platform.name} 的卡` : '支持的卡';
   resultCount.textContent = items.length ? `${items.length} 张卡` : '暂无结果';
   if (!items.length) {
     cardResults.innerHTML = `<p class="empty-state">后台还没有添加支持 ${escapeHtml(platform?.name || '该平台')} 的卡。</p>`;
@@ -68,7 +68,7 @@ platformGrid.addEventListener('click', async (event) => {
   platformGrid.querySelectorAll('.platform-button').forEach((item) => {
     item.classList.toggle('active', Number(item.dataset.platformId) === platformId);
   });
-  resultTitle.textContent = `${platformName} 支持的卡`;
+  resultTitle.textContent = `支持 ${platformName} 的卡`;
   resultCount.textContent = '查询中';
   cardResults.innerHTML = `<p class="empty-state">正在查询...</p>`;
   try {

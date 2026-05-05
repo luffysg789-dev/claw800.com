@@ -48,6 +48,7 @@ test('gomoku html includes setup controls and board canvas', () => {
   assert.doesNotMatch(html, /先选模式，再开始对局/);
   assert.doesNotMatch(html, /操作区/);
   assert.doesNotMatch(html, /当前：人机对战，中级 AI，你执黑先手。/);
+  assert.doesNotMatch(html, /15x15 棋盘，支持真人对战与人机对战。/);
   assert.match(html, /id="gomokuOverlayModeHuman"/);
   assert.match(html, /id="gomokuOverlayModeAi"[\s\S]*?class="gomoku-choice is-active"/);
   assert.match(html, /id="gomokuOverlaySettings"/);
@@ -57,6 +58,7 @@ test('gomoku html includes setup controls and board canvas', () => {
   assert.match(html, /id="gomokuBoardOverlay"/);
   assert.match(html, /id="gomokuBoardStartBtn"/);
   assert.match(html, /id="gomokuStatusTitle">等待<\/h2>/);
+  assert.match(html, /class="gomoku-status-title-wrap"[\s\S]*?class="gomoku-back"[\s\S]*?id="gomokuStatusTitle">等待<\/h2>/);
   assert.doesNotMatch(html, /id="gomokuModeBadge"/);
   assert.doesNotMatch(html, /id="gomokuDifficultyBadge"/);
   assert.match(html, /id="gomokuUndoBtn"/);
