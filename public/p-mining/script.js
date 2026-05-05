@@ -119,7 +119,8 @@
       errorSelfInvite: 'You cannot bind your own invite code.',
       errorAlreadyBound: 'This account can only bind once.',
       errorInvalidInvite: 'Invite code is invalid.',
-      errorEmptyInvite: 'Please enter an invite code.'
+      errorEmptyInvite: 'Please enter an invite code.',
+      authFailed: 'Authorization failed. Please try again later.'
     },
     zh: {
       networkOnline: '在线',
@@ -191,7 +192,8 @@
       errorSelfInvite: '不能绑定自己的邀请码',
       errorAlreadyBound: '每个账号只能绑定一次邀请码',
       errorInvalidInvite: '邀请码无效',
-      errorEmptyInvite: '请输入邀请码'
+      errorEmptyInvite: '请输入邀请码',
+      authFailed: '授权登录失败，请稍后再试。'
     }
   };
 
@@ -1763,10 +1765,12 @@
       syncInvitePromptVisibility(appState);
       switchTab(appState, targetTab);
       return true;
-    } catch {
+    } catch (error) {
       clearAuthCodeFromUrl();
       clearPendingAuthTarget(appState.storage);
-      clearCachedPMiningSession(appState.storage);
+      appState.authExchangeFailed = true;
+      const message = String(error?.displayMessage || error?.message || t(appState.locale, 'authFailed'));
+      globalScope.window.alert(message || t(appState.locale, 'authFailed'));
       return false;
     } finally {
       appState.isAuthorizing = false;
@@ -1818,6 +1822,7 @@
       network: loadNetworkStats(storage),
       activeTab: 'mining',
       activeRecordFilter: 'claims',
+      authExchangeFailed: false,
       animatedBalanceValue: Number(hostUser?.balance || 0) || 0,
       balanceAnimationFrame: null,
       hasAnimatedBalance: false,
@@ -1946,6 +1951,10 @@
     if (!root) return;
     const appState = createBrowserApp(root);
     const exchanged = await exchangePMiningSessionFromUrlCode(appState);
+    if (appState.authExchangeFailed) {
+      renderAll(appState);
+      return;
+    }
     if (!exchanged && appState.nexaSession) {
       const bootstrap = await loadPMiningBootstrap().catch(() => null);
       if (bootstrap?.ok) {

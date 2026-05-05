@@ -74,7 +74,7 @@ test('p-mining html includes host header, tab panels, and script mounts', () => 
   assert.match(html, /data-purchase-tier="boost"/);
   assert.match(html, /\/games-config\.js/);
   assert.match(html, /\/p-mining\/style\.css\?v=20260407-03/);
-  assert.match(html, /\/p-mining\/script\.js\?v=20260407-04/);
+  assert.match(html, /\/p-mining\/script\.js\?v=20260407-05/);
 });
 
 test('p-mining purchase is a standalone tab placed between invite and records', () => {
@@ -221,6 +221,7 @@ test('p-mining script includes the expected UI hooks', () => {
   assert.match(js, /function applyTranslations\(appState\) \{[\s\S]*documentElement\.lang = appState\.locale === 'zh' \? 'zh-CN' : 'en';/);
   assert.match(js, /const appState = \{[\s\S]*locale: getStoredLocale\(storage\),[\s\S]*\};\s*setStoredLocale\(storage, appState\.locale\);/);
   assert.match(js, /const activeSession = requiresFreshNexaAuthorization \? null : cachedSession;/);
+  assert.match(js, /authExchangeFailed:\s*false/);
   assert.match(js, /const PMINING_SESSION_STORAGE_KEY = 'claw800:p-mining:nexa-session';/);
   assert.match(js, /const MAX_NEXA_SESSION_RETENTION_MS = 30 \* 24 \* 60 \* 60 \* 1000;/);
   assert.match(js, /const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth:\/\/oauth\/authorize';/);
@@ -322,6 +323,8 @@ test('p-mining invite prompt waits for synced account state instead of opening d
   );
   assert.match(js, /syncAppStateFromServer\(appState,\s*bootstrap\);\s*(syncAutomaticNetworkGrowth\(appState\);\s*)?renderAll\(appState\);\s*syncInvitePromptVisibility\(appState\);/);
   assert.match(js, /clearPendingAuthTarget\(appState\.storage\);\s*renderAll\(appState\);\s*syncInvitePromptVisibility\(appState\);\s*switchTab\(appState,\s*targetTab\);/);
+  assert.match(js, /appState\.authExchangeFailed = true;[\s\S]*window\.alert/);
+  assert.match(js, /if \(appState\.authExchangeFailed\) \{\s*renderAll\(appState\);\s*return;\s*\}/);
   assert.match(js, /if \(!exchanged && !appState\.nexaSession\) \{\s*if \(appState\.requiresFreshNexaAuthorization && isNexaAppEnvironment\(\)\) \{\s*await clearPMiningServerSession\(\)\.catch\(\(\) => false\);\s*await beginNexaLoginFlow\(appState,\s*'mining'\)\.catch\(\(\) => false\);\s*return;\s*\}/);
 });
 
