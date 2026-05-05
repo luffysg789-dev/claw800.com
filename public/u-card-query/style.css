@@ -166,6 +166,39 @@ body {
   color: #14552f;
 }
 
+.platform-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.platform-pager button {
+  min-width: 76px;
+  min-height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fbfcfb;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.platform-pager button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.platform-pager span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .card-results {
   display: grid;
   gap: 10px;

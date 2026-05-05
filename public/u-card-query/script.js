@@ -1,4 +1,5 @@
 const platformGrid = document.getElementById('platformGrid');
+const platformPager = document.getElementById('platformPager');
 const platformCount = document.getElementById('platformCount');
 const platformSectionTitle = document.getElementById('platformSectionTitle');
 const resultTitle = document.getElementById('resultTitle');
@@ -12,6 +13,9 @@ let currentLang = localStorage.getItem('uCardQueryLang') === 'en' ? 'en' : 'zh';
 let platforms = [];
 let activePlatform = null;
 let activeCards = [];
+let platformPage = 0;
+
+const PLATFORMS_PER_PAGE = 21;
 
 const I18N = {
   zh: {
@@ -31,7 +35,10 @@ const I18N = {
     requestFailed: '请求失败',
     loadFailed: '加载失败',
     binPrefix: '卡头',
-    issuerRegionLabel: '发行地'
+    issuerRegionLabel: '发行地',
+    prevPage: '上一页',
+    nextPage: '下一页',
+    pageInfo: (current, total) => `${current} / ${total}`
   },
   en: {
     docTitle: 'U Card Scenario Query',
@@ -50,7 +57,10 @@ const I18N = {
     requestFailed: 'Request failed',
     loadFailed: 'Load failed',
     binPrefix: 'BIN',
-    issuerRegionLabel: 'Issued in'
+    issuerRegionLabel: 'Issued in',
+    prevPage: 'Prev',
+    nextPage: 'Next',
+    pageInfo: (current, total) => `${current} / ${total}`
   }
 };
 
@@ -121,6 +131,17 @@ function displayName(value) {
   return translationCache.get(`en|${text}`) || translateNameSync(text);
 }
 
+function stripParenthetical(value) {
+  return String(value || '')
+    .replace(/\s*[\(（][^\)）]*[\)）]\s*/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function displayPlatformName(value) {
+  return displayName(stripParenthetical(value));
+}
+
 function escapeHtml(value) {
   return String(value || '')
     .replaceAll('&', '&amp;')
@@ -146,23 +167,34 @@ function setError(message) {
 function renderPlatforms(items) {
   platformSectionTitle.textContent = t('selectPlatform');
   platformCount.textContent = t('platformCount', items.length);
-  platformGrid.innerHTML = items
+  const totalPages = Math.max(1, Math.ceil(items.length / PLATFORMS_PER_PAGE));
+  platformPage = Math.max(0, Math.min(platformPage, totalPages - 1));
+  const pageItems = items.slice(platformPage * PLATFORMS_PER_PAGE, (platformPage + 1) * PLATFORMS_PER_PAGE);
+  platformGrid.innerHTML = pageItems
     .map((platform) => `
       <button
         class="platform-button${Number(platform.id) === Number(activePlatformId) ? ' active' : ''}"
         type="button"
         data-platform-id="${Number(platform.id)}"
         data-platform-name="${escapeHtml(platform.name)}"
-      >${escapeHtml(displayName(platform.name))}</button>
+      >${escapeHtml(displayPlatformName(platform.name))}</button>
     `)
     .join('');
+  platformPager.innerHTML =
+    totalPages > 1
+      ? `
+          <button type="button" data-page-action="prev" ${platformPage <= 0 ? 'disabled' : ''}>${escapeHtml(t('prevPage'))}</button>
+          <span>${escapeHtml(t('pageInfo', platformPage + 1, totalPages))}</span>
+          <button type="button" data-page-action="next" ${platformPage >= totalPages - 1 ? 'disabled' : ''}>${escapeHtml(t('nextPage'))}</button>
+        `
+      : '';
 }
 
 function renderCards(platform, items) {
-  resultTitle.textContent = platform ? t('supportedCardsTitle', displayName(platform.name)) : t('resultTitle');
+  resultTitle.textContent = platform ? t('supportedCardsTitle', displayPlatformName(platform.name)) : t('resultTitle');
   resultCount.textContent = items.length ? t('cardCount', items.length) : t('noResult');
   if (!items.length) {
-    cardResults.innerHTML = `<p class="empty-state">${escapeHtml(t('noCards', displayName(platform?.name)))}</p>`;
+    cardResults.innerHTML = `<p class="empty-state">${escapeHtml(t('noCards', displayPlatformName(platform?.name)))}</p>`;
     return;
   }
   cardResults.innerHTML = items
@@ -226,7 +258,7 @@ platformGrid.addEventListener('click', async (event) => {
   platformGrid.querySelectorAll('.platform-button').forEach((item) => {
     item.classList.toggle('active', Number(item.dataset.platformId) === platformId);
   });
-  resultTitle.textContent = t('supportedCardsTitle', displayName(platformName));
+  resultTitle.textContent = t('supportedCardsTitle', displayPlatformName(platformName));
   resultCount.textContent = t('querying');
   cardResults.innerHTML = `<p class="empty-state">${escapeHtml(t('loading'))}</p>`;
   try {
@@ -239,6 +271,14 @@ platformGrid.addEventListener('click', async (event) => {
     resultCount.textContent = t('failed');
     setError(error.message || t('failed'));
   }
+});
+
+platformPager.addEventListener('click', (event) => {
+  const button = event.target.closest('button[data-page-action]');
+  if (!button || button.disabled) return;
+  const action = button.dataset.pageAction;
+  platformPage += action === 'next' ? 1 : -1;
+  renderPlatforms(platforms);
 });
 
 langZh.addEventListener('click', () => setLanguage('zh'));
