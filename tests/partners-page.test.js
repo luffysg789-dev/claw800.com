@@ -59,6 +59,14 @@ test('Panda Dog hero action buttons sit five pixels higher for all languages', (
   assert.match(pandaCss, /\.hero-actions\s*\{[\s\S]*?margin-top:\s*21px;/);
 });
 
+test('Panda Dog navigation highlights the active item in gold by default', () => {
+  const pandaHtml = fs.readFileSync(path.join(pandaDogDir, 'index.html'), 'utf8');
+  const pandaCss = fs.readFileSync(path.join(pandaDogDir, 'styles.css'), 'utf8');
+
+  assert.match(pandaHtml, /<a class="active" href="#about" data-i18n="nav\.about">About<\/a>/);
+  assert.match(pandaCss, /\.site-nav a:hover,\s*\.site-nav a\.active\s*\{[\s\S]*?background:\s*var\(--gold\);[\s\S]*?color:\s*var\(--ink\);/);
+});
+
 test('partners page uses the same card layout as the games hub', () => {
   const partnersHtml = fs.readFileSync(partnersHtmlPath, 'utf8');
 
