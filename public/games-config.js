@@ -4,6 +4,21 @@ const { getGameCardMediaMarkup } = typeof window === 'undefined'
 
 const DEFAULT_GAMES = [
   {
+    slug: 'lucky-star',
+    name: 'LUCKY STAR INVESTMENT',
+    description: '迪拜注册投资公司官网，展示公司简介、投资领域、注册资质与办公室环境。',
+    cover_image: '',
+    secondary_image: '',
+    sound_file: '',
+    background_music_file: '',
+    is_enabled: 1,
+    showInGamesHub: 1,
+    sort_order: 59,
+    route: '/lucky-star/',
+    icon: 'LS',
+    actionText: '查看官网'
+  },
+  {
     slug: 'u-card-query',
     name: 'u卡场景查询',
     description: '点击平台，查询支持该支付场景的 U 卡和卡头。',

@@ -17,9 +17,17 @@ test('games page uses unified start button text for all game cards', () => {
 });
 
 test('games page loads the latest game config bundle and keeps piano cards on /piano/', () => {
-  assert.match(gamesHtml, /<script src="\/games-config\.js\?v=20260418-01"><\/script>/);
+  assert.match(gamesHtml, /<script src="\/games-config\.js\?v=20260507-01"><\/script>/);
   assert.match(config, /slug:\s*'piano'[\s\S]*route:\s*'\/piano\/'/);
   assert.match(config, /if \(fallback\.route\) \{[\s\S]*const legacyRoute = `\/games\/\$\{encodeURIComponent\(slug\)\}`;[\s\S]*if \(!route \|\| route === legacyRoute\) route = fallback\.route;/);
+});
+
+test('games page includes the Lucky Star corporate site entry', () => {
+  assert.match(config, /slug:\s*'lucky-star'/);
+  assert.match(config, /name:\s*'LUCKY STAR INVESTMENT'/);
+  assert.match(config, /route:\s*'\/lucky-star\/'/);
+  assert.match(config, /showInGamesHub:\s*1/);
+  assert.match(config, /actionText:\s*'查看官网'/);
 });
 
 test('games page keeps standalone pages like p-mining out of the public games hub', () => {
