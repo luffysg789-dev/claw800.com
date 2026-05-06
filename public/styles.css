@@ -1084,6 +1084,14 @@ button.danger { background: var(--danger); }
     font-size: 0.875rem;
   }
 
+  .hero-nav-btn--icon {
+    position: absolute;
+    right: 52px;
+    top: -54px;
+    width: 42px;
+    min-width: 42px;
+  }
+
   .lang-menu {
     position: absolute;
     right: 0;

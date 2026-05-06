@@ -5,6 +5,7 @@ const path = require('node:path');
 
 const jsPath = path.join(__dirname, '..', 'public', 'main.js');
 const htmlPath = path.join(__dirname, '..', 'public', 'index.html');
+const cssPath = path.join(__dirname, '..', 'public', 'styles.css');
 
 test('home page boot performs a final list render after async bootstrap settles', () => {
   const js = fs.readFileSync(jsPath, 'utf8');
@@ -43,4 +44,13 @@ test('home page submit navigation button uses concise Chinese text', () => {
   assert.match(html, /<button id="openSubmitFormBtn" class="hero-nav-btn" type="button">提交<\/button>/);
   assert.match(js, /openSubmit:\s*'提交'/);
   assert.doesNotMatch(html, /<button id="openSubmitFormBtn" class="hero-nav-btn" type="button">免费提交<\/button>/);
+});
+
+test('home page mobile header places GitHub icon left of language icon', () => {
+  const html = fs.readFileSync(htmlPath, 'utf8');
+  const css = fs.readFileSync(cssPath, 'utf8');
+
+  assert.match(html, /<link rel="stylesheet" href="\/styles\.css\?v=20260507-01" \/>/);
+  assert.match(css, /@media \(max-width: 640px\)[\s\S]*?\.hero-nav-btn--icon\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?right:\s*52px;[\s\S]*?top:\s*-54px;/);
+  assert.match(css, /@media \(max-width: 640px\)[\s\S]*?\.lang-menu\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?right:\s*0;[\s\S]*?top:\s*-54px;/);
 });
