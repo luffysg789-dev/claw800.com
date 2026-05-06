@@ -45,13 +45,31 @@ test('lucky star corporate site exposes multilingual controls including Arabic',
 
 test('lucky star corporate site references local image assets that exist', () => {
   const html = readHtml();
-  const matches = [...html.matchAll(/src="(assets\/[^"]+\.jpg)"/g)].map((match) => match[1]);
+  const matches = [
+    ...html.matchAll(/src="(assets\/[^"]+\.jpg)"/g),
+    ...html.matchAll(/data-src="(assets\/[^"]+\.jpg)"/g)
+  ].map((match) => match[1]);
 
   assert.ok(matches.length >= 6);
 
   for (const imagePath of matches) {
     assert.equal(fs.existsSync(path.join(pageDir, imagePath)), true, imagePath);
   }
+});
+
+test('lucky star gallery prioritizes the first image before deferred gallery images', () => {
+  const html = readHtml();
+  const js = fs.readFileSync(jsPath, 'utf8');
+
+  assert.match(html, /<img src="assets\/reception\.jpg"[^>]*loading="eager"[^>]*fetchpriority="high"/);
+  assert.match(html, /<img src="assets\/office-logo\.jpg"[^>]*loading="eager"[^>]*fetchpriority="high"/);
+  assert.match(html, /<img data-src="assets\/lounge-screen\.jpg"[^>]*loading="lazy"/);
+  assert.match(html, /<img data-src="assets\/city-lounge\.jpg"[^>]*loading="lazy"/);
+  assert.match(html, /<img data-src="assets\/workspace\.jpg"[^>]*loading="lazy"/);
+  assert.match(js, /function loadDeferredImage\(image\)/);
+  assert.match(js, /function loadDeferredGalleryImages\(\)/);
+  assert.match(js, /window\.requestIdleCallback/);
+  assert.match(js, /loadDeferredImage\(activeImage\)/);
 });
 
 test('lucky star corporate site links to the commercial license pdf', () => {
