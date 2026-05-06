@@ -4,10 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>合作伙伴 - claw800.com</title>
-    <link rel="stylesheet" href="/styles.css?v=20260507-02" />
+    <link rel="stylesheet" href="/styles.css?v=20260507-03" />
   </head>
   <body>
-    <header class="hero partners-page-hero">
+    <header class="hero">
       <div class="container">
         <div class="hero-top">
           <h1>
@@ -17,7 +17,7 @@
           </h1>
         </div>
         <div class="hero-subrow">
-          <p>合作伙伴</p>
+          <p>龙虾学习导航网，为你的龙虾赋能。</p>
           <div class="lang-switch">
             <a class="hero-nav-btn" href="/">首页</a>
             <a class="hero-nav-btn" href="/skills.html">技能</a>
@@ -28,25 +28,23 @@
       </div>
     </header>
 
-    <main class="container partners-page-main">
-      <section class="partners-intro">
-        <p class="eyebrow">PARTNERS</p>
-        <h2>合作伙伴</h2>
-        <p>收录与龙虾导航网合作的项目、企业与服务。</p>
-      </section>
-
-      <section id="partnersList" class="partners-grid" data-api="/api/partners" aria-live="polite">
-        <article class="partner-card">
-          <div class="partner-logo-fallback">LS</div>
-          <div>
-            <h3>LUCKY STAR INVESTMENT L.L.C</h3>
-            <p>迪拜注册投资公司，连接产业、资本与跨境合作机会。</p>
-            <a href="/lucky-star/">查看合作伙伴</a>
-          </div>
-        </article>
+    <main class="games-page">
+      <section class="container">
+        <section id="partnersList" class="games-grid" data-api="/api/partners" aria-live="polite">
+          <article class="game-card">
+            <div class="game-card__icon" aria-hidden="true">LS</div>
+            <div class="game-card__body">
+              <h3>LUCKY STAR INVESTMENT L.L.C</h3>
+              <p>迪拜注册投资公司，连接产业、资本与跨境合作机会。</p>
+            </div>
+            <div class="game-card__actions">
+              <a class="game-card__play" href="/lucky-star/">查看官网</a>
+            </div>
+          </article>
+        </section>
       </section>
     </main>
 
-    <script src="/partners.js?v=20260507-01"></script>
+    <script src="/partners.js?v=20260507-02"></script>
   </body>
 </html>

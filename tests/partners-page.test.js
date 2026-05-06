@@ -26,6 +26,17 @@ test('partners page lists Lucky Star as a partner from the partners API', () => 
   assert.match(partnersHtml, /\/lucky-star\//);
 });
 
+test('partners page uses the same card layout as the games hub', () => {
+  const partnersHtml = fs.readFileSync(partnersHtmlPath, 'utf8');
+
+  assert.match(partnersHtml, /<main class="games-page">/);
+  assert.match(partnersHtml, /id="partnersList" class="games-grid"/);
+  assert.match(partnersHtml, /<article class="game-card">/);
+  assert.match(partnersHtml, /class="game-card__play"/);
+  assert.match(partnersHtml, /查看官网/);
+  assert.doesNotMatch(partnersHtml, /class="partners-intro"/);
+});
+
 test('admin panel includes partner list management entry points', () => {
   assert.match(adminHtml, /id="navPartners"/);
   assert.match(adminHtml, /id="adminPartnersSection"/);

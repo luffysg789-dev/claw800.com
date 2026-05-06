@@ -28,16 +28,18 @@ function renderPartners(items) {
       const url = String(item.url || '#').trim();
       const logo = String(item.logo || '').trim();
       return `
-        <article class="partner-card">
+        <article class="game-card">
           ${
             logo
-              ? `<img class="partner-logo-image" src="${escapeHtml(logo)}" alt="${escapeHtml(name)} logo" loading="lazy" decoding="async" />`
-              : `<div class="partner-logo-fallback">${escapeHtml(partnerInitials(name))}</div>`
+              ? `<div class="game-card__cover"><img src="${escapeHtml(logo)}" alt="${escapeHtml(name)} logo" loading="lazy" decoding="async" /></div>`
+              : `<div class="game-card__icon" aria-hidden="true">${escapeHtml(partnerInitials(name))}</div>`
           }
-          <div>
+          <div class="game-card__body">
             <h3>${escapeHtml(name)}</h3>
             <p>${escapeHtml(description || '合作伙伴')}</p>
-            <a href="${escapeHtml(url)}">查看合作伙伴</a>
+          </div>
+          <div class="game-card__actions">
+            <a class="game-card__play" href="${escapeHtml(url)}">查看官网</a>
           </div>
         </article>
       `;
