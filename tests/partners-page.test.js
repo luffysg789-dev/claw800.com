@@ -9,6 +9,7 @@ const partnersHtmlPath = path.join(rootDir, 'public', 'partners.html');
 const mainJs = fs.readFileSync(path.join(rootDir, 'public', 'main.js'), 'utf8');
 const adminHtml = fs.readFileSync(path.join(rootDir, 'public', 'admin.html'), 'utf8');
 const adminJs = fs.readFileSync(path.join(rootDir, 'public', 'admin.js'), 'utf8');
+const partnersJs = fs.readFileSync(path.join(rootDir, 'public', 'partners.js'), 'utf8');
 const serverJs = fs.readFileSync(path.join(rootDir, 'src', 'server.js'), 'utf8');
 
 test('home navigation links to the partners page', () => {
@@ -33,8 +34,11 @@ test('partners page uses the same card layout as the games hub', () => {
   assert.match(partnersHtml, /id="partnersList" class="games-grid"/);
   assert.match(partnersHtml, /<article class="game-card">/);
   assert.match(partnersHtml, /class="game-card__play"/);
-  assert.match(partnersHtml, /跳转新页面/);
-  assert.doesNotMatch(partnersHtml, /查看官网/);
+  assert.match(partnersHtml, /<a class="game-card__play" href="\/lucky-star\/" target="_blank" rel="noopener">查看官网<\/a>/);
+  assert.doesNotMatch(partnersHtml, /跳转新页面/);
+  assert.match(partnersJs, /target="_blank" rel="noopener"/);
+  assert.match(partnersJs, /查看官网/);
+  assert.doesNotMatch(partnersJs, /跳转新页面/);
   assert.doesNotMatch(partnersHtml, /class="partners-intro"/);
 });
 
