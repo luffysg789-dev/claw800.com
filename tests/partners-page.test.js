@@ -53,6 +53,12 @@ test('Panda Dog hero does not show the metric and proof cards', () => {
   assert.doesNotMatch(pandaCss, /\.hero-proof-card/);
 });
 
+test('Panda Dog hero action buttons sit five pixels higher for all languages', () => {
+  const pandaCss = fs.readFileSync(path.join(pandaDogDir, 'styles.css'), 'utf8');
+
+  assert.match(pandaCss, /\.hero-actions\s*\{[\s\S]*?margin-top:\s*21px;/);
+});
+
 test('partners page uses the same card layout as the games hub', () => {
   const partnersHtml = fs.readFileSync(partnersHtmlPath, 'utf8');
 
