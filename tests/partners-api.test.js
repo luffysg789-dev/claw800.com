@@ -101,6 +101,8 @@ test('public partners API seeds and returns Lucky Star', async () => {
     assert.equal(response.body.items[0].name, 'LUCKY STAR INVESTMENT L.L.C');
     assert.equal(response.body.items[0].url, '/lucky-star/');
     assert.equal(response.body.items[0].is_enabled, 1);
+    assert.ok(response.body.items.some((item) => item.name === 'Panda Dog Thailand'));
+    assert.ok(response.body.items.some((item) => item.url === '/panda-dog-thailand/'));
   } finally {
     harness.cleanup();
   }

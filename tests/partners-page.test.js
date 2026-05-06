@@ -6,6 +6,7 @@ const path = require('node:path');
 const rootDir = path.join(__dirname, '..');
 const indexHtml = fs.readFileSync(path.join(rootDir, 'public', 'index.html'), 'utf8');
 const partnersHtmlPath = path.join(rootDir, 'public', 'partners.html');
+const pandaDogDir = path.join(rootDir, 'public', 'panda-dog-thailand');
 const mainJs = fs.readFileSync(path.join(rootDir, 'public', 'main.js'), 'utf8');
 const adminHtml = fs.readFileSync(path.join(rootDir, 'public', 'admin.html'), 'utf8');
 const adminJs = fs.readFileSync(path.join(rootDir, 'public', 'admin.js'), 'utf8');
@@ -25,6 +26,17 @@ test('partners page lists Lucky Star as a partner from the partners API', () => 
   assert.match(partnersHtml, /\/api\/partners/);
   assert.match(partnersHtml, /LUCKY STAR INVESTMENT L\.L\.C/);
   assert.match(partnersHtml, /\/lucky-star\//);
+});
+
+test('partners page includes the Panda Dog Thailand partner and local website', () => {
+  const partnersHtml = fs.readFileSync(partnersHtmlPath, 'utf8');
+
+  assert.equal(fs.existsSync(path.join(pandaDogDir, 'index.html')), true);
+  assert.equal(fs.existsSync(path.join(pandaDogDir, 'styles.css')), true);
+  assert.equal(fs.existsSync(path.join(pandaDogDir, 'script.js')), true);
+  assert.equal(fs.existsSync(path.join(pandaDogDir, 'assets', 'brand-logo.png')), true);
+  assert.match(partnersHtml, /Panda Dog Thailand/);
+  assert.match(partnersHtml, /\/panda-dog-thailand\//);
 });
 
 test('partners page uses the same card layout as the games hub', () => {

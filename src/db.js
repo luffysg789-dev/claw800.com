@@ -975,6 +975,14 @@ const DEFAULT_PARTNERS = [
     logo: '',
     is_enabled: 1,
     sort_order: 100
+  },
+  {
+    name: 'Panda Dog Thailand',
+    description: '泰国 Live Commerce、创意制作、KOL 管理与线下活动执行合作伙伴。',
+    url: '/panda-dog-thailand/',
+    logo: '/panda-dog-thailand/assets/brand-logo.png',
+    is_enabled: 1,
+    sort_order: 90
   }
 ];
 
