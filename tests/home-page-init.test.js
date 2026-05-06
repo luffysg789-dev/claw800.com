@@ -50,7 +50,9 @@ test('home page mobile header places GitHub icon left of language icon', () => {
   const html = fs.readFileSync(htmlPath, 'utf8');
   const css = fs.readFileSync(cssPath, 'utf8');
 
-  assert.match(html, /<link rel="stylesheet" href="\/styles\.css\?v=20260507-01" \/>/);
+  assert.match(html, /<link rel="stylesheet" href="\/styles\.css\?v=20260507-02" \/>/);
   assert.match(css, /@media \(max-width: 640px\)[\s\S]*?\.hero-nav-btn--icon\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?right:\s*52px;[\s\S]*?top:\s*-54px;/);
+  assert.match(css, /@media \(max-width: 640px\)[\s\S]*?\.hero-nav-btn--icon\s*\{[\s\S]*?width:\s*42px;[\s\S]*?height:\s*42px;[\s\S]*?min-width:\s*42px;[\s\S]*?min-height:\s*42px;/);
   assert.match(css, /@media \(max-width: 640px\)[\s\S]*?\.lang-menu\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?right:\s*0;[\s\S]*?top:\s*-54px;/);
+  assert.match(css, /@media \(max-width: 640px\)[\s\S]*?\.lang-menu-btn\s*\{[\s\S]*?width:\s*42px;[\s\S]*?height:\s*42px;[\s\S]*?min-width:\s*42px;[\s\S]*?min-height:\s*42px;/);
 });

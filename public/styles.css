@@ -1089,7 +1089,11 @@ button.danger { background: var(--danger); }
     right: 52px;
     top: -54px;
     width: 42px;
+    height: 42px;
     min-width: 42px;
+    min-height: 42px;
+    padding: 0;
+    border-radius: 14px;
   }
 
   .lang-menu {
@@ -1098,6 +1102,15 @@ button.danger { background: var(--danger); }
     top: -54px;
     margin-left: 0;
     flex: 0 0 auto;
+  }
+
+  .lang-menu-btn {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    min-height: 42px;
+    padding: 0;
+    border-radius: 14px;
   }
 }
   .skills-toolbar-note {
