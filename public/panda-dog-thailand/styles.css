@@ -190,14 +190,8 @@ textarea {
 }
 
 .hero-copy {
-  display: contents;
-}
-
-.hero-copy > .eyebrow,
-.hero-copy > .hero-title,
-.hero-copy > .hero-text,
-.hero-copy > .hero-actions {
-  grid-column: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .eyebrow {
@@ -297,12 +291,11 @@ h3 {
 
 .metric-row {
   display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
-  max-width: none;
-  margin: 0;
-  padding-top: 0;
+  max-width: 560px;
+  margin: auto 0 0;
+  padding-top: 30px;
 }
 
 .metric-row div {
@@ -325,17 +318,6 @@ h3 {
   font-size: 0.9rem;
 }
 
-.metric-proof-card dt {
-  color: var(--white);
-  font-size: 0.94rem;
-  line-height: 1.24;
-}
-
-.metric-proof-card dd {
-  color: var(--cyan);
-  font-weight: 800;
-}
-
 .hero-media {
   min-height: 100%;
   align-self: stretch;
@@ -343,7 +325,11 @@ h3 {
 }
 
 .hero-visual-stack {
-  display: block;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto auto;
+  align-content: start;
+  row-gap: 18px;
   height: 100%;
 }
 
@@ -373,6 +359,7 @@ h3 {
   width: 100%;
   max-width: 100%;
   height: var(--hero-video-height);
+  align-self: center;
   aspect-ratio: auto;
   min-height: 0;
   transform: translateY(var(--hero-video-lift));
@@ -388,6 +375,36 @@ h3 {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.hero-proof-card {
+  position: static;
+  width: min(500px, calc(100% - 96px));
+  height: var(--hero-card-height);
+  max-width: 100%;
+  margin: auto auto 0;
+  transform: translateY(var(--hero-proof-drop));
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.2);
+  padding: 10px 16px;
+  backdrop-filter: blur(16px);
+}
+
+.hero-proof-card strong {
+  display: block;
+  color: var(--white);
+  font-size: 0.94rem;
+  line-height: 1.22;
+}
+
+.hero-proof-card small {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.82rem;
+  color: var(--cyan);
+  font-weight: 800;
 }
 
 .logo-strip {

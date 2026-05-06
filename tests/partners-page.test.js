@@ -39,15 +39,6 @@ test('partners page includes the Panda Dog Thailand partner and local website', 
   assert.match(partnersHtml, /\/panda-dog-thailand\//);
 });
 
-test('Panda Dog hero keeps the three metrics and proof card in one row', () => {
-  const pandaHtml = fs.readFileSync(path.join(pandaDogDir, 'index.html'), 'utf8');
-  const pandaCss = fs.readFileSync(path.join(pandaDogDir, 'styles.css'), 'utf8');
-
-  assert.match(pandaHtml, /<dl class="metric-row" aria-label="Service highlights">[\s\S]*data-i18n="metric\.services"[\s\S]*data-i18n="metric\.o2o"[\s\S]*data-i18n="metric\.production"[\s\S]*data-i18n="hero\.proofLineOne"[\s\S]*<\/dl>/);
-  assert.match(pandaCss, /\.metric-row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(4,\s*1fr\);/);
-  assert.doesNotMatch(pandaHtml, /<div class="hero-proof-card">/);
-});
-
 test('partners page uses the same card layout as the games hub', () => {
   const partnersHtml = fs.readFileSync(partnersHtmlPath, 'utf8');
 
