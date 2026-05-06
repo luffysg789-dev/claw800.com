@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const jsPath = path.join(__dirname, '..', 'public', 'main.js');
+const htmlPath = path.join(__dirname, '..', 'public', 'index.html');
 
 test('home page boot performs a final list render after async bootstrap settles', () => {
   const js = fs.readFileSync(jsPath, 'utf8');
@@ -33,4 +34,13 @@ test('home page renders first category and site chunks synchronously and refresh
   assert.match(js, /function renderCategories\([\s\S]*?appendChunk\(\);/);
   assert.match(js, /function renderSitesChunked\([\s\S]*?appendChunk\(\);/);
   assert.match(js, /window\.addEventListener\('pageshow', \(\) => \{\s*renderHomeSitesFromCurrentState\(\);\s*\}\);/);
+});
+
+test('home page submit navigation button uses concise Chinese text', () => {
+  const html = fs.readFileSync(htmlPath, 'utf8');
+  const js = fs.readFileSync(jsPath, 'utf8');
+
+  assert.match(html, /<button id="openSubmitFormBtn" class="hero-nav-btn" type="button">提交<\/button>/);
+  assert.match(js, /openSubmit:\s*'提交'/);
+  assert.doesNotMatch(html, /<button id="openSubmitFormBtn" class="hero-nav-btn" type="button">免费提交<\/button>/);
 });

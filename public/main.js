@@ -118,7 +118,7 @@ const texts = {
     allCategory: '全部',
     submitTitle: '免费提交网站',
     submitDesc: '提交后进入审核，管理员通过后展示在首页。',
-    openSubmit: '免费提交',
+    openSubmit: '提交',
     labelName: '网站名称',
     labelUrl: '网站地址',
     labelDesc: '一句话简介',
