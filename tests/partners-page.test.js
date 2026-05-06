@@ -33,7 +33,8 @@ test('partners page uses the same card layout as the games hub', () => {
   assert.match(partnersHtml, /id="partnersList" class="games-grid"/);
   assert.match(partnersHtml, /<article class="game-card">/);
   assert.match(partnersHtml, /class="game-card__play"/);
-  assert.match(partnersHtml, /查看官网/);
+  assert.match(partnersHtml, /跳转新页面/);
+  assert.doesNotMatch(partnersHtml, /查看官网/);
   assert.doesNotMatch(partnersHtml, /class="partners-intro"/);
 });
 

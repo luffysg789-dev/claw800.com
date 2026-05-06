@@ -39,7 +39,7 @@ function renderPartners(items) {
             <p>${escapeHtml(description || '合作伙伴')}</p>
           </div>
           <div class="game-card__actions">
-            <a class="game-card__play" href="${escapeHtml(url)}">查看官网</a>
+            <a class="game-card__play" href="${escapeHtml(url)}">跳转新页面</a>
           </div>
         </article>
       `;
