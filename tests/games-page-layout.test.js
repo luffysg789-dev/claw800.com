@@ -30,6 +30,10 @@ test('games page includes the Lucky Star corporate site entry', () => {
   assert.match(config, /actionText:\s*'查看官网'/);
 });
 
+test('games page navigation links to the partners page', () => {
+  assert.match(gamesHtml, /<a class="hero-nav-btn" href="\/partners\.html">合作伙伴<\/a>/);
+});
+
 test('games page keeps standalone pages like p-mining out of the public games hub', () => {
   assert.match(config, /slug:\s*'p-mining'[\s\S]*showInGamesHub:\s*0/);
   assert.match(config, /slug:\s*'sbti'[\s\S]*showInGamesHub:\s*1/);
