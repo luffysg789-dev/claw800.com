@@ -149,8 +149,12 @@ test('lucky star profile section fills the left column with compact company fact
 });
 
 test('lucky star site keeps the desktop layout on phone-sized screens', () => {
+  const html = readHtml();
   const css = fs.readFileSync(cssPath, 'utf8');
 
+  assert.match(html, /<meta name="viewport" content="width=1200">/);
+  assert.doesNotMatch(html, /user-scalable=no/);
+  assert.doesNotMatch(html, /maximum-scale/);
   assert.match(css, /body \{[\s\S]*?min-width:\s*1200px;/);
   assert.match(css, /\.site-header \{[\s\S]*?grid-template-columns:\s*1fr auto auto;/);
   assert.match(css, /\.hero \{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1\.02fr\) minmax\(320px,\s*0\.98fr\);/);
