@@ -59,6 +59,7 @@ const tutorialList = document.getElementById('tutorialList');
 const adminSkillsFetchSection = document.getElementById('adminSkillsFetchSection');
 const adminSkillsSection = document.getElementById('adminSkillsSection');
 const adminGamesSection = document.getElementById('adminGamesSection');
+const adminPartnersSection = document.getElementById('adminPartnersSection');
 const adminUCardSection = document.getElementById('adminUCardSection');
 const adminOrdersSection = document.getElementById('adminOrdersSection');
 const adminPMiningOrdersSection = document.getElementById('adminPMiningOrdersSection');
@@ -76,6 +77,9 @@ const skillsList = document.getElementById('skillsList');
 const skillsMessage = document.getElementById('skillsMessage');
 const gamesList = document.getElementById('gamesList');
 const gamesMessage = document.getElementById('gamesMessage');
+const partnerForm = document.getElementById('partnerForm');
+const partnersMessage = document.getElementById('partnersMessage');
+const partnersList = document.getElementById('partnersList');
 const uCardPlatformForm = document.getElementById('uCardPlatformForm');
 const uCardPlatformMessage = document.getElementById('uCardPlatformMessage');
 const uCardPlatformList = document.getElementById('uCardPlatformList');
@@ -235,6 +239,7 @@ const texts = {
     navSkillsFetch: '技能抓取',
     navSkills: '技能列表',
     navGames: '游戏与工具列表',
+    navPartners: '合作伙伴',
     navUCard: 'U卡场景',
     navOrders: '订单',
     navNchatUsers: '聊天用户',
@@ -347,6 +352,19 @@ const texts = {
     skillsCreateSuccess: '技能已新增',
     skillsCreateRouteMissing: '技能新增接口不存在（404）。请重启后端后再试。',
     gamesListTitle: '游戏与工具列表',
+    partnersTitle: '合作伙伴列表',
+    partnerNameLabel: '名称',
+    partnerUrlLabel: '链接',
+    partnerDescLabel: '简介',
+    partnerLogoLabel: 'Logo',
+    partnerSortLabel: '排序',
+    partnerEnabledLabel: '状态',
+    partnerSubmitCreate: '新增合作伙伴',
+    partnerSubmitUpdate: '保存合作伙伴',
+    partnerCreated: '合作伙伴已新增',
+    partnerSaved: '合作伙伴已保存',
+    partnersEmpty: '暂无合作伙伴',
+    partnerSaveFailed: '保存合作伙伴失败',
     uCardTitle: 'U卡场景查询',
     uCardPlatformTitle: '场景平台',
     uCardPlatformListTitle: '平台列表',
@@ -544,6 +562,8 @@ const texts = {
     navSkillsFetch: 'Skill Fetch',
     navSkills: 'Skills',
     navGames: 'Games & Tools',
+    navPartners: 'Partners',
+    navUCard: 'U Card Scenes',
     navOrders: 'Orders',
     navNchatUsers: 'Chat Users',
     navNexaEscrowUsers: 'Escrow Users',
@@ -655,6 +675,19 @@ const texts = {
     skillsCreateSuccess: 'Skill added.',
     skillsCreateRouteMissing: 'Skill create API not found (404). Please restart the backend and try again.',
     gamesListTitle: 'Games & Tools',
+    partnersTitle: 'Partners',
+    partnerNameLabel: 'Name',
+    partnerUrlLabel: 'URL',
+    partnerDescLabel: 'Description',
+    partnerLogoLabel: 'Logo',
+    partnerSortLabel: 'Sort',
+    partnerEnabledLabel: 'Status',
+    partnerSubmitCreate: 'Add Partner',
+    partnerSubmitUpdate: 'Save Partner',
+    partnerCreated: 'Partner added.',
+    partnerSaved: 'Partner saved.',
+    partnersEmpty: 'No partners yet.',
+    partnerSaveFailed: 'Failed to save partner.',
     uCardTitle: 'U Card Scene Query',
     uCardPlatformTitle: 'Scene Platforms',
     uCardPlatformListTitle: 'Platform List',
@@ -847,12 +880,14 @@ let skillsItems = [];
 let skillsQuery = '';
 let editingSkillId = null;
 let gamesItems = [];
+let partnersItems = [];
 let uCardPlatformItems = [];
 let uCardItems = [];
 let uCardSubView = 'platform-add';
 let editingUCardPlatformId = null;
 let editingUCardId = null;
 let editingGameId = null;
+let editingPartnerId = null;
 let skillsSyncConfigCache = null;
 let siteConfigCache = null;
 let visitStatsCache = null;
@@ -1163,6 +1198,7 @@ function applyLanguage() {
   document.getElementById('navSkillsFetch').textContent = dict.navSkillsFetch;
   document.getElementById('navSkills').textContent = dict.navSkills;
   document.getElementById('navGames').textContent = dict.navGames;
+  document.getElementById('navPartners').textContent = dict.navPartners;
   document.getElementById('navUCard').textContent = dict.navUCard;
   document.getElementById('navOrders').textContent = dict.navOrders;
   document.getElementById('navNchatUsers').textContent = dict.navNchatUsers;
@@ -1231,6 +1267,16 @@ function applyLanguage() {
   document.getElementById('skillsFetchTitle').textContent = dict.skillsFetchTitle;
   document.getElementById('skillsListTitle').textContent = dict.skillsListTitle;
   document.getElementById('gamesListTitle').textContent = dict.gamesListTitle;
+  document.getElementById('partnersTitle').textContent = dict.partnersTitle;
+  document.getElementById('partnerNameLabel').childNodes[0].textContent = dict.partnerNameLabel;
+  document.getElementById('partnerUrlLabel').childNodes[0].textContent = dict.partnerUrlLabel;
+  document.getElementById('partnerDescLabel').childNodes[0].textContent = dict.partnerDescLabel;
+  document.getElementById('partnerLogoLabel').childNodes[0].textContent = dict.partnerLogoLabel;
+  document.getElementById('partnerSortLabel').childNodes[0].textContent = dict.partnerSortLabel;
+  document.getElementById('partnerEnabledLabel').childNodes[0].textContent = dict.partnerEnabledLabel;
+  document.getElementById('partnerSubmitBtn').textContent = editingPartnerId
+    ? dict.partnerSubmitUpdate
+    : dict.partnerSubmitCreate;
   document.getElementById('ordersTitle').textContent = dict.ordersTitle;
   document.getElementById('ordersPMiningBtn').textContent = dict.ordersPMiningBtn;
   document.getElementById('ordersNexaTipBtn').textContent = dict.ordersNexaTipBtn;
@@ -1314,6 +1360,7 @@ function applyLanguage() {
   renderCategoryList();
   renderTutorialList([]);
   renderGamesAdminList(gamesItems);
+  renderPartnersAdminList(partnersItems);
   renderUCardPlatforms();
   renderUCards();
   renderUCardSubView();
@@ -1336,6 +1383,7 @@ function setView(view) {
   adminSkillsFetchSection.classList.toggle('hidden', view !== 'skills-fetch');
   adminSkillsSection.classList.toggle('hidden', view !== 'skills');
   adminGamesSection.classList.toggle('hidden', view !== 'games');
+  adminPartnersSection.classList.toggle('hidden', view !== 'partners');
   adminUCardSection.classList.toggle('hidden', view !== 'u-card');
   adminOrdersSection.classList.toggle('hidden', !orderViews.includes(view));
   adminPMiningOrdersSection.classList.toggle('hidden', view !== 'p-mining-orders');
@@ -1375,6 +1423,9 @@ function setView(view) {
   }
   if (view === 'games') {
     loadGamesList();
+  }
+  if (view === 'partners') {
+    loadPartnersList();
   }
   if (view === 'u-card') {
     loadUCardAdmin();
@@ -2327,6 +2378,86 @@ window.saveGameEdit = async function saveGameEdit(id) {
   gamesMessage.className = 'message success';
   editingGameId = null;
   await loadGamesList();
+};
+
+function resetPartnerForm() {
+  if (!partnerForm) return;
+  partnerForm.reset();
+  partnerForm.elements.sortOrder.value = '0';
+  partnerForm.elements.isEnabled.value = '1';
+  editingPartnerId = null;
+  document.getElementById('partnerSubmitBtn').textContent = t('partnerSubmitCreate');
+}
+
+function fillPartnerForm(partner) {
+  if (!partnerForm || !partner) return;
+  partnerForm.elements.name.value = partner.name || '';
+  partnerForm.elements.url.value = partner.url || '';
+  partnerForm.elements.description.value = partner.description || '';
+  partnerForm.elements.logo.value = partner.logo || '';
+  partnerForm.elements.sortOrder.value = Number(partner.sort_order || 0);
+  partnerForm.elements.isEnabled.value = partner.is_enabled ? '1' : '0';
+  editingPartnerId = partner.id;
+  document.getElementById('partnerSubmitBtn').textContent = t('partnerSubmitUpdate');
+}
+
+function renderPartnersAdminList(items) {
+  if (!partnersList) return;
+  if (!items.length) {
+    partnersList.innerHTML = `<p class="empty">${escapeHtml(t('partnersEmpty'))}</p>`;
+    return;
+  }
+
+  partnersList.innerHTML = items
+    .map(
+      (partner) => `
+        <article class="review-card">
+          <h3>${escapeHtml(partner.name || '')}</h3>
+          <p class="small"><a href="${escapeHtml(partner.url || '#')}" target="_blank" rel="noopener">${escapeHtml(partner.url || '')}</a></p>
+          <p>${escapeHtml(partner.description || '')}</p>
+          <p class="small">${escapeHtml(t('sort'))}：${escapeHtml(String(Number(partner.sort_order || 0)))}</p>
+          <p class="small">${escapeHtml(t('partnerEnabledLabel'))}：${escapeHtml(partner.is_enabled ? t('enabledYes') : t('enabledNo'))}</p>
+          ${
+            partner.logo
+              ? `<div class="small"><img src="${escapeHtml(partner.logo)}" alt="" style="width:56px;height:56px;object-fit:contain;border:1px solid var(--border);margin-top:8px;" /></div>`
+              : ''
+          }
+          <div class="review-actions">
+            <button type="button" onclick="editPartner(${partner.id})">${escapeHtml(t('edit'))}</button>
+          </div>
+        </article>
+      `
+    )
+    .join('');
+}
+
+async function loadPartnersList() {
+  if (!partnersList || !partnersMessage) return;
+  partnersMessage.textContent = '';
+  partnersMessage.className = 'message';
+  const result = await requestTutorialJson(['/api/admin/partners'], { method: 'GET' });
+  if (!result.res) {
+    partnersMessage.textContent = '当前运行中的后端还没有响应合作伙伴接口，请重启后端后再打开合作伙伴列表。';
+    partnersMessage.className = 'message error';
+    return;
+  }
+  if (result.res.status === 401) {
+    showLogin();
+    return;
+  }
+  if (!result.res.ok) {
+    partnersMessage.textContent = localizeApiError(result.data?.error || t('operationFailed'));
+    partnersMessage.className = 'message error';
+    return;
+  }
+  partnersItems = Array.isArray(result.data?.items) ? result.data.items : [];
+  renderPartnersAdminList(partnersItems);
+}
+
+window.editPartner = function editPartner(id) {
+  const partner = partnersItems.find((item) => item.id === id);
+  fillPartnerForm(partner);
+  partnerForm?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
 function renderUCardPlatforms() {
@@ -4008,6 +4139,54 @@ if (adminSkillsCreateForm) {
   });
 }
 
+if (partnerForm) {
+  partnerForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!partnersMessage) return;
+    partnersMessage.textContent = '';
+    partnersMessage.className = 'message';
+
+    const rawPayload = Object.fromEntries(new FormData(partnerForm).entries());
+    const payload = {
+      name: String(rawPayload.name || '').trim(),
+      description: String(rawPayload.description || '').trim(),
+      url: String(rawPayload.url || '').trim(),
+      logo: String(rawPayload.logo || '').trim(),
+      sortOrder: Number(rawPayload.sortOrder || 0),
+      isEnabled: Number(rawPayload.isEnabled || 0) ? 1 : 0
+    };
+
+    const endpoint = editingPartnerId
+      ? `/api/admin/partners/${encodeURIComponent(String(editingPartnerId))}`
+      : '/api/admin/partners';
+    const result = await requestTutorialJson([endpoint], {
+      method: editingPartnerId ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!result.res) {
+      partnersMessage.textContent = t('partnerSaveFailed');
+      partnersMessage.className = 'message error';
+      return;
+    }
+    if (result.res.status === 401) {
+      showLogin();
+      return;
+    }
+    if (!result.res.ok) {
+      partnersMessage.textContent = localizeApiError(result.data?.error || t('partnerSaveFailed'));
+      partnersMessage.className = 'message error';
+      return;
+    }
+
+    partnersMessage.textContent = editingPartnerId ? t('partnerSaved') : t('partnerCreated');
+    partnersMessage.className = 'message success';
+    resetPartnerForm();
+    await loadPartnersList();
+  });
+}
+
 adminImportForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   importMessage.textContent = '';
@@ -4493,6 +4672,7 @@ document.getElementById('navTutorialAdd').addEventListener('click', () => {
 document.getElementById('navSkillsFetch').addEventListener('click', () => setView('skills-fetch'));
 document.getElementById('navSkills').addEventListener('click', () => setView('skills'));
 document.getElementById('navGames').addEventListener('click', () => setView('games'));
+document.getElementById('navPartners').addEventListener('click', () => setView('partners'));
 document.getElementById('navUCard').addEventListener('click', () => setView('u-card'));
 document.getElementById('navOrders').addEventListener('click', () => setView('orders'));
 document.getElementById('ordersPMiningBtn').addEventListener('click', () => setView('p-mining-orders'));

@@ -204,6 +204,20 @@ db.exec(`
 `);
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS partners (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    url TEXT NOT NULL UNIQUE,
+    logo TEXT DEFAULT '',
+    is_enabled INTEGER NOT NULL DEFAULT 1,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+db.exec(`
   CREATE TABLE IF NOT EXISTS game_users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     openid TEXT NOT NULL UNIQUE,
@@ -953,6 +967,17 @@ const DEFAULT_GAMES_CATALOG = [
   }
 ];
 
+const DEFAULT_PARTNERS = [
+  {
+    name: 'LUCKY STAR INVESTMENT L.L.C',
+    description: '迪拜注册投资公司，连接产业、资本与跨境合作机会。',
+    url: '/lucky-star/',
+    logo: '',
+    is_enabled: 1,
+    sort_order: 100
+  }
+];
+
 const hasGamesSecondaryImage = db.prepare("SELECT 1 FROM pragma_table_info('games_catalog') WHERE name = 'secondary_image'").get();
 if (!hasGamesSecondaryImage) {
   db.exec("ALTER TABLE games_catalog ADD COLUMN secondary_image TEXT DEFAULT ''");
@@ -981,6 +1006,26 @@ function ensureDefaultGamesCatalog() {
 }
 
 ensureDefaultGamesCatalog();
+
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_partners_enabled_sort
+  ON partners(is_enabled DESC, sort_order DESC, updated_at DESC);
+`);
+
+function ensureDefaultPartners() {
+  const insertPartner = db.prepare(`
+    INSERT OR IGNORE INTO partners
+    (name, description, url, logo, is_enabled, sort_order, updated_at)
+    VALUES
+    (@name, @description, @url, @logo, @is_enabled, @sort_order, datetime('now'))
+  `);
+  const tx = db.transaction((items) => {
+    for (const item of items) insertPartner.run(item);
+  });
+  tx(DEFAULT_PARTNERS);
+}
+
+ensureDefaultPartners();
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS u_card_platforms (
@@ -1408,4 +1453,6 @@ function seedOpenClawSites() {
 seedOpenClawSites();
 
 db.ensureDefaultGamesCatalog = ensureDefaultGamesCatalog;
+db.ensureDefaultPartners = ensureDefaultPartners;
+db.DEFAULT_PARTNERS = DEFAULT_PARTNERS;
 module.exports = db;

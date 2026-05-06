@@ -2308,6 +2308,90 @@ button.danger { background: var(--danger); }
   }
 }
 
+.partners-page-hero {
+  padding-bottom: 26px;
+}
+
+.partners-page-main {
+  padding: 38px 0 70px;
+}
+
+.partners-intro {
+  display: grid;
+  gap: 10px;
+  max-width: 760px;
+  margin-bottom: 24px;
+}
+
+.partners-intro h2 {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 4rem);
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.partners-intro p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.partners-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.partner-card {
+  display: grid;
+  grid-template-columns: 68px 1fr;
+  gap: 18px;
+  align-items: center;
+  padding: 22px;
+  border: 1px solid var(--border);
+  background: #fff;
+  min-height: 150px;
+}
+
+.partner-card h3 {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+  letter-spacing: 0;
+}
+
+.partner-card p {
+  margin: 0 0 14px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.partner-card a {
+  color: var(--green);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.partner-logo-fallback,
+.partner-logo-image {
+  width: 68px;
+  height: 68px;
+  border: 1px solid var(--border);
+  background: #f6f8f6;
+}
+
+.partner-logo-fallback {
+  display: grid;
+  place-items: center;
+  color: var(--green);
+  font-weight: 900;
+  font-size: 1.25rem;
+}
+
+.partner-logo-image {
+  object-fit: contain;
+}
+
 @media (max-width: 360px) {
   .games-grid {
     grid-template-columns: 1fr;

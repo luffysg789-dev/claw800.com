@@ -113,6 +113,7 @@ const texts = {
     homeBtn: '首页',
     skillsBtn: '技能',
     gamesBtn: '游戏与工具',
+    partnersBtn: '合作伙伴',
     githubStarBtn: 'GitHub 加星',
     tutorialBtn: '教程',
     allCategory: '全部',
@@ -158,6 +159,7 @@ const texts = {
     homeBtn: 'Home',
     skillsBtn: 'Skills',
     gamesBtn: 'Games & Tools',
+    partnersBtn: 'Partners',
     githubStarBtn: 'Star on GitHub',
     tutorialBtn: 'Tutorials',
     allCategory: 'All',
@@ -876,6 +878,8 @@ function applyLanguage(markReady = true) {
   if (homeNavBtn) homeNavBtn.textContent = dict.homeBtn;
   if (skillsNavBtn) skillsNavBtn.textContent = dict.skillsBtn;
   if (gamesNavBtn) gamesNavBtn.textContent = dict.gamesBtn;
+  const partnersNavBtn = document.getElementById('partnersNavBtn');
+  if (partnersNavBtn) partnersNavBtn.textContent = dict.partnersBtn;
   if (githubStarBtn) {
     githubStarBtn.setAttribute('aria-label', dict.githubStarBtn);
     githubStarBtn.setAttribute('title', dict.githubStarBtn);

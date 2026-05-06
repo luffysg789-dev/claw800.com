@@ -35,6 +35,7 @@
             <button id="navSkillsFetch">技能抓取</button>
             <button id="navSkills">技能列表</button>
             <button id="navGames">游戏与工具列表</button>
+            <button id="navPartners">合作伙伴</button>
             <button id="navUCard">U卡场景</button>
             <button id="navOrders">订单</button>
             <button id="navNchatUsers">聊天用户</button>
@@ -289,6 +290,26 @@
               <div id="gamesList" class="admin-list"></div>
             </div>
 
+            <div id="adminPartnersSection" class="hidden">
+              <h2 id="partnersTitle">合作伙伴列表</h2>
+              <form id="partnerForm" class="admin-add-form">
+                <label id="partnerNameLabel">名称<input name="name" required /></label>
+                <label id="partnerUrlLabel">链接<input name="url" required placeholder="/lucky-star/ 或 https://" /></label>
+                <label id="partnerDescLabel">简介<textarea name="description" rows="2"></textarea></label>
+                <label id="partnerLogoLabel">Logo<input name="logo" placeholder="/assets/logo.png 或 https://" /></label>
+                <label id="partnerSortLabel">排序<input name="sortOrder" type="number" value="0" /></label>
+                <label id="partnerEnabledLabel">状态
+                  <select name="isEnabled">
+                    <option value="1">启用</option>
+                    <option value="0">停用</option>
+                  </select>
+                </label>
+                <button id="partnerSubmitBtn" type="submit">新增合作伙伴</button>
+              </form>
+              <p id="partnersMessage" class="message"></p>
+              <div id="partnersList" class="admin-list"></div>
+            </div>
+
             <div id="adminUCardSection" class="hidden">
               <h2 id="uCardTitle">U卡场景查询</h2>
               <div class="toolbar">
@@ -423,6 +444,6 @@
       </section>
     </main>
 
-    <script src="/admin.js?v=20260319-04"></script>
+    <script src="/admin.js?v=20260507-01"></script>
   </body>
 </html>

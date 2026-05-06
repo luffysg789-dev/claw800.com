@@ -2935,6 +2935,22 @@ const listPublicGamesCatalogStmt = db.prepare(`
   WHERE is_enabled = 1
   ORDER BY sort_order DESC, updated_at DESC, created_at DESC, id DESC
 `);
+const listPartnersStmt = db.prepare(`
+  SELECT id, name, description, url, logo, is_enabled, sort_order, created_at, updated_at
+  FROM partners
+  ORDER BY sort_order DESC, updated_at DESC, created_at DESC, id DESC
+`);
+const listPublicPartnersStmt = db.prepare(`
+  SELECT id, name, description, url, logo, is_enabled, sort_order, created_at, updated_at
+  FROM partners
+  WHERE is_enabled = 1
+  ORDER BY sort_order DESC, updated_at DESC, created_at DESC, id DESC
+`);
+const selectPartnerByIdStmt = db.prepare(`
+  SELECT id, name, description, url, logo, is_enabled, sort_order, created_at, updated_at
+  FROM partners
+  WHERE id = ?
+`);
 const selectGameBySlugStmt = db.prepare(`
   SELECT id, slug, name, description, cover_image, secondary_image, sound_file, background_music_file, is_enabled, sort_order, created_at, updated_at
   FROM games_catalog
@@ -4208,6 +4224,45 @@ function formatGameRow(row = {}) {
   };
 }
 
+function isValidPartnerUrl(value) {
+  const url = String(value || '').trim();
+  return url.startsWith('/') || isProbablyAbsoluteUrl(url);
+}
+
+function formatPartnerRow(row = {}) {
+  return {
+    id: Number(row.id || 0) || 0,
+    name: String(row.name || '').trim(),
+    description: String(row.description || '').trim(),
+    url: String(row.url || '').trim(),
+    logo: String(row.logo || '').trim(),
+    is_enabled: Number(row.is_enabled || 0) ? 1 : 0,
+    sort_order: Number(row.sort_order || 0) || 0,
+    created_at: String(row.created_at || ''),
+    updated_at: String(row.updated_at || '')
+  };
+}
+
+function normalizePartnerPayload(body = {}) {
+  const name = String(body.name || '').trim();
+  const description = String(body.description || '').trim();
+  const url = String(body.url || '').trim();
+  const logo = String(body.logo || '').trim();
+  const isEnabled = Number(body.isEnabled ?? body.is_enabled ?? 1) ? 1 : 0;
+  const sortOrder = Number.isFinite(Number(body.sortOrder ?? body.sort_order))
+    ? Number(body.sortOrder ?? body.sort_order)
+    : 0;
+
+  if (!name) return { error: '合作伙伴名称必填' };
+  if (!url) return { error: '链接必填' };
+  if (!isValidPartnerUrl(url)) return { error: '链接必须是 / 开头的站内路径或 http(s) 链接' };
+  if (logo && !isValidPartnerUrl(logo) && !isProbablyDataUrl(logo)) {
+    return { error: 'Logo 必须是 / 开头的站内路径、图片 dataURL 或 http(s) 链接' };
+  }
+
+  return { name, description, url, logo, isEnabled, sortOrder };
+}
+
 function materializeInlineGameAssets(row = {}) {
   if (!row || !row.id) return row;
   const publicRootDir = path.join(__dirname, '..', 'public');
@@ -4575,6 +4630,17 @@ app.get('/api/games/:slug/bootstrap', (req, res) => {
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
   res.json({ ok: true, item: formatGameBootstrapRow(nextRow) });
+});
+
+app.get('/api/partners', (_req, res) => {
+  if (typeof db.ensureDefaultPartners === 'function') {
+    db.ensureDefaultPartners();
+  }
+  const items = listPublicPartnersStmt.all().map(formatPartnerRow);
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.json({ ok: true, items });
 });
 
 app.post('/api/nexa/tip/session', async (req, res) => {
@@ -9708,6 +9774,60 @@ app.get('/api/admin/games', requireAdmin, (_req, res) => {
   }
   const items = listGamesCatalogStmt.all().map(materializeInlineGameAssets).map(formatGameRow);
   res.json({ ok: true, items });
+});
+
+app.get('/api/admin/partners', requireAdmin, (_req, res) => {
+  if (typeof db.ensureDefaultPartners === 'function') {
+    db.ensureDefaultPartners();
+  }
+  const items = listPartnersStmt.all().map(formatPartnerRow);
+  res.json({ ok: true, items });
+});
+
+app.post('/api/admin/partners', requireAdmin, (req, res) => {
+  const payload = normalizePartnerPayload(req.body || {});
+  if (payload.error) return res.status(400).json({ error: payload.error });
+
+  try {
+    const result = db
+      .prepare(`
+        INSERT INTO partners (name, description, url, logo, is_enabled, sort_order, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+      `)
+      .run(payload.name, payload.description, payload.url, payload.logo, payload.isEnabled, payload.sortOrder);
+    const item = selectPartnerByIdStmt.get(result.lastInsertRowid);
+    return res.json({ ok: true, item: formatPartnerRow(item) });
+  } catch (error) {
+    if (String(error?.message || '').includes('UNIQUE')) {
+      return res.status(409).json({ error: '这个合作伙伴链接已经存在' });
+    }
+    return res.status(500).json({ error: '新增合作伙伴失败' });
+  }
+});
+
+app.put('/api/admin/partners/:id', requireAdmin, (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: '记录 ID 无效' });
+
+  const payload = normalizePartnerPayload(req.body || {});
+  if (payload.error) return res.status(400).json({ error: payload.error });
+
+  try {
+    const result = db
+      .prepare(`
+        UPDATE partners
+        SET name = ?, description = ?, url = ?, logo = ?, is_enabled = ?, sort_order = ?, updated_at = datetime('now')
+        WHERE id = ?
+      `)
+      .run(payload.name, payload.description, payload.url, payload.logo, payload.isEnabled, payload.sortOrder, id);
+    if (!result.changes) return res.status(404).json({ error: '合作伙伴不存在' });
+    return res.json({ ok: true, item: formatPartnerRow(selectPartnerByIdStmt.get(id)) });
+  } catch (error) {
+    if (String(error?.message || '').includes('UNIQUE')) {
+      return res.status(409).json({ error: '这个合作伙伴链接已经存在' });
+    }
+    return res.status(500).json({ error: '保存合作伙伴失败' });
+  }
 });
 
 app.get('/api/admin/u-card/platforms', requireAdmin, (_req, res) => {
