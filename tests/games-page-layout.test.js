@@ -22,12 +22,14 @@ test('games page loads the latest game config bundle and keeps piano cards on /p
   assert.match(config, /if \(fallback\.route\) \{[\s\S]*const legacyRoute = `\/games\/\$\{encodeURIComponent\(slug\)\}`;[\s\S]*if \(!route \|\| route === legacyRoute\) route = fallback\.route;/);
 });
 
-test('games page includes the Lucky Star corporate site entry', () => {
-  assert.match(config, /slug:\s*'lucky-star'/);
-  assert.match(config, /name:\s*'LUCKY STAR INVESTMENT'/);
-  assert.match(config, /route:\s*'\/lucky-star\/'/);
-  assert.match(config, /showInGamesHub:\s*1/);
-  assert.match(config, /actionText:\s*'查看官网'/);
+test('games page keeps the Lucky Star corporate site out of the public games hub', () => {
+  const match = config.match(/\{\s*slug:\s*'lucky-star'[\s\S]*?\n\s*\},/);
+  assert.ok(match);
+  const luckyStarBlock = match[0];
+  assert.match(luckyStarBlock, /name:\s*'LUCKY STAR INVESTMENT'/);
+  assert.match(luckyStarBlock, /route:\s*'\/lucky-star\/'/);
+  assert.match(luckyStarBlock, /showInGamesHub:\s*0/);
+  assert.doesNotMatch(luckyStarBlock, /showInGamesHub:\s*1/);
 });
 
 test('games page navigation links to the partners page', () => {
