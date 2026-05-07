@@ -109,19 +109,30 @@ test('lucky star office gallery uses a six-image lightbox with next and previous
   assert.match(js, /data-lightbox-prev/);
 });
 
-test('lucky star brand mark forms a less-than shaped two-leaf logo', () => {
+test('lucky star header uses the supplied image logo asset', () => {
+  const html = readHtml();
   const css = fs.readFileSync(cssPath, 'utf8');
+  const logoPath = path.join(pageDir, 'assets', 'lucky-star-logo.svg');
+  const logoSvg = fs.readFileSync(logoPath, 'utf8');
 
-  assert.match(css, /\.brand-mark::before/);
-  assert.match(css, /\.brand-mark::after/);
-  assert.match(css, /background:\s*var\(--red\)/);
-  assert.match(css, /background:\s*var\(--green\)/);
-  assert.match(css, /transform:\s*rotate\(-55deg\)/);
-  assert.match(css, /transform:\s*rotate\(55deg\)/);
-  assert.match(css, /transform-origin:\s*0 50%/);
-  assert.match(css, /border-radius:\s*4px 999px 999px 4px/);
-  assert.match(css, /\.brand-mark::before \{[\s\S]*?z-index:\s*2;/);
-  assert.match(css, /\.brand-mark::after \{[\s\S]*?z-index:\s*1;/);
+  assert.equal(fs.existsSync(logoPath), true);
+  assert.match(html, /<img class="brand-logo-image" src="assets\/lucky-star-logo\.svg" alt="LUCKY STAR INVESTMENT L\.L\.C logo"/);
+  assert.doesNotMatch(html, /lucky-star-logo\.png/);
+  assert.match(logoSvg, /<svg[^>]+viewBox="0 0 2508 627"/);
+  assert.match(logoSvg, /<path/);
+  assert.doesNotMatch(logoSvg, /<image/);
+  assert.doesNotMatch(html, /class="brand-mark"/);
+  assert.doesNotMatch(css, /\.brand-mark/);
+  assert.match(css, /\.brand-logo-image/);
+});
+
+test('lucky star page uses the supplied standalone icon asset as favicon', () => {
+  const html = readHtml();
+  const iconPath = path.join(pageDir, 'assets', 'lucky-star-icon.png');
+
+  assert.equal(fs.existsSync(iconPath), true);
+  assert.match(html, /<link rel="icon" type="image\/png" href="assets\/lucky-star-icon\.png">/);
+  assert.doesNotMatch(html, /lucky-star-icon\.svg/);
 });
 
 test('lucky star lightbox closes when clicking blank space around the image', () => {

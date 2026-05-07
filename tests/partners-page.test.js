@@ -75,6 +75,12 @@ test('partners page uses the same card layout as the games hub', () => {
   assert.match(partnersHtml, /<article class="game-card">/);
   assert.match(partnersHtml, /class="game-card__play"/);
   assert.match(partnersHtml, /<a class="game-card__play" href="\/lucky-star\/" target="_blank" rel="noopener">查看官网<\/a>/);
+  assert.doesNotMatch(partnersHtml, /class="game-card__(icon|cover)"/);
+  assert.doesNotMatch(partnersHtml, /<img[^>]+brand-logo\.png/);
+  assert.doesNotMatch(partnersHtml, />LS<\/div>/);
+  assert.doesNotMatch(partnersJs, /partnerInitials/);
+  assert.doesNotMatch(partnersJs, /game-card__(icon|cover)/);
+  assert.doesNotMatch(partnersJs, /<img/);
   assert.doesNotMatch(partnersHtml, /跳转新页面/);
   assert.match(partnersJs, /target="_blank" rel="noopener"/);
   assert.match(partnersJs, /查看官网/);

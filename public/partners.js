@@ -9,16 +9,6 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
-function partnerInitials(name) {
-  return String(name || 'P')
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => word[0])
-    .join('')
-    .toUpperCase();
-}
-
 function renderPartners(items) {
   if (!partnersList || !Array.isArray(items) || !items.length) return;
   partnersList.innerHTML = items
@@ -26,14 +16,8 @@ function renderPartners(items) {
       const name = String(item.name || '').trim();
       const description = String(item.description || '').trim();
       const url = String(item.url || '#').trim();
-      const logo = String(item.logo || '').trim();
       return `
         <article class="game-card">
-          ${
-            logo
-              ? `<div class="game-card__cover"><img src="${escapeHtml(logo)}" alt="${escapeHtml(name)} logo" loading="lazy" decoding="async" /></div>`
-              : `<div class="game-card__icon" aria-hidden="true">${escapeHtml(partnerInitials(name))}</div>`
-          }
           <div class="game-card__body">
             <h3>${escapeHtml(name)}</h3>
             <p>${escapeHtml(description || '合作伙伴')}</p>

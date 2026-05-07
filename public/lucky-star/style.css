@@ -54,56 +54,15 @@ img {
 
 .brand {
   display: inline-flex;
-  gap: 12px;
   align-items: center;
   min-width: 0;
 }
 
-.brand-mark {
-  position: relative;
-  width: 52px;
-  height: 56px;
-  flex: 0 0 52px;
-  transform: translate(9px, -9px);
-}
-
-.brand-mark::before,
-.brand-mark::after {
-  position: absolute;
-  left: 8px;
-  width: 42px;
-  height: 20px;
-  content: "";
-  border-radius: 4px 999px 999px 4px;
-  transform-origin: 0 50%;
-}
-
-.brand-mark::before {
-  top: 31px;
-  z-index: 2;
-  background: var(--red);
-  transform: rotate(-55deg);
-}
-
-.brand-mark::after {
-  top: 21px;
-  z-index: 1;
-  background: var(--green);
-  transform: rotate(55deg);
-}
-
-.brand strong,
-.brand small {
+.brand-logo-image {
   display: block;
-  letter-spacing: 0;
-  line-height: 1.1;
-  white-space: nowrap;
-}
-
-.brand small {
-  margin-top: 3px;
-  color: var(--muted);
-  font-size: 11px;
+  width: 270px;
+  max-width: min(36vw, 360px);
+  height: auto;
 }
 
 .nav-links {
