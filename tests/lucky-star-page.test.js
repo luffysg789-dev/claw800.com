@@ -86,6 +86,9 @@ test('lucky star corporate site links to the commercial license pdf', () => {
 
   assert.match(html, /营业执照/);
   assert.match(html, /Commercial License/);
+  assert.match(html, /data-zh="营业执照 \/ Commercial License"/);
+  assert.match(html, /data-en="Commercial License"/);
+  assert.doesNotMatch(html, /data-en="[^"]*营业执照/);
   assert.match(html, new RegExp(`href="${pdfPath}"`));
   assert.equal(fs.existsSync(path.join(pageDir, pdfPath)), true);
 });

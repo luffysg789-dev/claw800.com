@@ -14,15 +14,15 @@ const partnersJs = fs.readFileSync(path.join(rootDir, 'public', 'partners.js'), 
 const serverJs = fs.readFileSync(path.join(rootDir, 'src', 'server.js'), 'utf8');
 
 test('home navigation links to the partners page', () => {
-  assert.match(indexHtml, /id="partnersNavBtn"[^>]*href="\/partners\.html"[^>]*>合作伙伴<\/a>/);
-  assert.match(mainJs, /partnersBtn:\s*'合作伙伴'/);
+  assert.match(indexHtml, /id="partnersNavBtn"[^>]*href="\/partners\.html"[^>]*>伙伴<\/a>/);
+  assert.match(mainJs, /partnersBtn:\s*'伙伴'/);
 });
 
 test('partners page lists Lucky Star as a partner from the partners API', () => {
   assert.equal(fs.existsSync(partnersHtmlPath), true);
   const partnersHtml = fs.readFileSync(partnersHtmlPath, 'utf8');
 
-  assert.match(partnersHtml, /合作伙伴/);
+  assert.match(partnersHtml, /伙伴/);
   assert.match(partnersHtml, /\/api\/partners/);
   assert.match(partnersHtml, /LUCKY STAR INVESTMENT L\.L\.C/);
   assert.match(partnersHtml, /\/lucky-star\//);

@@ -113,7 +113,7 @@ const texts = {
     homeBtn: '首页',
     skillsBtn: '技能',
     gamesBtn: '游戏与工具',
-    partnersBtn: '合作伙伴',
+    partnersBtn: '伙伴',
     githubStarBtn: 'GitHub 加星',
     tutorialBtn: '教程',
     allCategory: '全部',

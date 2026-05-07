@@ -33,7 +33,7 @@ test('games page keeps the Lucky Star corporate site out of the public games hub
 });
 
 test('games page navigation links to the partners page', () => {
-  assert.match(gamesHtml, /<a class="hero-nav-btn" href="\/partners\.html">合作伙伴<\/a>/);
+  assert.match(gamesHtml, /<a class="hero-nav-btn" href="\/partners\.html">伙伴<\/a>/);
 });
 
 test('games page keeps standalone pages like p-mining out of the public games hub', () => {
