@@ -15,7 +15,11 @@
       labelName: '网站名称',
       labelUrl: '网站地址',
       labelDesc: '一句话简介',
+      labelMainCategory: '内容分类',
       labelCategory: '分类',
+      submitGroupNavigation: '导航',
+      submitGroupSkills: '技能',
+      submitGroupGames: '游戏与工具',
       labelSubmitter: '提交人',
       labelEmail: '邮箱',
       submitBtn: '提交审核',
@@ -36,7 +40,11 @@
       labelName: 'Website Name',
       labelUrl: 'Website URL',
       labelDesc: 'Short Description',
+      labelMainCategory: 'Content Type',
       labelCategory: 'Category',
+      submitGroupNavigation: 'Directory',
+      submitGroupSkills: 'Skills',
+      submitGroupGames: 'Tools',
       labelSubmitter: 'Submitted By',
       labelEmail: 'Email',
       submitBtn: 'Submit for Review',
@@ -48,6 +56,8 @@
   const getById = (id) => document.getElementById(id);
   const normalizeLang = (value) => (value === 'en' ? 'en' : 'zh');
   let currentLang = normalizeLang(localStorage.getItem(LANG_KEY));
+  let navCategoriesCache = [];
+  let skillCategoriesCache = [];
 
   function applyMenuLanguage(language) {
     currentLang = normalizeLang(language);
@@ -75,6 +85,72 @@
       githubStarBtn.setAttribute('title', text.githubStarBtn);
     }
     window.dispatchEvent(new CustomEvent('claw800-language-change', { detail: { lang: currentLang } }));
+  }
+
+  async function fetchJson(path) {
+    try {
+      const res = await fetch(path, { cache: 'no-store' });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
+  }
+
+  async function loadNavCategories() {
+    if (navCategoriesCache.length) return navCategoriesCache;
+    const data = await fetchJson(`/api/categories?_=${Date.now()}`);
+    navCategoriesCache = Array.isArray(data?.items) ? data.items : [{ category: '导航', category_en: 'Directory' }];
+    return navCategoriesCache;
+  }
+
+  async function loadSkillCategories() {
+    if (skillCategoriesCache.length) return skillCategoriesCache;
+    const data = await fetchJson(`/api/skills-summary?_=${Date.now()}`);
+    const rows = Array.isArray(data?.categories) ? data.categories : [];
+    skillCategoriesCache = rows.map((item) => ({
+      category: String(item.category || item.category_en || '').trim() || '技能',
+      category_en: String(item.category_en || item.category || '').trim() || 'Skills'
+    }));
+    if (!skillCategoriesCache.length) skillCategoriesCache = [{ category: '技能', category_en: 'Skills' }];
+    return skillCategoriesCache;
+  }
+
+  function getSubmitGameCategories() {
+    return [
+      { category: '游戏', category_en: 'Games' },
+      { category: '工具', category_en: 'Tools' }
+    ];
+  }
+
+  function submitCategoryLabel(item) {
+    const zh = String(item?.category || '').trim();
+    const en = String(item?.category_en || '').trim();
+    return currentLang === 'en' ? en || zh : zh || en;
+  }
+
+  async function getSubmitCategoryGroups() {
+    const text = texts[currentLang];
+    return [
+      {
+        value: 'navigation',
+        label: text.submitGroupNavigation,
+        categories: await loadNavCategories(),
+        categoryLabel: submitCategoryLabel
+      },
+      {
+        value: 'skills',
+        label: text.submitGroupSkills,
+        categories: await loadSkillCategories(),
+        categoryLabel: submitCategoryLabel
+      },
+      {
+        value: 'games',
+        label: text.submitGroupGames,
+        categories: getSubmitGameCategories(),
+        categoryLabel: submitCategoryLabel
+      }
+    ];
   }
 
   function closeLangMenu() {
@@ -115,8 +191,10 @@
 
   const submitModalController = window.initSubmitModal?.({
     getTexts: () => texts[currentLang],
-    getCategories: async () => [{ category: currentLang === 'en' ? 'Tools' : '工具' }],
-    categoryLabel: (item) => item.category
+    getCategoryGroups: getSubmitCategoryGroups,
+    defaultMainCategory: document.body?.dataset?.page === 'games' ? 'games' : 'navigation',
+    getCategories: loadNavCategories,
+    categoryLabel: submitCategoryLabel
   });
   submitModalController?.setTexts();
 })();

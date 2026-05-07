@@ -19,7 +19,11 @@ test('home navigation links to the partners page', () => {
   assert.match(indexHtml, /id="partnersNavBtn"[^>]*href="\/partners\.html"[^>]*>伙伴<\/a>/);
   assert.match(mainJs, /partnersBtn:\s*'伙伴'/);
   assert.match(skillsHtml, /id="partnersNavBtn"[^>]*href="\/partners\.html"[^>]*>伙伴<\/a>/);
+  assert.match(skillsHtml, /<button id="openSubmitFormBtn" class="hero-nav-btn" type="button">提交<\/button>/);
+  assert.doesNotMatch(skillsHtml, /<button id="openSubmitFormBtn" class="hero-nav-btn" type="button">免费提交<\/button>/);
   assert.match(skillsJs, /partnersBtn:\s*'伙伴'/);
+  assert.match(skillsJs, /openSubmit:\s*'提交'/);
+  assert.doesNotMatch(skillsJs, /openSubmit:\s*'免费提交'/);
   assert.match(skillsJs, /openSubmit:\s*'Submit'/);
   assert.doesNotMatch(skillsJs, /openSubmit:\s*'Submit for Free'/);
 });

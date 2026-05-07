@@ -79,13 +79,17 @@ const i18n = {
     gamesBtn: '游戏与工具',
     partnersBtn: '伙伴',
     githubStarBtn: 'GitHub 加星',
-    openSubmit: '免费提交',
+    openSubmit: '提交',
     submitTitle: '免费提交网站',
     submitDesc: '提交后进入审核，管理员通过后展示在首页。',
     labelName: '网站名称',
     labelUrl: '网站地址',
     labelDesc: '一句话简介',
+    labelMainCategory: '内容分类',
     labelCategory: '分类',
+    submitGroupNavigation: '导航',
+    submitGroupSkills: '技能',
+    submitGroupGames: '游戏与工具',
     labelSubmitter: '提交人',
     labelEmail: '邮箱',
     submitBtn: '提交审核',
@@ -133,7 +137,11 @@ const i18n = {
     labelName: 'Website Name',
     labelUrl: 'Website URL',
     labelDesc: 'Short Description',
+    labelMainCategory: 'Content Type',
     labelCategory: 'Category',
+    submitGroupNavigation: 'Directory',
+    submitGroupSkills: 'Skills',
+    submitGroupGames: 'Tools',
     labelSubmitter: 'Submitted By',
     labelEmail: 'Email',
     submitBtn: 'Submit for Review',
@@ -235,6 +243,70 @@ function hydrateSubmitCategoriesFromSkills() {
   }
 }
 
+function getSubmitSkillCategories() {
+  const seen = new Set();
+  const items = [];
+  const pushCategory = (zhValue, enValue) => {
+    const category = String(zhValue || enValue || '').trim();
+    const categoryEn = String(enValue || zhValue || '').trim();
+    const key = `${category}|${categoryEn}`;
+    if (!category || seen.has(key)) return;
+    seen.add(key);
+    items.push({ category, category_en: categoryEn });
+  };
+
+  Object.keys(langState.zh.categoryZhMap || {}).forEach((key) => {
+    pushCategory(langState.zh.categoryZhMap[key] || key, key);
+  });
+  Object.keys(langState.en.categoryZhMap || {}).forEach((key) => {
+    pushCategory(langState.en.categoryZhMap[key] || key, key);
+  });
+  getSkills().forEach((skill) => {
+    pushCategory(skill.category_zh || skill.category, skill.category || skill.category_zh);
+  });
+  return items.length ? items : [{ category: '技能', category_en: 'Skills' }];
+}
+
+function submitCategoryLabel(item) {
+  const zh = String(item?.category || '').trim();
+  const en = String(item?.category_en || '').trim();
+  return currentLang === 'en' ? en || zh : zh || en;
+}
+
+function getSubmitGameCategories() {
+  return [
+    { category: '游戏', category_en: 'Games' },
+    { category: '工具', category_en: 'Tools' }
+  ];
+}
+
+async function getSubmitCategoryGroups() {
+  const dict = i18n[currentLang];
+  if (!submitCategoriesCache.length) {
+    await loadSubmitCategories();
+  }
+  return [
+    {
+      value: 'navigation',
+      label: dict.submitGroupNavigation,
+      categories: submitCategoriesCache,
+      categoryLabel: submitCategoryLabel
+    },
+    {
+      value: 'skills',
+      label: dict.submitGroupSkills,
+      categories: getSubmitSkillCategories(),
+      categoryLabel: submitCategoryLabel
+    },
+    {
+      value: 'games',
+      label: dict.submitGroupGames,
+      categories: getSubmitGameCategories(),
+      categoryLabel: submitCategoryLabel
+    }
+  ];
+}
+
 async function loadSubmitCategories() {
   try {
     const res = await fetch(`/api/categories?_=${Date.now()}`, { cache: 'no-store' });
@@ -276,6 +348,7 @@ function getSubmitTexts() {
     labelName: dict.labelName,
     labelUrl: dict.labelUrl,
     labelDesc: dict.labelDesc,
+    labelMainCategory: dict.labelMainCategory,
     labelCategory: dict.labelCategory,
     labelSubmitter: dict.labelSubmitter,
     labelEmail: dict.labelEmail,
@@ -562,6 +635,8 @@ async function init() {
   document.getElementById('all-skills-stat-btn').addEventListener('click', showAllSkillsFromStat);
   submitModalController = window.initSubmitModal?.({
     getTexts: getSubmitTexts,
+    getCategoryGroups: getSubmitCategoryGroups,
+    defaultMainCategory: 'skills',
     getCategories: async () => {
       if (!submitCategoriesCache.length) {
         await loadSubmitCategories();

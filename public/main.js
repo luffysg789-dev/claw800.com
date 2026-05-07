@@ -123,7 +123,11 @@ const texts = {
     labelName: '网站名称',
     labelUrl: '网站地址',
     labelDesc: '一句话简介',
+    labelMainCategory: '内容分类',
     labelCategory: '分类',
+    submitGroupNavigation: '导航',
+    submitGroupSkills: '技能',
+    submitGroupGames: '游戏与工具',
     labelSubmitter: '提交人',
     labelEmail: '邮箱',
     submitBtn: '提交审核',
@@ -169,7 +173,11 @@ const texts = {
     labelName: 'Website Name',
     labelUrl: 'Website URL',
     labelDesc: 'Short Description',
+    labelMainCategory: 'Content Type',
     labelCategory: 'Category',
+    submitGroupNavigation: 'Directory',
+    submitGroupSkills: 'Skills',
+    submitGroupGames: 'Tools',
     labelSubmitter: 'Submitted By',
     labelEmail: 'Email',
     submitBtn: 'Submit for Review',
@@ -222,6 +230,7 @@ const BOOT_CACHE = window.__CLAW800_BOOT__ || {};
 let siteRenderTaskId = 0;
 let favoriteSiteUrls = loadFavoriteSiteUrls();
 let submitModalController = null;
+let submitSkillCategoriesCache = [];
 
 if (BOOT_CACHE.siteConfig && typeof BOOT_CACHE.siteConfig === 'object') {
   siteConfig = BOOT_CACHE.siteConfig;
@@ -768,6 +777,7 @@ function getSubmitTexts() {
     labelName: dict.labelName,
     labelUrl: dict.labelUrl,
     labelDesc: dict.labelDesc,
+    labelMainCategory: dict.labelMainCategory,
     labelCategory: dict.labelCategory,
     labelSubmitter: dict.labelSubmitter,
     labelEmail: dict.labelEmail,
@@ -775,6 +785,66 @@ function getSubmitTexts() {
     closeSubmit: dict.closeSubmit,
     submitSuccess: currentLang === 'en' ? dict.submitSuccess : ''
   };
+}
+
+async function loadSubmitSkillCategories() {
+  if (submitSkillCategoriesCache.length) return submitSkillCategoriesCache;
+  try {
+    const res = await fetch('/api/skills-summary', { cache: 'no-store' });
+    if (!res.ok) throw new Error('failed');
+    const data = await res.json();
+    const rows = Array.isArray(data.categories) ? data.categories : [];
+    submitSkillCategoriesCache = rows.map((item) => ({
+      category: String(item.category || item.category_en || '').trim() || 'Other',
+      category_en: String(item.category_en || item.category || '').trim() || 'Other'
+    }));
+  } catch {
+    submitSkillCategoriesCache = [{ category: currentLang === 'en' ? 'Skills' : '技能', category_en: 'Skills' }];
+  }
+  return submitSkillCategoriesCache;
+}
+
+function submitSkillCategoryLabel(item) {
+  const zh = String(item?.category || '').trim();
+  const en = String(item?.category_en || '').trim();
+  return currentLang === 'en' ? en || zh : zh || en;
+}
+
+function getSubmitGameCategories() {
+  return [
+    { category: '游戏', category_en: 'Games' },
+    { category: '工具', category_en: 'Tools' }
+  ];
+}
+
+function submitGameCategoryLabel(item) {
+  const zh = String(item?.category || '').trim();
+  const en = String(item?.category_en || '').trim();
+  return currentLang === 'en' ? en || zh : zh || en;
+}
+
+async function getSubmitCategoryGroups() {
+  const dict = texts[currentLang];
+  return [
+    {
+      value: 'navigation',
+      label: dict.submitGroupNavigation,
+      categories: categoriesCache.length ? categoriesCache : [{ category: '导航', category_en: 'Directory' }],
+      categoryLabel: categoryLabelForItem
+    },
+    {
+      value: 'skills',
+      label: dict.submitGroupSkills,
+      categories: await loadSubmitSkillCategories(),
+      categoryLabel: submitSkillCategoryLabel
+    },
+    {
+      value: 'games',
+      label: dict.submitGroupGames,
+      categories: getSubmitGameCategories(),
+      categoryLabel: submitGameCategoryLabel
+    }
+  ];
 }
 
 function renderCategories(items) {
@@ -1115,6 +1185,7 @@ window.toggleSiteFavorite = function toggleSiteFavorite(key, url, buttonEl) {
 
 submitModalController = window.initSubmitModal?.({
   getTexts: getSubmitTexts,
+  getCategoryGroups: getSubmitCategoryGroups,
   getCategories: async () => categoriesCache,
   categoryLabel: categoryLabelForItem,
   localizeApiError

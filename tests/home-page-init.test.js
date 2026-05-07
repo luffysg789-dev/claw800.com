@@ -48,6 +48,23 @@ test('home page submit navigation button uses concise Chinese text', () => {
   assert.doesNotMatch(html, /<button id="openSubmitFormBtn" class="hero-nav-btn" type="button">免费提交<\/button>/);
 });
 
+test('submit modal asks for a top-level content type before the inner category', () => {
+  const html = fs.readFileSync(htmlPath, 'utf8');
+  const js = fs.readFileSync(jsPath, 'utf8');
+  const submitModalJs = fs.readFileSync(path.join(__dirname, '..', 'public', 'submit-modal.js'), 'utf8');
+
+  assert.match(html, /id="labelMainCategory"[\s\S]*id="submitMainCategorySelect" name="contentType"/);
+  assert.match(html, /id="labelMainCategory"[\s\S]*id="labelCategory"/);
+  assert.match(js, /labelMainCategory:\s*'内容分类'/);
+  assert.match(js, /getSubmitCategoryGroups/);
+  assert.match(js, /value:\s*'navigation'[\s\S]*label:\s*dict\.submitGroupNavigation/);
+  assert.match(js, /value:\s*'skills'[\s\S]*label:\s*dict\.submitGroupSkills/);
+  assert.match(js, /value:\s*'games'[\s\S]*label:\s*dict\.submitGroupGames/);
+  assert.match(submitModalJs, /submitMainCategorySelect/);
+  assert.match(submitModalJs, /getCategoryGroups/);
+  assert.match(submitModalJs, /renderCategoriesForSelectedGroup/);
+});
+
 test('home page mobile header places GitHub icon left of language icon', () => {
   const html = fs.readFileSync(htmlPath, 'utf8');
   const css = fs.readFileSync(cssPath, 'utf8');
