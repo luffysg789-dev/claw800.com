@@ -43,6 +43,8 @@ test('home page submit navigation button uses concise Chinese text', () => {
 
   assert.match(html, /<button id="openSubmitFormBtn" class="hero-nav-btn" type="button">提交<\/button>/);
   assert.match(js, /openSubmit:\s*'提交'/);
+  assert.match(js, /openSubmit:\s*'Submit'/);
+  assert.doesNotMatch(js, /openSubmit:\s*'Submit for Free'/);
   assert.doesNotMatch(html, /<button id="openSubmitFormBtn" class="hero-nav-btn" type="button">免费提交<\/button>/);
 });
 

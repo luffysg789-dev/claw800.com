@@ -11,11 +11,17 @@ const mainJs = fs.readFileSync(path.join(rootDir, 'public', 'main.js'), 'utf8');
 const adminHtml = fs.readFileSync(path.join(rootDir, 'public', 'admin.html'), 'utf8');
 const adminJs = fs.readFileSync(path.join(rootDir, 'public', 'admin.js'), 'utf8');
 const partnersJs = fs.readFileSync(path.join(rootDir, 'public', 'partners.js'), 'utf8');
+const skillsHtml = fs.readFileSync(path.join(rootDir, 'public', 'skills.html'), 'utf8');
+const skillsJs = fs.readFileSync(path.join(rootDir, 'public', 'skills.js'), 'utf8');
 const serverJs = fs.readFileSync(path.join(rootDir, 'src', 'server.js'), 'utf8');
 
 test('home navigation links to the partners page', () => {
   assert.match(indexHtml, /id="partnersNavBtn"[^>]*href="\/partners\.html"[^>]*>伙伴<\/a>/);
   assert.match(mainJs, /partnersBtn:\s*'伙伴'/);
+  assert.match(skillsHtml, /id="partnersNavBtn"[^>]*href="\/partners\.html"[^>]*>伙伴<\/a>/);
+  assert.match(skillsJs, /partnersBtn:\s*'伙伴'/);
+  assert.match(skillsJs, /openSubmit:\s*'Submit'/);
+  assert.doesNotMatch(skillsJs, /openSubmit:\s*'Submit for Free'/);
 });
 
 test('partners page lists Lucky Star as a partner from the partners API', () => {
@@ -84,8 +90,32 @@ test('partners page uses the same card layout as the games hub', () => {
   assert.doesNotMatch(partnersHtml, /跳转新页面/);
   assert.match(partnersJs, /target="_blank" rel="noopener"/);
   assert.match(partnersJs, /查看官网/);
+  assert.match(partnersJs, /Visit Website/);
   assert.doesNotMatch(partnersJs, /跳转新页面/);
   assert.doesNotMatch(partnersHtml, /class="partners-intro"/);
+});
+
+test('partners page translates partner content when English is selected', () => {
+  assert.match(partnersJs, /const PARTNER_I18N = \{/);
+  assert.match(partnersJs, /'LUCKY STAR INVESTMENT L\.L\.C':\s*\{[\s\S]*description:\s*'Dubai-registered investment company/);
+  assert.match(partnersJs, /'Panda Dog Thailand':\s*\{[\s\S]*description:\s*'Thailand Live Commerce/);
+  assert.match(partnersJs, /function getCurrentMenuLang\(\)/);
+  assert.match(partnersJs, /window\.addEventListener\('claw800-language-change', \(\) => \{/);
+  assert.match(partnersJs, /renderPartners\(currentPartners\);/);
+});
+
+test('partners page keeps language and GitHub controls in the menu', () => {
+  const partnersHtml = fs.readFileSync(partnersHtmlPath, 'utf8');
+
+  assert.match(partnersHtml, /id="homeNavBtn"[^>]*href="\/"/);
+  assert.match(partnersHtml, /id="skillsNavBtn"[^>]*href="\/skills\.html"/);
+  assert.match(partnersHtml, /id="gamesNavBtn"[^>]*href="\/games\.html"/);
+  assert.match(partnersHtml, /id="partnersNavBtn"[^>]*class="hero-nav-btn active"[^>]*href="\/partners\.html"/);
+  assert.match(partnersHtml, /id="githubStarBtn"[\s\S]*href="https:\/\/github\.com\/luffysg789-dev\/claw800\.com"/);
+  assert.match(partnersHtml, /id="langMenuBtn"/);
+  assert.match(partnersHtml, /class="lang-option" data-lang="en"/);
+  assert.match(partnersHtml, /class="lang-option" data-lang="zh"/);
+  assert.match(partnersHtml, /<script src="\/menu-i18n\.js/);
 });
 
 test('admin panel includes partner list management entry points', () => {

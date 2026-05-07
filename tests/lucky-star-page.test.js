@@ -65,6 +65,21 @@ test('lucky star corporate site references local image assets that exist', () =>
   }
 });
 
+test('lucky star office images are compressed for faster page loads', () => {
+  const html = readHtml();
+  const imagePaths = [...new Set([
+    ...html.matchAll(/src="(assets\/[^"]+\.jpg)"/g),
+    ...html.matchAll(/data-src="(assets\/[^"]+\.jpg)"/g)
+  ].map((match) => match[1]))];
+  const sizes = imagePaths.map((imagePath) => fs.statSync(path.join(pageDir, imagePath)).size);
+  const maxImageSize = 420 * 1024;
+  const totalSize = sizes.reduce((sum, size) => sum + size, 0);
+
+  assert.ok(sizes.length >= 6);
+  assert.ok(sizes.every((size) => size <= maxImageSize), `largest image is ${Math.max(...sizes)} bytes`);
+  assert.ok(totalSize <= 1800 * 1024, `total image payload is ${totalSize} bytes`);
+});
+
 test('lucky star gallery prioritizes the first image before deferred gallery images', () => {
   const html = readHtml();
   const js = fs.readFileSync(jsPath, 'utf8');

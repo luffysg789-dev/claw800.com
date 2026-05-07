@@ -1,7 +1,3 @@
-const { getGameCardMediaMarkup } = typeof window === 'undefined'
-  ? require('../src/game-card-view')
-  : { getGameCardMediaMarkup: null };
-
 const DEFAULT_GAMES = [
   {
     slug: 'lucky-star',
@@ -252,6 +248,63 @@ const GAME_ACTION_TEXT = {
   fortune: '开始游戏',
   muyu: '开始游戏'
 };
+const GAME_I18N = {
+  'u-card-query': {
+    name: 'U Card Scenario Lookup',
+    description: 'Select a platform to find U cards and BINs that support that payment scenario.',
+    actionText: 'Start Lookup'
+  },
+  sbti: {
+    name: 'SBTI',
+    description: 'A lightweight 31-question personality test that generates your type, dimension tendencies, and result summary.',
+    actionText: 'Start Test'
+  },
+  'tigang-master': {
+    name: 'Kegel Master',
+    description: 'Start and release to record each session. Complete 5 sessions a day to turn the circles green.',
+    actionText: 'Start Check-in'
+  },
+  piano: {
+    name: 'Piano',
+    description: 'A mobile landscape-first two-octave web piano with instant touch response and multi-key play.',
+    actionText: 'Start Playing'
+  },
+  'zodiac-today': {
+    name: "Today's Zodiac Fortune",
+    description: 'Enter your name and Gregorian birthday to generate your personalized zodiac reading for today.',
+    actionText: 'Start'
+  },
+  'blast-balloons': {
+    name: 'Blast Balloons',
+    description: 'Bombs are hidden among 50 balloons. Tap quickly with multi-touch to find them all.',
+    actionText: 'Start'
+  },
+  gomoku: {
+    name: 'Gomoku',
+    description: 'A 15x15 board game with player-versus-player and player-versus-computer modes.',
+    actionText: 'Start'
+  },
+  'beauty-light': {
+    name: 'Cute Fill Light',
+    description: 'A full-screen soft fill-light tool with swipe color changes, presets, and brightness control.',
+    actionText: 'Open Tool'
+  },
+  minesweeper: {
+    name: 'Minesweeper',
+    description: 'Classic web Minesweeper with mobile touch support, flag mode, difficulty selection, and restart.',
+    actionText: 'Start'
+  },
+  fortune: {
+    name: "Today's Fortune",
+    description: 'A light fortune-drawing game with an Eastern lucky-draw mood. Tap the tube to reveal today’s wealth fortune.',
+    actionText: 'Start'
+  },
+  muyu: {
+    name: 'Wooden Fish',
+    description: 'Tap the wooden fish once and gain +1 merit.',
+    actionText: 'Start'
+  }
+};
 const MUYU_OLD_DESCRIPTION = '轻点木鱼一下，功德 +1。保留简洁仪式感，支持手机触控、音效和自动保存。';
 const MUYU_NEW_DESCRIPTION = '轻点木鱼一下，功德 +1。';
 
@@ -266,24 +319,24 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
-function buildGameCardMediaMarkup(item) {
-  if (getGameCardMediaMarkup) {
-    return getGameCardMediaMarkup(item);
+function getCurrentMenuLang() {
+  try {
+    return String(window.localStorage.getItem('claw800_lang') || '').trim() === 'en' ? 'en' : 'zh';
+  } catch {
+    return 'zh';
   }
-  const slug = String(item?.slug || '').trim();
-  if (slug === 'muyu') {
-    return `
-      <div class="game-card__icon game-card__icon--muyu" aria-hidden="true">
-        <span class="game-card__muyu-body"></span>
-        <span class="game-card__muyu-groove"></span>
-        <span class="game-card__muyu-base"></span>
-      </div>
-    `.trim();
-  }
-  if (item.cover_image) {
-    return `<div class="game-card__cover"><img src="${escapeHtml(item.cover_image)}" alt="${escapeHtml(item.name)}" /></div>`;
-  }
-  return `<div class="game-card__icon" aria-hidden="true">${escapeHtml(item.icon)}</div>`;
+}
+
+function localizeGame(item) {
+  if (getCurrentMenuLang() !== 'en') return item;
+  const translation = GAME_I18N[item.slug];
+  if (!translation) return item;
+  return {
+    ...item,
+    name: translation.name || item.name,
+    description: translation.description || item.description,
+    actionText: translation.actionText || item.actionText
+  };
 }
 
 function cloneDefaultGame(slug) {
@@ -354,20 +407,27 @@ async function fetchJson(path) {
 }
 
 function gameCardMarkup(item) {
-  const coverMarkup = buildGameCardMediaMarkup(item);
+  const displayItem = localizeGame(item);
 
   return `
     <article class="game-card">
-      ${coverMarkup}
       <div class="game-card__body">
-        <h3>${escapeHtml(item.name)}</h3>
-        <p>${escapeHtml(item.description)}</p>
+        <h3>${escapeHtml(displayItem.name)}</h3>
+        <p>${escapeHtml(displayItem.description)}</p>
       </div>
       <div class="game-card__actions">
-        <a class="game-card__play" href="${escapeHtml(item.route)}">${escapeHtml(item.actionText)}</a>
+        <a class="game-card__play" href="${escapeHtml(displayItem.route)}">${escapeHtml(displayItem.actionText)}</a>
       </div>
     </article>
   `;
+}
+
+function getVisibleGames(items) {
+  return items.filter((item) => item.is_enabled && item.slug !== 'xiangqi' && item.showInGamesHub !== 0);
+}
+
+function renderGamesGrid(items) {
+  return getVisibleGames(items).map(gameCardMarkup).join('');
 }
 
 function applyGamePageConfig(item) {
@@ -401,10 +461,14 @@ async function bootstrapGamesPage() {
   }
 
   const items = Array.from(mergedBySlug.values());
-  grid.innerHTML = items
-    .filter((item) => item.is_enabled && item.slug !== 'xiangqi' && item.showInGamesHub !== 0)
-    .map(gameCardMarkup)
-    .join('');
+  grid.innerHTML = renderGamesGrid(items);
+
+  if (!grid.dataset.i18nBound) {
+    grid.dataset.i18nBound = '1';
+    window.addEventListener('claw800-language-change', () => {
+      grid.innerHTML = renderGamesGrid(items);
+    });
+  }
 }
 
 async function bootstrapGamePage(slug) {
