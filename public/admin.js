@@ -397,7 +397,9 @@ const texts = {
     ordersPMiningBtn: '挖矿算力订单',
     ordersNexaTipBtn: '打赏订单',
     ordersNexaEscrowBtn: '担保订单',
+    ordersNexaEscrowWithdrawalsBtn: '担保提现记录',
     ordersXiangqiDepositsBtn: '象棋充值订单',
+    ordersXiangqiWithdrawalsBtn: '象棋提现审核',
     pMiningOrdersTitle: '挖矿算力订单',
     nexaTipOrdersTitle: '打赏订单',
     nchatUsersTitle: '聊天用户',
@@ -720,7 +722,9 @@ const texts = {
     ordersPMiningBtn: 'P-Mining Orders',
     ordersNexaTipBtn: 'Tip Orders',
     ordersNexaEscrowBtn: 'Escrow Orders',
+    ordersNexaEscrowWithdrawalsBtn: 'Escrow Withdrawals',
     ordersXiangqiDepositsBtn: 'Xiangqi Deposits',
+    ordersXiangqiWithdrawalsBtn: 'Xiangqi Withdrawals',
     pMiningOrdersTitle: 'P-Mining Power Orders',
     nexaTipOrdersTitle: 'Game Tip Orders',
     nchatUsersTitle: 'Chat Users',
@@ -1281,7 +1285,9 @@ function applyLanguage() {
   document.getElementById('ordersPMiningBtn').textContent = dict.ordersPMiningBtn;
   document.getElementById('ordersNexaTipBtn').textContent = dict.ordersNexaTipBtn;
   document.getElementById('ordersNexaEscrowBtn').textContent = dict.ordersNexaEscrowBtn;
+  document.getElementById('ordersNexaEscrowWithdrawalsBtn').textContent = dict.ordersNexaEscrowWithdrawalsBtn;
   document.getElementById('ordersXiangqiDepositsBtn').textContent = dict.ordersXiangqiDepositsBtn;
+  document.getElementById('ordersXiangqiWithdrawalsBtn').textContent = dict.ordersXiangqiWithdrawalsBtn;
   document.getElementById('pMiningOrdersTitle').textContent = dict.pMiningOrdersTitle;
   document.getElementById('nexaTipOrdersTitle').textContent = dict.nexaTipOrdersTitle;
   document.getElementById('nchatUsersTitle').textContent = dict.nchatUsersTitle;
@@ -1370,7 +1376,7 @@ function applyLanguage() {
 
 function setView(view) {
   currentView = view;
-  const orderViews = ['orders', 'p-mining-orders', 'nexa-tip-orders', 'nexa-escrow-orders', 'xiangqi-deposits'];
+  const orderViews = ['orders', 'p-mining-orders', 'nexa-tip-orders', 'nexa-escrow-orders', 'nexa-escrow-withdrawals', 'xiangqi-deposits', 'xiangqi-withdrawals'];
   adminAddSection.classList.toggle('hidden', view !== 'add');
   adminVisitStatsSection.classList.toggle('hidden', view !== 'visit-stats');
   adminSiteConfigSection.classList.toggle('hidden', view !== 'site-config');
@@ -4678,7 +4684,9 @@ document.getElementById('navOrders').addEventListener('click', () => setView('or
 document.getElementById('ordersPMiningBtn').addEventListener('click', () => setView('p-mining-orders'));
 document.getElementById('ordersNexaTipBtn').addEventListener('click', () => setView('nexa-tip-orders'));
 document.getElementById('ordersNexaEscrowBtn').addEventListener('click', () => setView('nexa-escrow-orders'));
+document.getElementById('ordersNexaEscrowWithdrawalsBtn').addEventListener('click', () => setView('nexa-escrow-withdrawals'));
 document.getElementById('ordersXiangqiDepositsBtn').addEventListener('click', () => setView('xiangqi-deposits'));
+document.getElementById('ordersXiangqiWithdrawalsBtn').addEventListener('click', () => setView('xiangqi-withdrawals'));
 document.getElementById('navNchatUsers').addEventListener('click', () => setView('nchat-users'));
 document.getElementById('navNexaEscrowUsers').addEventListener('click', () => setView('nexa-escrow-users'));
 document.getElementById('navNexaEscrowWithdrawals').addEventListener('click', () => setView('nexa-escrow-withdrawals'));

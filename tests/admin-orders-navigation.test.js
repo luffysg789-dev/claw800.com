@@ -24,16 +24,20 @@ test('admin sidebar groups payment order entry points under the orders page', ()
   assert.match(adminHtml, /id="ordersPMiningBtn"/);
   assert.match(adminHtml, /id="ordersNexaTipBtn"/);
   assert.match(adminHtml, /id="ordersNexaEscrowBtn"/);
+  assert.match(adminHtml, /id="ordersNexaEscrowWithdrawalsBtn"/);
   assert.match(adminHtml, /id="ordersXiangqiDepositsBtn"/);
+  assert.match(adminHtml, /id="ordersXiangqiWithdrawalsBtn"/);
 });
 
 test('admin orders page routes each grouped button to the existing order lists', () => {
   assert.match(adminJs, /const adminOrdersSection = document\.getElementById\('adminOrdersSection'\);/);
-  assert.match(adminJs, /const orderViews = \['orders', 'p-mining-orders', 'nexa-tip-orders', 'nexa-escrow-orders', 'xiangqi-deposits'\];/);
+  assert.match(adminJs, /const orderViews = \['orders', 'p-mining-orders', 'nexa-tip-orders', 'nexa-escrow-orders', 'nexa-escrow-withdrawals', 'xiangqi-deposits', 'xiangqi-withdrawals'\];/);
   assert.match(adminJs, /adminOrdersSection\.classList\.toggle\('hidden', !orderViews\.includes\(view\)\);/);
   assert.match(adminJs, /document\.getElementById\('navOrders'\)\.addEventListener\('click', \(\) => setView\('orders'\)\);/);
   assert.match(adminJs, /document\.getElementById\('ordersPMiningBtn'\)\.addEventListener\('click', \(\) => setView\('p-mining-orders'\)\);/);
   assert.match(adminJs, /document\.getElementById\('ordersNexaTipBtn'\)\.addEventListener\('click', \(\) => setView\('nexa-tip-orders'\)\);/);
   assert.match(adminJs, /document\.getElementById\('ordersNexaEscrowBtn'\)\.addEventListener\('click', \(\) => setView\('nexa-escrow-orders'\)\);/);
+  assert.match(adminJs, /document\.getElementById\('ordersNexaEscrowWithdrawalsBtn'\)\.addEventListener\('click', \(\) => setView\('nexa-escrow-withdrawals'\)\);/);
   assert.match(adminJs, /document\.getElementById\('ordersXiangqiDepositsBtn'\)\.addEventListener\('click', \(\) => setView\('xiangqi-deposits'\)\);/);
+  assert.match(adminJs, /document\.getElementById\('ordersXiangqiWithdrawalsBtn'\)\.addEventListener\('click', \(\) => setView\('xiangqi-withdrawals'\)\);/);
 });

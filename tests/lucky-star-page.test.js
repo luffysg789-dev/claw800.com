@@ -20,13 +20,21 @@ test('lucky star corporate site files exist', () => {
 
 test('lucky star corporate site includes core registration facts', () => {
   const html = readHtml();
+  const visibleHtml = html.replace(/href="[^"]+"/g, '');
 
   assert.match(html, /LUCKY STAR INVESTMENT L\.L\.C/);
   assert.match(html, /1324352/);
   assert.match(html, /2248245/);
   assert.match(html, /526077/);
-  assert.match(html, /150,000 AED/);
-  assert.match(html, /2026-03-13/);
+  assert.match(html, /资本规模/);
+  assert.match(html, /1\.5 亿美金/);
+  assert.doesNotMatch(html, /注册资本/);
+  assert.doesNotMatch(html, /150,000 AED/);
+  assert.doesNotMatch(visibleHtml, /2026-03-13/);
+  assert.doesNotMatch(visibleHtml, /2024-03-14/);
+  assert.doesNotMatch(html, />有效期至</);
+  assert.doesNotMatch(html, />登记日期</);
+  assert.doesNotMatch(html, />到期日期</);
 });
 
 test('lucky star corporate site exposes multilingual controls including Arabic', () => {
