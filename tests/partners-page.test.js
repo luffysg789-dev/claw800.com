@@ -106,16 +106,25 @@ test('partners page translates partner content when English is selected', () => 
 
 test('partners page keeps language and GitHub controls in the menu', () => {
   const partnersHtml = fs.readFileSync(partnersHtmlPath, 'utf8');
+  const menuI18nJs = fs.readFileSync(path.join(rootDir, 'public', 'menu-i18n.js'), 'utf8');
 
   assert.match(partnersHtml, /id="homeNavBtn"[^>]*href="\/"/);
   assert.match(partnersHtml, /id="skillsNavBtn"[^>]*href="\/skills\.html"/);
   assert.match(partnersHtml, /id="gamesNavBtn"[^>]*href="\/games\.html"/);
   assert.match(partnersHtml, /id="partnersNavBtn"[^>]*class="hero-nav-btn active"[^>]*href="\/partners\.html"/);
+  assert.match(partnersHtml, /<button id="openSubmitFormBtn" class="hero-nav-btn" type="button">提交<\/button>/);
+  assert.doesNotMatch(partnersHtml, /id="openSubmitFormBtn"[^>]*hidden/);
+  assert.doesNotMatch(partnersHtml, /id="openSubmitFormBtn"[^>]*class="[^"]*hidden/);
   assert.match(partnersHtml, /id="githubStarBtn"[\s\S]*href="https:\/\/github\.com\/luffysg789-dev\/claw800\.com"/);
   assert.match(partnersHtml, /id="langMenuBtn"/);
   assert.match(partnersHtml, /class="lang-option" data-lang="en"/);
   assert.match(partnersHtml, /class="lang-option" data-lang="zh"/);
+  assert.match(partnersHtml, /id="submitModal"/);
+  assert.match(partnersHtml, /<script src="\/submit-modal\.js/);
   assert.match(partnersHtml, /<script src="\/menu-i18n\.js/);
+  assert.match(menuI18nJs, /openSubmit:\s*'提交'/);
+  assert.match(menuI18nJs, /openSubmit:\s*'Submit'/);
+  assert.match(menuI18nJs, /initSubmitModal/);
 });
 
 test('admin panel includes partner list management entry points', () => {

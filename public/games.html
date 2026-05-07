@@ -25,6 +25,7 @@
             <a id="skillsNavBtn" class="hero-nav-btn" href="/skills.html">技能</a>
             <a id="gamesNavBtn" class="hero-nav-btn active" href="/games.html">游戏与工具</a>
             <a id="partnersNavBtn" class="hero-nav-btn" href="/partners.html">伙伴</a>
+            <button id="openSubmitFormBtn" class="hero-nav-btn" type="button">提交</button>
             <a
               id="githubStarBtn"
               class="hero-nav-btn hero-nav-btn--icon"
@@ -65,7 +66,28 @@
         <section id="gamesGrid" class="games-grid"></section>
       </section>
     </main>
+    <div id="submitModal" class="submit-modal hidden">
+      <div class="submit-modal-mask" id="submitModalMask"></div>
+      <div class="submit-modal-card card" role="dialog" aria-modal="true" aria-labelledby="submitTitle">
+        <div class="submit-modal-head">
+          <h2 id="submitTitle">免费提交网站</h2>
+          <button id="closeSubmitModalBtn" type="button" class="submit-close-btn">关闭</button>
+        </div>
+        <p id="submitDesc">提交后进入审核，管理员通过后展示在首页。</p>
+        <form id="submitForm">
+          <label id="labelName">网站名称<input name="name" required /></label>
+          <label id="labelUrl">网站地址<input name="url" type="url" required placeholder="https://" /></label>
+          <label id="labelDesc">一句话简介<textarea name="description" rows="3"></textarea></label>
+          <label id="labelCategory">分类<select id="categorySelect" name="category"></select></label>
+          <label id="labelSubmitter">提交人<input name="submitterName" /></label>
+          <label id="labelEmail">邮箱<input name="submitterEmail" type="email" /></label>
+          <button id="submitBtn" type="submit">提交审核</button>
+        </form>
+        <p id="submitMessage" class="message"></p>
+      </div>
+    </div>
     <script src="/games-config.js?v=20260507-01"></script>
+    <script src="/submit-modal.js?v=20260315-03"></script>
     <script src="/menu-i18n.js?v=20260507-01"></script>
     <script>
       window.ClawGamesConfig?.bootstrapGamesPage?.();

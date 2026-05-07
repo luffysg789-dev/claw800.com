@@ -41,10 +41,15 @@ test('games page keeps language and GitHub controls in the menu', () => {
   assert.match(gamesHtml, /id="skillsNavBtn"[^>]*href="\/skills\.html"/);
   assert.match(gamesHtml, /id="gamesNavBtn"[^>]*class="hero-nav-btn active"[^>]*href="\/games\.html"/);
   assert.match(gamesHtml, /id="partnersNavBtn"[^>]*href="\/partners\.html"/);
+  assert.match(gamesHtml, /<button id="openSubmitFormBtn" class="hero-nav-btn" type="button">提交<\/button>/);
+  assert.doesNotMatch(gamesHtml, /id="openSubmitFormBtn"[^>]*hidden/);
+  assert.doesNotMatch(gamesHtml, /id="openSubmitFormBtn"[^>]*class="[^"]*hidden/);
   assert.match(gamesHtml, /id="githubStarBtn"[\s\S]*href="https:\/\/github\.com\/luffysg789-dev\/claw800\.com"/);
   assert.match(gamesHtml, /id="langMenuBtn"/);
   assert.match(gamesHtml, /class="lang-option" data-lang="en"/);
   assert.match(gamesHtml, /class="lang-option" data-lang="zh"/);
+  assert.match(gamesHtml, /id="submitModal"/);
+  assert.match(gamesHtml, /<script src="\/submit-modal\.js/);
   assert.match(gamesHtml, /<script src="\/menu-i18n\.js/);
 });
 
@@ -56,6 +61,8 @@ test('English navigation labels the games hub as Tools', () => {
   assert.match(mainJs, /gamesBtn:\s*'Tools'/);
   assert.match(skillsJs, /gamesBtn:\s*'Tools'/);
   assert.match(menuI18nJs, /gamesBtn:\s*'Tools'/);
+  assert.match(menuI18nJs, /openSubmit:\s*'Submit'/);
+  assert.match(menuI18nJs, /initSubmitModal/);
   assert.doesNotMatch(mainJs, /gamesBtn:\s*'Games & Tools'/);
   assert.doesNotMatch(skillsJs, /gamesBtn:\s*'Games & Tools'/);
   assert.doesNotMatch(menuI18nJs, /gamesBtn:\s*'Games & Tools'/);
