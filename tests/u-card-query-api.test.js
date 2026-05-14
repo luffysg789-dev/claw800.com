@@ -268,8 +268,10 @@ test('admin U card panel includes upstream credential configuration controls', (
   assert.match(adminHtml, /id="uCardGenerateDeveloperKeypairBtn"/);
   assert.match(adminHtml, /name="uCardUpalCustomerPublicKey"/);
   assert.match(adminHtml, /name="uCardUpalPlatformPublicKey"/);
+  assert.match(adminHtml, /id="uCardUpstreamConfigMessage"/);
   assert.match(adminJs, /\/api\/admin\/u-card\/upstream-config/);
   assert.match(adminJs, /\/api\/admin\/u-card\/upstream-config\/generate-keypair/);
+  assert.match(adminJs, /setUCardUpstreamConfigMessage\(t\('uCardUpstreamConfigSaved'\), 'message success'\)/);
   assert.match(adminJs, /navUCardUpstreamConfig:\s*'U 卡上游配置'/);
   assert.match(adminJs, /adminUCardUpstreamConfigSection\.classList\.toggle\('hidden', view !== 'u-card-upstream-config'\)/);
   assert.match(adminJs, /keepUCardUpalDeveloperPrivateKey:\s*String\(payload\.uCardUpalDeveloperPrivateKey \|\| ''\)\.trim\(\) === SAVED_U_CARD_UPAL_PRIVATE_KEY_MASK/);

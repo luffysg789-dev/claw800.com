@@ -96,6 +96,7 @@ const uCardForm = document.getElementById('uCardForm');
 const uCardUpstreamConfigForm = document.getElementById('uCardUpstreamConfigForm');
 const adminUCardUpstreamConfigSection = document.getElementById('uCardUpstreamConfigSection');
 const uCardGenerateDeveloperKeypairBtn = document.getElementById('uCardGenerateDeveloperKeypairBtn');
+const uCardUpstreamConfigMessage = document.getElementById('uCardUpstreamConfigMessage');
 const uCardPlatformCheckboxes = document.getElementById('uCardPlatformCheckboxes');
 const uCardMessage = document.getElementById('uCardMessage');
 const uCardList = document.getElementById('uCardList');
@@ -2721,16 +2722,26 @@ function fillUCardUpstreamConfigForm(config = {}) {
   if (platformPublicKeyEl) platformPublicKeyEl.value = String(config.platformPublicKey || '');
 }
 
+function setUCardUpstreamConfigMessage(text = '', className = 'message') {
+  if (uCardUpstreamConfigMessage) {
+    uCardUpstreamConfigMessage.textContent = text;
+    uCardUpstreamConfigMessage.className = className;
+  }
+  if (uCardMessage) {
+    uCardMessage.textContent = text;
+    uCardMessage.className = className;
+  }
+}
+
 async function loadUCardUpstreamConfig() {
-  if (!uCardUpstreamConfigForm || !uCardMessage) return;
+  if (!uCardUpstreamConfigForm) return;
   const result = await requestTutorialJson(['/api/admin/u-card/upstream-config'], { method: 'GET' });
   if (result.res?.status === 401) {
     showLogin();
     return;
   }
   if (!result.res || !result.res.ok) {
-    uCardMessage.textContent = localizeApiError(result.data?.error || t('uCardUpstreamConfigLoadFailed'));
-    uCardMessage.className = 'message error';
+    setUCardUpstreamConfigMessage(localizeApiError(result.data?.error || t('uCardUpstreamConfigLoadFailed')), 'message error');
     return;
   }
   fillUCardUpstreamConfigForm(result.data || {});
@@ -2928,8 +2939,7 @@ if (uCardUpstreamConfigForm) {
   uCardUpstreamConfigForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const payload = Object.fromEntries(new FormData(uCardUpstreamConfigForm).entries());
-    uCardMessage.textContent = '';
-    uCardMessage.className = 'message';
+    setUCardUpstreamConfigMessage();
     const body = {
       appId: String(payload.uCardUpalAppId || '').trim(),
       developerPrivateKey: String(payload.uCardUpalDeveloperPrivateKey || '').trim(),
@@ -2947,20 +2957,17 @@ if (uCardUpstreamConfigForm) {
       return;
     }
     if (!result.res || !result.res.ok) {
-      uCardMessage.textContent = localizeApiError(result.data?.error || t('operationFailed'));
-      uCardMessage.className = 'message error';
+      setUCardUpstreamConfigMessage(localizeApiError(result.data?.error || t('operationFailed')), 'message error');
       return;
     }
     fillUCardUpstreamConfigForm(result.data || {});
-    uCardMessage.textContent = t('uCardUpstreamConfigSaved');
-    uCardMessage.className = 'message success';
+    setUCardUpstreamConfigMessage(t('uCardUpstreamConfigSaved'), 'message success');
   });
 }
 
 if (uCardGenerateDeveloperKeypairBtn) {
   uCardGenerateDeveloperKeypairBtn.addEventListener('click', async () => {
-    uCardMessage.textContent = '';
-    uCardMessage.className = 'message';
+    setUCardUpstreamConfigMessage();
     uCardGenerateDeveloperKeypairBtn.disabled = true;
     const result = await requestTutorialJson(['/api/admin/u-card/upstream-config/generate-keypair'], { method: 'POST' });
     uCardGenerateDeveloperKeypairBtn.disabled = false;
@@ -2969,16 +2976,14 @@ if (uCardGenerateDeveloperKeypairBtn) {
       return;
     }
     if (!result.res || !result.res.ok) {
-      uCardMessage.textContent = localizeApiError(result.data?.error || t('operationFailed'));
-      uCardMessage.className = 'message error';
+      setUCardUpstreamConfigMessage(localizeApiError(result.data?.error || t('operationFailed')), 'message error');
       return;
     }
     const developerPrivateKeyEl = getUCardUpstreamConfigControl('uCardUpalDeveloperPrivateKey');
     const customerPublicKeyEl = getUCardUpstreamConfigControl('uCardUpalCustomerPublicKey');
     if (developerPrivateKeyEl) developerPrivateKeyEl.value = String(result.data?.developerPrivateKey || '');
     if (customerPublicKeyEl) customerPublicKeyEl.value = String(result.data?.customerPublicKey || '');
-    uCardMessage.textContent = t('uCardUpstreamKeypairGenerated');
-    uCardMessage.className = 'message success';
+    setUCardUpstreamConfigMessage(t('uCardUpstreamKeypairGenerated'), 'message success');
   });
 }
 
