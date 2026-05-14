@@ -27,6 +27,19 @@ test('U card application page is a separate mobile entry with all and my card ta
   assert.doesNotMatch(html, /u卡场景查询/);
 });
 
+test('U card application page connects Nexa login through configured claw800 API', () => {
+  const html = fs.readFileSync(uCardApplyHtmlPath, 'utf8');
+  assert.match(html, /id="uCardLoginBtn"/);
+  assert.match(html, /const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth:\/\/oauth\/authorize';/);
+  assert.match(html, /const NEXA_PUBLIC_CONFIG_ENDPOINT = '\/api\/nexa\/public-config';/);
+  assert.match(html, /fetch\(NEXA_PUBLIC_CONFIG_ENDPOINT/);
+  assert.match(html, /redirect_uri=\$\{encodeURIComponent\(redirectUri\)\}/);
+  assert.match(html, /\/api\/nexa\/tip\/session/);
+  assert.match(html, /gameSlug:\s*'u-card'/);
+  assert.match(html, /function extractAuthCodeFromUrl\(\)/);
+  assert.match(html, /clearAuthCodeFromUrl\(\)/);
+});
+
 test('U card query page includes language toggle after platform count', () => {
   const html = fs.readFileSync(htmlPath, 'utf8');
   assert.match(html, /<span id="platformCount">0<\/span>[\s\S]*?<div class="lang-toggle"/);

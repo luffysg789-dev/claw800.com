@@ -96,6 +96,26 @@
         padding: 0 12px;
       }
 
+      .login-button:disabled,
+      .primary-button:disabled {
+        opacity: 0.66;
+      }
+
+      .session-status {
+        margin: -4px 0 14px 48px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .session-status.success {
+        color: #16633d;
+      }
+
+      .session-status.error {
+        color: #a33434;
+      }
+
       .tab-bar {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -174,8 +194,10 @@
           <h1>U 卡申请</h1>
           <p>Nexa 登录后申请和查看你的 U 卡</p>
         </div>
-        <button class="login-button" type="button">Nexa 登录</button>
+        <button id="uCardLoginBtn" class="login-button" type="button">Nexa 登录</button>
       </header>
+
+      <p id="uCardSessionStatus" class="session-status" aria-live="polite"></p>
 
       <nav class="tab-bar" aria-label="U 卡申请视图">
         <button class="tab-button active" type="button" data-tab="all">所有卡</button>
@@ -198,8 +220,15 @@
     </main>
 
     <script>
+      const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth://oauth/authorize';
+      const NEXA_PUBLIC_CONFIG_ENDPOINT = '/api/nexa/public-config';
+      const U_CARD_SESSION_STORAGE_KEY = 'claw800:u-card:nexa-session';
+
       const tabButtons = document.querySelectorAll('.tab-button');
       const panels = document.querySelectorAll('[data-panel]');
+      const loginButton = document.getElementById('uCardLoginBtn');
+      const sessionStatus = document.getElementById('uCardSessionStatus');
+      let cachedNexaPublicConfig = null;
 
       tabButtons.forEach((button) => {
         button.addEventListener('click', () => {
@@ -208,6 +237,163 @@
           panels.forEach((panel) => panel.classList.toggle('hidden', panel.dataset.panel !== tab));
         });
       });
+
+      function setSessionStatus(message, tone = '') {
+        sessionStatus.textContent = message || '';
+        sessionStatus.classList.toggle('success', tone === 'success');
+        sessionStatus.classList.toggle('error', tone === 'error');
+      }
+
+      async function getNexaPublicConfig() {
+        if (cachedNexaPublicConfig?.apiKey) {
+          return cachedNexaPublicConfig;
+        }
+
+        const response = await fetch(NEXA_PUBLIC_CONFIG_ENDPOINT, {
+          method: 'GET',
+          cache: 'no-store',
+          credentials: 'same-origin',
+          headers: {
+            Accept: 'application/json',
+            'Cache-Control': 'no-store',
+            Pragma: 'no-cache'
+          }
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || payload?.ok === false) {
+          throw new Error(payload?.error || 'Nexa 登录配置不可用');
+        }
+
+        const apiKey = String(payload?.apiKey || '').trim();
+        if (!apiKey) {
+          throw new Error('后台未配置 Nexa API Key');
+        }
+
+        cachedNexaPublicConfig = { apiKey };
+        return cachedNexaPublicConfig;
+      }
+
+      function buildCleanReturnUrl() {
+        const url = new URL(window.location.href);
+        ['code', 'authCode', 'auth_code', 'state'].forEach((key) => url.searchParams.delete(key));
+        url.hash = '';
+        return url.toString();
+      }
+
+      function extractAuthCodeFromUrl() {
+        try {
+          const params = new URL(window.location.href).searchParams;
+          return String(params.get('code') || params.get('authCode') || params.get('auth_code') || '').trim();
+        } catch (error) {
+          return '';
+        }
+      }
+
+      function clearAuthCodeFromUrl() {
+        try {
+          const url = new URL(window.location.href);
+          ['code', 'authCode', 'auth_code', 'state'].forEach((key) => url.searchParams.delete(key));
+          url.hash = '';
+          window.history.replaceState({}, document.title, url.toString());
+        } catch (error) {
+          // The login flow can continue even if the browser blocks history updates.
+        }
+      }
+
+      function rememberNexaSession(session) {
+        localStorage.setItem(
+          U_CARD_SESSION_STORAGE_KEY,
+          JSON.stringify({
+            ...session,
+            savedAt: Date.now()
+          })
+        );
+      }
+
+      function readCachedNexaSession() {
+        try {
+          const session = JSON.parse(localStorage.getItem(U_CARD_SESSION_STORAGE_KEY) || 'null');
+          if (session?.openId && session?.sessionKey) {
+            return session;
+          }
+        } catch (error) {
+          localStorage.removeItem(U_CARD_SESSION_STORAGE_KEY);
+        }
+        return null;
+      }
+
+      function showLoggedInState(session) {
+        loginButton.textContent = '已登录';
+        const name = String(session?.nickname || 'Nexa 用户').trim() || 'Nexa 用户';
+        setSessionStatus(`${name}，可以申请 U 卡。`, 'success');
+      }
+
+      async function beginNexaLoginFlow() {
+        loginButton.disabled = true;
+        setSessionStatus('正在打开 Nexa 授权...');
+        try {
+          const config = await getNexaPublicConfig();
+          const redirectUri = buildCleanReturnUrl();
+          window.location.href = `${NEXA_PROTOCOL_AUTH_BASE}?apikey=${encodeURIComponent(config.apiKey)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+        } catch (error) {
+          loginButton.disabled = false;
+          setSessionStatus(error?.message || 'Nexa 登录失败', 'error');
+        }
+      }
+
+      async function syncSessionFromAuthCode() {
+        const authCode = extractAuthCodeFromUrl();
+        if (!authCode) {
+          const session = readCachedNexaSession();
+          if (session) {
+            showLoggedInState(session);
+          }
+          return;
+        }
+
+        loginButton.disabled = true;
+        setSessionStatus('正在完成 Nexa 登录...');
+        try {
+          const response = await fetch('/api/nexa/tip/session', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              authCode,
+              gameSlug: 'u-card'
+            })
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok || payload?.ok === false) {
+            throw new Error(payload?.error || 'Nexa 登录失败');
+          }
+
+          const source = payload?.session || payload?.data || {};
+          const session = {
+            openId: String(source.openId || source.open_id || '').trim(),
+            sessionKey: String(source.sessionKey || source.session_key || '').trim(),
+            nickname: String(source.nickname || source.nickName || 'Nexa 用户').trim() || 'Nexa 用户',
+            avatar: String(source.avatar || source.avatarUrl || '').trim()
+          };
+          if (!session.openId || !session.sessionKey) {
+            throw new Error('Nexa 登录信息不完整');
+          }
+
+          rememberNexaSession(session);
+          showLoggedInState(session);
+          clearAuthCodeFromUrl();
+        } catch (error) {
+          clearAuthCodeFromUrl();
+          setSessionStatus(error?.message || 'Nexa 登录失败', 'error');
+        } finally {
+          loginButton.disabled = false;
+        }
+      }
+
+      loginButton.addEventListener('click', beginNexaLoginFlow);
+      syncSessionFromAuthCode();
     </script>
   </body>
 </html>
