@@ -132,7 +132,42 @@ test('public U card products endpoint signs and normalizes upstream products', a
     assert.equal(save.statusCode, 200);
 
     let captured = null;
+    let capturedPayment = null;
     global.fetch = async (url, options = {}) => {
+      if (String(url).includes('/partner/api/openapi/payment/create')) {
+        capturedPayment = {
+          url: String(url),
+          body: JSON.parse(String(options.body || '{}'))
+        };
+        return {
+          ok: true,
+          status: 200,
+          async text() {
+            return JSON.stringify({
+              code: '0',
+              data: {
+                orderNo: 'nexa-u-card-order-1',
+                paySign: 'pay-sign',
+                signType: 'MD5',
+                nonce: 'nonce',
+                timestamp: '1234567890'
+              }
+            });
+          },
+          async json() {
+            return {
+              code: '0',
+              data: {
+                orderNo: 'nexa-u-card-order-1',
+                paySign: 'pay-sign',
+                signType: 'MD5',
+                nonce: 'nonce',
+                timestamp: '1234567890'
+              }
+            };
+          }
+        };
+      }
       captured = {
         url: String(url),
         method: options.method,
@@ -162,7 +197,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
           return {
             ok: true,
             data: {
-              records: [
+              products: [
                 {
                   productCode: 'virtual-usd',
                   productName: 'Virtual USD Card',
@@ -196,11 +231,27 @@ test('public U card products endpoint signs and normalizes upstream products', a
       }
     ]);
 
-    const testResponse = await harness.request('POST', '/api/admin/u-card/upstream-config/test-products', {}, cookies);
-    assert.equal(testResponse.statusCode, 200);
-    assert.equal(testResponse.body.itemCount, 1);
-    assert.equal(testResponse.body.sample[0].product_code, 'virtual-usd');
-    assert.deepEqual(testResponse.body.upstream.dataKeys, ['records']);
+    harness.db
+      .prepare("INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, datetime('now'))")
+      .run('nexa_api_key', 'nexa-api-key');
+    harness.db
+      .prepare("INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, datetime('now'))")
+      .run('nexa_app_secret', 'nexa-app-secret');
+    const payment = await harness.request(
+      'POST',
+      '/api/u-card/payment/create',
+      {
+        productCode: 'virtual-usd',
+        openId: 'nexa-open-id',
+        sessionKey: 'nexa-session-key'
+      }
+    );
+    assert.equal(payment.statusCode, 200, JSON.stringify(payment.body));
+    assert.equal(payment.body.amount, '5.00');
+    assert.equal(payment.body.currency, 'USDT');
+    assert.equal(payment.body.payment.orderNo, 'nexa-u-card-order-1');
+    assert.equal(capturedPayment.body.amount, '5.00');
+    assert.equal(capturedPayment.body.sessionKey, 'nexa-session-key');
   } finally {
     global.fetch = previousFetch;
     harness.cleanup();

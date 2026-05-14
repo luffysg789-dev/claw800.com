@@ -282,6 +282,7 @@ function getGameRouteBySlug(slug) {
 }
 
 function getGameNameBySlug(slug) {
+  if (String(slug || '').trim() === 'u-card') return 'U 卡申请';
   const row = selectGameBySlugStmt.get(String(slug || '').trim());
   return String(row?.name || '').trim() || '小游戏';
 }
@@ -4725,6 +4726,22 @@ async function testUCardUpalProducts() {
   };
 }
 
+function normalizeUCardProductLookupKey(value = '') {
+  return String(value || '').trim().toLowerCase();
+}
+
+async function findUCardUpalProduct(productCode = '') {
+  const normalizedCode = normalizeUCardProductLookupKey(productCode);
+  if (!normalizedCode) return null;
+  const products = await fetchUCardUpalProducts();
+  return (
+    products.find((product) => {
+      const keys = [product.product_code, product.id, product.name].map(normalizeUCardProductLookupKey).filter(Boolean);
+      return keys.includes(normalizedCode);
+    }) || null
+  );
+}
+
 function replaceUCardUpstreamData({ platforms, cards }) {
   const sync = db.transaction(() => {
     db.prepare('DELETE FROM u_card_platform_support').run();
@@ -4805,6 +4822,47 @@ app.get('/api/u-card/products', async (_req, res) => {
   } catch (error) {
     const statusCode = Number(error?.statusCode || 502);
     res.status(statusCode).json({ error: String(error?.message || '获取 U 卡产品失败') });
+  }
+});
+
+app.post('/api/u-card/payment/create', async (req, res) => {
+  try {
+    const productCode = String(req.body?.productCode || req.body?.product_code || '').trim();
+    const openId = String(req.body?.openId || '').trim();
+    const sessionKey = String(req.body?.sessionKey || '').trim();
+    if (!productCode) return res.status(400).json({ error: 'productCode 必填' });
+    if (!openId || !sessionKey) return res.status(400).json({ error: 'openId 和 sessionKey 必填' });
+
+    const product = await findUCardUpalProduct(productCode);
+    if (!product) return res.status(404).json({ error: 'U 卡产品不存在或暂不可申请' });
+    const amountCents = parseMoneyToCents(product.fee_amount);
+    if (amountCents <= 0n) return res.status(400).json({ error: 'U 卡产品费用无效' });
+    const amount = centsToMoneyString(amountCents);
+    const currency = String(product.currency || NEXA_TIP_CURRENCY).trim() || NEXA_TIP_CURRENCY;
+    if (currency.toUpperCase() !== NEXA_TIP_CURRENCY) {
+      return res.status(400).json({ error: `当前仅支持 ${NEXA_TIP_CURRENCY} 支付` });
+    }
+
+    const order = await createNexaTipOrder({
+      req,
+      gameSlug: 'u-card',
+      openId,
+      sessionKey,
+      amount
+    });
+
+    res.json({
+      ok: true,
+      orderNo: order.orderNo,
+      amount,
+      currency: NEXA_TIP_CURRENCY,
+      product,
+      payment: order.payment
+    });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 502) || 502;
+    const message = String(error?.message || 'U 卡支付下单失败');
+    res.status(statusCode).json({ error: message === 'INVALID_AMOUNT' ? 'U 卡产品费用无效' : message });
   }
 });
 

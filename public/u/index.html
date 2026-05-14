@@ -84,7 +84,8 @@
       }
 
       .login-button,
-      .primary-button {
+      .primary-button,
+      .secondary-button {
         min-height: 36px;
         border: 0;
         border-radius: 8px;
@@ -97,8 +98,15 @@
       }
 
       .login-button:disabled,
-      .primary-button:disabled {
+      .primary-button:disabled,
+      .secondary-button:disabled {
         opacity: 0.66;
+      }
+
+      .secondary-button {
+        border: 1px solid var(--line);
+        background: var(--surface);
+        color: var(--ink);
       }
 
       .session-status {
@@ -206,6 +214,121 @@
         color: #a33434;
       }
 
+      .cardholder-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: grid;
+        align-items: end;
+        background: rgb(16 28 21 / 0.45);
+      }
+
+      .cardholder-dialog {
+        width: min(430px, 100%);
+        max-height: 92vh;
+        margin: 0 auto;
+        border-radius: 8px 8px 0 0;
+        background: var(--surface);
+        overflow: auto;
+      }
+
+      .cardholder-header {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        border-bottom: 1px solid var(--line);
+        background: var(--surface);
+        padding: 16px 14px 12px;
+      }
+
+      .cardholder-header h2 {
+        margin: 0;
+        font-size: 20px;
+      }
+
+      .cardholder-form {
+        display: grid;
+        gap: 12px;
+        padding: 14px;
+      }
+
+      .form-row {
+        display: grid;
+        gap: 6px;
+      }
+
+      .form-row label,
+      .form-label {
+        color: #273a2d;
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .required {
+        color: #d64545;
+      }
+
+      .form-row input,
+      .form-row select {
+        width: 100%;
+        min-height: 42px;
+        border: 1px solid #d7e3da;
+        border-radius: 8px;
+        background: #fff;
+        color: var(--ink);
+        font: inherit;
+        font-size: 14px;
+        padding: 0 12px;
+      }
+
+      .phone-fields {
+        display: grid;
+        grid-template-columns: 96px minmax(0, 1fr);
+        gap: 8px;
+      }
+
+      .form-section-title {
+        margin: 6px 0 0;
+        font-size: 18px;
+      }
+
+      .form-note {
+        margin: 0;
+        color: #718175;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .modal-actions {
+        position: sticky;
+        bottom: 0;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        border-top: 1px solid var(--line);
+        background: var(--surface);
+        padding: 12px 14px;
+      }
+
+      .my-card-item {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfb;
+        padding: 14px;
+      }
+
+      .my-card-item h2 {
+        margin: 0 0 8px;
+        font-size: 16px;
+      }
+
+      .my-card-item p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
       .hidden {
         display: none;
       }
@@ -239,15 +362,119 @@
       </section>
 
       <section class="panel hidden" data-panel="mine">
-        <p class="empty-state">申请成功后，卡会显示在这里。</p>
+        <p id="uCardMineStatus" class="empty-state">申请成功后，卡会显示在这里。</p>
+        <div id="uCardMineList" class="card-list"></div>
       </section>
     </main>
 
+    <div id="uCardHolderModal" class="cardholder-modal hidden" role="dialog" aria-modal="true" aria-labelledby="uCardHolderTitle">
+      <div class="cardholder-dialog">
+        <div class="cardholder-header">
+          <h2 id="uCardHolderTitle">用卡人详情</h2>
+          <p id="uCardHolderProduct" class="form-note"></p>
+        </div>
+        <form id="uCardHolderForm" class="cardholder-form">
+          <div class="form-row">
+            <label for="holderFirstName"><span class="required">*</span> 名字</label>
+            <input id="holderFirstName" name="firstName" placeholder="名字" required autocomplete="given-name" />
+          </div>
+          <div class="form-row">
+            <label for="holderLastName"><span class="required">*</span> 姓氏</label>
+            <input id="holderLastName" name="lastName" placeholder="姓氏" required autocomplete="family-name" />
+          </div>
+          <div class="form-row">
+            <label for="holderNationality"><span class="required">*</span> 国籍</label>
+            <select id="holderNationality" name="nationality" required>
+              <option value="">请选择国籍</option>
+              <option value="中国">中国</option>
+              <option value="香港">香港</option>
+              <option value="日本">日本</option>
+              <option value="新加坡">新加坡</option>
+              <option value="美国">美国</option>
+              <option value="澳大利亚">澳大利亚</option>
+              <option value="其他">其他</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="holderBirthday"><span class="required">*</span> 生日</label>
+            <input id="holderBirthday" name="birthday" type="date" required />
+            <p class="form-note required">注：生日必须大于 18</p>
+          </div>
+          <div class="form-row">
+            <span class="form-label"><span class="required">*</span> 手机号</span>
+            <div class="phone-fields">
+              <select name="phoneCode" required aria-label="区号">
+                <option value="+86">+86</option>
+                <option value="+852">+852</option>
+                <option value="+81">+81</option>
+                <option value="+65">+65</option>
+                <option value="+1">+1</option>
+                <option value="+61">+61</option>
+              </select>
+              <input name="phone" placeholder="手机号" required inputmode="tel" autocomplete="tel" />
+            </div>
+          </div>
+          <div class="form-row">
+            <label for="holderEmail"><span class="required">*</span> 邮箱</label>
+            <input id="holderEmail" name="email" type="email" placeholder="邮箱" required autocomplete="email" />
+          </div>
+          <h3 class="form-section-title">账单地址</h3>
+          <p class="form-note">银联卡可申请地区范围包括：亚美尼亚、澳洲、中国、香港、日本</p>
+          <div class="form-row">
+            <label for="holderCountry"><span class="required">*</span> 国家/地区</label>
+            <select id="holderCountry" name="country" required>
+              <option value="">国家/地区</option>
+              <option value="中国">中国</option>
+              <option value="香港">香港</option>
+              <option value="日本">日本</option>
+              <option value="澳大利亚">澳大利亚</option>
+              <option value="亚美尼亚">亚美尼亚</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="holderState"><span class="required">*</span> 省份/州</label>
+            <input id="holderState" name="state" placeholder="省份/州" required autocomplete="address-level1" />
+          </div>
+          <div class="form-row">
+            <label for="holderCity"><span class="required">*</span> 城市</label>
+            <input id="holderCity" name="city" placeholder="城市" required autocomplete="address-level2" />
+          </div>
+          <div class="form-row">
+            <label for="holderPostalCode"><span class="required">*</span> 邮政编码</label>
+            <input id="holderPostalCode" name="postalCode" placeholder="邮政编码" required autocomplete="postal-code" />
+          </div>
+          <div class="form-row">
+            <label for="holderAddress"><span class="required">*</span> 详细地址</label>
+            <input id="holderAddress" name="address" placeholder="详细地址" required autocomplete="street-address" />
+          </div>
+          <h3 class="form-section-title">安全问题 <span class="form-note">申请银联卡时必填</span></h3>
+          <div class="form-row">
+            <label for="holderSecurityQuestion">安全问题</label>
+            <input id="holderSecurityQuestion" name="securityQuestion" placeholder="安全问题" />
+          </div>
+          <div class="form-row">
+            <label for="holderSecurityAnswer">安全答案</label>
+            <input id="holderSecurityAnswer" name="securityAnswer" placeholder="安全答案" />
+          </div>
+          <p id="uCardHolderMessage" class="list-status" aria-live="polite"></p>
+          <div class="modal-actions">
+            <button id="uCardHolderCancelBtn" class="secondary-button" type="button">取消</button>
+            <button class="primary-button" type="submit">提交</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <script>
       const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth://oauth/authorize';
+      const NEXA_PROTOCOL_ORDER_BASE = 'nexaauth://order';
       const NEXA_PUBLIC_CONFIG_ENDPOINT = '/api/nexa/public-config';
       const U_CARD_PRODUCTS_ENDPOINT = '/api/u-card/products';
+      const U_CARD_PAYMENT_CREATE_ENDPOINT = '/api/u-card/payment/create';
+      const U_CARD_PAYMENT_QUERY_ENDPOINT = '/api/nexa/tip/query';
       const U_CARD_SESSION_STORAGE_KEY = 'claw800:u-card:nexa-session';
+      const U_CARD_PENDING_PAYMENT_STORAGE_KEY = 'claw800:u-card:pending-payment';
+      const U_CARD_APPLICATIONS_STORAGE_KEY = 'claw800:u-card:applications';
 
       const tabButtons = document.querySelectorAll('.tab-button');
       const panels = document.querySelectorAll('[data-panel]');
@@ -255,7 +482,16 @@
       const sessionStatus = document.getElementById('uCardSessionStatus');
       const allCardsStatus = document.getElementById('uCardAllStatus');
       const allCardsList = document.getElementById('uCardAllList');
+      const mineCardsStatus = document.getElementById('uCardMineStatus');
+      const mineCardsList = document.getElementById('uCardMineList');
+      const holderModal = document.getElementById('uCardHolderModal');
+      const holderForm = document.getElementById('uCardHolderForm');
+      const holderProduct = document.getElementById('uCardHolderProduct');
+      const holderMessage = document.getElementById('uCardHolderMessage');
+      const holderCancelButton = document.getElementById('uCardHolderCancelBtn');
       let cachedNexaPublicConfig = null;
+      let currentProducts = [];
+      let activePaidApplication = null;
 
       tabButtons.forEach((button) => {
         button.addEventListener('click', () => {
@@ -277,6 +513,11 @@
         allCardsStatus.classList.toggle('hidden', !message);
       }
 
+      function selectTab(tab) {
+        tabButtons.forEach((item) => item.classList.toggle('active', item.dataset.tab === tab));
+        panels.forEach((panel) => panel.classList.toggle('hidden', panel.dataset.panel !== tab));
+      }
+
       function escapeHtml(value) {
         return String(value ?? '')
           .replaceAll('&', '&amp;')
@@ -287,6 +528,7 @@
       }
 
       function renderUCardProducts(products = []) {
+        currentProducts = products;
         if (!products.length) {
           allCardsList.innerHTML = '';
           setAllCardsStatus('暂无可申请的 U 卡产品。');
@@ -313,6 +555,42 @@
             `;
           })
           .join('');
+      }
+
+      function readApplications() {
+        try {
+          const items = JSON.parse(localStorage.getItem(U_CARD_APPLICATIONS_STORAGE_KEY) || '[]');
+          return Array.isArray(items) ? items : [];
+        } catch (error) {
+          return [];
+        }
+      }
+
+      function saveApplications(items) {
+        localStorage.setItem(U_CARD_APPLICATIONS_STORAGE_KEY, JSON.stringify(items));
+      }
+
+      function renderMyCards() {
+        const items = readApplications();
+        mineCardsStatus.classList.toggle('hidden', items.length > 0);
+        if (!items.length) {
+          mineCardsList.innerHTML = '';
+          return;
+        }
+        mineCardsList.innerHTML = items
+          .map((item) => `
+            <article class="my-card-item">
+              <h2>${escapeHtml(item.productName || 'U 卡申请')}</h2>
+              <p>状态：${escapeHtml(item.status || '资料已提交')}</p>
+              <p>订单：${escapeHtml(item.orderNo || '-')}</p>
+            </article>
+          `)
+          .join('');
+      }
+
+      function findProduct(productCode) {
+        const normalized = String(productCode || '').trim();
+        return currentProducts.find((product) => String(product.product_code || product.id || '').trim() === normalized) || null;
       }
 
       async function loadUCardProducts() {
@@ -395,6 +673,37 @@
         }
       }
 
+      async function postJson(url, body) {
+        const response = await fetch(url, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json'
+          },
+          body: JSON.stringify(body || {})
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || payload?.ok === false) {
+          throw new Error(payload?.error || payload?.message || '请求失败');
+        }
+        return payload;
+      }
+
+      function buildNexaPaymentUrl(payment) {
+        const redirectUrl = buildCleanReturnUrl();
+        const params = new URLSearchParams({
+          orderNo: String(payment?.orderNo || '').trim(),
+          paySign: String(payment?.paySign || '').trim(),
+          signType: String(payment?.signType || 'MD5').trim(),
+          apiKey: String(payment?.apiKey || cachedNexaPublicConfig?.apiKey || '').trim(),
+          nonce: String(payment?.nonce || '').trim(),
+          timestamp: String(payment?.timestamp || '').trim(),
+          redirectUrl
+        });
+        return `${NEXA_PROTOCOL_ORDER_BASE}?${params.toString()}`;
+      }
+
       function rememberNexaSession(session) {
         localStorage.setItem(
           U_CARD_SESSION_STORAGE_KEY,
@@ -415,6 +724,24 @@
           localStorage.removeItem(U_CARD_SESSION_STORAGE_KEY);
         }
         return null;
+      }
+
+      function rememberPendingPayment(payment) {
+        localStorage.setItem(U_CARD_PENDING_PAYMENT_STORAGE_KEY, JSON.stringify(payment));
+      }
+
+      function readPendingPayment() {
+        try {
+          const item = JSON.parse(localStorage.getItem(U_CARD_PENDING_PAYMENT_STORAGE_KEY) || 'null');
+          if (item?.orderNo) return item;
+        } catch (error) {
+          localStorage.removeItem(U_CARD_PENDING_PAYMENT_STORAGE_KEY);
+        }
+        return null;
+      }
+
+      function clearPendingPayment() {
+        localStorage.removeItem(U_CARD_PENDING_PAYMENT_STORAGE_KEY);
       }
 
       function showLoggedInState(session) {
@@ -487,19 +814,133 @@
         }
       }
 
-      loginButton.addEventListener('click', beginNexaLoginFlow);
-      allCardsList.addEventListener('click', (event) => {
-        const button = event.target.closest('[data-apply-product]');
-        if (!button) return;
+      async function queryPaymentStatus(orderNo) {
+        const payload = await postJson(U_CARD_PAYMENT_QUERY_ENDPOINT, { orderNo });
+        return String(payload.status || '').trim().toUpperCase();
+      }
+
+      async function waitForPaymentSuccess(orderNo) {
+        const startedAt = Date.now();
+        while (Date.now() - startedAt < 45000) {
+          const status = await queryPaymentStatus(orderNo);
+          if (status === 'SUCCESS') return true;
+          if (status === 'FAILED' || status === 'CANCELED' || status === 'EXPIRED') return false;
+          await new Promise((resolve) => window.setTimeout(resolve, 2000));
+        }
+        return false;
+      }
+
+      function openCardholderForm(application) {
+        activePaidApplication = application;
+        holderForm.reset();
+        holderMessage.textContent = '';
+        holderProduct.textContent = `${application.product?.name || 'U 卡产品'} · 已支付 ${application.amount || ''} ${application.currency || 'USDT'}`;
+        holderModal.classList.remove('hidden');
+        document.getElementById('holderFirstName').focus();
+      }
+
+      function closeCardholderForm() {
+        holderModal.classList.add('hidden');
+        activePaidApplication = null;
+      }
+
+      async function settlePendingPayment() {
+        const pending = readPendingPayment();
+        if (!pending?.orderNo) return;
+        setSessionStatus('正在确认 U 卡支付结果...');
+        try {
+          const status = await queryPaymentStatus(pending.orderNo);
+          if (status === 'SUCCESS') {
+            clearPendingPayment();
+            setSessionStatus('支付成功，请填写用卡人资料。', 'success');
+            openCardholderForm(pending);
+          } else if (status === 'FAILED' || status === 'CANCELED' || status === 'EXPIRED') {
+            clearPendingPayment();
+            setSessionStatus('支付未完成，请重新申请。', 'error');
+          }
+        } catch (error) {
+          setSessionStatus(error?.message || '支付结果确认失败', 'error');
+        }
+      }
+
+      async function beginUCardPayment(productCode, button) {
         const session = readCachedNexaSession();
         if (!session) {
           beginNexaLoginFlow();
           return;
         }
-        setSessionStatus('申请卡接口下一步接入，当前已选产品。', 'success');
+        const product = findProduct(productCode);
+        if (!product) {
+          setSessionStatus('请选择有效的 U 卡产品。', 'error');
+          return;
+        }
+        button.disabled = true;
+        setSessionStatus('正在创建 U 卡支付订单...');
+        try {
+          const response = await postJson(U_CARD_PAYMENT_CREATE_ENDPOINT, {
+            productCode,
+            openId: session.openId,
+            sessionKey: session.sessionKey
+          });
+          const pending = {
+            orderNo: response.orderNo,
+            amount: response.amount,
+            currency: response.currency,
+            product: response.product || product,
+            createdAt: Date.now()
+          };
+          rememberPendingPayment(pending);
+          setSessionStatus('请在 Nexa 中完成支付，支付成功后填写用卡人资料。');
+          window.location.href = buildNexaPaymentUrl(response.payment);
+          const paid = await waitForPaymentSuccess(response.orderNo);
+          if (paid) {
+            clearPendingPayment();
+            setSessionStatus('支付成功，请填写用卡人资料。', 'success');
+            openCardholderForm(pending);
+          }
+        } catch (error) {
+          setSessionStatus(error?.message || 'U 卡支付下单失败', 'error');
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      loginButton.addEventListener('click', beginNexaLoginFlow);
+      allCardsList.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-apply-product]');
+        if (!button) return;
+        beginUCardPayment(String(button.dataset.applyProduct || '').trim(), button);
+      });
+      holderCancelButton.addEventListener('click', closeCardholderForm);
+      holderForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        if (!activePaidApplication) return;
+        const formData = Object.fromEntries(new FormData(holderForm).entries());
+        const birthdayTime = new Date(String(formData.birthday || '')).getTime();
+        const eighteenYearsAgo = new Date();
+        eighteenYearsAgo.setFullYear(eighteenYearsAgo.getFullYear() - 18);
+        if (!birthdayTime || birthdayTime > eighteenYearsAgo.getTime()) {
+          holderMessage.textContent = '生日必须大于 18 岁。';
+          holderMessage.classList.add('error');
+          return;
+        }
+        const applications = readApplications();
+        applications.unshift({
+          ...activePaidApplication,
+          holder: formData,
+          productName: activePaidApplication.product?.name || 'U 卡申请',
+          status: '资料已提交',
+          submittedAt: Date.now()
+        });
+        saveApplications(applications);
+        renderMyCards();
+        closeCardholderForm();
+        selectTab('mine');
+        setSessionStatus('卡资料已提交，已放入我的卡。', 'success');
       });
       loadUCardProducts();
-      syncSessionFromAuthCode();
+      renderMyCards();
+      syncSessionFromAuthCode().then(settlePendingPayment);
     </script>
   </body>
 </html>

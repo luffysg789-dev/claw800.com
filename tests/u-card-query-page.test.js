@@ -51,6 +51,28 @@ test('U card application page loads and renders upstream products', () => {
   assert.match(html, /loadUCardProducts\(\);/);
 });
 
+test('U card application requires payment before showing cardholder form', () => {
+  const html = fs.readFileSync(uCardApplyHtmlPath, 'utf8');
+  assert.match(html, /const NEXA_PROTOCOL_ORDER_BASE = 'nexaauth:\/\/order';/);
+  assert.match(html, /const U_CARD_PAYMENT_CREATE_ENDPOINT = '\/api\/u-card\/payment\/create';/);
+  assert.match(html, /const U_CARD_PAYMENT_QUERY_ENDPOINT = '\/api\/nexa\/tip\/query';/);
+  assert.match(html, /function beginUCardPayment\(productCode, button\)/);
+  assert.match(html, /window\.location\.href = buildNexaPaymentUrl\(response\.payment\);/);
+  assert.match(html, /function openCardholderForm\(application\)/);
+  assert.match(html, /id="uCardHolderModal"/);
+  assert.match(html, /<span class="required">\*<\/span> 名字/);
+  assert.match(html, /<span class="required">\*<\/span> 姓氏/);
+  assert.match(html, /<span class="required">\*<\/span> 国籍/);
+  assert.match(html, /<span class="required">\*<\/span> 生日/);
+  assert.match(html, /<span class="required">\*<\/span> 手机号/);
+  assert.match(html, /<span class="required">\*<\/span> 邮箱/);
+  assert.match(html, /<span class="required">\*<\/span> 国家\/地区/);
+  assert.match(html, /<span class="required">\*<\/span> 省份\/州/);
+  assert.match(html, /<span class="required">\*<\/span> 城市/);
+  assert.match(html, /<span class="required">\*<\/span> 邮政编码/);
+  assert.match(html, /<span class="required">\*<\/span> 详细地址/);
+});
+
 test('U card query page includes language toggle after platform count', () => {
   const html = fs.readFileSync(htmlPath, 'utf8');
   assert.match(html, /<span id="platformCount">0<\/span>[\s\S]*?<div class="lang-toggle"/);
