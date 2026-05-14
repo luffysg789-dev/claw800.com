@@ -317,6 +317,61 @@ function getNexaPublicConfig() {
   };
 }
 
+function normalizePem(value = '') {
+  return String(value || '').replace(/\r\n/g, '\n').trim();
+}
+
+function derivePublicKeyFromPrivateKey(privateKeyPem = '') {
+  const normalized = normalizePem(privateKeyPem);
+  if (!normalized) return '';
+  const privateKey = crypto.createPrivateKey(normalized);
+  return crypto
+    .createPublicKey(privateKey)
+    .export({
+      type: 'spki',
+      format: 'pem'
+    })
+    .toString()
+    .trim();
+}
+
+function generateUCardUpalDeveloperKeypair() {
+  const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: {
+      type: 'spki',
+      format: 'pem'
+    },
+    privateKeyEncoding: {
+      type: 'pkcs8',
+      format: 'pem'
+    }
+  });
+  return {
+    developerPrivateKey: String(privateKey || '').trim(),
+    customerPublicKey: String(publicKey || '').trim()
+  };
+}
+
+function getUCardUpalConfig() {
+  const developerPrivateKey = normalizePem(getSetting('u_card_upal_developer_private_key', ''));
+  let customerPublicKey = '';
+  if (developerPrivateKey) {
+    try {
+      customerPublicKey = derivePublicKeyFromPrivateKey(developerPrivateKey);
+    } catch {
+      customerPublicKey = '';
+    }
+  }
+  return {
+    appId: String(getSetting('u_card_upal_app_id', '') || '').trim(),
+    developerPrivateKey: '',
+    hasDeveloperPrivateKey: Boolean(developerPrivateKey),
+    customerPublicKey,
+    platformPublicKey: normalizePem(getSetting('u_card_upal_platform_public_key', ''))
+  };
+}
+
 function encodePMiningSessionCookie(session) {
   return Buffer.from(JSON.stringify(session), 'utf8').toString('base64url');
 }
@@ -9898,6 +9953,52 @@ app.delete('/api/admin/u-card/platforms/:id', requireAdmin, (req, res) => {
 
 app.get('/api/admin/u-card/cards', requireAdmin, (_req, res) => {
   res.json({ ok: true, items: listAdminUCardsStmt.all().map(formatAdminUCard) });
+});
+
+app.get('/api/admin/u-card/upstream-config', requireAdmin, (_req, res) => {
+  res.json({ ok: true, ...getUCardUpalConfig() });
+});
+
+app.put('/api/admin/u-card/upstream-config', requireAdmin, (req, res) => {
+  const appId = String(req.body?.appId ?? req.body?.uCardUpalAppId ?? '').trim();
+  const developerPrivateKey = normalizePem(req.body?.developerPrivateKey ?? req.body?.uCardUpalDeveloperPrivateKey ?? '');
+  const platformPublicKey = normalizePem(req.body?.platformPublicKey ?? req.body?.uCardUpalPlatformPublicKey ?? '');
+  const keepDeveloperPrivateKey =
+    req.body?.keepDeveloperPrivateKey === true ||
+    req.body?.keepUCardUpalDeveloperPrivateKey === true ||
+    String(req.body?.keepDeveloperPrivateKey ?? req.body?.keepUCardUpalDeveloperPrivateKey ?? '').trim() === 'true';
+  const shouldUpdateDeveloperPrivateKey = Boolean(developerPrivateKey && !keepDeveloperPrivateKey);
+
+  if (Buffer.byteLength(appId, 'utf8') > 500) return res.status(413).json({ error: 'APP ID 太长' });
+  if (Buffer.byteLength(developerPrivateKey, 'utf8') > 20000) return res.status(413).json({ error: '开发者私钥太长' });
+  if (Buffer.byteLength(platformPublicKey, 'utf8') > 20000) return res.status(413).json({ error: '平台公钥太长' });
+
+  try {
+    if (shouldUpdateDeveloperPrivateKey) {
+      derivePublicKeyFromPrivateKey(developerPrivateKey);
+    }
+  } catch {
+    return res.status(400).json({ error: '开发者私钥格式无效，请使用 BEGIN PRIVATE KEY 的 PKCS#8 私钥' });
+  }
+
+  try {
+    upsertSettingStmt.run('u_card_upal_app_id', appId);
+    upsertSettingStmt.run('u_card_upal_platform_public_key', platformPublicKey);
+    if (shouldUpdateDeveloperPrivateKey) {
+      upsertSettingStmt.run('u_card_upal_developer_private_key', developerPrivateKey);
+    }
+    res.json({ ok: true, ...getUCardUpalConfig() });
+  } catch {
+    res.status(500).json({ error: '保存 U 卡上游配置失败' });
+  }
+});
+
+app.post('/api/admin/u-card/upstream-config/generate-keypair', requireAdmin, (_req, res) => {
+  try {
+    res.json({ ok: true, ...generateUCardUpalDeveloperKeypair() });
+  } catch {
+    res.status(500).json({ error: '生成开发者密钥对失败' });
+  }
 });
 
 app.post('/api/admin/u-card/sync-upstream', requireAdmin, async (_req, res) => {

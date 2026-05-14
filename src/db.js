@@ -1314,6 +1314,17 @@ db.prepare(
   "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('auto_crawl_last_run_openclaw', '', datetime('now'))"
 ).run();
 
+// U card upstream API settings. The developer private key is write-only in admin UI.
+db.prepare(
+  "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('u_card_upal_app_id', '', datetime('now'))"
+).run();
+db.prepare(
+  "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('u_card_upal_developer_private_key', '', datetime('now'))"
+).run();
+db.prepare(
+  "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('u_card_upal_platform_public_key', '', datetime('now'))"
+).run();
+
 function migrateUniqueUrlToUrlCategory() {
   const tableSqlRow = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'sites'").get();
   const tableSql = String(tableSqlRow?.sql || '').toLowerCase();

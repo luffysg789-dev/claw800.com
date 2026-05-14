@@ -91,8 +91,12 @@ const uCardNavPlatformAdd = document.getElementById('uCardNavPlatformAdd');
 const uCardNavPlatformList = document.getElementById('uCardNavPlatformList');
 const uCardNavCardAdd = document.getElementById('uCardNavCardAdd');
 const uCardNavCardList = document.getElementById('uCardNavCardList');
+const uCardNavUpstreamConfig = document.getElementById('uCardNavUpstreamConfig');
 const uCardSyncUpstreamBtn = document.getElementById('uCardSyncUpstreamBtn');
 const uCardForm = document.getElementById('uCardForm');
+const uCardUpstreamConfigForm = document.getElementById('uCardUpstreamConfigForm');
+const uCardUpstreamConfigSection = document.getElementById('uCardUpstreamConfigSection');
+const uCardGenerateDeveloperKeypairBtn = document.getElementById('uCardGenerateDeveloperKeypairBtn');
 const uCardPlatformCheckboxes = document.getElementById('uCardPlatformCheckboxes');
 const uCardMessage = document.getElementById('uCardMessage');
 const uCardList = document.getElementById('uCardList');
@@ -177,6 +181,7 @@ const CATEGORY_EN = {
 const TUTORIAL_MAX_BYTES = 5000000;
 const TUTORIAL_UPLOAD_CHUNK_SIZE = 100000;
 const SAVED_NEXA_SECRET_MASK = '••••••••已保存';
+const SAVED_U_CARD_UPAL_PRIVATE_KEY_MASK = '••••••••私钥已保存';
 const DEFAULT_SITE_CONFIG = {
   title: 'claw800.com',
   subtitleZh: '龙虾学习导航网，为你的龙虾赋能。',
@@ -382,6 +387,17 @@ const texts = {
     uCardPlatformsLabel: '支持场景平台',
     uCardAddBtn: '新增卡',
     uCardListTitle: '卡列表',
+    uCardUpstreamConfigTitle: 'U 卡上游配置',
+    uCardNavUpstreamConfig: '上游配置',
+    uCardUpalAppIdLabel: 'APP ID',
+    uCardUpalDeveloperPrivateKeyLabel: '开发者私钥（BEGIN PRIVATE KEY，用于 uPAL 请求签名；留空则保留已保存私钥）',
+    uCardGenerateDeveloperKeypairBtn: '生成开发者密钥对',
+    uCardUpalCustomerPublicKeyLabel: '客户公钥 / 商户公钥',
+    uCardUpalPlatformPublicKeyLabel: '平台公钥',
+    uCardUpstreamConfigSaveBtn: '保存上游配置',
+    uCardUpstreamConfigSaved: 'U 卡上游配置已保存。',
+    uCardUpstreamKeypairGenerated: '开发者密钥对已生成，请保存后把客户公钥填写到上游平台。',
+    uCardUpstreamConfigLoadFailed: 'U 卡上游配置加载失败。',
     uCardSyncUpstreamBtn: '一键同步上游场景资料',
     uCardSyncUpstreamLoading: '正在同步上游场景资料...',
     uCardSyncUpstreamDone: (platformCount, cardCount) => `上游同步完成：${platformCount} 个平台，${cardCount} 张卡`,
@@ -707,6 +723,17 @@ const texts = {
     uCardPlatformsLabel: 'Supported Platforms',
     uCardAddBtn: 'Add Card',
     uCardListTitle: 'Card List',
+    uCardUpstreamConfigTitle: 'U Card Upstream Config',
+    uCardNavUpstreamConfig: 'Upstream Config',
+    uCardUpalAppIdLabel: 'APP ID',
+    uCardUpalDeveloperPrivateKeyLabel: 'Developer Private Key (BEGIN PRIVATE KEY; used to sign uPAL requests; leave blank to keep saved key)',
+    uCardGenerateDeveloperKeypairBtn: 'Generate Developer Keypair',
+    uCardUpalCustomerPublicKeyLabel: 'Customer / Merchant Public Key',
+    uCardUpalPlatformPublicKeyLabel: 'Platform Public Key',
+    uCardUpstreamConfigSaveBtn: 'Save Upstream Config',
+    uCardUpstreamConfigSaved: 'U card upstream config saved.',
+    uCardUpstreamKeypairGenerated: 'Developer keypair generated. Save it, then submit the customer public key upstream.',
+    uCardUpstreamConfigLoadFailed: 'Failed to load U card upstream config.',
     uCardSyncUpstreamBtn: 'Sync Upstream Scene Data',
     uCardSyncUpstreamLoading: 'Syncing upstream scene data...',
     uCardSyncUpstreamDone: (platformCount, cardCount) => `Upstream sync complete: ${platformCount} platforms, ${cardCount} cards`,
@@ -1317,9 +1344,17 @@ function applyLanguage() {
   uCardNavPlatformList.textContent = dict.uCardPlatformListTitle;
   uCardNavCardAdd.textContent = dict.uCardAddBtn;
   uCardNavCardList.textContent = dict.uCardListTitle;
+  if (uCardNavUpstreamConfig) uCardNavUpstreamConfig.textContent = dict.uCardNavUpstreamConfig;
   uCardSyncUpstreamBtn.textContent = dict.uCardSyncUpstreamBtn;
   document.getElementById('uCardPlatformTitle').textContent = dict.uCardPlatformTitle;
   document.getElementById('uCardPlatformListTitle').textContent = dict.uCardPlatformListTitle;
+  document.getElementById('uCardUpstreamConfigTitle').textContent = dict.uCardUpstreamConfigTitle;
+  document.getElementById('uCardUpalAppIdLabel').childNodes[0].textContent = dict.uCardUpalAppIdLabel;
+  document.getElementById('uCardUpalDeveloperPrivateKeyLabel').childNodes[0].textContent = dict.uCardUpalDeveloperPrivateKeyLabel;
+  document.getElementById('uCardGenerateDeveloperKeypairBtn').textContent = dict.uCardGenerateDeveloperKeypairBtn;
+  document.getElementById('uCardUpalCustomerPublicKeyLabel').childNodes[0].textContent = dict.uCardUpalCustomerPublicKeyLabel;
+  document.getElementById('uCardUpalPlatformPublicKeyLabel').childNodes[0].textContent = dict.uCardUpalPlatformPublicKeyLabel;
+  document.getElementById('uCardUpstreamConfigSaveBtn').textContent = dict.uCardUpstreamConfigSaveBtn;
   document.getElementById('uCardPlatformNameLabel').childNodes[0].textContent = dict.uCardPlatformNameLabel;
   document.getElementById('uCardPlatformSortLabel').childNodes[0].textContent = dict.uCardPlatformSortLabel;
   document.getElementById('uCardPlatformAddBtn').textContent = dict.uCardPlatformAddBtn;
@@ -2626,11 +2661,17 @@ function renderUCardSubView() {
   uCardPlatformListSection.classList.toggle('hidden', uCardSubView !== 'platform-list');
   uCardAddSection.classList.toggle('hidden', uCardSubView !== 'card-add');
   uCardListSection.classList.toggle('hidden', uCardSubView !== 'card-list');
+  if (uCardUpstreamConfigSection) {
+    uCardUpstreamConfigSection.classList.toggle('hidden', uCardSubView !== 'upstream-config');
+  }
 }
 
 function setUCardSubView(view) {
   uCardSubView = view;
   renderUCardSubView();
+  if (view === 'upstream-config') {
+    loadUCardUpstreamConfig();
+  }
 }
 
 async function loadUCardAdmin() {
@@ -2663,6 +2704,39 @@ async function loadUCardAdmin() {
   renderUCardPlatforms();
   renderUCards();
   renderUCardSubView();
+}
+
+function getUCardUpstreamConfigControl(name) {
+  if (!uCardUpstreamConfigForm || !uCardUpstreamConfigForm.elements) return null;
+  return uCardUpstreamConfigForm.elements.namedItem(name);
+}
+
+function fillUCardUpstreamConfigForm(config = {}) {
+  const appIdEl = getUCardUpstreamConfigControl('uCardUpalAppId');
+  const developerPrivateKeyEl = getUCardUpstreamConfigControl('uCardUpalDeveloperPrivateKey');
+  const customerPublicKeyEl = getUCardUpstreamConfigControl('uCardUpalCustomerPublicKey');
+  const platformPublicKeyEl = getUCardUpstreamConfigControl('uCardUpalPlatformPublicKey');
+  if (appIdEl) appIdEl.value = String(config.appId || '');
+  if (developerPrivateKeyEl) {
+    developerPrivateKeyEl.value = config.hasDeveloperPrivateKey ? SAVED_U_CARD_UPAL_PRIVATE_KEY_MASK : '';
+  }
+  if (customerPublicKeyEl) customerPublicKeyEl.value = String(config.customerPublicKey || '');
+  if (platformPublicKeyEl) platformPublicKeyEl.value = String(config.platformPublicKey || '');
+}
+
+async function loadUCardUpstreamConfig() {
+  if (!uCardUpstreamConfigForm || !uCardMessage) return;
+  const result = await requestTutorialJson(['/api/admin/u-card/upstream-config'], { method: 'GET' });
+  if (result.res?.status === 401) {
+    showLogin();
+    return;
+  }
+  if (!result.res || !result.res.ok) {
+    uCardMessage.textContent = localizeApiError(result.data?.error || t('uCardUpstreamConfigLoadFailed'));
+    uCardMessage.className = 'message error';
+    return;
+  }
+  fillUCardUpstreamConfigForm(result.data || {});
 }
 
 window.editUCardPlatform = function editUCardPlatform(id) {
@@ -2853,6 +2927,64 @@ if (uCardForm) {
   });
 }
 
+if (uCardUpstreamConfigForm) {
+  uCardUpstreamConfigForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const payload = Object.fromEntries(new FormData(uCardUpstreamConfigForm).entries());
+    uCardMessage.textContent = '';
+    uCardMessage.className = 'message';
+    const body = {
+      appId: String(payload.uCardUpalAppId || '').trim(),
+      developerPrivateKey: String(payload.uCardUpalDeveloperPrivateKey || '').trim(),
+      platformPublicKey: String(payload.uCardUpalPlatformPublicKey || '').trim(),
+      keepUCardUpalDeveloperPrivateKey:
+        String(payload.uCardUpalDeveloperPrivateKey || '').trim() === SAVED_U_CARD_UPAL_PRIVATE_KEY_MASK
+    };
+    const result = await requestTutorialJson(['/api/admin/u-card/upstream-config'], {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (result.res?.status === 401) {
+      showLogin();
+      return;
+    }
+    if (!result.res || !result.res.ok) {
+      uCardMessage.textContent = localizeApiError(result.data?.error || t('operationFailed'));
+      uCardMessage.className = 'message error';
+      return;
+    }
+    fillUCardUpstreamConfigForm(result.data || {});
+    uCardMessage.textContent = t('uCardUpstreamConfigSaved');
+    uCardMessage.className = 'message success';
+  });
+}
+
+if (uCardGenerateDeveloperKeypairBtn) {
+  uCardGenerateDeveloperKeypairBtn.addEventListener('click', async () => {
+    uCardMessage.textContent = '';
+    uCardMessage.className = 'message';
+    uCardGenerateDeveloperKeypairBtn.disabled = true;
+    const result = await requestTutorialJson(['/api/admin/u-card/upstream-config/generate-keypair'], { method: 'POST' });
+    uCardGenerateDeveloperKeypairBtn.disabled = false;
+    if (result.res?.status === 401) {
+      showLogin();
+      return;
+    }
+    if (!result.res || !result.res.ok) {
+      uCardMessage.textContent = localizeApiError(result.data?.error || t('operationFailed'));
+      uCardMessage.className = 'message error';
+      return;
+    }
+    const developerPrivateKeyEl = getUCardUpstreamConfigControl('uCardUpalDeveloperPrivateKey');
+    const customerPublicKeyEl = getUCardUpstreamConfigControl('uCardUpalCustomerPublicKey');
+    if (developerPrivateKeyEl) developerPrivateKeyEl.value = String(result.data?.developerPrivateKey || '');
+    if (customerPublicKeyEl) customerPublicKeyEl.value = String(result.data?.customerPublicKey || '');
+    uCardMessage.textContent = t('uCardUpstreamKeypairGenerated');
+    uCardMessage.className = 'message success';
+  });
+}
+
 if (uCardSyncUpstreamBtn) {
   uCardSyncUpstreamBtn.addEventListener('click', async () => {
     uCardMessage.textContent = t('uCardSyncUpstreamLoading');
@@ -2882,6 +3014,7 @@ if (uCardNavPlatformAdd) uCardNavPlatformAdd.addEventListener('click', () => set
 if (uCardNavPlatformList) uCardNavPlatformList.addEventListener('click', () => setUCardSubView('platform-list'));
 if (uCardNavCardAdd) uCardNavCardAdd.addEventListener('click', () => setUCardSubView('card-add'));
 if (uCardNavCardList) uCardNavCardList.addEventListener('click', () => setUCardSubView('card-list'));
+if (uCardNavUpstreamConfig) uCardNavUpstreamConfig.addEventListener('click', () => setUCardSubView('upstream-config'));
 
 function formatTime(ms) {
   const n = Number(ms);
