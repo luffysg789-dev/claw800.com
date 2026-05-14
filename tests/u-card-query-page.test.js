@@ -40,6 +40,17 @@ test('U card application page connects Nexa login through configured claw800 API
   assert.match(html, /clearAuthCodeFromUrl\(\)/);
 });
 
+test('U card application page loads and renders upstream products', () => {
+  const html = fs.readFileSync(uCardApplyHtmlPath, 'utf8');
+  assert.match(html, /const U_CARD_PRODUCTS_ENDPOINT = '\/api\/u-card\/products';/);
+  assert.match(html, /id="uCardAllList"/);
+  assert.match(html, /id="uCardAllStatus"/);
+  assert.match(html, /function renderUCardProducts\(products = \[\]\)/);
+  assert.match(html, /fetch\(U_CARD_PRODUCTS_ENDPOINT/);
+  assert.match(html, /product\.fee_amount/);
+  assert.match(html, /loadUCardProducts\(\);/);
+});
+
 test('U card query page includes language toggle after platform count', () => {
   const html = fs.readFileSync(htmlPath, 'utf8');
   assert.match(html, /<span id="platformCount">0<\/span>[\s\S]*?<div class="lang-toggle"/);

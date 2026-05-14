@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const EventEmitter = require('node:events');
+const crypto = require('node:crypto');
 
 const dbModulePath = path.join(__dirname, '..', 'src', 'db.js');
 const serverModulePath = path.join(__dirname, '..', 'src', 'server.js');
@@ -100,6 +101,102 @@ async function loginAdmin(harness) {
   const [name, value] = pair.split('=');
   return { [name]: value };
 }
+
+test('public U card products endpoint requires upstream config', async () => {
+  const harness = createHarness();
+  try {
+    const response = await harness.request('GET', '/api/u-card/products');
+    assert.equal(response.statusCode, 503);
+    assert.match(response.body.error, /U 卡上游配置不完整/);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('public U card products endpoint signs and normalizes upstream products', async () => {
+  const harness = createHarness();
+  const previousFetch = global.fetch;
+  try {
+    const cookies = await loginAdmin(harness);
+    const generated = await harness.request('POST', '/api/admin/u-card/upstream-config/generate-keypair', {}, cookies);
+    const save = await harness.request(
+      'PUT',
+      '/api/admin/u-card/upstream-config',
+      {
+        appId: 'upal-app-001',
+        developerPrivateKey: generated.body.developerPrivateKey,
+        platformPublicKey: '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A\n-----END PUBLIC KEY-----'
+      },
+      cookies
+    );
+    assert.equal(save.statusCode, 200);
+
+    let captured = null;
+    global.fetch = async (url, options = {}) => {
+      captured = {
+        url: String(url),
+        method: options.method,
+        headers: options.headers,
+        body: String(options.body || '')
+      };
+      const signedPayload = [
+        captured.headers['x-app-id'],
+        captured.headers['x-timestamp'],
+        captured.headers['x-nonce'],
+        captured.body
+      ].join('.');
+      const ok = crypto.verify(
+        'RSA-SHA256',
+        Buffer.from(signedPayload),
+        generated.body.customerPublicKey,
+        Buffer.from(captured.headers['x-signature'], 'base64')
+      );
+      assert.equal(ok, true);
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            ok: true,
+            data: {
+              products: [
+                {
+                  productCode: 'virtual-usd',
+                  productName: 'Virtual USD Card',
+                  feeAmount: '5.00',
+                  currency: 'USDT',
+                  cardCurrency: 'USD',
+                  description: 'Global virtual card'
+                }
+              ]
+            }
+          };
+        }
+      };
+    };
+
+    const response = await harness.request('GET', '/api/u-card/products');
+    assert.equal(response.statusCode, 200);
+    assert.equal(captured.url, 'https://b.alipay.bot/backend/open-api/cards/products');
+    assert.equal(captured.method, 'POST');
+    assert.equal(captured.headers['x-app-id'], 'upal-app-001');
+    assert.deepEqual(JSON.parse(captured.body), {});
+    assert.deepEqual(response.body.items, [
+      {
+        id: 'virtual-usd',
+        product_code: 'virtual-usd',
+        name: 'Virtual USD Card',
+        fee_amount: '5.00',
+        currency: 'USDT',
+        card_currency: 'USD',
+        description: 'Global virtual card'
+      }
+    ]);
+  } finally {
+    global.fetch = previousFetch;
+    harness.cleanup();
+  }
+});
 
 test('U card query seeds default platforms and returns cards for a selected platform without login', async () => {
   const harness = createHarness();

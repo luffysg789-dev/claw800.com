@@ -372,6 +372,23 @@ function getUCardUpalConfig() {
   };
 }
 
+function getUCardUpalPrivateConfig() {
+  return {
+    appId: String(getSetting('u_card_upal_app_id', '') || '').trim(),
+    developerPrivateKey: normalizePem(getSetting('u_card_upal_developer_private_key', ''))
+  };
+}
+
+function assertUCardUpalReady() {
+  const config = getUCardUpalPrivateConfig();
+  if (!config.appId || !config.developerPrivateKey) {
+    const error = new Error('U 卡上游配置不完整，请先配置 APP ID 和开发者私钥');
+    error.statusCode = 503;
+    throw error;
+  }
+  return config;
+}
+
 function encodePMiningSessionCookie(session) {
   return Buffer.from(JSON.stringify(session), 'utf8').toString('base64url');
 }
@@ -4456,6 +4473,7 @@ function normalizeUCardIssuerRegion(value) {
 }
 
 const U_CARD_UPSTREAM_URL = 'https://less-orchid-09408356.figma.site/';
+const U_CARD_UPAL_BASE_URL = 'https://b.alipay.bot/backend';
 const U_CARD_UPSTREAM_EXCLUDED_PLATFORMS = new Set([
   'Alipay',
   'Taobao',
@@ -4587,6 +4605,99 @@ async function fetchTextWithTimeout(url, timeoutMs = 30000) {
   }
 }
 
+function buildUCardUpalSignatureHeaders(body = {}, config = assertUCardUpalReady()) {
+  const timestamp = String(Date.now());
+  const nonce = crypto.randomBytes(16).toString('hex');
+  const bodyText = JSON.stringify(body || {});
+  const payload = [config.appId, timestamp, nonce, bodyText].join('.');
+  const signature = crypto.sign('RSA-SHA256', Buffer.from(payload, 'utf8'), config.developerPrivateKey).toString('base64');
+  return {
+    bodyText,
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'x-app-id': config.appId,
+      'x-timestamp': timestamp,
+      'x-nonce': nonce,
+      'x-signature': signature
+    }
+  };
+}
+
+function unwrapUCardUpalItems(payload = {}) {
+  if (Array.isArray(payload)) return payload;
+  const candidates = [
+    payload.items,
+    payload.products,
+    payload.list,
+    payload.rows,
+    payload.data,
+    payload.data?.items,
+    payload.data?.products,
+    payload.data?.list,
+    payload.data?.rows,
+    payload.result,
+    payload.result?.items,
+    payload.result?.products,
+    payload.result?.list,
+    payload.result?.rows
+  ];
+  return candidates.find((candidate) => Array.isArray(candidate)) || [];
+}
+
+function normalizeUCardProduct(item = {}, index = 0) {
+  const productCode = String(
+    item.productCode ||
+      item.product_code ||
+      item.code ||
+      item.id ||
+      item.cardProductCode ||
+      item.card_product_code ||
+      ''
+  ).trim();
+  const name = String(
+    item.productName ||
+      item.product_name ||
+      item.name ||
+      item.title ||
+      item.cardName ||
+      item.card_name ||
+      productCode ||
+      `U 卡产品 ${index + 1}`
+  ).trim();
+  return {
+    id: productCode || `product-${index + 1}`,
+    product_code: productCode,
+    name,
+    fee_amount: String(item.feeAmount ?? item.fee_amount ?? item.openFee ?? item.open_fee ?? item.fee ?? '').trim(),
+    currency: String(item.currency || item.feeCurrency || item.fee_currency || '').trim(),
+    card_currency: String(item.cardCurrency || item.card_currency || item.settlementCurrency || item.settlement_currency || '').trim(),
+    description: String(item.description || item.desc || item.remark || '').trim()
+  };
+}
+
+async function postUCardUpalJson(pathname, body = {}) {
+  if (typeof fetch !== 'function') throw new Error('当前 Node 版本不支持 fetch');
+  const config = assertUCardUpalReady();
+  const { bodyText, headers } = buildUCardUpalSignatureHeaders(body, config);
+  const response = await fetch(`${U_CARD_UPAL_BASE_URL}${pathname}`, {
+    method: 'POST',
+    headers,
+    body: bodyText
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload?.ok === false || payload?.success === false) {
+    const message = payload?.error || payload?.message || payload?.msg || `上游请求失败：${response.status}`;
+    throw new Error(String(message || '上游请求失败'));
+  }
+  return payload;
+}
+
+async function fetchUCardUpalProducts() {
+  const payload = await postUCardUpalJson('/open-api/cards/products', {});
+  return unwrapUCardUpalItems(payload).map(normalizeUCardProduct);
+}
+
 function replaceUCardUpstreamData({ platforms, cards }) {
   const sync = db.transaction(() => {
     db.prepare('DELETE FROM u_card_platform_support').run();
@@ -4657,6 +4768,17 @@ app.get('/api/u-card/platforms/:id/cards', (req, res) => {
     platform: formatUCardPlatform(platform),
     items: listUCardsByPlatformStmt.all(platformId).map(formatPublicUCard)
   });
+});
+
+app.get('/api/u-card/products', async (_req, res) => {
+  try {
+    const items = await fetchUCardUpalProducts();
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+    res.json({ ok: true, items });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 502);
+    res.status(statusCode).json({ error: String(error?.message || '获取 U 卡产品失败') });
+  }
 });
 
 app.get('/api/games', (_req, res) => {

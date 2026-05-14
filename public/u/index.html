@@ -163,6 +163,24 @@
         font-size: 17px;
       }
 
+      .u-card-product__meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 0 0 12px;
+      }
+
+      .u-card-product__meta span {
+        border: 1px solid #d7e8dc;
+        border-radius: 999px;
+        background: #eef8f2;
+        color: #23563a;
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1;
+        padding: 6px 8px;
+      }
+
       .u-card-product p {
         margin: 0 0 12px;
         color: var(--muted);
@@ -175,6 +193,17 @@
         color: var(--muted);
         font-size: 14px;
         line-height: 1.6;
+      }
+
+      .list-status {
+        margin: 0 0 12px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .list-status.error {
+        color: #a33434;
       }
 
       .hidden {
@@ -205,13 +234,8 @@
       </nav>
 
       <section class="panel" data-panel="all">
-        <div class="card-list">
-          <article class="u-card-product">
-            <h2>U 卡产品</h2>
-            <p>后台接通上游 API 后，这里会显示可申请的卡产品、费用和币种。</p>
-            <button class="primary-button" type="button">申请卡</button>
-          </article>
-        </div>
+        <p id="uCardAllStatus" class="list-status">正在加载 U 卡产品...</p>
+        <div id="uCardAllList" class="card-list"></div>
       </section>
 
       <section class="panel hidden" data-panel="mine">
@@ -222,12 +246,15 @@
     <script>
       const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth://oauth/authorize';
       const NEXA_PUBLIC_CONFIG_ENDPOINT = '/api/nexa/public-config';
+      const U_CARD_PRODUCTS_ENDPOINT = '/api/u-card/products';
       const U_CARD_SESSION_STORAGE_KEY = 'claw800:u-card:nexa-session';
 
       const tabButtons = document.querySelectorAll('.tab-button');
       const panels = document.querySelectorAll('[data-panel]');
       const loginButton = document.getElementById('uCardLoginBtn');
       const sessionStatus = document.getElementById('uCardSessionStatus');
+      const allCardsStatus = document.getElementById('uCardAllStatus');
+      const allCardsList = document.getElementById('uCardAllList');
       let cachedNexaPublicConfig = null;
 
       tabButtons.forEach((button) => {
@@ -242,6 +269,74 @@
         sessionStatus.textContent = message || '';
         sessionStatus.classList.toggle('success', tone === 'success');
         sessionStatus.classList.toggle('error', tone === 'error');
+      }
+
+      function setAllCardsStatus(message, tone = '') {
+        allCardsStatus.textContent = message || '';
+        allCardsStatus.classList.toggle('error', tone === 'error');
+        allCardsStatus.classList.toggle('hidden', !message);
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? '')
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#39;');
+      }
+
+      function renderUCardProducts(products = []) {
+        if (!products.length) {
+          allCardsList.innerHTML = '';
+          setAllCardsStatus('暂无可申请的 U 卡产品。');
+          return;
+        }
+
+        setAllCardsStatus('');
+        allCardsList.innerHTML = products
+          .map((product) => {
+            const fee = String(product.fee_amount || '').trim();
+            const currency = String(product.currency || '').trim();
+            const cardCurrency = String(product.card_currency || '').trim();
+            const description = String(product.description || '').trim();
+            return `
+              <article class="u-card-product" data-product-code="${escapeHtml(product.product_code || product.id || '')}">
+                <h2>${escapeHtml(product.name || 'U 卡产品')}</h2>
+                <div class="u-card-product__meta">
+                  ${fee ? `<span>费用 ${escapeHtml(fee)}${currency ? ` ${escapeHtml(currency)}` : ''}</span>` : ''}
+                  ${cardCurrency ? `<span>币种 ${escapeHtml(cardCurrency)}</span>` : ''}
+                </div>
+                ${description ? `<p>${escapeHtml(description)}</p>` : ''}
+                <button class="primary-button" type="button" data-apply-product="${escapeHtml(product.product_code || product.id || '')}">申请卡</button>
+              </article>
+            `;
+          })
+          .join('');
+      }
+
+      async function loadUCardProducts() {
+        setAllCardsStatus('正在加载 U 卡产品...');
+        try {
+          const response = await fetch(U_CARD_PRODUCTS_ENDPOINT, {
+            method: 'GET',
+            cache: 'no-store',
+            credentials: 'same-origin',
+            headers: {
+              Accept: 'application/json',
+              'Cache-Control': 'no-store',
+              Pragma: 'no-cache'
+            }
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok || payload?.ok === false) {
+            throw new Error(payload?.error || 'U 卡产品加载失败');
+          }
+          renderUCardProducts(Array.isArray(payload.items) ? payload.items : []);
+        } catch (error) {
+          allCardsList.innerHTML = '';
+          setAllCardsStatus(error?.message || 'U 卡产品加载失败', 'error');
+        }
       }
 
       async function getNexaPublicConfig() {
@@ -393,6 +488,17 @@
       }
 
       loginButton.addEventListener('click', beginNexaLoginFlow);
+      allCardsList.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-apply-product]');
+        if (!button) return;
+        const session = readCachedNexaSession();
+        if (!session) {
+          beginNexaLoginFlow();
+          return;
+        }
+        setSessionStatus('申请卡接口下一步接入，当前已选产品。', 'success');
+      });
+      loadUCardProducts();
       syncSessionFromAuthCode();
     </script>
   </body>
