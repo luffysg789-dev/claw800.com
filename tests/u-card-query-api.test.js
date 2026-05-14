@@ -158,8 +158,10 @@ test('U card query seeds default platforms and returns cards for a selected plat
 test('admin U card panel includes upstream credential configuration controls', () => {
   const adminHtml = fs.readFileSync(adminHtmlPath, 'utf8');
   const adminJs = fs.readFileSync(adminJsPath, 'utf8');
+  const uCardSection = adminHtml.match(/<div id="adminUCardSection"[\s\S]*?<div id="adminOrdersSection"/)?.[0] || '';
 
-  assert.match(adminHtml, /id="uCardNavUpstreamConfig"[\s\S]*上游配置/);
+  assert.match(adminHtml, /<button id="navUCardUpstreamConfig"[\s\S]*U 卡上游配置/);
+  assert.doesNotMatch(uCardSection, /id="uCardNavUpstreamConfig"/);
   assert.match(adminHtml, /id="uCardUpstreamConfigSection"/);
   assert.match(adminHtml, /name="uCardUpalAppId"/);
   assert.match(adminHtml, /name="uCardUpalDeveloperPrivateKey"/);
@@ -168,6 +170,8 @@ test('admin U card panel includes upstream credential configuration controls', (
   assert.match(adminHtml, /name="uCardUpalPlatformPublicKey"/);
   assert.match(adminJs, /\/api\/admin\/u-card\/upstream-config/);
   assert.match(adminJs, /\/api\/admin\/u-card\/upstream-config\/generate-keypair/);
+  assert.match(adminJs, /navUCardUpstreamConfig:\s*'U 卡上游配置'/);
+  assert.match(adminJs, /adminUCardUpstreamConfigSection\.classList\.toggle\('hidden', view !== 'u-card-upstream-config'\)/);
   assert.match(adminJs, /keepUCardUpalDeveloperPrivateKey:\s*String\(payload\.uCardUpalDeveloperPrivateKey \|\| ''\)\.trim\(\) === SAVED_U_CARD_UPAL_PRIVATE_KEY_MASK/);
 });
 

@@ -91,11 +91,10 @@ const uCardNavPlatformAdd = document.getElementById('uCardNavPlatformAdd');
 const uCardNavPlatformList = document.getElementById('uCardNavPlatformList');
 const uCardNavCardAdd = document.getElementById('uCardNavCardAdd');
 const uCardNavCardList = document.getElementById('uCardNavCardList');
-const uCardNavUpstreamConfig = document.getElementById('uCardNavUpstreamConfig');
 const uCardSyncUpstreamBtn = document.getElementById('uCardSyncUpstreamBtn');
 const uCardForm = document.getElementById('uCardForm');
 const uCardUpstreamConfigForm = document.getElementById('uCardUpstreamConfigForm');
-const uCardUpstreamConfigSection = document.getElementById('uCardUpstreamConfigSection');
+const adminUCardUpstreamConfigSection = document.getElementById('uCardUpstreamConfigSection');
 const uCardGenerateDeveloperKeypairBtn = document.getElementById('uCardGenerateDeveloperKeypairBtn');
 const uCardPlatformCheckboxes = document.getElementById('uCardPlatformCheckboxes');
 const uCardMessage = document.getElementById('uCardMessage');
@@ -247,6 +246,7 @@ const texts = {
     navGames: '游戏与工具列表',
     navPartners: '合作伙伴',
     navUCard: 'U卡场景',
+    navUCardUpstreamConfig: 'U 卡上游配置',
     navOrders: '订单',
     navNchatUsers: '聊天用户',
     navNexaEscrowUsers: '担保用户',
@@ -388,7 +388,6 @@ const texts = {
     uCardAddBtn: '新增卡',
     uCardListTitle: '卡列表',
     uCardUpstreamConfigTitle: 'U 卡上游配置',
-    uCardNavUpstreamConfig: '上游配置',
     uCardUpalAppIdLabel: 'APP ID',
     uCardUpalDeveloperPrivateKeyLabel: '开发者私钥（BEGIN PRIVATE KEY，用于 uPAL 请求签名；留空则保留已保存私钥）',
     uCardGenerateDeveloperKeypairBtn: '生成开发者密钥对',
@@ -583,6 +582,7 @@ const texts = {
     navGames: 'Games & Tools',
     navPartners: 'Partners',
     navUCard: 'U Card Scenes',
+    navUCardUpstreamConfig: 'U Card Upstream Config',
     navOrders: 'Orders',
     navNchatUsers: 'Chat Users',
     navNexaEscrowUsers: 'Escrow Users',
@@ -724,7 +724,6 @@ const texts = {
     uCardAddBtn: 'Add Card',
     uCardListTitle: 'Card List',
     uCardUpstreamConfigTitle: 'U Card Upstream Config',
-    uCardNavUpstreamConfig: 'Upstream Config',
     uCardUpalAppIdLabel: 'APP ID',
     uCardUpalDeveloperPrivateKeyLabel: 'Developer Private Key (BEGIN PRIVATE KEY; used to sign uPAL requests; leave blank to keep saved key)',
     uCardGenerateDeveloperKeypairBtn: 'Generate Developer Keypair',
@@ -1232,6 +1231,7 @@ function applyLanguage() {
   document.getElementById('navGames').textContent = dict.navGames;
   document.getElementById('navPartners').textContent = dict.navPartners;
   document.getElementById('navUCard').textContent = dict.navUCard;
+  document.getElementById('navUCardUpstreamConfig').textContent = dict.navUCardUpstreamConfig;
   document.getElementById('navOrders').textContent = dict.navOrders;
   document.getElementById('navNchatUsers').textContent = dict.navNchatUsers;
   document.getElementById('navNexaEscrowUsers').textContent = dict.navNexaEscrowUsers;
@@ -1344,7 +1344,6 @@ function applyLanguage() {
   uCardNavPlatformList.textContent = dict.uCardPlatformListTitle;
   uCardNavCardAdd.textContent = dict.uCardAddBtn;
   uCardNavCardList.textContent = dict.uCardListTitle;
-  if (uCardNavUpstreamConfig) uCardNavUpstreamConfig.textContent = dict.uCardNavUpstreamConfig;
   uCardSyncUpstreamBtn.textContent = dict.uCardSyncUpstreamBtn;
   document.getElementById('uCardPlatformTitle').textContent = dict.uCardPlatformTitle;
   document.getElementById('uCardPlatformListTitle').textContent = dict.uCardPlatformListTitle;
@@ -1427,6 +1426,7 @@ function setView(view) {
   adminGamesSection.classList.toggle('hidden', view !== 'games');
   adminPartnersSection.classList.toggle('hidden', view !== 'partners');
   adminUCardSection.classList.toggle('hidden', view !== 'u-card');
+  adminUCardUpstreamConfigSection.classList.toggle('hidden', view !== 'u-card-upstream-config');
   adminOrdersSection.classList.toggle('hidden', !orderViews.includes(view));
   adminPMiningOrdersSection.classList.toggle('hidden', view !== 'p-mining-orders');
   adminNexaTipOrdersSection.classList.toggle('hidden', view !== 'nexa-tip-orders');
@@ -1471,6 +1471,9 @@ function setView(view) {
   }
   if (view === 'u-card') {
     loadUCardAdmin();
+  }
+  if (view === 'u-card-upstream-config') {
+    loadUCardUpstreamConfig();
   }
   if (view === 'p-mining-orders') {
     loadPMiningOrdersList();
@@ -2661,17 +2664,11 @@ function renderUCardSubView() {
   uCardPlatformListSection.classList.toggle('hidden', uCardSubView !== 'platform-list');
   uCardAddSection.classList.toggle('hidden', uCardSubView !== 'card-add');
   uCardListSection.classList.toggle('hidden', uCardSubView !== 'card-list');
-  if (uCardUpstreamConfigSection) {
-    uCardUpstreamConfigSection.classList.toggle('hidden', uCardSubView !== 'upstream-config');
-  }
 }
 
 function setUCardSubView(view) {
   uCardSubView = view;
   renderUCardSubView();
-  if (view === 'upstream-config') {
-    loadUCardUpstreamConfig();
-  }
 }
 
 async function loadUCardAdmin() {
@@ -3014,8 +3011,6 @@ if (uCardNavPlatformAdd) uCardNavPlatformAdd.addEventListener('click', () => set
 if (uCardNavPlatformList) uCardNavPlatformList.addEventListener('click', () => setUCardSubView('platform-list'));
 if (uCardNavCardAdd) uCardNavCardAdd.addEventListener('click', () => setUCardSubView('card-add'));
 if (uCardNavCardList) uCardNavCardList.addEventListener('click', () => setUCardSubView('card-list'));
-if (uCardNavUpstreamConfig) uCardNavUpstreamConfig.addEventListener('click', () => setUCardSubView('upstream-config'));
-
 function formatTime(ms) {
   const n = Number(ms);
   if (!Number.isFinite(n) || n <= 0) return '';
@@ -4814,6 +4809,7 @@ document.getElementById('navSkills').addEventListener('click', () => setView('sk
 document.getElementById('navGames').addEventListener('click', () => setView('games'));
 document.getElementById('navPartners').addEventListener('click', () => setView('partners'));
 document.getElementById('navUCard').addEventListener('click', () => setView('u-card'));
+document.getElementById('navUCardUpstreamConfig').addEventListener('click', () => setView('u-card-upstream-config'));
 document.getElementById('navOrders').addEventListener('click', () => setView('orders'));
 document.getElementById('ordersPMiningBtn').addEventListener('click', () => setView('p-mining-orders'));
 document.getElementById('ordersNexaTipBtn').addEventListener('click', () => setView('nexa-tip-orders'));
