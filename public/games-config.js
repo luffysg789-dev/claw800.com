@@ -228,27 +228,11 @@ const DEFAULT_GAMES = [
     route: '/muyu.html',
     icon: '🪵',
     actionText: '开始游戏'
-  },
-  {
-    slug: 'u-card',
-    name: 'U 卡申请',
-    description: 'Nexa 登录后申请 U 卡，查看所有卡和我的卡。',
-    cover_image: '',
-    secondary_image: '',
-    sound_file: '',
-    background_music_file: '',
-    is_enabled: 1,
-    showInGamesHub: 1,
-    sort_order: 0,
-    route: '/u',
-    icon: '💳',
-    actionText: '申请卡'
   }
 ];
 
 const GAME_ACTION_TEXT = {
   'u-card-query': '开始查询',
-  'u-card': '申请卡',
   nchat: '进入聊天',
   sbti: '开始测试',
   'nexa-escrow': '进入担保',
@@ -269,11 +253,6 @@ const GAME_I18N = {
     name: 'U Card Scenario Lookup',
     description: 'Select a platform to find U cards and BINs that support that payment scenario.',
     actionText: 'Start Lookup'
-  },
-  'u-card': {
-    name: 'U Card Application',
-    description: 'Sign in with Nexa to apply for U cards and view all cards or your cards.',
-    actionText: 'Apply'
   },
   sbti: {
     name: 'SBTI',
@@ -444,7 +423,7 @@ function gameCardMarkup(item) {
 }
 
 function getVisibleGames(items) {
-  return items.filter((item) => item.is_enabled && item.slug !== 'xiangqi' && item.showInGamesHub !== 0);
+  return items.filter((item) => item.is_enabled && item.slug !== 'xiangqi' && item.slug !== 'u-card' && item.showInGamesHub !== 0);
 }
 
 function renderGamesGrid(items) {
