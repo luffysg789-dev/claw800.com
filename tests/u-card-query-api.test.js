@@ -118,12 +118,13 @@ test('public U card products endpoint signs and normalizes upstream products', a
   const previousFetch = global.fetch;
   try {
     const cookies = await loginAdmin(harness);
+    const generated = await harness.request('POST', '/api/admin/u-card/upstream-config/generate-keypair', {}, cookies);
     const save = await harness.request(
       'PUT',
       '/api/admin/u-card/upstream-config',
       {
         appId: 'upal-app-001',
-        apiKey: 'upal-secret-key',
+        developerPrivateKey: generated.body.developerPrivateKey,
         platformPublicKey: '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A\n-----END PUBLIC KEY-----'
       },
       cookies
@@ -142,10 +143,17 @@ test('public U card products endpoint signs and normalizes upstream products', a
         captured.headers['x-app-id'],
         captured.headers['x-timestamp'],
         captured.headers['x-nonce'],
-        captured.body,
-        'upal-secret-key'
+        captured.body
       ].join('.');
-      assert.equal(captured.headers['x-signature'], crypto.createHash('sha256').update(signedPayload).digest('hex'));
+      assert.equal(
+        crypto.verify(
+          'RSA-SHA256',
+          Buffer.from(signedPayload),
+          generated.body.customerPublicKey,
+          Buffer.from(captured.headers['x-signature'], 'base64')
+        ),
+        true
+      );
       assert.match(captured.headers['x-timestamp'], /^\d{10}$/);
       return {
         ok: true,
@@ -256,7 +264,6 @@ test('admin U card panel includes upstream credential configuration controls', (
   assert.doesNotMatch(uCardSection, /id="uCardNavUpstreamConfig"/);
   assert.match(adminHtml, /id="uCardUpstreamConfigSection"/);
   assert.match(adminHtml, /name="uCardUpalAppId"/);
-  assert.match(adminHtml, /name="uCardUpalApiKey"/);
   assert.match(adminHtml, /name="uCardUpalDeveloperPrivateKey"/);
   assert.match(adminHtml, /id="uCardGenerateDeveloperKeypairBtn"/);
   assert.match(adminHtml, /name="uCardUpalCustomerPublicKey"/);
@@ -284,7 +291,6 @@ test('admin can save U card upstream credentials without private key disclosure'
       '/api/admin/u-card/upstream-config',
       {
         appId: 'upal-app-001',
-        apiKey: 'upal-api-key-001',
         developerPrivateKey: generated.body.developerPrivateKey,
         platformPublicKey: '-----BEGIN PUBLIC KEY-----\nplatform-key\n-----END PUBLIC KEY-----'
       },
@@ -293,8 +299,6 @@ test('admin can save U card upstream credentials without private key disclosure'
     assert.equal(save.statusCode, 200);
     assert.equal(save.body.ok, true);
     assert.equal(save.body.appId, 'upal-app-001');
-    assert.equal(save.body.apiKey, '');
-    assert.equal(save.body.hasApiKey, true);
     assert.equal(save.body.developerPrivateKey, '');
     assert.equal(save.body.hasDeveloperPrivateKey, true);
     assert.equal(save.body.customerPublicKey, generated.body.customerPublicKey);
@@ -302,8 +306,6 @@ test('admin can save U card upstream credentials without private key disclosure'
     const adminConfig = await harness.request('GET', '/api/admin/u-card/upstream-config', null, cookies);
     assert.equal(adminConfig.statusCode, 200);
     assert.equal(adminConfig.body.appId, 'upal-app-001');
-    assert.equal(adminConfig.body.apiKey, '');
-    assert.equal(adminConfig.body.hasApiKey, true);
     assert.equal(adminConfig.body.developerPrivateKey, '');
     assert.equal(adminConfig.body.hasDeveloperPrivateKey, true);
     assert.equal(adminConfig.body.customerPublicKey, generated.body.customerPublicKey);
@@ -314,22 +316,17 @@ test('admin can save U card upstream credentials without private key disclosure'
       '/api/admin/u-card/upstream-config',
       {
         appId: 'upal-app-002',
-        apiKey: '',
         developerPrivateKey: '',
-        platformPublicKey: 'platform-public-key-2',
-        keepUCardUpalApiKey: true
+        platformPublicKey: 'platform-public-key-2'
       },
       cookies
     );
     assert.equal(keepSave.statusCode, 200);
     assert.equal(keepSave.body.appId, 'upal-app-002');
-    assert.equal(keepSave.body.hasApiKey, true);
     assert.equal(keepSave.body.hasDeveloperPrivateKey, true);
     assert.equal(keepSave.body.customerPublicKey, generated.body.customerPublicKey);
 
     const storedPrivateKey = harness.db.prepare("SELECT value FROM settings WHERE key = 'u_card_upal_developer_private_key'").get();
-    const storedApiKey = harness.db.prepare("SELECT value FROM settings WHERE key = 'u_card_upal_api_key'").get();
-    assert.equal(storedApiKey.value, 'upal-api-key-001');
     assert.equal(storedPrivateKey.value, generated.body.developerPrivateKey);
 
     const maskedSave = await harness.request(
@@ -337,9 +334,7 @@ test('admin can save U card upstream credentials without private key disclosure'
       '/api/admin/u-card/upstream-config',
       {
         appId: 'upal-app-003',
-        apiKey: '••••••••已保存',
         developerPrivateKey: '••••••••私钥已保存',
-        keepUCardUpalApiKey: true,
         keepUCardUpalDeveloperPrivateKey: true,
         platformPublicKey: 'platform-public-key-3'
       },
@@ -347,8 +342,6 @@ test('admin can save U card upstream credentials without private key disclosure'
     );
     assert.equal(maskedSave.statusCode, 200);
     const storedAfterMaskedSave = harness.db.prepare("SELECT value FROM settings WHERE key = 'u_card_upal_developer_private_key'").get();
-    const apiKeyAfterMaskedSave = harness.db.prepare("SELECT value FROM settings WHERE key = 'u_card_upal_api_key'").get();
-    assert.equal(apiKeyAfterMaskedSave.value, 'upal-api-key-001');
     assert.equal(storedAfterMaskedSave.value, generated.body.developerPrivateKey);
   } finally {
     harness.cleanup();

@@ -366,9 +366,8 @@
               <div class="review-card">
                 <form id="uCardUpstreamConfigForm" class="admin-add-form">
                   <label id="uCardUpalAppIdLabel">APP ID<input name="uCardUpalAppId" autocomplete="off" spellcheck="false" /></label>
-                  <label id="uCardUpalApiKeyLabel">API Key<input name="uCardUpalApiKey" type="password" autocomplete="new-password" spellcheck="false" /></label>
                   <label id="uCardUpalDeveloperPrivateKeyLabel">
-                    开发者私钥（BEGIN PRIVATE KEY，用于生成客户公钥；留空则保留已保存私钥）
+                    开发者私钥（BEGIN PRIVATE KEY，用于 uPAL 请求签名；留空则保留已保存私钥）
                     <textarea name="uCardUpalDeveloperPrivateKey" rows="6" autocomplete="off" spellcheck="false"></textarea>
                   </label>
                   <div class="toolbar">
@@ -382,7 +381,7 @@
                     平台公钥
                     <textarea name="uCardUpalPlatformPublicKey" rows="5" spellcheck="false"></textarea>
                   </label>
-                  <p id="uCardUpstreamPrivateKeyHint" class="small">uPAL 开放接口使用 API Key 做 SHA256 请求签名。API Key 和开发者私钥保存后不回显明文，留空提交会保留已保存密钥。</p>
+                  <p id="uCardUpstreamPrivateKeyHint" class="small">uPAL 用开发者私钥给请求签名。保存后不回显明文，留空提交会保留已保存私钥。</p>
                   <button id="uCardUpstreamConfigSaveBtn" type="submit">保存上游配置</button>
                 </form>
               </div>

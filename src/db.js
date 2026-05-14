@@ -1314,12 +1314,9 @@ db.prepare(
   "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('auto_crawl_last_run_openclaw', '', datetime('now'))"
 ).run();
 
-// U card upstream API settings. Secrets are write-only in admin UI.
+// U card upstream API settings. The developer private key is write-only in admin UI.
 db.prepare(
   "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('u_card_upal_app_id', '', datetime('now'))"
-).run();
-db.prepare(
-  "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('u_card_upal_api_key', '', datetime('now'))"
 ).run();
 db.prepare(
   "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('u_card_upal_developer_private_key', '', datetime('now'))"

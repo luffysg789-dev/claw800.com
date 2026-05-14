@@ -58,7 +58,6 @@ const NEXA_ESCROW_DEFAULT_MAX_AMOUNT = '100000.00';
 const NEXA_ESCROW_DEFAULT_FEE_PERMILLE = '0';
 const NEXA_ESCROW_HARD_MIN_AMOUNT_CENTS = 100n;
 const NEXA_ESCROW_HARD_MAX_AMOUNT_CENTS = 10000000n;
-const SAVED_SECRET_MASK = '••••••••已保存';
 const PMINING_TOTAL_SUPPLY = 210000000000;
 const PMINING_DAILY_CAP = 71917808;
 const PMINING_CLAIM_REWARD_MULTIPLIER = 3;
@@ -366,8 +365,6 @@ function getUCardUpalConfig() {
   }
   return {
     appId: String(getSetting('u_card_upal_app_id', '') || '').trim(),
-    apiKey: '',
-    hasApiKey: Boolean(String(getSetting('u_card_upal_api_key', '') || '').trim()),
     developerPrivateKey: '',
     hasDeveloperPrivateKey: Boolean(developerPrivateKey),
     customerPublicKey,
@@ -378,15 +375,14 @@ function getUCardUpalConfig() {
 function getUCardUpalPrivateConfig() {
   return {
     appId: String(getSetting('u_card_upal_app_id', '') || '').trim(),
-    apiKey: String(getSetting('u_card_upal_api_key', '') || '').trim(),
     developerPrivateKey: normalizePem(getSetting('u_card_upal_developer_private_key', ''))
   };
 }
 
 function assertUCardUpalReady() {
   const config = getUCardUpalPrivateConfig();
-  if (!config.appId || !config.apiKey) {
-    const error = new Error('U 卡上游配置不完整，请先配置 APP ID 和 API Key');
+  if (!config.appId || !config.developerPrivateKey) {
+    const error = new Error('U 卡上游配置不完整，请先配置 APP ID 和开发者私钥');
     error.statusCode = 503;
     throw error;
   }
@@ -4613,8 +4609,8 @@ function buildUCardUpalSignatureHeaders(body = {}, config = assertUCardUpalReady
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const nonce = crypto.randomUUID();
   const bodyText = JSON.stringify(body || {});
-  const payload = [config.appId, timestamp, nonce, bodyText, config.apiKey].join('.');
-  const signature = crypto.createHash('sha256').update(payload).digest('hex');
+  const payload = [config.appId, timestamp, nonce, bodyText].join('.');
+  const signature = crypto.sign('RSA-SHA256', Buffer.from(payload, 'utf8'), config.developerPrivateKey).toString('base64');
   return {
     bodyText,
     headers: {
@@ -10087,14 +10083,8 @@ app.get('/api/admin/u-card/upstream-config', requireAdmin, (_req, res) => {
 
 app.put('/api/admin/u-card/upstream-config', requireAdmin, (req, res) => {
   const appId = String(req.body?.appId ?? req.body?.uCardUpalAppId ?? '').trim();
-  const apiKey = String(req.body?.apiKey ?? req.body?.uCardUpalApiKey ?? '').trim();
   const developerPrivateKey = normalizePem(req.body?.developerPrivateKey ?? req.body?.uCardUpalDeveloperPrivateKey ?? '');
   const platformPublicKey = normalizePem(req.body?.platformPublicKey ?? req.body?.uCardUpalPlatformPublicKey ?? '');
-  const keepApiKey =
-    req.body?.keepApiKey === true ||
-    req.body?.keepUCardUpalApiKey === true ||
-    String(req.body?.keepApiKey ?? req.body?.keepUCardUpalApiKey ?? '').trim() === 'true' ||
-    apiKey === SAVED_SECRET_MASK;
   const keepDeveloperPrivateKey =
     req.body?.keepDeveloperPrivateKey === true ||
     req.body?.keepUCardUpalDeveloperPrivateKey === true ||
@@ -10102,7 +10092,6 @@ app.put('/api/admin/u-card/upstream-config', requireAdmin, (req, res) => {
   const shouldUpdateDeveloperPrivateKey = Boolean(developerPrivateKey && !keepDeveloperPrivateKey);
 
   if (Buffer.byteLength(appId, 'utf8') > 500) return res.status(413).json({ error: 'APP ID 太长' });
-  if (Buffer.byteLength(apiKey, 'utf8') > 2000) return res.status(413).json({ error: 'API Key 太长' });
   if (Buffer.byteLength(developerPrivateKey, 'utf8') > 20000) return res.status(413).json({ error: '开发者私钥太长' });
   if (Buffer.byteLength(platformPublicKey, 'utf8') > 20000) return res.status(413).json({ error: '平台公钥太长' });
 
@@ -10116,9 +10105,6 @@ app.put('/api/admin/u-card/upstream-config', requireAdmin, (req, res) => {
 
   try {
     upsertSettingStmt.run('u_card_upal_app_id', appId);
-    if (apiKey && !keepApiKey) {
-      upsertSettingStmt.run('u_card_upal_api_key', apiKey);
-    }
     upsertSettingStmt.run('u_card_upal_platform_public_key', platformPublicKey);
     if (shouldUpdateDeveloperPrivateKey) {
       upsertSettingStmt.run('u_card_upal_developer_private_key', developerPrivateKey);
