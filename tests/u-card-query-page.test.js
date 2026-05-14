@@ -7,8 +7,25 @@ const rootDir = path.join(__dirname, '..');
 const htmlPath = path.join(rootDir, 'public', 'u-card-query', 'index.html');
 const cssPath = path.join(rootDir, 'public', 'u-card-query', 'style.css');
 const jsPath = path.join(rootDir, 'public', 'u-card-query', 'script.js');
+const uCardApplyHtmlPath = path.join(rootDir, 'public', 'u', 'index.html');
 const adminHtmlPath = path.join(rootDir, 'public', 'admin.html');
 const adminJsPath = path.join(rootDir, 'public', 'admin.js');
+const serverPath = path.join(rootDir, 'src', 'server.js');
+
+test('U card query route stays separate from U card application route', () => {
+  const server = fs.readFileSync(serverPath, 'utf8');
+  assert.match(server, /app\.get\(\['\/u-card-query', '\/u-card-query\/'\][\s\S]*public', 'u-card-query', 'index\.html'/);
+  assert.match(server, /app\.get\(\['\/u', '\/u\/'\][\s\S]*public', 'u', 'index\.html'/);
+  assert.doesNotMatch(server, /res\.redirect\(301, '\/u'\)/);
+});
+
+test('U card application page is a separate mobile entry with all and my card tabs', () => {
+  const html = fs.readFileSync(uCardApplyHtmlPath, 'utf8');
+  assert.match(html, /<title>U 卡申请<\/title>/);
+  assert.match(html, /data-tab="all"[\s\S]*所有卡/);
+  assert.match(html, /data-tab="mine"[\s\S]*我的卡/);
+  assert.doesNotMatch(html, /u卡场景查询/);
+});
 
 test('U card query page includes language toggle after platform count', () => {
   const html = fs.readFileSync(htmlPath, 'utf8');
@@ -70,7 +87,7 @@ test('U card admin supports optional issuer region on add and edit forms', () =>
 
   assert.match(adminHtml, /id="uCardIssuerRegionLabel"[\s\S]*name="issuerRegion"[\s\S]*value="美国"[\s\S]*value="香港"[\s\S]*value="新加坡"/);
   assert.match(adminHtml, /id="uCardSyncUpstreamBtn"[\s\S]*一键同步上游场景资料/);
-  assert.match(adminHtml, /\/admin\.js\?v=20260319-04/);
+  assert.match(adminHtml, /\/admin\.js\?v=20260507-01/);
   assert.match(adminJs, /uCardIssuerRegionLabel:\s*'发行地'/);
   assert.match(adminJs, /uCardIssuerRegionNone:\s*'不选择'/);
   assert.match(adminJs, /uCardSyncUpstreamBtn:\s*'一键同步上游场景资料'/);

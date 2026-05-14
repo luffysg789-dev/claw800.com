@@ -71,6 +71,7 @@ test('English navigation labels the games hub as Tools', () => {
 test('games page translates card content when English is selected', () => {
   assert.match(config, /const GAME_I18N = \{/);
   assert.match(config, /'u-card-query':\s*\{[\s\S]*name:\s*'U Card Scenario Lookup'/);
+  assert.match(config, /'u-card':\s*\{[\s\S]*name:\s*'U Card Application'/);
   assert.match(config, /sbti:\s*\{[\s\S]*description:\s*'A lightweight 31-question personality test/);
   assert.match(config, /muyu:\s*\{[\s\S]*actionText:\s*'Start'/);
   assert.match(config, /function getCurrentMenuLang\(\)/);
@@ -82,6 +83,12 @@ test('games page keeps standalone pages like p-mining out of the public games hu
   assert.match(config, /slug:\s*'p-mining'[\s\S]*showInGamesHub:\s*0/);
   assert.match(config, /slug:\s*'sbti'[\s\S]*showInGamesHub:\s*1/);
   assert.match(config, /\.filter\(\(item\) => item\.is_enabled && item\.slug !== 'xiangqi' && item\.showInGamesHub !== 0\)/);
+});
+
+test('games page keeps query and application as separate U card tools and lists application last', () => {
+  assert.match(config, /slug:\s*'u-card-query'[\s\S]*?showInGamesHub:\s*1[\s\S]*?route:\s*'\/u-card-query\/'/);
+  assert.match(config, /slug:\s*'muyu'[\s\S]*?route:\s*'\/muyu\.html'[\s\S]*?\},\s*\{\s*slug:\s*'u-card'[\s\S]*?showInGamesHub:\s*1[\s\S]*?route:\s*'\/u'[\s\S]*?\}\s*\];/);
+  assert.match(config, /'u-card':\s*'申请卡'/);
 });
 
 test('games page cards stretch body and keep actions aligned at the bottom', () => {

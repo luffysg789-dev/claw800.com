@@ -41,9 +41,9 @@ The upstream U card API uses:
 
 Use a backend proxy integration. The browser never receives upstream API keys, private keys, or upstream platform public keys.
 
-The primary public mobile U card entry must be `https://claw800.com/u`, served by route `/u`. The existing `/u-card-query/` route can remain as a compatibility redirect to `/u`, but the product path, Nexa redirect URI, and shared links should use `/u`.
+The primary public mobile U card application entry must be `https://claw800.com/u`, served by route `/u`. This is a separate project from `/u-card-query/`: `/u-card-query/` remains the U card scenario/BIN query tool and must not redirect to `/u`.
 
-The U card entry must also be listed on the `游戏与工具` page as the final item, linking to `/u`.
+The U card application entry must also be listed on the `游戏与工具` page as the final item, linking to `/u`.
 
 Recommended initial scope:
 

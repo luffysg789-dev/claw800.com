@@ -213,6 +213,7 @@ const DEFAULT_SITE_CONFIG = {
 };
 const GAME_ROUTE_MAP = {
   'u-card-query': '/u-card-query/',
+  'u-card': '/u',
   minesweeper: '/minesweeper.html',
   fortune: '/fortune.html',
   muyu: '/muyu.html'

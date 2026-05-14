@@ -228,6 +228,10 @@ app.get(['/u-card-query', '/u-card-query/'], (_req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'u-card-query', 'index.html'));
 });
 
+app.get(['/u', '/u/'], (_req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'u', 'index.html'));
+});
+
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('/games/:slug', (req, res) => {
@@ -2892,6 +2896,7 @@ const DEFAULT_SKILLS_PAGE_INSTALL_PROMPT_ZH = '你是 OpenClaw 用户的技能�
 const DEFAULT_SKILLS_PAGE_INSTALL_PROMPT_EN = 'You are an OpenClaw skill installation assistant. Help me install the skill "{{name}}".\nSkill summary: {{description}}\nSkill category: {{category}}\nDetail URL: {{url}}\nFollow this process:\n1. Open the detail page and read the README, SKILL.md, or install docs.\n2. Explain what the skill does, whether it looks safe, and what it may change.\n3. List any dependencies, env vars, permissions, or prerequisites before installing.\n4. Wait for my confirmation before you run or install anything.\n5. After installation, tell me how to verify it, use it, and uninstall or roll it back.\nDo not skip confirmation and do not install unrelated skills.';
 const GAME_ROUTE_MAP = {
   'u-card-query': '/u-card-query/',
+  'u-card': '/u',
   'nchat': '/nchat/',
   'sbti': '/sbti/',
   'nexa-escrow': '/nexa-escrow/',
@@ -2908,6 +2913,7 @@ const GAME_ROUTE_MAP = {
 };
 const GAME_ICON_MAP = {
   'u-card-query': '💳',
+  'u-card': '💳',
   'sbti': '🧠',
   'nexa-escrow': '🛡️',
   'tigang-master': '⭕',
