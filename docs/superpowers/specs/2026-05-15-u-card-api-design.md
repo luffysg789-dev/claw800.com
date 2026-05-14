@@ -41,7 +41,7 @@ The upstream U card API uses:
 
 Use a backend proxy integration. The browser never receives upstream API keys, private keys, or upstream platform public keys.
 
-The existing `/u-card-query/` page will be transformed from a payment-scene lookup into a mobile U card application page. It keeps the route to avoid changing public navigation, but its product behavior changes to the new card workflow.
+The primary public mobile U card entry must be `https://claw800.com/u`, served by route `/u`. The existing `/u-card-query/` route can remain as a compatibility redirect to `/u`, but the product path, Nexa redirect URI, and shared links should use `/u`.
 
 Recommended initial scope:
 
@@ -115,7 +115,7 @@ Local records should be upserted by `merchant_order_no` and by `platform_card_no
 
 ## Mobile User Flow
 
-The mobile page at `/u-card-query/` becomes:
+The mobile page at `/u` becomes:
 
 - Header with login state and Nexa login button.
 - Segmented control: `所有卡` / `我的卡`.
