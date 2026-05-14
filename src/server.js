@@ -4624,25 +4624,43 @@ function buildUCardUpalSignatureHeaders(body = {}, config = assertUCardUpalReady
   };
 }
 
-function unwrapUCardUpalItems(payload = {}) {
+const U_CARD_UPAL_LIST_KEYS = [
+  'items',
+  'products',
+  'cardProducts',
+  'card_products',
+  'list',
+  'rows',
+  'records',
+  'data',
+  'result'
+];
+
+function unwrapUCardUpalItems(payload = {}, depth = 0) {
   if (Array.isArray(payload)) return payload;
-  const candidates = [
-    payload.items,
-    payload.products,
-    payload.list,
-    payload.rows,
-    payload.data,
-    payload.data?.items,
-    payload.data?.products,
-    payload.data?.list,
-    payload.data?.rows,
-    payload.result,
-    payload.result?.items,
-    payload.result?.products,
-    payload.result?.list,
-    payload.result?.rows
-  ];
-  return candidates.find((candidate) => Array.isArray(candidate)) || [];
+  if (!payload || typeof payload !== 'object' || depth > 4) return [];
+  for (const key of U_CARD_UPAL_LIST_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(payload, key)) continue;
+    const nested = unwrapUCardUpalItems(payload[key], depth + 1);
+    if (nested.length || Array.isArray(payload[key])) return nested;
+  }
+  return [];
+}
+
+function summarizeUCardUpalPayload(payload = {}) {
+  const itemCount = unwrapUCardUpalItems(payload).length;
+  return {
+    itemCount,
+    topLevelKeys: payload && typeof payload === 'object' && !Array.isArray(payload) ? Object.keys(payload).slice(0, 20) : [],
+    dataKeys:
+      payload?.data && typeof payload.data === 'object' && !Array.isArray(payload.data)
+        ? Object.keys(payload.data).slice(0, 20)
+        : [],
+    resultKeys:
+      payload?.result && typeof payload.result === 'object' && !Array.isArray(payload.result)
+        ? Object.keys(payload.result).slice(0, 20)
+        : []
+  };
 }
 
 function normalizeUCardProduct(item = {}, index = 0) {
@@ -4696,6 +4714,15 @@ async function postUCardUpalJson(pathname, body = {}) {
 async function fetchUCardUpalProducts() {
   const payload = await postUCardUpalJson('/open-api/cards/products', {});
   return unwrapUCardUpalItems(payload).map(normalizeUCardProduct);
+}
+
+async function testUCardUpalProducts() {
+  const payload = await postUCardUpalJson('/open-api/cards/products', {});
+  const products = unwrapUCardUpalItems(payload).map(normalizeUCardProduct);
+  return {
+    products,
+    summary: summarizeUCardUpalPayload(payload)
+  };
 }
 
 function replaceUCardUpstreamData({ platforms, cards }) {
@@ -10120,6 +10147,20 @@ app.post('/api/admin/u-card/upstream-config/generate-keypair', requireAdmin, (_r
     res.json({ ok: true, ...generateUCardUpalDeveloperKeypair() });
   } catch {
     res.status(500).json({ error: '生成开发者密钥对失败' });
+  }
+});
+
+app.post('/api/admin/u-card/upstream-config/test-products', requireAdmin, async (_req, res) => {
+  try {
+    const { products, summary } = await testUCardUpalProducts();
+    res.json({
+      ok: true,
+      itemCount: products.length,
+      sample: products.slice(0, 3),
+      upstream: summary
+    });
+  } catch (error) {
+    res.status(Number(error?.statusCode || 502)).json({ error: String(error?.message || '测试上游产品接口失败') });
   }
 });
 

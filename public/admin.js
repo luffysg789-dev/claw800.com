@@ -96,6 +96,7 @@ const uCardForm = document.getElementById('uCardForm');
 const uCardUpstreamConfigForm = document.getElementById('uCardUpstreamConfigForm');
 const adminUCardUpstreamConfigSection = document.getElementById('uCardUpstreamConfigSection');
 const uCardGenerateDeveloperKeypairBtn = document.getElementById('uCardGenerateDeveloperKeypairBtn');
+const uCardTestUpstreamProductsBtn = document.getElementById('uCardTestUpstreamProductsBtn');
 const uCardUpstreamConfigMessage = document.getElementById('uCardUpstreamConfigMessage');
 const uCardPlatformCheckboxes = document.getElementById('uCardPlatformCheckboxes');
 const uCardMessage = document.getElementById('uCardMessage');
@@ -395,7 +396,12 @@ const texts = {
     uCardUpalCustomerPublicKeyLabel: '客户公钥 / 商户公钥',
     uCardUpalPlatformPublicKeyLabel: '平台公钥',
     uCardUpstreamConfigSaveBtn: '保存上游配置',
+    uCardTestUpstreamProductsBtn: '测试产品接口',
     uCardUpstreamConfigSaved: 'U 卡上游配置已保存。',
+    uCardUpstreamProductsTestDone: (count) =>
+      count > 0
+        ? `上游产品接口已打通：抓到 ${count} 个产品。`
+        : '上游产品接口已打通，但返回 0 个产品。请确认上游商户已开通可申请的卡产品。',
     uCardUpstreamKeypairGenerated: '开发者密钥对已生成，请保存后把客户公钥填写到上游平台。',
     uCardUpstreamConfigLoadFailed: 'U 卡上游配置加载失败。',
     uCardSyncUpstreamBtn: '一键同步上游场景资料',
@@ -731,7 +737,12 @@ const texts = {
     uCardUpalCustomerPublicKeyLabel: 'Customer / Merchant Public Key',
     uCardUpalPlatformPublicKeyLabel: 'Platform Public Key',
     uCardUpstreamConfigSaveBtn: 'Save Upstream Config',
+    uCardTestUpstreamProductsBtn: 'Test Product API',
     uCardUpstreamConfigSaved: 'U card upstream config saved.',
+    uCardUpstreamProductsTestDone: (count) =>
+      count > 0
+        ? `Upstream product API connected: ${count} products found.`
+        : 'Upstream product API connected, but it returned 0 products. Please confirm the merchant has enabled available card products upstream.',
     uCardUpstreamKeypairGenerated: 'Developer keypair generated. Save it, then submit the customer public key upstream.',
     uCardUpstreamConfigLoadFailed: 'Failed to load U card upstream config.',
     uCardSyncUpstreamBtn: 'Sync Upstream Scene Data',
@@ -1355,6 +1366,7 @@ function applyLanguage() {
   document.getElementById('uCardUpalCustomerPublicKeyLabel').childNodes[0].textContent = dict.uCardUpalCustomerPublicKeyLabel;
   document.getElementById('uCardUpalPlatformPublicKeyLabel').childNodes[0].textContent = dict.uCardUpalPlatformPublicKeyLabel;
   document.getElementById('uCardUpstreamConfigSaveBtn').textContent = dict.uCardUpstreamConfigSaveBtn;
+  document.getElementById('uCardTestUpstreamProductsBtn').textContent = dict.uCardTestUpstreamProductsBtn;
   document.getElementById('uCardPlatformNameLabel').childNodes[0].textContent = dict.uCardPlatformNameLabel;
   document.getElementById('uCardPlatformSortLabel').childNodes[0].textContent = dict.uCardPlatformSortLabel;
   document.getElementById('uCardPlatformAddBtn').textContent = dict.uCardPlatformAddBtn;
@@ -2984,6 +2996,24 @@ if (uCardGenerateDeveloperKeypairBtn) {
     if (developerPrivateKeyEl) developerPrivateKeyEl.value = String(result.data?.developerPrivateKey || '');
     if (customerPublicKeyEl) customerPublicKeyEl.value = String(result.data?.customerPublicKey || '');
     setUCardUpstreamConfigMessage(t('uCardUpstreamKeypairGenerated'), 'message success');
+  });
+}
+
+if (uCardTestUpstreamProductsBtn) {
+  uCardTestUpstreamProductsBtn.addEventListener('click', async () => {
+    setUCardUpstreamConfigMessage('正在测试上游产品接口...');
+    uCardTestUpstreamProductsBtn.disabled = true;
+    const result = await requestTutorialJson(['/api/admin/u-card/upstream-config/test-products'], { method: 'POST' });
+    uCardTestUpstreamProductsBtn.disabled = false;
+    if (result.res?.status === 401) {
+      showLogin();
+      return;
+    }
+    if (!result.res || !result.res.ok) {
+      setUCardUpstreamConfigMessage(localizeApiError(result.data?.error || t('operationFailed')), 'message error');
+      return;
+    }
+    setUCardUpstreamConfigMessage(t('uCardUpstreamProductsTestDone')(Number(result.data?.itemCount || 0)), 'message success');
   });
 }
 
