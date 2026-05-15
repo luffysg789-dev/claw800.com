@@ -2836,6 +2836,7 @@ function renderUCardProductsAdmin() {
           </div>
           <div class="inline-edit-actions">
             <button type="button" onclick="saveUCardProductConfig('${escapeHtml(encodedCode)}')">${escapeHtml(t('save'))}</button>
+            <span id="uCardProductSaveMessage-${escapeHtml(encodedCode)}" class="inline-save-message" aria-live="polite"></span>
           </div>
         </article>
       `;
@@ -2921,8 +2922,13 @@ window.saveUCardProductConfig = async function saveUCardProductConfig(productCod
     localCurrency: String(document.getElementById(`uCardProductCurrency-${encodedCode}`)?.value || '').trim(),
     isEnabled: String(document.getElementById(`uCardProductEnabled-${encodedCode}`)?.value || '1') === '1' ? 1 : 0
   };
+  const inlineMessage = document.getElementById(`uCardProductSaveMessage-${encodedCode}`);
   uCardProductsMessage.textContent = '';
   uCardProductsMessage.className = 'message';
+  if (inlineMessage) {
+    inlineMessage.textContent = '';
+    inlineMessage.className = 'inline-save-message';
+  }
   const result = await requestTutorialJson([`/api/admin/u-card/products/${encodeURIComponent(code)}`], {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -2935,11 +2941,24 @@ window.saveUCardProductConfig = async function saveUCardProductConfig(productCod
   if (!result.res || !result.res.ok) {
     uCardProductsMessage.textContent = localizeApiError(result.data?.error || t('operationFailed'));
     uCardProductsMessage.className = 'message error';
+    if (inlineMessage) {
+      inlineMessage.textContent = localizeApiError(result.data?.error || t('operationFailed'));
+      inlineMessage.className = 'inline-save-message error';
+    }
     return;
+  }
+  const savedItem = result.data?.item;
+  if (savedItem?.product_code) {
+    uCardProductItems = uCardProductItems.map((item) =>
+      String(item.product_code || '') === String(savedItem.product_code || '') ? savedItem : item
+    );
   }
   uCardProductsMessage.textContent = t('uCardProductSaved');
   uCardProductsMessage.className = 'message success';
-  await loadUCardProductsAdmin();
+  if (inlineMessage) {
+    inlineMessage.textContent = t('uCardProductSaved');
+    inlineMessage.className = 'inline-save-message success';
+  }
 };
 
 window.editUCardPlatform = function editUCardPlatform(id) {

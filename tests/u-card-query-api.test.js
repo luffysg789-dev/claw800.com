@@ -484,6 +484,8 @@ test('admin U card panel includes upstream credential configuration controls', (
   assert.match(adminJs, /\/api\/admin\/u-card\/products/);
   assert.match(adminJs, /\/api\/admin\/u-card\/applications/);
   assert.match(adminJs, /saveUCardProductConfig/);
+  assert.match(adminJs, /uCardProductSaveMessage-/);
+  assert.match(adminJs, /inlineMessage\.textContent = t\('uCardProductSaved'\)/);
   assert.match(adminJs, /loadUCardApplicationsAdmin/);
   assert.match(adminJs, /setUCardUpstreamConfigMessage\(t\('uCardUpstreamConfigSaved'\), 'message success'\)/);
   assert.match(adminJs, /navUCardUpstreamConfig:\s*'U 卡上游配置'/);

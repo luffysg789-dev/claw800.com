@@ -861,8 +861,23 @@ button.danger { background: var(--danger); }
 
 .inline-edit-actions {
   display: flex;
+  align-items: center;
   gap: 8px;
   margin-top: 10px;
+}
+
+.inline-save-message {
+  color: #66736b;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.inline-save-message.success {
+  color: #1f7a4d;
+}
+
+.inline-save-message.error {
+  color: #b3261e;
 }
 
 .sort-row {
