@@ -231,6 +231,28 @@ test('public U card products endpoint signs and normalizes upstream products', a
       }
     ]);
 
+    const adminProducts = await harness.request('GET', '/api/admin/u-card/products', null, cookies);
+    assert.equal(adminProducts.statusCode, 200);
+    assert.equal(adminProducts.body.items[0].upstream_fee_amount, '5.00');
+    assert.equal(adminProducts.body.items[0].local_fee_amount, '5.00');
+
+    const updatedProduct = await harness.request(
+      'PUT',
+      '/api/admin/u-card/products/virtual-usd',
+      {
+        localFeeAmount: '10.00',
+        localCurrency: 'USDT',
+        isEnabled: 1
+      },
+      cookies
+    );
+    assert.equal(updatedProduct.statusCode, 200);
+    assert.equal(updatedProduct.body.item.local_fee_amount, '10.00');
+
+    const configuredProducts = await harness.request('GET', '/api/u-card/products');
+    assert.equal(configuredProducts.statusCode, 200);
+    assert.equal(configuredProducts.body.items[0].fee_amount, '10.00');
+
     harness.db
       .prepare("INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, datetime('now'))")
       .run('nexa_api_key', 'nexa-api-key');
@@ -247,10 +269,10 @@ test('public U card products endpoint signs and normalizes upstream products', a
       }
     );
     assert.equal(payment.statusCode, 200, JSON.stringify(payment.body));
-    assert.equal(payment.body.amount, '5.00');
+    assert.equal(payment.body.amount, '10.00');
     assert.equal(payment.body.currency, 'USDT');
     assert.equal(payment.body.payment.orderNo, 'nexa-u-card-order-1');
-    assert.equal(capturedPayment.body.amount, '5.00');
+    assert.equal(capturedPayment.body.amount, '10.00');
     assert.equal(capturedPayment.body.sessionKey, 'nexa-session-key');
   } finally {
     global.fetch = previousFetch;
@@ -318,6 +340,7 @@ test('admin U card panel includes upstream credential configuration controls', (
   const uCardSection = adminHtml.match(/<div id="adminUCardSection"[\s\S]*?<div id="adminOrdersSection"/)?.[0] || '';
 
   assert.match(adminHtml, /<button id="navUCardUpstreamConfig"[\s\S]*U 卡上游配置/);
+  assert.match(adminHtml, /<button id="navUCardProducts"[\s\S]*U 卡卡种配置/);
   assert.doesNotMatch(uCardSection, /id="uCardNavUpstreamConfig"/);
   assert.match(adminHtml, /id="uCardUpstreamConfigSection"/);
   assert.match(adminHtml, /name="uCardUpalAppId"/);
@@ -330,9 +353,13 @@ test('admin U card panel includes upstream credential configuration controls', (
   assert.match(adminJs, /\/api\/admin\/u-card\/upstream-config/);
   assert.match(adminJs, /\/api\/admin\/u-card\/upstream-config\/generate-keypair/);
   assert.match(adminJs, /\/api\/admin\/u-card\/upstream-config\/test-products/);
+  assert.match(adminJs, /\/api\/admin\/u-card\/products/);
+  assert.match(adminJs, /saveUCardProductConfig/);
   assert.match(adminJs, /setUCardUpstreamConfigMessage\(t\('uCardUpstreamConfigSaved'\), 'message success'\)/);
   assert.match(adminJs, /navUCardUpstreamConfig:\s*'U 卡上游配置'/);
+  assert.match(adminJs, /navUCardProducts:\s*'U 卡卡种配置'/);
   assert.match(adminJs, /adminUCardUpstreamConfigSection\.classList\.toggle\('hidden', view !== 'u-card-upstream-config'\)/);
+  assert.match(adminJs, /adminUCardProductsSection\.classList\.toggle\('hidden', view !== 'u-card-products'\)/);
   assert.match(adminJs, /keepUCardUpalDeveloperPrivateKey:\s*String\(payload\.uCardUpalDeveloperPrivateKey \|\| ''\)\.trim\(\) === SAVED_U_CARD_UPAL_PRIVATE_KEY_MASK/);
 });
 

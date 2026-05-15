@@ -1076,6 +1076,24 @@ db.exec(`
 `);
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS u_card_products (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_code TEXT NOT NULL UNIQUE,
+    upstream_name TEXT NOT NULL DEFAULT '',
+    upstream_fee_amount TEXT NOT NULL DEFAULT '',
+    upstream_currency TEXT NOT NULL DEFAULT '',
+    local_fee_amount TEXT NOT NULL DEFAULT '',
+    local_currency TEXT NOT NULL DEFAULT '',
+    card_currency TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    is_enabled INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    last_seen_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+db.exec(`
   CREATE INDEX IF NOT EXISTS idx_u_card_platforms_enabled_sort
   ON u_card_platforms(is_enabled DESC, sort_order ASC, id ASC);
 `);
@@ -1083,6 +1101,11 @@ db.exec(`
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_u_cards_enabled_sort
   ON u_cards(is_enabled DESC, sort_order DESC, updated_at DESC, id DESC);
+`);
+
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_u_card_products_enabled_updated
+  ON u_card_products(is_enabled DESC, updated_at DESC, id DESC);
 `);
 
 const DEFAULT_U_CARD_PLATFORMS = [

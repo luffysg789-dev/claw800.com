@@ -3083,6 +3083,47 @@ const listUCardsByPlatformStmt = db.prepare(`
     AND p.is_enabled = 1
   ORDER BY c.sort_order DESC, c.updated_at DESC, c.id DESC
 `);
+const upsertUCardProductFromUpstreamStmt = db.prepare(`
+  INSERT INTO u_card_products (
+    product_code, upstream_name, upstream_fee_amount, upstream_currency, local_fee_amount, local_currency,
+    card_currency, description, is_enabled, updated_at, last_seen_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))
+  ON CONFLICT(product_code) DO UPDATE SET
+    upstream_name = excluded.upstream_name,
+    upstream_fee_amount = excluded.upstream_fee_amount,
+    upstream_currency = excluded.upstream_currency,
+    local_fee_amount = CASE
+      WHEN trim(u_card_products.local_fee_amount) = '' THEN excluded.local_fee_amount
+      ELSE u_card_products.local_fee_amount
+    END,
+    local_currency = CASE
+      WHEN trim(u_card_products.local_currency) = '' THEN excluded.local_currency
+      ELSE u_card_products.local_currency
+    END,
+    card_currency = excluded.card_currency,
+    description = excluded.description,
+    updated_at = datetime('now'),
+    last_seen_at = datetime('now')
+`);
+const listUCardProductConfigsStmt = db.prepare(`
+  SELECT id, product_code, upstream_name, upstream_fee_amount, upstream_currency, local_fee_amount,
+         local_currency, card_currency, description, is_enabled, created_at, updated_at, last_seen_at
+  FROM u_card_products
+  ORDER BY is_enabled DESC, updated_at DESC, id DESC
+`);
+const listEnabledUCardProductConfigsStmt = db.prepare(`
+  SELECT id, product_code, upstream_name, upstream_fee_amount, upstream_currency, local_fee_amount,
+         local_currency, card_currency, description, is_enabled, created_at, updated_at, last_seen_at
+  FROM u_card_products
+  WHERE is_enabled = 1
+  ORDER BY updated_at DESC, id DESC
+`);
+const selectUCardProductConfigByCodeStmt = db.prepare(`
+  SELECT id, product_code, upstream_name, upstream_fee_amount, upstream_currency, local_fee_amount,
+         local_currency, card_currency, description, is_enabled, created_at, updated_at, last_seen_at
+  FROM u_card_products
+  WHERE product_code = ?
+`);
 const listSkillsCatalogStmt = db.prepare(`
   SELECT id, name, name_en, url, description, description_en, category, category_en, icon, sort_order, is_pinned, is_hot, created_at, updated_at
   FROM skills_catalog
@@ -4695,6 +4736,70 @@ function normalizeUCardProduct(item = {}, index = 0) {
   };
 }
 
+function normalizeUCardProductFee(value = '') {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    return centsToMoneyString(parseMoneyToCents(raw));
+  } catch {
+    return raw;
+  }
+}
+
+function formatUCardProductConfig(row = {}) {
+  const localFeeAmount = normalizeUCardProductFee(row.local_fee_amount || row.upstream_fee_amount || '');
+  const localCurrency = String(row.local_currency || row.upstream_currency || '').trim();
+  return {
+    id: String(row.product_code || row.id || '').trim(),
+    product_code: String(row.product_code || '').trim(),
+    name: String(row.upstream_name || row.product_code || 'U 卡产品').trim(),
+    upstream_name: String(row.upstream_name || '').trim(),
+    upstream_fee_amount: String(row.upstream_fee_amount || '').trim(),
+    upstream_currency: String(row.upstream_currency || '').trim(),
+    fee_amount: localFeeAmount,
+    currency: localCurrency,
+    local_fee_amount: localFeeAmount,
+    local_currency: localCurrency,
+    card_currency: String(row.card_currency || '').trim(),
+    description: String(row.description || '').trim(),
+    is_enabled: Number(row.is_enabled || 0) ? 1 : 0,
+    created_at: String(row.created_at || '').trim(),
+    updated_at: String(row.updated_at || '').trim(),
+    last_seen_at: String(row.last_seen_at || '').trim()
+  };
+}
+
+function formatPublicUCardProductConfig(row = {}) {
+  const product = formatUCardProductConfig(row);
+  return {
+    id: product.id,
+    product_code: product.product_code,
+    name: product.name,
+    fee_amount: product.fee_amount,
+    currency: product.currency,
+    card_currency: product.card_currency,
+    description: product.description
+  };
+}
+
+const syncUCardProductsFromUpstream = db.transaction((products = []) => {
+  for (const product of products) {
+    const productCode = String(product.product_code || product.id || product.name || '').trim();
+    if (!productCode) continue;
+    const upstreamCurrency = String(product.currency || '').trim();
+    upsertUCardProductFromUpstreamStmt.run(
+      productCode,
+      String(product.name || productCode).trim(),
+      normalizeUCardProductFee(product.fee_amount),
+      upstreamCurrency,
+      normalizeUCardProductFee(product.fee_amount),
+      upstreamCurrency,
+      String(product.card_currency || '').trim(),
+      String(product.description || '').trim()
+    );
+  }
+});
+
 async function postUCardUpalJson(pathname, body = {}) {
   if (typeof fetch !== 'function') throw new Error('当前 Node 版本不支持 fetch');
   const config = assertUCardUpalReady();
@@ -4714,7 +4819,17 @@ async function postUCardUpalJson(pathname, body = {}) {
 
 async function fetchUCardUpalProducts() {
   const payload = await postUCardUpalJson('/open-api/cards/products', {});
-  return unwrapUCardUpalItems(payload).map(normalizeUCardProduct);
+  const products = unwrapUCardUpalItems(payload).map(normalizeUCardProduct);
+  syncUCardProductsFromUpstream(products);
+  return products;
+}
+
+async function listConfiguredUCardProducts({ refresh = true, publicOnly = true } = {}) {
+  if (refresh) {
+    await fetchUCardUpalProducts();
+  }
+  const rows = publicOnly ? listEnabledUCardProductConfigsStmt.all() : listUCardProductConfigsStmt.all();
+  return rows.map(publicOnly ? formatPublicUCardProductConfig : formatUCardProductConfig);
 }
 
 async function testUCardUpalProducts() {
@@ -4733,7 +4848,10 @@ function normalizeUCardProductLookupKey(value = '') {
 async function findUCardUpalProduct(productCode = '') {
   const normalizedCode = normalizeUCardProductLookupKey(productCode);
   if (!normalizedCode) return null;
-  const products = await fetchUCardUpalProducts();
+  let products = await listConfiguredUCardProducts({ refresh: false, publicOnly: true });
+  if (!products.length) {
+    products = await listConfiguredUCardProducts({ refresh: true, publicOnly: true });
+  }
   return (
     products.find((product) => {
       const keys = [product.product_code, product.id, product.name].map(normalizeUCardProductLookupKey).filter(Boolean);
@@ -4816,7 +4934,7 @@ app.get('/api/u-card/platforms/:id/cards', (req, res) => {
 
 app.get('/api/u-card/products', async (_req, res) => {
   try {
-    const items = await fetchUCardUpalProducts();
+    const items = await listConfiguredUCardProducts({ refresh: true, publicOnly: true });
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
     res.json({ ok: true, items });
   } catch (error) {
@@ -10160,6 +10278,38 @@ app.delete('/api/admin/u-card/platforms/:id', requireAdmin, (req, res) => {
 
 app.get('/api/admin/u-card/cards', requireAdmin, (_req, res) => {
   res.json({ ok: true, items: listAdminUCardsStmt.all().map(formatAdminUCard) });
+});
+
+app.get('/api/admin/u-card/products', requireAdmin, async (_req, res) => {
+  try {
+    const items = await listConfiguredUCardProducts({ refresh: true, publicOnly: false });
+    res.json({ ok: true, items });
+  } catch (error) {
+    res.status(Number(error?.statusCode || 502)).json({ error: String(error?.message || '加载 U 卡卡种失败') });
+  }
+});
+
+app.put('/api/admin/u-card/products/:productCode', requireAdmin, (req, res) => {
+  const productCode = String(req.params.productCode || '').trim();
+  const localFeeAmount = normalizeUCardProductFee(req.body?.localFeeAmount ?? req.body?.local_fee_amount ?? '');
+  const localCurrency = String(req.body?.localCurrency ?? req.body?.local_currency ?? 'USDT').trim() || 'USDT';
+  const isEnabled = Number(req.body?.isEnabled ?? req.body?.is_enabled ?? 1) ? 1 : 0;
+  if (!productCode) return res.status(400).json({ error: '产品 code 必填' });
+  try {
+    parseMoneyToCents(localFeeAmount);
+  } catch {
+    return res.status(400).json({ error: '本地开卡价格式无效' });
+  }
+  if (Buffer.byteLength(localCurrency, 'utf8') > 20) return res.status(413).json({ error: '币种太长' });
+
+  const row = selectUCardProductConfigByCodeStmt.get(productCode);
+  if (!row) return res.status(404).json({ error: '卡种不存在，请先抓取上游产品' });
+  db.prepare(`
+    UPDATE u_card_products
+    SET local_fee_amount = ?, local_currency = ?, is_enabled = ?, updated_at = datetime('now')
+    WHERE product_code = ?
+  `).run(localFeeAmount, localCurrency, isEnabled, productCode);
+  res.json({ ok: true, item: formatUCardProductConfig(selectUCardProductConfigByCodeStmt.get(productCode)) });
 });
 
 app.get('/api/admin/u-card/upstream-config', requireAdmin, (_req, res) => {

@@ -95,9 +95,13 @@ const uCardSyncUpstreamBtn = document.getElementById('uCardSyncUpstreamBtn');
 const uCardForm = document.getElementById('uCardForm');
 const uCardUpstreamConfigForm = document.getElementById('uCardUpstreamConfigForm');
 const adminUCardUpstreamConfigSection = document.getElementById('uCardUpstreamConfigSection');
+const adminUCardProductsSection = document.getElementById('uCardProductsSection');
 const uCardGenerateDeveloperKeypairBtn = document.getElementById('uCardGenerateDeveloperKeypairBtn');
 const uCardTestUpstreamProductsBtn = document.getElementById('uCardTestUpstreamProductsBtn');
 const uCardUpstreamConfigMessage = document.getElementById('uCardUpstreamConfigMessage');
+const uCardProductsRefreshBtn = document.getElementById('uCardProductsRefreshBtn');
+const uCardProductsMessage = document.getElementById('uCardProductsMessage');
+const uCardProductsList = document.getElementById('uCardProductsList');
 const uCardPlatformCheckboxes = document.getElementById('uCardPlatformCheckboxes');
 const uCardMessage = document.getElementById('uCardMessage');
 const uCardList = document.getElementById('uCardList');
@@ -249,6 +253,7 @@ const texts = {
     navPartners: '合作伙伴',
     navUCard: 'U卡场景',
     navUCardUpstreamConfig: 'U 卡上游配置',
+    navUCardProducts: 'U 卡卡种配置',
     navOrders: '订单',
     navNchatUsers: '聊天用户',
     navNexaEscrowUsers: '担保用户',
@@ -390,6 +395,13 @@ const texts = {
     uCardAddBtn: '新增卡',
     uCardListTitle: '卡列表',
     uCardUpstreamConfigTitle: 'U 卡上游配置',
+    uCardProductsTitle: 'U 卡卡种配置',
+    uCardProductsRefreshBtn: '抓取上游卡种',
+    uCardProductsEmpty: '暂无卡种，请先配置上游并抓取产品。',
+    uCardProductsLoaded: (count) => `已加载 ${count} 个卡种。`,
+    uCardProductSaved: '卡种价格已保存。',
+    uCardProductUpstreamPrice: '上游原价',
+    uCardProductLocalPrice: '本地开卡价',
     uCardUpalAppIdLabel: 'APP ID',
     uCardUpalDeveloperPrivateKeyLabel: '开发者私钥（BEGIN PRIVATE KEY，用于 uPAL 请求签名；留空则保留已保存私钥）',
     uCardGenerateDeveloperKeypairBtn: '生成开发者密钥对',
@@ -590,6 +602,7 @@ const texts = {
     navPartners: 'Partners',
     navUCard: 'U Card Scenes',
     navUCardUpstreamConfig: 'U Card Upstream Config',
+    navUCardProducts: 'U Card Product Config',
     navOrders: 'Orders',
     navNchatUsers: 'Chat Users',
     navNexaEscrowUsers: 'Escrow Users',
@@ -731,6 +744,13 @@ const texts = {
     uCardAddBtn: 'Add Card',
     uCardListTitle: 'Card List',
     uCardUpstreamConfigTitle: 'U Card Upstream Config',
+    uCardProductsTitle: 'U Card Product Config',
+    uCardProductsRefreshBtn: 'Fetch Upstream Products',
+    uCardProductsEmpty: 'No products yet. Configure upstream and fetch products first.',
+    uCardProductsLoaded: (count) => `${count} card products loaded.`,
+    uCardProductSaved: 'Card product price saved.',
+    uCardProductUpstreamPrice: 'Upstream Price',
+    uCardProductLocalPrice: 'Local Open Price',
     uCardUpalAppIdLabel: 'APP ID',
     uCardUpalDeveloperPrivateKeyLabel: 'Developer Private Key (BEGIN PRIVATE KEY; used to sign uPAL requests; leave blank to keep saved key)',
     uCardGenerateDeveloperKeypairBtn: 'Generate Developer Keypair',
@@ -926,6 +946,7 @@ let gamesItems = [];
 let partnersItems = [];
 let uCardPlatformItems = [];
 let uCardItems = [];
+let uCardProductItems = [];
 let uCardSubView = 'platform-add';
 let editingUCardPlatformId = null;
 let editingUCardId = null;
@@ -1244,6 +1265,7 @@ function applyLanguage() {
   document.getElementById('navPartners').textContent = dict.navPartners;
   document.getElementById('navUCard').textContent = dict.navUCard;
   document.getElementById('navUCardUpstreamConfig').textContent = dict.navUCardUpstreamConfig;
+  document.getElementById('navUCardProducts').textContent = dict.navUCardProducts;
   document.getElementById('navOrders').textContent = dict.navOrders;
   document.getElementById('navNchatUsers').textContent = dict.navNchatUsers;
   document.getElementById('navNexaEscrowUsers').textContent = dict.navNexaEscrowUsers;
@@ -1360,6 +1382,8 @@ function applyLanguage() {
   document.getElementById('uCardPlatformTitle').textContent = dict.uCardPlatformTitle;
   document.getElementById('uCardPlatformListTitle').textContent = dict.uCardPlatformListTitle;
   document.getElementById('uCardUpstreamConfigTitle').textContent = dict.uCardUpstreamConfigTitle;
+  document.getElementById('uCardProductsTitle').textContent = dict.uCardProductsTitle;
+  document.getElementById('uCardProductsRefreshBtn').textContent = dict.uCardProductsRefreshBtn;
   document.getElementById('uCardUpalAppIdLabel').childNodes[0].textContent = dict.uCardUpalAppIdLabel;
   document.getElementById('uCardUpalDeveloperPrivateKeyLabel').childNodes[0].textContent = dict.uCardUpalDeveloperPrivateKeyLabel;
   document.getElementById('uCardGenerateDeveloperKeypairBtn').textContent = dict.uCardGenerateDeveloperKeypairBtn;
@@ -1440,6 +1464,7 @@ function setView(view) {
   adminPartnersSection.classList.toggle('hidden', view !== 'partners');
   adminUCardSection.classList.toggle('hidden', view !== 'u-card');
   adminUCardUpstreamConfigSection.classList.toggle('hidden', view !== 'u-card-upstream-config');
+  adminUCardProductsSection.classList.toggle('hidden', view !== 'u-card-products');
   adminOrdersSection.classList.toggle('hidden', !orderViews.includes(view));
   adminPMiningOrdersSection.classList.toggle('hidden', view !== 'p-mining-orders');
   adminNexaTipOrdersSection.classList.toggle('hidden', view !== 'nexa-tip-orders');
@@ -1487,6 +1512,9 @@ function setView(view) {
   }
   if (view === 'u-card-upstream-config') {
     loadUCardUpstreamConfig();
+  }
+  if (view === 'u-card-products') {
+    loadUCardProductsAdmin();
   }
   if (view === 'p-mining-orders') {
     loadPMiningOrdersList();
@@ -2759,6 +2787,96 @@ async function loadUCardUpstreamConfig() {
   fillUCardUpstreamConfigForm(result.data || {});
 }
 
+function renderUCardProductsAdmin() {
+  if (!uCardProductsList) return;
+  if (!uCardProductItems.length) {
+    uCardProductsList.innerHTML = `<p class="empty">${escapeHtml(t('uCardProductsEmpty'))}</p>`;
+    return;
+  }
+  uCardProductsList.innerHTML = uCardProductItems
+    .map((product) => {
+      const code = String(product.product_code || product.id || '').trim();
+      const encodedCode = encodeURIComponent(code);
+      return `
+        <article class="review-card">
+          <div class="u-card-admin-row-head">
+            <h3>${escapeHtml(product.name || code || 'U 卡产品')}</h3>
+          </div>
+          <p class="small">Code：${escapeHtml(code || '-')}</p>
+          <p class="small">${escapeHtml(t('uCardProductUpstreamPrice'))}：${escapeHtml(product.upstream_fee_amount || '-')} ${escapeHtml(product.upstream_currency || '')}</p>
+          <p class="small">${escapeHtml(product.description || '')}</p>
+          <div class="inline-edit-grid">
+            <label class="small">${escapeHtml(t('uCardProductLocalPrice'))}
+              <input id="uCardProductFee-${escapeHtml(encodedCode)}" type="text" inputmode="decimal" value="${escapeHtml(product.local_fee_amount || product.fee_amount || '')}" />
+            </label>
+            <label class="small">${escapeHtml(t('currency'))}
+              <input id="uCardProductCurrency-${escapeHtml(encodedCode)}" type="text" value="${escapeHtml(product.local_currency || product.currency || 'USDT')}" />
+            </label>
+            <label class="small">${escapeHtml(t('gameEnabledLabel'))}
+              <select id="uCardProductEnabled-${escapeHtml(encodedCode)}">
+                <option value="1" ${product.is_enabled ? 'selected' : ''}>${escapeHtml(t('enabledYes'))}</option>
+                <option value="0" ${product.is_enabled ? '' : 'selected'}>${escapeHtml(t('enabledNo'))}</option>
+              </select>
+            </label>
+          </div>
+          <div class="inline-edit-actions">
+            <button type="button" onclick="saveUCardProductConfig('${escapeHtml(encodedCode)}')">${escapeHtml(t('save'))}</button>
+          </div>
+        </article>
+      `;
+    })
+    .join('');
+}
+
+async function loadUCardProductsAdmin() {
+  if (!uCardProductsList || !uCardProductsMessage) return;
+  uCardProductsMessage.textContent = '';
+  uCardProductsMessage.className = 'message';
+  const result = await requestTutorialJson(['/api/admin/u-card/products'], { method: 'GET' });
+  if (result.res?.status === 401) {
+    showLogin();
+    return;
+  }
+  if (!result.res || !result.res.ok) {
+    uCardProductsMessage.textContent = localizeApiError(result.data?.error || t('operationFailed'));
+    uCardProductsMessage.className = 'message error';
+    return;
+  }
+  uCardProductItems = Array.isArray(result.data?.items) ? result.data.items : [];
+  renderUCardProductsAdmin();
+  uCardProductsMessage.textContent = t('uCardProductsLoaded')(uCardProductItems.length);
+  uCardProductsMessage.className = 'message success';
+}
+
+window.saveUCardProductConfig = async function saveUCardProductConfig(productCode) {
+  const encodedCode = String(productCode || '').trim();
+  const code = decodeURIComponent(encodedCode);
+  const payload = {
+    localFeeAmount: String(document.getElementById(`uCardProductFee-${encodedCode}`)?.value || '').trim(),
+    localCurrency: String(document.getElementById(`uCardProductCurrency-${encodedCode}`)?.value || '').trim(),
+    isEnabled: String(document.getElementById(`uCardProductEnabled-${encodedCode}`)?.value || '1') === '1' ? 1 : 0
+  };
+  uCardProductsMessage.textContent = '';
+  uCardProductsMessage.className = 'message';
+  const result = await requestTutorialJson([`/api/admin/u-card/products/${encodeURIComponent(code)}`], {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (result.res?.status === 401) {
+    showLogin();
+    return;
+  }
+  if (!result.res || !result.res.ok) {
+    uCardProductsMessage.textContent = localizeApiError(result.data?.error || t('operationFailed'));
+    uCardProductsMessage.className = 'message error';
+    return;
+  }
+  uCardProductsMessage.textContent = t('uCardProductSaved');
+  uCardProductsMessage.className = 'message success';
+  await loadUCardProductsAdmin();
+};
+
 window.editUCardPlatform = function editUCardPlatform(id) {
   editingUCardPlatformId = id;
   renderUCardPlatforms();
@@ -3015,6 +3133,10 @@ if (uCardTestUpstreamProductsBtn) {
     }
     setUCardUpstreamConfigMessage(t('uCardUpstreamProductsTestDone')(Number(result.data?.itemCount || 0)), 'message success');
   });
+}
+
+if (uCardProductsRefreshBtn) {
+  uCardProductsRefreshBtn.addEventListener('click', loadUCardProductsAdmin);
 }
 
 if (uCardSyncUpstreamBtn) {
@@ -4845,6 +4967,7 @@ document.getElementById('navGames').addEventListener('click', () => setView('gam
 document.getElementById('navPartners').addEventListener('click', () => setView('partners'));
 document.getElementById('navUCard').addEventListener('click', () => setView('u-card'));
 document.getElementById('navUCardUpstreamConfig').addEventListener('click', () => setView('u-card-upstream-config'));
+document.getElementById('navUCardProducts').addEventListener('click', () => setView('u-card-products'));
 document.getElementById('navOrders').addEventListener('click', () => setView('orders'));
 document.getElementById('ordersPMiningBtn').addEventListener('click', () => setView('p-mining-orders'));
 document.getElementById('ordersNexaTipBtn').addEventListener('click', () => setView('nexa-tip-orders'));
