@@ -4985,6 +4985,33 @@ function isUCardReviewCheckDue(row = {}) {
   return Number.isFinite(nextTime) && nextTime <= Date.now();
 }
 
+function insertUCardApplicationRecord({
+  orderNo,
+  openId,
+  productCode,
+  productName,
+  amount,
+  currency,
+  paymentStatus = 'PENDING',
+  status = 'awaiting_payment'
+}) {
+  const existing = selectUCardApplicationByOrderNoStmt.get(String(orderNo || '').trim());
+  if (existing) return existing;
+  const applicationNo = createUCardApplicationNo();
+  insertUCardApplicationStmt.run(
+    applicationNo,
+    String(orderNo || '').trim(),
+    String(openId || '').trim(),
+    String(productCode || '').trim(),
+    String(productName || productCode || 'U 卡申请').trim(),
+    String(amount || '0.00').trim(),
+    String(currency || NEXA_TIP_CURRENCY).trim(),
+    String(paymentStatus || 'PENDING').trim().toUpperCase(),
+    String(status || 'awaiting_payment').trim()
+  );
+  return selectUCardApplicationByNoStmt.get(applicationNo);
+}
+
 function normalizeCountryCode(value = '') {
   const raw = String(value || '').trim();
   const map = {
@@ -5243,22 +5270,16 @@ app.post('/api/u-card/payment/create', async (req, res) => {
       sessionKey,
       amount
     });
-    let application = selectUCardApplicationByOrderNoStmt.get(order.orderNo);
-    if (!application) {
-      const applicationNo = createUCardApplicationNo();
-      insertUCardApplicationStmt.run(
-        applicationNo,
-        order.orderNo,
-        openId,
-        product.product_code || product.id || productCode,
-        product.name || productCode,
-        amount,
-        NEXA_TIP_CURRENCY,
-        'PENDING',
-        'awaiting_payment'
-      );
-      application = selectUCardApplicationByNoStmt.get(applicationNo);
-    }
+    const application = insertUCardApplicationRecord({
+      orderNo: order.orderNo,
+      openId,
+      productCode: product.product_code || product.id || productCode,
+      productName: product.name || productCode,
+      amount,
+      currency: NEXA_TIP_CURRENCY,
+      paymentStatus: 'PENDING',
+      status: 'awaiting_payment'
+    });
 
     res.json({
       ok: true,
@@ -5307,6 +5328,39 @@ app.get('/api/u-card/applications', async (req, res) => {
   } catch (error) {
     const statusCode = Number(error?.statusCode || 502) || 502;
     res.status(statusCode).json({ error: String(error?.message || '获取我的 U 卡失败') });
+  }
+});
+
+app.post('/api/u-card/applications/recover-paid', async (req, res) => {
+  try {
+    const orderNo = String(req.body?.orderNo || '').trim();
+    const openId = String(req.body?.openId || '').trim();
+    const productCode = String(req.body?.productCode || req.body?.product_code || '').trim();
+    const productName = String(req.body?.productName || req.body?.product_name || productCode || 'U 卡申请').trim();
+    const amount = String(req.body?.amount || '0.00').trim();
+    const currency = String(req.body?.currency || NEXA_TIP_CURRENCY).trim();
+    if (!orderNo) return res.status(400).json({ error: 'orderNo 必填' });
+    if (!openId) return res.status(400).json({ error: 'openId 必填' });
+    if (!productCode) return res.status(400).json({ error: 'productCode 必填' });
+    const order = await queryNexaTipOrder(orderNo);
+    if (String(order.status || '').trim().toUpperCase() !== 'SUCCESS') {
+      return res.status(409).json({ error: '支付尚未成功，暂不能恢复到我的卡' });
+    }
+    const application = insertUCardApplicationRecord({
+      orderNo,
+      openId,
+      productCode,
+      productName,
+      amount: amount || order.amount || '0.00',
+      currency: currency || order.currency || NEXA_TIP_CURRENCY,
+      paymentStatus: 'SUCCESS',
+      status: 'needs_profile'
+    });
+    updateUCardApplicationPaymentStmt.run('SUCCESS', 'SUCCESS', application.application_no);
+    res.json({ ok: true, item: formatUCardApplication(selectUCardApplicationByNoStmt.get(application.application_no)) });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 502) || 502;
+    res.status(statusCode).json({ error: String(error?.message || '恢复 U 卡申请失败') });
   }
 });
 

@@ -909,6 +909,20 @@
         return payload.item || null;
       }
 
+      async function recoverPaidUCardApplication(pending) {
+        const session = readCachedNexaSession();
+        const product = pending?.product || {};
+        const payload = await postJson(`${U_CARD_APPLICATIONS_ENDPOINT}/recover-paid`, {
+          openId: session?.openId || '',
+          orderNo: pending?.orderNo || '',
+          productCode: product.product_code || product.id || pending?.productCode || '',
+          productName: pending?.product_name || product.name || 'U 卡申请',
+          amount: pending?.amount || product.fee_amount || '0.00',
+          currency: pending?.currency || product.currency || 'USDT'
+        });
+        return payload.item || null;
+      }
+
       async function submitUCardHolderProfile(applicationNo, holder) {
         const session = readCachedNexaSession();
         const payload = await postJson(
@@ -962,6 +976,8 @@
           if (status === 'SUCCESS') {
             if (pending.applicationNo) {
               await confirmUCardApplicationPayment(pending.applicationNo);
+            } else {
+              await recoverPaidUCardApplication(pending);
             }
             clearPendingPayment();
             await loadMyCards();
@@ -998,6 +1014,7 @@
           const pending = {
             orderNo: response.orderNo,
             applicationNo: response.application?.application_no || '',
+            productCode,
             amount: response.amount,
             currency: response.currency,
             product: response.product || product,
@@ -1011,6 +1028,8 @@
           if (paid) {
             if (pending.applicationNo) {
               await confirmUCardApplicationPayment(pending.applicationNo);
+            } else {
+              await recoverPaidUCardApplication(pending);
             }
             clearPendingPayment();
             await loadMyCards();

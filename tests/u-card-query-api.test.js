@@ -371,6 +371,22 @@ test('public U card products endpoint signs and normalizes upstream products', a
     assert.equal(profiled.body.item.status, 'review_pending');
     assert.equal(profiled.body.item.cardholder_id, 'cardholder-001');
     assert.equal(profiled.body.item.upstream_application_id, 'REQ_UCARD_001');
+
+    const recovered = await harness.request(
+      'POST',
+      '/api/u-card/applications/recover-paid',
+      {
+        orderNo: 'nexa-u-card-order-legacy',
+        openId: 'nexa-open-id',
+        productCode: 'virtual-usd',
+        productName: 'Virtual USD Card',
+        amount: '10.00',
+        currency: 'USDT'
+      }
+    );
+    assert.equal(recovered.statusCode, 200, JSON.stringify(recovered.body));
+    assert.equal(recovered.body.item.status, 'needs_profile');
+    assert.equal(recovered.body.item.order_no, 'nexa-u-card-order-legacy');
   } finally {
     global.fetch = previousFetch;
     harness.cleanup();

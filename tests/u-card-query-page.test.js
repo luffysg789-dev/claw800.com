@@ -60,6 +60,7 @@ test('U card application requires payment before showing cardholder form', () =>
   assert.match(html, /function beginUCardPayment\(productCode, button\)/);
   assert.match(html, /window\.location\.href = buildNexaPaymentUrl\(response\.payment\);/);
   assert.match(html, /function confirmUCardApplicationPayment\(applicationNo\)/);
+  assert.match(html, /function recoverPaidUCardApplication\(pending\)/);
   assert.match(html, /function loadMyCards\(\)/);
   assert.match(html, /function openCardholderForm\(application\)/);
   assert.match(html, /data-fill-profile/);
