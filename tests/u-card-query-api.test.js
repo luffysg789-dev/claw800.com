@@ -199,6 +199,24 @@ test('public U card products endpoint signs and normalizes upstream products', a
           }
         };
       }
+      if (String(url).includes('/open-api/cardholders/options')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              ok: true,
+              data: {
+                countries: [{ code: 'CN', name: '中国' }],
+                phoneCountryCodes: [
+                  { code: '+86', name: '中国' },
+                  { code: '+852', name: '香港' }
+                ]
+              }
+            };
+          }
+        };
+      }
       if (String(url).includes('/open-api/cardholders')) {
         return {
           ok: true,
@@ -308,6 +326,13 @@ test('public U card products endpoint signs and normalizes upstream products', a
     const configuredProducts = await harness.request('GET', '/api/u-card/products');
     assert.equal(configuredProducts.statusCode, 200);
     assert.equal(configuredProducts.body.items[0].fee_amount, '10.00');
+
+    const holderOptions = await harness.request('GET', '/api/u-card/holder-options');
+    assert.equal(holderOptions.statusCode, 200);
+    assert.deepEqual(holderOptions.body.phoneCountryCodes, [
+      { value: '+86', label: '中国' },
+      { value: '+852', label: '香港' }
+    ]);
 
     harness.db
       .prepare("INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, datetime('now'))")

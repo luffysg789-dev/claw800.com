@@ -417,14 +417,15 @@
           <div class="form-row">
             <span class="form-label"><span class="required">*</span> 手机号</span>
             <div class="phone-fields">
-              <select name="phoneCode" required aria-label="区号">
-                <option value="+86">+86</option>
-                <option value="+852">+852</option>
-                <option value="+81">+81</option>
-                <option value="+65">+65</option>
-                <option value="+1">+1</option>
-                <option value="+61">+61</option>
-              </select>
+              <input id="holderPhoneCode" name="phoneCode" list="holderPhoneCodeOptions" value="+86" placeholder="+86" required inputmode="tel" autocomplete="tel-country-code" aria-label="区号" />
+              <datalist id="holderPhoneCodeOptions">
+                <option value="+86"></option>
+                <option value="+852"></option>
+                <option value="+81"></option>
+                <option value="+65"></option>
+                <option value="+1"></option>
+                <option value="+61"></option>
+              </datalist>
               <input name="phone" placeholder="手机号" required inputmode="tel" autocomplete="tel" />
             </div>
           </div>
@@ -484,6 +485,7 @@
       const NEXA_PROTOCOL_ORDER_BASE = 'nexaauth://order';
       const NEXA_PUBLIC_CONFIG_ENDPOINT = '/api/nexa/public-config';
       const U_CARD_PRODUCTS_ENDPOINT = '/api/u-card/products';
+      const U_CARD_HOLDER_OPTIONS_ENDPOINT = '/api/u-card/holder-options';
       const U_CARD_PAYMENT_CREATE_ENDPOINT = '/api/u-card/payment/create';
       const U_CARD_PAYMENT_QUERY_ENDPOINT = '/api/nexa/tip/query';
       const U_CARD_APPLICATIONS_ENDPOINT = '/api/u-card/applications';
@@ -506,6 +508,7 @@
       let cachedNexaPublicConfig = null;
       let currentProducts = [];
       let currentApplications = [];
+      let holderOptionsLoaded = false;
       let activePaidApplication = null;
 
       tabButtons.forEach((button) => {
@@ -679,6 +682,50 @@
         } catch (error) {
           allCardsList.innerHTML = '';
           setAllCardsStatus(error?.message || 'U 卡产品加载失败', 'error');
+        }
+      }
+
+      function renderOptionList(target, items = [], fallback = []) {
+        if (!target) return;
+        const merged = [...items, ...fallback.map((value) => ({ value, label: value }))];
+        const seen = new Set();
+        target.innerHTML = merged
+          .filter((item) => {
+            const value = String(item?.value || '').trim();
+            if (!value || seen.has(value)) return false;
+            seen.add(value);
+            return true;
+          })
+          .map((item) => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label || item.value)}</option>`)
+          .join('');
+      }
+
+      async function loadUCardHolderOptions() {
+        if (holderOptionsLoaded) return;
+        holderOptionsLoaded = true;
+        try {
+          const response = await fetch(U_CARD_HOLDER_OPTIONS_ENDPOINT, {
+            method: 'GET',
+            cache: 'no-store',
+            credentials: 'same-origin',
+            headers: {
+              Accept: 'application/json',
+              'Cache-Control': 'no-store',
+              Pragma: 'no-cache'
+            }
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok || payload?.ok === false) throw new Error(payload?.error || '用卡人选项加载失败');
+          renderOptionList(document.getElementById('holderPhoneCodeOptions'), payload.phoneCountryCodes, [
+            '+86',
+            '+852',
+            '+81',
+            '+65',
+            '+1',
+            '+61'
+          ]);
+        } catch (error) {
+          holderOptionsLoaded = false;
         }
       }
 
@@ -955,10 +1002,12 @@
       function openCardholderForm(application) {
         activePaidApplication = application;
         holderForm.reset();
+        document.getElementById('holderPhoneCode').value = '+86';
         holderMessage.textContent = '';
         holderMessage.classList.remove('error');
         holderProduct.textContent = `${application.product_name || application.product?.name || 'U 卡产品'} · 已支付 ${application.amount || ''} ${application.currency || 'USDT'}`;
         holderModal.classList.remove('hidden');
+        loadUCardHolderOptions();
         document.getElementById('holderFirstName').focus();
       }
 

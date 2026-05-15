@@ -5114,6 +5114,45 @@ function extractUCardStatus(payload = {}) {
   return String(data.status || data.applyStatus || data.apply_status || '').trim().toUpperCase();
 }
 
+function normalizeUCardOptionItems(items = [], { valueKeys = [], labelKeys = [] } = {}) {
+  if (!Array.isArray(items)) return [];
+  const seen = new Set();
+  return items
+    .map((item) => {
+      if (typeof item === 'string' || typeof item === 'number') {
+        const value = String(item).trim();
+        return { value, label: value };
+      }
+      if (!item || typeof item !== 'object') return null;
+      const value = valueKeys.map((key) => String(item[key] || '').trim()).find(Boolean) || '';
+      const label = labelKeys.map((key) => String(item[key] || '').trim()).find(Boolean) || value;
+      return value ? { value, label: label || value } : null;
+    })
+    .filter((item) => {
+      if (!item?.value || seen.has(item.value)) return false;
+      seen.add(item.value);
+      return true;
+    });
+}
+
+async function fetchUCardHolderOptions() {
+  const payload = await postUCardUpalJson('/open-api/cardholders/options', {});
+  const data = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
+  return {
+    countries: normalizeUCardOptionItems(data.countries || data.countryCodes || data.country_codes || [], {
+      valueKeys: ['code', 'value', 'countryCode', 'country_code', 'iso2', 'name'],
+      labelKeys: ['name', 'label', 'text', 'title', 'code', 'value']
+    }),
+    phoneCountryCodes: normalizeUCardOptionItems(
+      data.phoneCountryCodes || data.phone_country_codes || data.phoneCodes || data.phone_codes || [],
+      {
+        valueKeys: ['code', 'value', 'phoneCountryCode', 'phone_country_code', 'dialCode', 'dial_code'],
+        labelKeys: ['name', 'label', 'text', 'title', 'code', 'value']
+      }
+    )
+  };
+}
+
 async function submitUCardHolderAndOpen(row = {}, holder = {}) {
   const holderPayload = buildUCardHolderPayload(holder);
   const holderResponse = await postUCardUpalJson('/open-api/cardholders', holderPayload);
@@ -5248,6 +5287,17 @@ app.get('/api/u-card/products', async (_req, res) => {
   } catch (error) {
     const statusCode = Number(error?.statusCode || 502);
     res.status(statusCode).json({ error: String(error?.message || '获取 U 卡产品失败') });
+  }
+});
+
+app.get('/api/u-card/holder-options', async (_req, res) => {
+  try {
+    const options = await fetchUCardHolderOptions();
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+    res.json({ ok: true, ...options });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 502);
+    res.status(statusCode).json({ error: String(error?.message || '获取用卡人选项失败') });
   }
 });
 
