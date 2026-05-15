@@ -77,6 +77,7 @@ test('U card application requires payment before showing cardholder form', () =>
   assert.match(html, /<span class="required">\*<\/span> 城市/);
   assert.match(html, /<span class="required">\*<\/span> 邮政编码/);
   assert.match(html, /<span class="required">\*<\/span> 详细地址/);
+  assert.match(html, /\.form-row input,\s*\.form-row select\s*\{[\s\S]*font-size:\s*16px;/);
 });
 
 test('U card application page exposes approved card upstream actions', () => {
