@@ -329,6 +329,20 @@
         line-height: 1.5;
       }
 
+      .my-card-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .my-card-actions button {
+        min-height: 36px;
+        border-radius: 8px;
+        padding: 0 12px;
+        font-size: 13px;
+      }
+
       .hidden {
         display: none;
       }
@@ -472,9 +486,9 @@
       const U_CARD_PRODUCTS_ENDPOINT = '/api/u-card/products';
       const U_CARD_PAYMENT_CREATE_ENDPOINT = '/api/u-card/payment/create';
       const U_CARD_PAYMENT_QUERY_ENDPOINT = '/api/nexa/tip/query';
+      const U_CARD_APPLICATIONS_ENDPOINT = '/api/u-card/applications';
       const U_CARD_SESSION_STORAGE_KEY = 'claw800:u-card:nexa-session';
       const U_CARD_PENDING_PAYMENT_STORAGE_KEY = 'claw800:u-card:pending-payment';
-      const U_CARD_APPLICATIONS_STORAGE_KEY = 'claw800:u-card:applications';
 
       const tabButtons = document.querySelectorAll('.tab-button');
       const panels = document.querySelectorAll('[data-panel]');
@@ -491,6 +505,7 @@
       const holderCancelButton = document.getElementById('uCardHolderCancelBtn');
       let cachedNexaPublicConfig = null;
       let currentProducts = [];
+      let currentApplications = [];
       let activePaidApplication = null;
 
       tabButtons.forEach((button) => {
@@ -498,6 +513,7 @@
           const tab = button.dataset.tab;
           tabButtons.forEach((item) => item.classList.toggle('active', item === button));
           panels.forEach((panel) => panel.classList.toggle('hidden', panel.dataset.panel !== tab));
+          if (tab === 'mine') loadMyCards();
         });
       });
 
@@ -511,6 +527,12 @@
         allCardsStatus.textContent = message || '';
         allCardsStatus.classList.toggle('error', tone === 'error');
         allCardsStatus.classList.toggle('hidden', !message);
+      }
+
+      function setMineCardsStatus(message, tone = '') {
+        mineCardsStatus.textContent = message || '';
+        mineCardsStatus.classList.toggle('error', tone === 'error');
+        mineCardsStatus.classList.toggle('hidden', !message);
       }
 
       function selectTab(tab) {
@@ -557,35 +579,78 @@
           .join('');
       }
 
-      function readApplications() {
-        try {
-          const items = JSON.parse(localStorage.getItem(U_CARD_APPLICATIONS_STORAGE_KEY) || '[]');
-          return Array.isArray(items) ? items : [];
-        } catch (error) {
-          return [];
-        }
-      }
-
-      function saveApplications(items) {
-        localStorage.setItem(U_CARD_APPLICATIONS_STORAGE_KEY, JSON.stringify(items));
-      }
-
-      function renderMyCards() {
-        const items = readApplications();
-        mineCardsStatus.classList.toggle('hidden', items.length > 0);
-        if (!items.length) {
+      function renderMyCards(items = currentApplications) {
+        currentApplications = Array.isArray(items) ? items : [];
+        if (!currentApplications.length) {
           mineCardsList.innerHTML = '';
+          setMineCardsStatus('申请成功后，卡会显示在这里。');
           return;
         }
-        mineCardsList.innerHTML = items
-          .map((item) => `
-            <article class="my-card-item">
-              <h2>${escapeHtml(item.productName || 'U 卡申请')}</h2>
-              <p>状态：${escapeHtml(item.status || '资料已提交')}</p>
-              <p>订单：${escapeHtml(item.orderNo || '-')}</p>
-            </article>
-          `)
+        setMineCardsStatus('');
+        mineCardsList.innerHTML = currentApplications
+          .map((item) => {
+            const status = String(item.status || '').trim();
+            const canFillProfile = status === 'needs_profile' || !item.has_holder_profile;
+            const isApproved = status === 'approved';
+            return `
+              <article class="my-card-item" data-application-no="${escapeHtml(item.application_no || '')}">
+                <h2>${escapeHtml(item.product_name || 'U 卡申请')}</h2>
+                <p>状态：${escapeHtml(item.status_label || status || '处理中')}</p>
+                <p>订单：${escapeHtml(item.order_no || '-')}</p>
+                ${item.card_no_masked ? `<p>卡号：${escapeHtml(item.card_no_masked)}</p>` : ''}
+                ${status === 'review_pending' ? `<p>已提交上游审核，系统会在约 20 分钟后继续查询。</p>` : ''}
+                <div class="my-card-actions">
+                  ${
+                    canFillProfile
+                      ? `<button class="primary-button" type="button" data-fill-profile="${escapeHtml(item.application_no || '')}">补充资料</button>`
+                      : ''
+                  }
+                  ${
+                    status === 'review_pending'
+                      ? `<button class="secondary-button" type="button" data-check-review="${escapeHtml(item.application_no || '')}">刷新审核</button>`
+                      : ''
+                  }
+                  ${
+                    isApproved
+                      ? `
+                        <button class="primary-button" type="button" data-recharge-card="${escapeHtml(item.application_no || '')}">充卡</button>
+                        <button class="secondary-button" type="button" data-view-secure="${escapeHtml(item.application_no || '')}">查看卡号</button>
+                        <button class="secondary-button" type="button" data-view-ledger="${escapeHtml(item.application_no || '')}">资金明细</button>
+                      `
+                      : ''
+                  }
+                </div>
+              </article>
+            `;
+          })
           .join('');
+      }
+
+      async function loadMyCards() {
+        const session = readCachedNexaSession();
+        if (!session?.openId) {
+          renderMyCards([]);
+          return;
+        }
+        setMineCardsStatus('正在加载我的卡...');
+        try {
+          const response = await fetch(`${U_CARD_APPLICATIONS_ENDPOINT}?openId=${encodeURIComponent(session.openId)}`, {
+            method: 'GET',
+            cache: 'no-store',
+            credentials: 'same-origin',
+            headers: {
+              Accept: 'application/json',
+              'Cache-Control': 'no-store',
+              Pragma: 'no-cache'
+            }
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok || payload?.ok === false) throw new Error(payload?.error || '我的卡加载失败');
+          renderMyCards(Array.isArray(payload.items) ? payload.items : []);
+        } catch (error) {
+          mineCardsList.innerHTML = '';
+          setMineCardsStatus(error?.message || '我的卡加载失败', 'error');
+        }
       }
 
       function findProduct(productCode) {
@@ -830,11 +895,55 @@
         return false;
       }
 
+      function findApplication(applicationNo) {
+        const normalized = String(applicationNo || '').trim();
+        return currentApplications.find((item) => String(item.application_no || '').trim() === normalized) || null;
+      }
+
+      async function confirmUCardApplicationPayment(applicationNo) {
+        const session = readCachedNexaSession();
+        const payload = await postJson(
+          `${U_CARD_APPLICATIONS_ENDPOINT}/${encodeURIComponent(applicationNo)}/confirm-payment`,
+          { openId: session?.openId || '' }
+        );
+        return payload.item || null;
+      }
+
+      async function submitUCardHolderProfile(applicationNo, holder) {
+        const session = readCachedNexaSession();
+        const payload = await postJson(
+          `${U_CARD_APPLICATIONS_ENDPOINT}/${encodeURIComponent(applicationNo)}/profile`,
+          {
+            openId: session?.openId || '',
+            holder
+          }
+        );
+        return payload.item || null;
+      }
+
+      async function checkUCardReview(applicationNo) {
+        const session = readCachedNexaSession();
+        const payload = await postJson(
+          `${U_CARD_APPLICATIONS_ENDPOINT}/${encodeURIComponent(applicationNo)}/check-review`,
+          { openId: session?.openId || '' }
+        );
+        return payload.item || null;
+      }
+
+      async function callUCardAction(applicationNo, action, body = {}) {
+        const session = readCachedNexaSession();
+        return postJson(`${U_CARD_APPLICATIONS_ENDPOINT}/${encodeURIComponent(applicationNo)}/${action}`, {
+          openId: session?.openId || '',
+          ...body
+        });
+      }
+
       function openCardholderForm(application) {
         activePaidApplication = application;
         holderForm.reset();
         holderMessage.textContent = '';
-        holderProduct.textContent = `${application.product?.name || 'U 卡产品'} · 已支付 ${application.amount || ''} ${application.currency || 'USDT'}`;
+        holderMessage.classList.remove('error');
+        holderProduct.textContent = `${application.product_name || application.product?.name || 'U 卡产品'} · 已支付 ${application.amount || ''} ${application.currency || 'USDT'}`;
         holderModal.classList.remove('hidden');
         document.getElementById('holderFirstName').focus();
       }
@@ -851,9 +960,13 @@
         try {
           const status = await queryPaymentStatus(pending.orderNo);
           if (status === 'SUCCESS') {
+            if (pending.applicationNo) {
+              await confirmUCardApplicationPayment(pending.applicationNo);
+            }
             clearPendingPayment();
-            setSessionStatus('支付成功，请填写用卡人资料。', 'success');
-            openCardholderForm(pending);
+            await loadMyCards();
+            selectTab('mine');
+            setSessionStatus('支付成功，已放入我的卡。点开后可补充用卡人资料。', 'success');
           } else if (status === 'FAILED' || status === 'CANCELED' || status === 'EXPIRED') {
             clearPendingPayment();
             setSessionStatus('支付未完成，请重新申请。', 'error');
@@ -884,19 +997,25 @@
           });
           const pending = {
             orderNo: response.orderNo,
+            applicationNo: response.application?.application_no || '',
             amount: response.amount,
             currency: response.currency,
             product: response.product || product,
+            product_name: response.application?.product_name || response.product?.name || product.name || 'U 卡产品',
             createdAt: Date.now()
           };
           rememberPendingPayment(pending);
-          setSessionStatus('请在 Nexa 中完成支付，支付成功后填写用卡人资料。');
+          setSessionStatus('请在 Nexa 中完成支付，支付成功后会先放入我的卡。');
           window.location.href = buildNexaPaymentUrl(response.payment);
           const paid = await waitForPaymentSuccess(response.orderNo);
           if (paid) {
+            if (pending.applicationNo) {
+              await confirmUCardApplicationPayment(pending.applicationNo);
+            }
             clearPendingPayment();
-            setSessionStatus('支付成功，请填写用卡人资料。', 'success');
-            openCardholderForm(pending);
+            await loadMyCards();
+            selectTab('mine');
+            setSessionStatus('支付成功，已放入我的卡。点开后可补充用卡人资料。', 'success');
           }
         } catch (error) {
           setSessionStatus(error?.message || 'U 卡支付下单失败', 'error');
@@ -911,8 +1030,54 @@
         if (!button) return;
         beginUCardPayment(String(button.dataset.applyProduct || '').trim(), button);
       });
+      mineCardsList.addEventListener('click', async (event) => {
+        const fillButton = event.target.closest('[data-fill-profile]');
+        const checkButton = event.target.closest('[data-check-review]');
+        const secureButton = event.target.closest('[data-view-secure]');
+        const rechargeButton = event.target.closest('[data-recharge-card]');
+        const ledgerButton = event.target.closest('[data-view-ledger]');
+        try {
+          if (fillButton) {
+            const item = findApplication(fillButton.dataset.fillProfile);
+            if (item) openCardholderForm(item);
+            return;
+          }
+          if (checkButton) {
+            checkButton.disabled = true;
+            const item = await checkUCardReview(checkButton.dataset.checkReview);
+            if (item) await loadMyCards();
+            setSessionStatus(item?.status === 'approved' ? '审核已通过，卡功能已开放。' : '仍在审核中，请稍后再查。', item?.status === 'approved' ? 'success' : '');
+            return;
+          }
+          if (secureButton) {
+            secureButton.disabled = true;
+            const payload = await callUCardAction(secureButton.dataset.viewSecure, 'secure-info');
+            alert(JSON.stringify(payload.item || payload, null, 2));
+            return;
+          }
+          if (rechargeButton) {
+            const amount = window.prompt('请输入充卡金额（USDT）');
+            if (!amount) return;
+            rechargeButton.disabled = true;
+            await callUCardAction(rechargeButton.dataset.rechargeCard, 'recharge', { amount });
+            setSessionStatus('充卡请求已提交，上游处理中。', 'success');
+            return;
+          }
+          if (ledgerButton) {
+            ledgerButton.disabled = true;
+            const payload = await callUCardAction(ledgerButton.dataset.viewLedger, 'transactions');
+            alert(JSON.stringify(payload.item || payload, null, 2));
+          }
+        } catch (error) {
+          setSessionStatus(error?.message || 'U 卡操作失败', 'error');
+        } finally {
+          [fillButton, checkButton, secureButton, rechargeButton, ledgerButton].forEach((button) => {
+            if (button) button.disabled = false;
+          });
+        }
+      });
       holderCancelButton.addEventListener('click', closeCardholderForm);
-      holderForm.addEventListener('submit', (event) => {
+      holderForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         if (!activePaidApplication) return;
         const formData = Object.fromEntries(new FormData(holderForm).entries());
@@ -924,23 +1089,25 @@
           holderMessage.classList.add('error');
           return;
         }
-        const applications = readApplications();
-        applications.unshift({
-          ...activePaidApplication,
-          holder: formData,
-          productName: activePaidApplication.product?.name || 'U 卡申请',
-          status: '资料已提交',
-          submittedAt: Date.now()
-        });
-        saveApplications(applications);
-        renderMyCards();
-        closeCardholderForm();
-        selectTab('mine');
-        setSessionStatus('卡资料已提交，已放入我的卡。', 'success');
+        const submitButton = holderForm.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        holderMessage.textContent = '正在提交资料并发起上游开卡...';
+        holderMessage.classList.remove('error');
+        try {
+          await submitUCardHolderProfile(activePaidApplication.application_no, formData);
+          await loadMyCards();
+          closeCardholderForm();
+          selectTab('mine');
+          setSessionStatus('卡资料已提交，已进入审核中。约 20 分钟后会继续查询上游结果。', 'success');
+        } catch (error) {
+          holderMessage.textContent = error?.message || '资料提交失败';
+          holderMessage.classList.add('error');
+        } finally {
+          submitButton.disabled = false;
+        }
       });
       loadUCardProducts();
-      renderMyCards();
-      syncSessionFromAuthCode().then(settlePendingPayment);
+      syncSessionFromAuthCode().then(() => loadMyCards()).then(settlePendingPayment);
     </script>
   </body>
 </html>

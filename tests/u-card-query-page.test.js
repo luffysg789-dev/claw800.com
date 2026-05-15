@@ -56,9 +56,14 @@ test('U card application requires payment before showing cardholder form', () =>
   assert.match(html, /const NEXA_PROTOCOL_ORDER_BASE = 'nexaauth:\/\/order';/);
   assert.match(html, /const U_CARD_PAYMENT_CREATE_ENDPOINT = '\/api\/u-card\/payment\/create';/);
   assert.match(html, /const U_CARD_PAYMENT_QUERY_ENDPOINT = '\/api\/nexa\/tip\/query';/);
+  assert.match(html, /const U_CARD_APPLICATIONS_ENDPOINT = '\/api\/u-card\/applications';/);
   assert.match(html, /function beginUCardPayment\(productCode, button\)/);
   assert.match(html, /window\.location\.href = buildNexaPaymentUrl\(response\.payment\);/);
+  assert.match(html, /function confirmUCardApplicationPayment\(applicationNo\)/);
+  assert.match(html, /function loadMyCards\(\)/);
   assert.match(html, /function openCardholderForm\(application\)/);
+  assert.match(html, /data-fill-profile/);
+  assert.match(html, /submitUCardHolderProfile\(activePaidApplication\.application_no, formData\)/);
   assert.match(html, /id="uCardHolderModal"/);
   assert.match(html, /<span class="required">\*<\/span> 名字/);
   assert.match(html, /<span class="required">\*<\/span> 姓氏/);
@@ -71,6 +76,17 @@ test('U card application requires payment before showing cardholder form', () =>
   assert.match(html, /<span class="required">\*<\/span> 城市/);
   assert.match(html, /<span class="required">\*<\/span> 邮政编码/);
   assert.match(html, /<span class="required">\*<\/span> 详细地址/);
+});
+
+test('U card application page exposes approved card upstream actions', () => {
+  const html = fs.readFileSync(uCardApplyHtmlPath, 'utf8');
+  assert.match(html, /data-recharge-card/);
+  assert.match(html, /data-view-secure/);
+  assert.match(html, /data-view-ledger/);
+  assert.match(html, /checkUCardReview/);
+  assert.match(html, /callUCardAction\(secureButton\.dataset\.viewSecure, 'secure-info'\)/);
+  assert.match(html, /callUCardAction\(rechargeButton\.dataset\.rechargeCard, 'recharge'/);
+  assert.match(html, /callUCardAction\(ledgerButton\.dataset\.viewLedger, 'transactions'\)/);
 });
 
 test('U card query page includes language toggle after platform count', () => {

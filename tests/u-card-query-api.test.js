@@ -168,6 +168,61 @@ test('public U card products endpoint signs and normalizes upstream products', a
           }
         };
       }
+      if (String(url).includes('/partner/api/openapi/payment/query')) {
+        return {
+          ok: true,
+          status: 200,
+          async text() {
+            return JSON.stringify({
+              code: '0',
+              data: {
+                orderNo: 'nexa-u-card-order-1',
+                status: 'SUCCESS',
+                amount: '10.00',
+                currency: 'USDT',
+                paidTime: '2026-05-15 12:00:00'
+              }
+            });
+          },
+          async json() {
+            return {
+              code: '0',
+              data: {
+                orderNo: 'nexa-u-card-order-1',
+                status: 'SUCCESS',
+                amount: '10.00',
+                currency: 'USDT',
+                paidTime: '2026-05-15 12:00:00'
+              }
+            };
+          }
+        };
+      }
+      if (String(url).includes('/open-api/cardholders')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return { ok: true, data: { id: 'cardholder-001' } };
+          }
+        };
+      }
+      if (String(url).includes('/open-api/cards/open')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              ok: true,
+              data: {
+                requestId: 'REQ_UCARD_001',
+                status: 'PROCESSING',
+                productCode: 'virtual-usd'
+              }
+            };
+          }
+        };
+      }
       captured = {
         url: String(url),
         method: options.method,
@@ -272,8 +327,50 @@ test('public U card products endpoint signs and normalizes upstream products', a
     assert.equal(payment.body.amount, '10.00');
     assert.equal(payment.body.currency, 'USDT');
     assert.equal(payment.body.payment.orderNo, 'nexa-u-card-order-1');
+    assert.match(payment.body.application.application_no, /^UC/);
+    assert.equal(payment.body.application.status, 'awaiting_payment');
     assert.equal(capturedPayment.body.amount, '10.00');
     assert.equal(capturedPayment.body.sessionKey, 'nexa-session-key');
+
+    const applicationNo = payment.body.application.application_no;
+    const confirmed = await harness.request(
+      'POST',
+      `/api/u-card/applications/${applicationNo}/confirm-payment`,
+      { openId: 'nexa-open-id' }
+    );
+    assert.equal(confirmed.statusCode, 200, JSON.stringify(confirmed.body));
+    assert.equal(confirmed.body.item.status, 'needs_profile');
+
+    const listed = await harness.request('GET', '/api/u-card/applications?openId=nexa-open-id');
+    assert.equal(listed.statusCode, 200);
+    assert.equal(listed.body.items.length, 1);
+    assert.equal(listed.body.items[0].status, 'needs_profile');
+
+    const profiled = await harness.request(
+      'POST',
+      `/api/u-card/applications/${applicationNo}/profile`,
+      {
+        openId: 'nexa-open-id',
+        holder: {
+          firstName: 'Open',
+          lastName: 'Api',
+          nationality: '中国',
+          birthday: '1990-01-01',
+          phoneCode: '+86',
+          phone: '13800000000',
+          email: 'open@example.com',
+          country: '中国',
+          state: '广东',
+          city: '深圳',
+          postalCode: '518000',
+          address: 'Demo Street 1'
+        }
+      }
+    );
+    assert.equal(profiled.statusCode, 200, JSON.stringify(profiled.body));
+    assert.equal(profiled.body.item.status, 'review_pending');
+    assert.equal(profiled.body.item.cardholder_id, 'cardholder-001');
+    assert.equal(profiled.body.item.upstream_application_id, 'REQ_UCARD_001');
   } finally {
     global.fetch = previousFetch;
     harness.cleanup();

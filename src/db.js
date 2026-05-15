@@ -1094,6 +1094,42 @@ db.exec(`
 `);
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS u_card_applications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    application_no TEXT NOT NULL UNIQUE,
+    order_no TEXT NOT NULL UNIQUE,
+    open_id TEXT NOT NULL,
+    product_code TEXT NOT NULL,
+    product_name TEXT NOT NULL DEFAULT '',
+    amount TEXT NOT NULL DEFAULT '0.00',
+    currency TEXT NOT NULL DEFAULT 'USDT',
+    payment_status TEXT NOT NULL DEFAULT 'PENDING',
+    status TEXT NOT NULL DEFAULT 'awaiting_payment',
+    holder_json TEXT NOT NULL DEFAULT '',
+    upstream_cardholder_id TEXT NOT NULL DEFAULT '',
+    upstream_application_id TEXT NOT NULL DEFAULT '',
+    upstream_card_id TEXT NOT NULL DEFAULT '',
+    platform_card_no TEXT NOT NULL DEFAULT '',
+    card_no_masked TEXT NOT NULL DEFAULT '',
+    next_review_check_at TEXT NOT NULL DEFAULT '',
+    submitted_at TEXT NOT NULL DEFAULT '',
+    approved_at TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+for (const [column, definition] of [
+  ['upstream_cardholder_id', "TEXT NOT NULL DEFAULT ''"],
+  ['platform_card_no', "TEXT NOT NULL DEFAULT ''"]
+]) {
+  const exists = db.prepare("SELECT 1 FROM pragma_table_info('u_card_applications') WHERE name = ?").get(column);
+  if (!exists) {
+    db.exec(`ALTER TABLE u_card_applications ADD COLUMN ${column} ${definition}`);
+  }
+}
+
+db.exec(`
   CREATE INDEX IF NOT EXISTS idx_u_card_platforms_enabled_sort
   ON u_card_platforms(is_enabled DESC, sort_order ASC, id ASC);
 `);
@@ -1106,6 +1142,16 @@ db.exec(`
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_u_card_products_enabled_updated
   ON u_card_products(is_enabled DESC, updated_at DESC, id DESC);
+`);
+
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_u_card_applications_open_updated
+  ON u_card_applications(open_id, updated_at DESC, id DESC);
+`);
+
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_u_card_applications_review_check
+  ON u_card_applications(status, next_review_check_at);
 `);
 
 const DEFAULT_U_CARD_PLATFORMS = [

@@ -3124,6 +3124,60 @@ const selectUCardProductConfigByCodeStmt = db.prepare(`
   FROM u_card_products
   WHERE product_code = ?
 `);
+const insertUCardApplicationStmt = db.prepare(`
+  INSERT INTO u_card_applications (
+    application_no, order_no, open_id, product_code, product_name, amount, currency, payment_status, status, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+`);
+const selectUCardApplicationByNoStmt = db.prepare(`
+  SELECT *
+  FROM u_card_applications
+  WHERE application_no = ?
+`);
+const selectUCardApplicationByOrderNoStmt = db.prepare(`
+  SELECT *
+  FROM u_card_applications
+  WHERE order_no = ?
+`);
+const listUCardApplicationsByOpenIdStmt = db.prepare(`
+  SELECT *
+  FROM u_card_applications
+  WHERE open_id = ?
+  ORDER BY updated_at DESC, id DESC
+`);
+const updateUCardApplicationPaymentStmt = db.prepare(`
+  UPDATE u_card_applications
+  SET payment_status = ?,
+      status = CASE
+        WHEN ? = 'SUCCESS' AND status = 'awaiting_payment' THEN 'needs_profile'
+        ELSE status
+      END,
+      updated_at = datetime('now')
+  WHERE application_no = ?
+`);
+const updateUCardApplicationHolderStmt = db.prepare(`
+  UPDATE u_card_applications
+  SET holder_json = ?,
+      upstream_cardholder_id = ?,
+      upstream_application_id = ?,
+      upstream_card_id = ?,
+      platform_card_no = ?,
+      status = 'review_pending',
+      submitted_at = datetime('now'),
+      next_review_check_at = datetime('now', '+20 minutes'),
+      updated_at = datetime('now')
+  WHERE application_no = ?
+`);
+const updateUCardApplicationReviewStmt = db.prepare(`
+  UPDATE u_card_applications
+  SET status = ?,
+      upstream_card_id = COALESCE(NULLIF(?, ''), upstream_card_id),
+      platform_card_no = COALESCE(NULLIF(?, ''), platform_card_no),
+      card_no_masked = COALESCE(NULLIF(?, ''), card_no_masked),
+      approved_at = CASE WHEN ? = 'approved' AND trim(approved_at) = '' THEN datetime('now') ELSE approved_at END,
+      updated_at = datetime('now')
+  WHERE application_no = ?
+`);
 const listSkillsCatalogStmt = db.prepare(`
   SELECT id, name, name_en, url, description, description_en, category, category_en, icon, sort_order, is_pinned, is_hot, created_at, updated_at
   FROM skills_catalog
@@ -4860,6 +4914,227 @@ async function findUCardUpalProduct(productCode = '') {
   );
 }
 
+function createUCardApplicationNo() {
+  return `UC${Date.now().toString(36).toUpperCase()}${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+}
+
+function parseJsonObject(value) {
+  try {
+    const parsed = JSON.parse(String(value || '{}'));
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function maskUCardNumber(value = '') {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const compact = raw.replace(/\s+/g, '');
+  if (compact.length <= 8) return compact;
+  return `${compact.slice(0, 4)} **** **** ${compact.slice(-4)}`;
+}
+
+function normalizeUCardApplicationStatus(row = {}) {
+  const paymentStatus = String(row.payment_status || '').trim().toUpperCase();
+  const status = String(row.status || '').trim();
+  if (paymentStatus !== 'SUCCESS') return 'awaiting_payment';
+  if (!String(row.holder_json || '').trim()) return 'needs_profile';
+  return status || 'review_pending';
+}
+
+function formatUCardApplication(row = {}) {
+  const status = normalizeUCardApplicationStatus(row);
+  return {
+    application_no: String(row.application_no || '').trim(),
+    order_no: String(row.order_no || '').trim(),
+    product_code: String(row.product_code || '').trim(),
+    product_name: String(row.product_name || 'U 卡申请').trim(),
+    amount: String(row.amount || '').trim(),
+    currency: String(row.currency || 'USDT').trim(),
+    payment_status: String(row.payment_status || '').trim(),
+    status,
+    status_label:
+      status === 'approved'
+        ? '已通过'
+        : status === 'review_pending'
+          ? '审核中'
+          : status === 'needs_profile'
+            ? '待补资料'
+            : '待支付',
+    has_holder_profile: Boolean(String(row.holder_json || '').trim()),
+    holder: parseJsonObject(row.holder_json),
+    cardholder_id: String(row.upstream_cardholder_id || '').trim(),
+    upstream_application_id: String(row.upstream_application_id || '').trim(),
+    card_id: String(row.upstream_card_id || '').trim(),
+    platform_card_no: String(row.platform_card_no || '').trim(),
+    card_no_masked: String(row.card_no_masked || '').trim(),
+    next_review_check_at: String(row.next_review_check_at || '').trim(),
+    submitted_at: String(row.submitted_at || '').trim(),
+    approved_at: String(row.approved_at || '').trim(),
+    created_at: String(row.created_at || '').trim(),
+    updated_at: String(row.updated_at || '').trim()
+  };
+}
+
+function isUCardReviewCheckDue(row = {}) {
+  const next = String(row.next_review_check_at || '').trim();
+  if (!next) return false;
+  const normalized = next.includes('T') ? next : `${next.replace(' ', 'T')}Z`;
+  const nextTime = Date.parse(normalized);
+  return Number.isFinite(nextTime) && nextTime <= Date.now();
+}
+
+function normalizeCountryCode(value = '') {
+  const raw = String(value || '').trim();
+  const map = {
+    中国: 'CN',
+    香港: 'HK',
+    日本: 'JP',
+    新加坡: 'SG',
+    美国: 'US',
+    澳大利亚: 'AU',
+    澳洲: 'AU',
+    亚美尼亚: 'AM',
+    CN: 'CN',
+    HK: 'HK',
+    JP: 'JP',
+    SG: 'SG',
+    US: 'US',
+    AU: 'AU',
+    AM: 'AM'
+  };
+  return map[raw] || raw.toUpperCase();
+}
+
+function buildUCardHolderPayload(holder = {}) {
+  return {
+    firstName: String(holder.firstName || '').trim(),
+    lastName: String(holder.lastName || '').trim(),
+    email: String(holder.email || '').trim(),
+    phoneCountryCode: String(holder.phoneCode || holder.phoneCountryCode || '').trim(),
+    phoneNumber: String(holder.phone || holder.phoneNumber || '').trim(),
+    countryCode: normalizeCountryCode(holder.nationality || holder.countryCode || holder.country),
+    birthDate: String(holder.birthday || holder.birthDate || '').trim(),
+    addressCountry: normalizeCountryCode(holder.country || holder.addressCountry || holder.nationality),
+    state: String(holder.state || '').trim(),
+    city: String(holder.city || '').trim(),
+    addressLine: String(holder.address || holder.addressLine || '').trim(),
+    postalCode: String(holder.postalCode || '').trim(),
+    securityQuestion: String(holder.securityQuestion || '').trim(),
+    securityAnswer: String(holder.securityAnswer || '').trim()
+  };
+}
+
+function requireUCardHolderFields(holder = {}) {
+  const required = [
+    ['firstName', '名字必填'],
+    ['lastName', '姓氏必填'],
+    ['email', '邮箱必填'],
+    ['phoneCode', '手机号区号必填'],
+    ['phone', '手机号必填'],
+    ['nationality', '国籍必填'],
+    ['birthday', '生日必填'],
+    ['country', '国家/地区必填'],
+    ['state', '省份/州必填'],
+    ['city', '城市必填'],
+    ['postalCode', '邮政编码必填'],
+    ['address', '详细地址必填']
+  ];
+  for (const [field, message] of required) {
+    if (!String(holder[field] || '').trim()) {
+      const error = new Error(message);
+      error.statusCode = 400;
+      throw error;
+    }
+  }
+  const birthdayTime = Date.parse(String(holder.birthday || ''));
+  const eighteenYearsAgo = new Date();
+  eighteenYearsAgo.setFullYear(eighteenYearsAgo.getFullYear() - 18);
+  if (!birthdayTime || birthdayTime > eighteenYearsAgo.getTime()) {
+    const error = new Error('生日必须大于 18 岁');
+    error.statusCode = 400;
+    throw error;
+  }
+}
+
+function extractUCardCardId(payload = {}) {
+  const data = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
+  return String(
+    data.card_id ||
+      data.cardId ||
+      data.platformCardNo ||
+      data.platform_card_no ||
+      data.cardNo ||
+      data.card_no ||
+      ''
+  ).trim();
+}
+
+function extractUCardPlatformCardNo(payload = {}) {
+  const data = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
+  return String(data.platformCardNo || data.platform_card_no || data.cardNo || data.card_no || data.card_id || data.cardId || '').trim();
+}
+
+function extractUCardStatus(payload = {}) {
+  const data = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
+  return String(data.status || data.applyStatus || data.apply_status || '').trim().toUpperCase();
+}
+
+async function submitUCardHolderAndOpen(row = {}, holder = {}) {
+  const holderPayload = buildUCardHolderPayload(holder);
+  const holderResponse = await postUCardUpalJson('/open-api/cardholders', holderPayload);
+  const holderData = holderResponse?.data && typeof holderResponse.data === 'object' ? holderResponse.data : holderResponse;
+  const cardholderId = String(holderData.id || holderData.cardholderId || holderData.cardholder_id || '').trim();
+  if (!cardholderId) throw new Error('上游未返回用卡人 ID');
+
+  const openBody = {
+    merchantOrderNo: String(row.application_no || '').trim(),
+    cardholderId,
+    productCode: String(row.product_code || '').trim(),
+    feeAmount: String(row.amount || '').trim(),
+    currency: String(row.currency || 'USDT').trim()
+  };
+  const openResponse = await postUCardUpalJson('/open-api/cards/open', openBody);
+  const openData = openResponse?.data && typeof openResponse.data === 'object' ? openResponse.data : openResponse;
+  return {
+    cardholderId,
+    requestId: String(openData.requestId || openData.request_id || row.application_no || '').trim(),
+    cardId: extractUCardCardId(openResponse),
+    platformCardNo: extractUCardPlatformCardNo(openResponse),
+    status: extractUCardStatus(openResponse),
+    raw: { holder: holderResponse, open: openResponse }
+  };
+}
+
+async function refreshUCardApplicationReview(row = {}) {
+  const formatted = formatUCardApplication(row);
+  if (formatted.status !== 'review_pending') return formatted;
+  if (!formatted.upstream_application_id && !formatted.card_id && !formatted.platform_card_no) return formatted;
+
+  let payload = null;
+  if (formatted.upstream_application_id) {
+    payload = await postUCardUpalJson('/open-api/cards/apply-result', { requestId: formatted.upstream_application_id });
+  } else if (formatted.card_id) {
+    payload = await postUCardUpalJson('/open-api/cards/upstream-detail', { cardId: formatted.card_id });
+  } else if (formatted.platform_card_no) {
+    payload = await postUCardUpalJson('/open-api/cards/query', { platformCardNo: formatted.platform_card_no });
+  }
+  const status = extractUCardStatus(payload);
+  const cardId = extractUCardCardId(payload);
+  const platformCardNo = extractUCardPlatformCardNo(payload);
+  const nextStatus = ['ACTIVE', 'APPROVED', 'SUCCESS', 'COMPLETED'].includes(status) || cardId || platformCardNo ? 'approved' : 'review_pending';
+  updateUCardApplicationReviewStmt.run(
+    nextStatus,
+    cardId,
+    platformCardNo,
+    maskUCardNumber(platformCardNo || cardId),
+    nextStatus,
+    row.application_no
+  );
+  return formatUCardApplication(selectUCardApplicationByNoStmt.get(row.application_no));
+}
+
 function replaceUCardUpstreamData({ platforms, cards }) {
   const sync = db.transaction(() => {
     db.prepare('DELETE FROM u_card_platform_support').run();
@@ -4968,6 +5243,22 @@ app.post('/api/u-card/payment/create', async (req, res) => {
       sessionKey,
       amount
     });
+    let application = selectUCardApplicationByOrderNoStmt.get(order.orderNo);
+    if (!application) {
+      const applicationNo = createUCardApplicationNo();
+      insertUCardApplicationStmt.run(
+        applicationNo,
+        order.orderNo,
+        openId,
+        product.product_code || product.id || productCode,
+        product.name || productCode,
+        amount,
+        NEXA_TIP_CURRENCY,
+        'PENDING',
+        'awaiting_payment'
+      );
+      application = selectUCardApplicationByNoStmt.get(applicationNo);
+    }
 
     res.json({
       ok: true,
@@ -4975,12 +5266,180 @@ app.post('/api/u-card/payment/create', async (req, res) => {
       amount,
       currency: NEXA_TIP_CURRENCY,
       product,
-      payment: order.payment
+      payment: order.payment,
+      application: formatUCardApplication(application)
     });
   } catch (error) {
     const statusCode = Number(error?.statusCode || 502) || 502;
     const message = String(error?.message || 'U 卡支付下单失败');
     res.status(statusCode).json({ error: message === 'INVALID_AMOUNT' ? 'U 卡产品费用无效' : message });
+  }
+});
+
+app.get('/api/u-card/applications', async (req, res) => {
+  try {
+    const openId = String(req.query?.openId || '').trim();
+    if (!openId) return res.status(400).json({ error: 'openId 必填' });
+    const rows = listUCardApplicationsByOpenIdStmt.all(openId);
+    const items = [];
+    for (const row of rows) {
+      let current = row;
+      if (String(row.payment_status || '').toUpperCase() !== 'SUCCESS' && row.order_no) {
+        try {
+          const order = await queryNexaTipOrder(row.order_no);
+          updateUCardApplicationPaymentStmt.run(order.status, order.status, row.application_no);
+          current = selectUCardApplicationByNoStmt.get(row.application_no) || row;
+        } catch {
+          current = row;
+        }
+      }
+      if (String(current.status || '').trim() === 'review_pending' && isUCardReviewCheckDue(current)) {
+        try {
+          current = await refreshUCardApplicationReview(current);
+        } catch {
+          current = selectUCardApplicationByNoStmt.get(current.application_no) || current;
+        }
+      }
+      items.push(formatUCardApplication(current));
+    }
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+    res.json({ ok: true, items });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 502) || 502;
+    res.status(statusCode).json({ error: String(error?.message || '获取我的 U 卡失败') });
+  }
+});
+
+app.post('/api/u-card/applications/:applicationNo/confirm-payment', async (req, res) => {
+  try {
+    const applicationNo = String(req.params.applicationNo || '').trim();
+    const row = selectUCardApplicationByNoStmt.get(applicationNo);
+    if (!row) return res.status(404).json({ error: 'U 卡申请不存在' });
+    const openId = String(req.body?.openId || '').trim();
+    if (openId && openId !== String(row.open_id || '').trim()) return res.status(403).json({ error: '无权操作该 U 卡申请' });
+    const order = await queryNexaTipOrder(row.order_no);
+    updateUCardApplicationPaymentStmt.run(order.status, order.status, applicationNo);
+    res.json({ ok: true, item: formatUCardApplication(selectUCardApplicationByNoStmt.get(applicationNo)) });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 502) || 502;
+    res.status(statusCode).json({ error: String(error?.message || '确认 U 卡支付失败') });
+  }
+});
+
+app.post('/api/u-card/applications/:applicationNo/profile', async (req, res) => {
+  try {
+    const applicationNo = String(req.params.applicationNo || '').trim();
+    const row = selectUCardApplicationByNoStmt.get(applicationNo);
+    if (!row) return res.status(404).json({ error: 'U 卡申请不存在' });
+    const openId = String(req.body?.openId || '').trim();
+    if (openId && openId !== String(row.open_id || '').trim()) return res.status(403).json({ error: '无权操作该 U 卡申请' });
+    if (String(row.payment_status || '').toUpperCase() !== 'SUCCESS') {
+      return res.status(409).json({ error: '请先完成付款' });
+    }
+    const holder = req.body?.holder && typeof req.body.holder === 'object' ? req.body.holder : req.body || {};
+    requireUCardHolderFields(holder);
+    const upstream = await submitUCardHolderAndOpen(row, holder);
+    const nextStatus = ['ACTIVE', 'APPROVED', 'SUCCESS', 'COMPLETED'].includes(upstream.status) || upstream.cardId || upstream.platformCardNo ? 'approved' : 'review_pending';
+    updateUCardApplicationHolderStmt.run(
+      JSON.stringify(holder),
+      upstream.cardholderId,
+      upstream.requestId,
+      upstream.cardId,
+      upstream.platformCardNo,
+      applicationNo
+    );
+    if (nextStatus === 'approved') {
+      updateUCardApplicationReviewStmt.run(
+        'approved',
+        upstream.cardId,
+        upstream.platformCardNo,
+        maskUCardNumber(upstream.platformCardNo || upstream.cardId),
+        'approved',
+        applicationNo
+      );
+    }
+    res.json({ ok: true, item: formatUCardApplication(selectUCardApplicationByNoStmt.get(applicationNo)) });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 502) || 502;
+    res.status(statusCode).json({ error: String(error?.message || '提交用卡人资料失败') });
+  }
+});
+
+app.post('/api/u-card/applications/:applicationNo/check-review', async (req, res) => {
+  try {
+    const applicationNo = String(req.params.applicationNo || '').trim();
+    const row = selectUCardApplicationByNoStmt.get(applicationNo);
+    if (!row) return res.status(404).json({ error: 'U 卡申请不存在' });
+    const openId = String(req.body?.openId || '').trim();
+    if (openId && openId !== String(row.open_id || '').trim()) return res.status(403).json({ error: '无权操作该 U 卡申请' });
+    const item = await refreshUCardApplicationReview(row);
+    res.json({ ok: true, item });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 502) || 502;
+    res.status(statusCode).json({ error: String(error?.message || '查询 U 卡审核状态失败') });
+  }
+});
+
+app.post('/api/u-card/applications/:applicationNo/secure-info', async (req, res) => {
+  try {
+    const applicationNo = String(req.params.applicationNo || '').trim();
+    const row = selectUCardApplicationByNoStmt.get(applicationNo);
+    if (!row) return res.status(404).json({ error: 'U 卡申请不存在' });
+    const openId = String(req.body?.openId || '').trim();
+    if (openId && openId !== String(row.open_id || '').trim()) return res.status(403).json({ error: '无权操作该 U 卡申请' });
+    const item = formatUCardApplication(row);
+    if (item.status !== 'approved' || !item.card_id) return res.status(409).json({ error: '卡片还未审核通过' });
+    const data = await postUCardUpalJson('/open-api/cards/secure-info', { cardId: item.card_id });
+    res.json({ ok: true, item: data });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 502) || 502;
+    res.status(statusCode).json({ error: String(error?.message || '查询卡号失败') });
+  }
+});
+
+app.post('/api/u-card/applications/:applicationNo/recharge', async (req, res) => {
+  try {
+    const applicationNo = String(req.params.applicationNo || '').trim();
+    const row = selectUCardApplicationByNoStmt.get(applicationNo);
+    if (!row) return res.status(404).json({ error: 'U 卡申请不存在' });
+    const openId = String(req.body?.openId || '').trim();
+    if (openId && openId !== String(row.open_id || '').trim()) return res.status(403).json({ error: '无权操作该 U 卡申请' });
+    const item = formatUCardApplication(row);
+    if (item.status !== 'approved' || !item.card_id) return res.status(409).json({ error: '卡片还未审核通过' });
+    const amount = String(req.body?.amount || '').trim();
+    if (!amount || parseMoneyToCents(amount) <= 0n) return res.status(400).json({ error: '充值金额必填' });
+    const requestId = `BAL_${applicationNo}_${Date.now()}`;
+    const data = await postUCardUpalJson('/open-api/cards/balance-modify', {
+      cardId: item.card_id,
+      requestId,
+      type: 'INCREASE',
+      amount
+    });
+    res.json({ ok: true, item: data });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 502) || 502;
+    res.status(statusCode).json({ error: String(error?.message || '充卡失败') });
+  }
+});
+
+app.post('/api/u-card/applications/:applicationNo/transactions', async (req, res) => {
+  try {
+    const applicationNo = String(req.params.applicationNo || '').trim();
+    const row = selectUCardApplicationByNoStmt.get(applicationNo);
+    if (!row) return res.status(404).json({ error: 'U 卡申请不存在' });
+    const openId = String(req.body?.openId || '').trim();
+    if (openId && openId !== String(row.open_id || '').trim()) return res.status(403).json({ error: '无权操作该 U 卡申请' });
+    const item = formatUCardApplication(row);
+    if (item.status !== 'approved' || !item.card_id) return res.status(409).json({ error: '卡片还未审核通过' });
+    const data = await postUCardUpalJson('/open-api/cards/balance-history', {
+      cardId: item.card_id,
+      limit: Math.min(Number(req.body?.limit || 20) || 20, 100),
+      page: Math.max(Number(req.body?.page || 1) || 1, 1)
+    });
+    res.json({ ok: true, item: data });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 502) || 502;
+    res.status(statusCode).json({ error: String(error?.message || '查询资金明细失败') });
   }
 });
 
