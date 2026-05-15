@@ -133,6 +133,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
 
     let captured = null;
     let capturedPayment = null;
+    let mockPaymentQueryStatus = 'PENDING';
     global.fetch = async (url, options = {}) => {
       if (String(url).includes('/partner/api/openapi/payment/create')) {
         capturedPayment = {
@@ -177,7 +178,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
               code: '0',
               data: {
                 orderNo: 'nexa-u-card-order-1',
-                status: 'SUCCESS',
+                status: mockPaymentQueryStatus,
                 amount: '10.00',
                 currency: 'USDT',
                 paidTime: '2026-05-15 12:00:00'
@@ -189,7 +190,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
               code: '0',
               data: {
                 orderNo: 'nexa-u-card-order-1',
-                status: 'SUCCESS',
+                status: mockPaymentQueryStatus,
                 amount: '10.00',
                 currency: 'USDT',
                 paidTime: '2026-05-15 12:00:00'
@@ -333,6 +334,11 @@ test('public U card products endpoint signs and normalizes upstream products', a
     assert.equal(capturedPayment.body.sessionKey, 'nexa-session-key');
 
     const applicationNo = payment.body.application.application_no;
+    const unpaidPublicList = await harness.request('GET', '/api/u-card/applications?openId=nexa-open-id');
+    assert.equal(unpaidPublicList.statusCode, 200);
+    assert.deepEqual(unpaidPublicList.body.items, []);
+
+    mockPaymentQueryStatus = 'SUCCESS';
     const confirmed = await harness.request(
       'POST',
       `/api/u-card/applications/${applicationNo}/confirm-payment`,
@@ -387,6 +393,14 @@ test('public U card products endpoint signs and normalizes upstream products', a
     assert.equal(recovered.statusCode, 200, JSON.stringify(recovered.body));
     assert.equal(recovered.body.item.status, 'needs_profile');
     assert.equal(recovered.body.item.order_no, 'nexa-u-card-order-legacy');
+
+    const adminApplications = await harness.request('GET', '/api/admin/u-card/applications', null, cookies);
+    assert.equal(adminApplications.statusCode, 200);
+    assert.equal(adminApplications.body.items.length, 2);
+    assert.deepEqual(
+      adminApplications.body.items.map((item) => item.payment_status).sort(),
+      ['SUCCESS', 'SUCCESS']
+    );
   } finally {
     global.fetch = previousFetch;
     harness.cleanup();
@@ -454,6 +468,7 @@ test('admin U card panel includes upstream credential configuration controls', (
 
   assert.match(adminHtml, /<button id="navUCardUpstreamConfig"[\s\S]*U 卡上游配置/);
   assert.match(adminHtml, /<button id="navUCardProducts"[\s\S]*U 卡卡种配置/);
+  assert.match(adminHtml, /<button id="navUCardApplications"[\s\S]*U 卡申请订单/);
   assert.doesNotMatch(uCardSection, /id="uCardNavUpstreamConfig"/);
   assert.match(adminHtml, /id="uCardUpstreamConfigSection"/);
   assert.match(adminHtml, /name="uCardUpalAppId"/);
@@ -467,12 +482,16 @@ test('admin U card panel includes upstream credential configuration controls', (
   assert.match(adminJs, /\/api\/admin\/u-card\/upstream-config\/generate-keypair/);
   assert.match(adminJs, /\/api\/admin\/u-card\/upstream-config\/test-products/);
   assert.match(adminJs, /\/api\/admin\/u-card\/products/);
+  assert.match(adminJs, /\/api\/admin\/u-card\/applications/);
   assert.match(adminJs, /saveUCardProductConfig/);
+  assert.match(adminJs, /loadUCardApplicationsAdmin/);
   assert.match(adminJs, /setUCardUpstreamConfigMessage\(t\('uCardUpstreamConfigSaved'\), 'message success'\)/);
   assert.match(adminJs, /navUCardUpstreamConfig:\s*'U 卡上游配置'/);
   assert.match(adminJs, /navUCardProducts:\s*'U 卡卡种配置'/);
+  assert.match(adminJs, /navUCardApplications:\s*'U 卡申请订单'/);
   assert.match(adminJs, /adminUCardUpstreamConfigSection\.classList\.toggle\('hidden', view !== 'u-card-upstream-config'\)/);
   assert.match(adminJs, /adminUCardProductsSection\.classList\.toggle\('hidden', view !== 'u-card-products'\)/);
+  assert.match(adminJs, /adminUCardApplicationsSection\.classList\.toggle\('hidden', view !== 'u-card-applications'\)/);
   assert.match(adminJs, /keepUCardUpalDeveloperPrivateKey:\s*String\(payload\.uCardUpalDeveloperPrivateKey \|\| ''\)\.trim\(\) === SAVED_U_CARD_UPAL_PRIVATE_KEY_MASK/);
 });
 

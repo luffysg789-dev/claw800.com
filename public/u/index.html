@@ -590,7 +590,7 @@
         mineCardsList.innerHTML = currentApplications
           .map((item) => {
             const status = String(item.status || '').trim();
-            const canFillProfile = status === 'needs_profile' || !item.has_holder_profile;
+            const canFillProfile = status === 'needs_profile';
             const isApproved = status === 'approved';
             return `
               <article class="my-card-item" data-application-no="${escapeHtml(item.application_no || '')}">

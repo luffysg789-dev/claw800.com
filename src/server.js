@@ -3145,6 +3145,12 @@ const listUCardApplicationsByOpenIdStmt = db.prepare(`
   WHERE open_id = ?
   ORDER BY updated_at DESC, id DESC
 `);
+const listAdminUCardApplicationsStmt = db.prepare(`
+  SELECT *
+  FROM u_card_applications
+  ORDER BY datetime(created_at) DESC, id DESC
+  LIMIT 300
+`);
 const updateUCardApplicationPaymentStmt = db.prepare(`
   UPDATE u_card_applications
   SET payment_status = ?,
@@ -5321,7 +5327,9 @@ app.get('/api/u-card/applications', async (req, res) => {
           current = selectUCardApplicationByNoStmt.get(current.application_no) || current;
         }
       }
-      items.push(formatUCardApplication(current));
+      if (String(current.payment_status || '').trim().toUpperCase() === 'SUCCESS') {
+        items.push(formatUCardApplication(current));
+      }
     }
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
     res.json({ ok: true, items });
@@ -10799,6 +10807,18 @@ app.get('/api/admin/u-card/products', requireAdmin, async (_req, res) => {
     res.json({ ok: true, items });
   } catch (error) {
     res.status(Number(error?.statusCode || 502)).json({ error: String(error?.message || '加载 U 卡卡种失败') });
+  }
+});
+
+app.get('/api/admin/u-card/applications', requireAdmin, (_req, res) => {
+  try {
+    const items = listAdminUCardApplicationsStmt.all().map((row) => ({
+      ...formatUCardApplication(row),
+      open_id: String(row.open_id || '').trim()
+    }));
+    res.json({ ok: true, items });
+  } catch (error) {
+    res.status(500).json({ error: String(error?.message || '获取 U 卡申请订单失败') });
   }
 });
 
