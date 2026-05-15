@@ -287,6 +287,21 @@
         gap: 8px;
       }
 
+      .phone-code-combo {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 36px;
+        gap: 4px;
+      }
+
+      .phone-code-combo input,
+      .phone-code-combo select {
+        padding: 0 8px;
+      }
+
+      .phone-code-combo select {
+        appearance: auto;
+      }
+
       .form-section-title {
         margin: 6px 0 0;
         font-size: 18px;
@@ -417,15 +432,25 @@
           <div class="form-row">
             <span class="form-label"><span class="required">*</span> 手机号</span>
             <div class="phone-fields">
-              <input id="holderPhoneCode" name="phoneCode" list="holderPhoneCodeOptions" value="+86" placeholder="+86" required inputmode="tel" autocomplete="tel-country-code" aria-label="区号" />
-              <datalist id="holderPhoneCodeOptions">
-                <option value="+86"></option>
-                <option value="+852"></option>
-                <option value="+81"></option>
-                <option value="+65"></option>
-                <option value="+1"></option>
-                <option value="+61"></option>
-              </datalist>
+              <div class="phone-code-combo">
+                <input id="holderPhoneCode" name="phoneCode" list="holderPhoneCodeOptions" value="+86" placeholder="+86" required inputmode="tel" autocomplete="tel-country-code" aria-label="区号" />
+                <select id="holderPhoneCodeSelect" aria-label="选择区号">
+                  <option value="+86">+86</option>
+                  <option value="+852">+852</option>
+                  <option value="+81">+81</option>
+                  <option value="+65">+65</option>
+                  <option value="+1">+1</option>
+                  <option value="+61">+61</option>
+                </select>
+                <datalist id="holderPhoneCodeOptions">
+                  <option value="+86"></option>
+                  <option value="+852"></option>
+                  <option value="+81"></option>
+                  <option value="+65"></option>
+                  <option value="+1"></option>
+                  <option value="+61"></option>
+                </datalist>
+              </div>
               <input name="phone" placeholder="手机号" required inputmode="tel" autocomplete="tel" />
             </div>
           </div>
@@ -685,19 +710,24 @@
         }
       }
 
-      function renderOptionList(target, items = [], fallback = []) {
-        if (!target) return;
+      function renderOptionList(target, items = [], fallback = [], selectTarget = null) {
+        if (!target && !selectTarget) return;
         const merged = [...items, ...fallback.map((value) => ({ value, label: value }))];
         const seen = new Set();
-        target.innerHTML = merged
+        const options = merged
           .filter((item) => {
             const value = String(item?.value || '').trim();
             if (!value || seen.has(value)) return false;
             seen.add(value);
             return true;
           })
-          .map((item) => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label || item.value)}</option>`)
-          .join('');
+          .map((item) => ({ value: item.value, label: item.label || item.value }));
+        if (target) {
+          target.innerHTML = options.map((item) => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`).join('');
+        }
+        if (selectTarget) {
+          selectTarget.innerHTML = options.map((item) => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.value)}</option>`).join('');
+        }
       }
 
       async function loadUCardHolderOptions() {
@@ -716,14 +746,12 @@
           });
           const payload = await response.json().catch(() => ({}));
           if (!response.ok || payload?.ok === false) throw new Error(payload?.error || '用卡人选项加载失败');
-          renderOptionList(document.getElementById('holderPhoneCodeOptions'), payload.phoneCountryCodes, [
-            '+86',
-            '+852',
-            '+81',
-            '+65',
-            '+1',
-            '+61'
-          ]);
+          renderOptionList(
+            document.getElementById('holderPhoneCodeOptions'),
+            payload.phoneCountryCodes,
+            ['+86', '+852', '+81', '+65', '+1', '+61'],
+            document.getElementById('holderPhoneCodeSelect')
+          );
         } catch (error) {
           holderOptionsLoaded = false;
         }
@@ -1003,6 +1031,7 @@
         activePaidApplication = application;
         holderForm.reset();
         document.getElementById('holderPhoneCode').value = '+86';
+        document.getElementById('holderPhoneCodeSelect').value = '+86';
         holderMessage.textContent = '';
         holderMessage.classList.remove('error');
         holderProduct.textContent = `${application.product_name || application.product?.name || 'U 卡产品'} · 已支付 ${application.amount || ''} ${application.currency || 'USDT'}`;
@@ -1097,6 +1126,16 @@
         const button = event.target.closest('[data-apply-product]');
         if (!button) return;
         beginUCardPayment(String(button.dataset.applyProduct || '').trim(), button);
+      });
+      document.getElementById('holderPhoneCodeSelect').addEventListener('change', (event) => {
+        document.getElementById('holderPhoneCode').value = String(event.target.value || '').trim();
+      });
+      document.getElementById('holderPhoneCode').addEventListener('input', (event) => {
+        const value = String(event.target.value || '').trim();
+        const select = document.getElementById('holderPhoneCodeSelect');
+        if ([...select.options].some((option) => option.value === value)) {
+          select.value = value;
+        }
       });
       mineCardsList.addEventListener('click', async (event) => {
         const fillButton = event.target.closest('[data-fill-profile]');

@@ -73,6 +73,8 @@ test('U card application requires payment before showing cardholder form', () =>
   assert.match(html, /<span class="required">\*<\/span> 生日/);
   assert.match(html, /<span class="required">\*<\/span> 手机号/);
   assert.match(html, /id="holderPhoneCode" name="phoneCode" list="holderPhoneCodeOptions"/);
+  assert.match(html, /id="holderPhoneCodeSelect" aria-label="选择区号"/);
+  assert.match(html, /holderPhoneCodeSelect'\)\.addEventListener\('change'/);
   assert.match(html, /function loadUCardHolderOptions\(\)/);
   assert.match(html, /fetch\(U_CARD_HOLDER_OPTIONS_ENDPOINT/);
   assert.match(html, /<span class="required">\*<\/span> 邮箱/);
