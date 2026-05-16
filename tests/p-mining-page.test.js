@@ -72,9 +72,10 @@ test('p-mining html includes host header, tab panels, and script mounts', () => 
   assert.doesNotMatch(html, /id="pMiningHumanCheckClose"/);
   assert.match(html, /data-purchase-tier="starter"/);
   assert.match(html, /data-purchase-tier="boost"/);
-  assert.match(html, /\/games-config\.js/);
+  assert.doesNotMatch(html, /\/games-config\.js/);
+  assert.doesNotMatch(html, /bootstrapGamePage/);
   assert.match(html, /\/p-mining\/style\.css\?v=20260407-03/);
-  assert.match(html, /\/p-mining\/script\.js\?v=20260407-05/);
+  assert.match(html, /\/p-mining\/script\.js\?v=20260516-01/);
 });
 
 test('p-mining purchase is a standalone tab placed between invite and records', () => {
@@ -242,6 +243,9 @@ test('p-mining script includes the expected UI hooks', () => {
   assert.match(js, /function saveSettledPaymentReceipt\(/);
   assert.match(js, /function hasSettledPaymentOrder\(/);
   assert.match(js, /function settlePendingPaymentOrder\(/);
+  assert.match(js, /async function checkPendingPaymentOrderOnce\(/);
+  assert.match(js, /function schedulePendingPaymentSettlement\(/);
+  assert.doesNotMatch(js, /await settlePendingPaymentOrder\(appState\)/);
   assert.match(js, /function applyPendingInvitePurchaseBonuses\(/);
   assert.match(js, /function openNexaPaymentUrl\(/);
   assert.match(js, /function setPurchaseButtonsBusy\(/);
@@ -312,6 +316,20 @@ test('p-mining script includes the expected UI hooks', () => {
   assert.match(js, /window\.setInterval\(/);
   assert.match(js, /if \(appState\.state\.boundInviteCode\) \{\s*appState\.elements\.invitePromptModal\.hidden = true;/);
   assert.match(js, /if \(shouldShowInvitePrompt\(appState\)\) \{\s*openInvitePrompt\(appState\);/);
+});
+
+test('p-mining startup avoids unnecessary uncached requests in Nexa webview', () => {
+  const html = fs.readFileSync(htmlPath, 'utf8');
+  const js = fs.readFileSync(jsPath, 'utf8');
+  const server = fs.readFileSync(serverPath, 'utf8');
+
+  assert.doesNotMatch(html, /games-config\.js/);
+  assert.doesNotMatch(html, /bootstrapGamePage/);
+  assert.match(js, /schedulePendingPaymentSettlement\(appState\);/);
+  assert.doesNotMatch(js, /await settlePendingPaymentOrder\(appState\)/);
+  assert.match(server, /express\.static\(path\.join\(__dirname, '\.\.', 'public'\), \{/);
+  assert.match(server, /maxAge:\s*'7d'/);
+  assert.match(server, /Cache-Control', 'no-store'/);
 });
 
 test('p-mining invite prompt waits for synced account state instead of opening during initial app creation', () => {

@@ -232,7 +232,14 @@ app.get(['/u', '/u/'], (_req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'u', 'index.html'));
 });
 
-app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use(express.static(path.join(__dirname, '..', 'public'), {
+  maxAge: '7d',
+  setHeaders(res, filePath) {
+    if (/\.html?$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'no-store');
+    }
+  }
+}));
 
 app.get('/games/:slug', (req, res) => {
   const slug = String(req.params.slug || '').trim();

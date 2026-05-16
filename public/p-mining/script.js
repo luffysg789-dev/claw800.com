@@ -1559,21 +1559,29 @@
     };
   }
 
-  async function settlePendingPaymentOrder(appState) {
+  async function checkPendingPaymentOrderOnce(appState) {
     const pendingOrder = loadPendingPaymentOrder(appState.storage);
-    if (!pendingOrder?.orderNo || !pendingOrder?.tier) return false;
+    if (!pendingOrder?.orderNo || !pendingOrder?.tier) {
+      return { settled: false, pending: false };
+    }
     if (hasSettledPaymentOrder(appState.storage, pendingOrder.orderNo)) {
       clearPendingPaymentOrder(appState.storage);
-      return false;
+      return { settled: false, pending: false };
     }
 
-    const response = await pollPMiningPaymentOrder(pendingOrder.orderNo);
+    let response = null;
+    try {
+      response = await queryPMiningPaymentOrder(pendingOrder.orderNo);
+    } catch {
+      return { settled: false, pending: true };
+    }
     const status = String(response?.status || '').trim().toUpperCase();
     if (status !== 'SUCCESS') {
       if (status === 'FAILED' || status === 'CANCELED' || status === 'EXPIRED') {
         clearPendingPaymentOrder(appState.storage);
+        return { settled: false, pending: false };
       }
-      return false;
+      return { settled: false, pending: true };
     }
 
     const bootstrap = await loadPMiningBootstrap().catch(() => null);
@@ -1587,7 +1595,36 @@
     });
     clearPendingPaymentOrder(appState.storage);
     renderAll(appState);
-    return true;
+    return { settled: true, pending: false };
+  }
+
+  async function settlePendingPaymentOrder(appState) {
+    const result = await checkPendingPaymentOrderOnce(appState);
+    return Boolean(result?.settled);
+  }
+
+  function schedulePendingPaymentSettlement(appState, options = {}) {
+    if (!loadPendingPaymentOrder(appState.storage)?.orderNo) return;
+    const maxAttempts = Math.max(1, Number(options.maxAttempts || 6) || 6);
+    const delayMs = Math.max(1000, Number(options.delayMs || 5000) || 5000);
+    let attempts = 0;
+
+    const run = () => {
+      attempts += 1;
+      checkPendingPaymentOrderOnce(appState)
+        .then((result) => {
+          if (result?.pending && attempts < maxAttempts) {
+            globalScope.window.setTimeout(run, delayMs);
+          }
+        })
+        .catch(() => {
+          if (attempts < maxAttempts) {
+            globalScope.window.setTimeout(run, delayMs);
+          }
+        });
+    };
+
+    globalScope.window.setTimeout(run, 0);
   }
 
   async function handlePurchasePower(appState, tier) {
@@ -1984,7 +2021,7 @@
         await beginNexaLoginFlow(appState, 'mining').catch(() => false);
       }
     }
-    await settlePendingPaymentOrder(appState).catch(() => false);
+    schedulePendingPaymentSettlement(appState);
   }
 
   const exported = {
@@ -2047,6 +2084,8 @@
         renderRecordsPanel,
         renderProfilePanel,
     beginNexaLoginFlow,
+    checkPendingPaymentOrderOnce,
+    schedulePendingPaymentSettlement,
     settlePendingPaymentOrder
   };
 
