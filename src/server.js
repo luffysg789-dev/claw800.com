@@ -5121,7 +5121,7 @@ function requireUCardHolderFields(holder = {}) {
 function extractUCardCardId(payload = {}) {
   const data = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
   const candidate = String(data.card_id || data.cardId || data.id || '').trim();
-  return isUCardPlatformCardNo(candidate) ? '' : candidate;
+  return candidate;
 }
 
 function extractUCardPlatformCardNo(payload = {}) {
@@ -5318,16 +5318,16 @@ async function refreshUCardApplicationReview(row = {}) {
 
 async function resolveUCardApplicationCardId(row = {}) {
   const item = formatUCardApplication(row);
-  let cardId = isUCardPlatformCardNo(item.card_id) ? '' : item.card_id;
+  let cardId = item.card_id;
   let platformCardNo = item.platform_card_no || (isUCardPlatformCardNo(item.card_id) ? item.card_id : '');
   let cardNo = '';
-  if (!cardId && platformCardNo) {
+  if ((!cardId || isUCardPlatformCardNo(cardId)) && platformCardNo) {
     const detail = await postUCardUpalJson('/open-api/cards/query', { platformCardNo });
-    cardId = extractUCardCardId(detail);
+    cardId = extractUCardCardId(detail) || cardId || platformCardNo;
     platformCardNo = extractUCardPlatformCardNo(detail) || platformCardNo;
     cardNo = extractUCardCardNo(detail);
   }
-  if (!cardId) {
+  if (!cardId || isUCardPlatformCardNo(cardId)) {
     const listBody = { status: 'ACTIVE', limit: 100 };
     const productFilteredListBody = {
       ...listBody,
@@ -5369,7 +5369,7 @@ async function resolveUCardApplicationCardId(row = {}) {
       }
     }
     if (candidate) {
-      cardId = extractUCardCardId(candidate);
+      cardId = extractUCardCardId(candidate) || cardId;
       platformCardNo = extractUCardPlatformCardNo(candidate) || platformCardNo;
       cardNo = extractUCardCardNo(candidate) || cardNo;
     }

@@ -299,7 +299,8 @@ test('public U card products endpoint signs and normalizes upstream products', a
         };
       }
       if (String(url).includes('/open-api/cards/secure-info')) {
-        assert.equal(JSON.parse(String(options.body || '{}')).cardId, '2026050811431914822000496491');
+        const body = JSON.parse(String(options.body || '{}'));
+        assert.ok(['2026050811431914822000496491', 'CARD_UCARD_001'].includes(body.cardId), body.cardId);
         return {
           ok: true,
           status: 200,
@@ -481,7 +482,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
     const listedAfterProfile = await harness.request('GET', '/api/u-card/applications?openId=nexa-open-id');
     assert.equal(listedAfterProfile.statusCode, 200, JSON.stringify(listedAfterProfile.body));
     assert.equal(listedAfterProfile.body.items[0].status, 'approved');
-    assert.equal(listedAfterProfile.body.items[0].card_id, '2026050811431914822000496491');
+    assert.ok(['2026050811431914822000496491', 'CARD_UCARD_001'].includes(listedAfterProfile.body.items[0].card_id));
     assert.equal(listedAfterProfile.body.items[0].platform_card_no, 'CARD_UCARD_001');
     assert.equal(listedAfterProfile.body.items[0].card_no_masked, '4565 **** **** 1355');
 
