@@ -612,6 +612,8 @@
             <div class="card-info-row"><span>卡号</span><strong id="uCardInfoCardNo">-</strong></div>
             <div class="card-info-row"><span>有效期</span><strong id="uCardInfoExpiry">-</strong></div>
             <div class="card-info-row"><span>CVV</span><strong id="uCardInfoCvv">-</strong></div>
+            <div class="card-info-row"><span>状态</span><strong id="uCardInfoStatus">-</strong></div>
+            <div class="card-info-row"><span>余额</span><strong id="uCardInfoBalance">-</strong></div>
           </div>
           <p id="uCardInfoMessage" class="form-note"></p>
         </div>
@@ -1312,6 +1314,17 @@
         return findUCardPayloadValue(getUCardPayloadObject(payload), ['cvv', 'cvv2', 'cvc', 'securityCode', 'security_code']);
       }
 
+      function getUCardDetailStatus(payload) {
+        return findUCardPayloadValue(getUCardPayloadObject(payload), ['status', 'cardStatus', 'card_status']);
+      }
+
+      function getUCardDetailBalance(payload) {
+        const data = getUCardPayloadObject(payload);
+        const balance = findUCardPayloadValue(data, ['balance', 'availableBalance', 'available_balance', 'availableAmount', 'available_amount']);
+        const currency = findUCardPayloadValue(data, ['currency', 'cardCurrency', 'card_currency']);
+        return balance && currency ? `${balance} ${currency}` : balance;
+      }
+
       function setText(id, value) {
         const target = document.getElementById(id);
         if (target) target.textContent = String(value || '-');
@@ -1322,6 +1335,8 @@
         const cardNo = getUCardSecureCardNo(payload) || getUCardDisplayCardNo(application);
         const expiry = getUCardSecureExpiry(payload);
         const cvv = getUCardSecureCvv(payload);
+        const status = getUCardDetailStatus(payload);
+        const balance = getUCardDetailBalance(payload);
         setText('uCardInfoSubtitle', application?.product_name || 'U 卡');
         setText('uCardInfoNumberPreview', cardNo);
         setText('uCardInfoExpiryPreview', expiry);
@@ -1330,6 +1345,8 @@
         setText('uCardInfoCardNo', cardNo);
         setText('uCardInfoExpiry', expiry);
         setText('uCardInfoCvv', cvv);
+        setText('uCardInfoStatus', status);
+        setText('uCardInfoBalance', balance);
         setText('uCardInfoMessage', cardNo ? '卡信息来自上游接口，请妥善保管。' : '上游暂未返回完整卡号，请稍后再试。');
         infoModal.classList.remove('hidden');
       }

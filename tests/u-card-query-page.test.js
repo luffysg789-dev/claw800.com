@@ -115,6 +115,10 @@ test('U card application page exposes approved card upstream actions', () => {
   assert.match(html, /function getUCardSecureCardNo\(payload\)/);
   assert.match(html, /function getUCardSecureExpiry\(payload\)/);
   assert.match(html, /function getUCardSecureCvv\(payload\)/);
+  assert.match(html, /function getUCardDetailStatus\(payload\)/);
+  assert.match(html, /function getUCardDetailBalance\(payload\)/);
+  assert.match(html, /id="uCardInfoStatus"/);
+  assert.match(html, /id="uCardInfoBalance"/);
   assert.match(html, /checkUCardReview/);
   assert.match(html, /function getUCardDisplayCardId\(item\)/);
   assert.match(html, /function getUCardDisplayCardNo\(item\)/);

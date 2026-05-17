@@ -5300,15 +5300,24 @@ async function refreshUCardApplicationReview(row = {}) {
     payload = await postUCardUpalJson('/open-api/cards/query', { platformCardNo: formatted.platform_card_no });
   }
   const status = extractUCardStatus(payload);
-  const cardId = extractUCardCardId(payload);
-  const platformCardNo = extractUCardPlatformCardNo(payload);
-  const cardNo = extractUCardCardNo(payload);
+  let cardId = extractUCardCardId(payload);
+  let platformCardNo = extractUCardPlatformCardNo(payload);
+  let cardNo = extractUCardCardNo(payload);
+  if (cardId && !isUCardPlatformCardNo(cardId)) {
+    try {
+      const detail = await postUCardUpalJson('/open-api/cards/upstream-detail', { cardId });
+      platformCardNo = extractUCardPlatformCardNo(detail) || platformCardNo;
+      cardNo = extractUCardCardNo(detail) || cardNo;
+    } catch {
+      // The application state is still useful even if sensitive/card details are not ready yet.
+    }
+  }
   const nextStatus = ['ACTIVE', 'APPROVED', 'SUCCESS', 'COMPLETED'].includes(status) || cardId || platformCardNo ? 'approved' : 'review_pending';
   updateUCardApplicationReviewStmt.run(
     nextStatus,
     cardId,
     platformCardNo,
-    maskUCardNumber(cardNo || platformCardNo || cardId),
+    maskUCardNumber(cardNo),
     nextStatus,
     nextStatus,
     row.application_no
@@ -5321,11 +5330,30 @@ async function resolveUCardApplicationCardId(row = {}) {
   let cardId = item.card_id;
   let platformCardNo = item.platform_card_no || (isUCardPlatformCardNo(item.card_id) ? item.card_id : '');
   let cardNo = '';
+  if ((!cardId || isUCardPlatformCardNo(cardId)) && item.upstream_application_id) {
+    try {
+      const result = await postUCardUpalJson('/open-api/cards/apply-result', { requestId: item.upstream_application_id });
+      cardId = extractUCardCardId(result) || cardId;
+      platformCardNo = extractUCardPlatformCardNo(result) || platformCardNo;
+      cardNo = extractUCardCardNo(result) || cardNo;
+    } catch {
+      // Fall back to platform card queries below.
+    }
+  }
   if ((!cardId || isUCardPlatformCardNo(cardId)) && platformCardNo) {
     const detail = await postUCardUpalJson('/open-api/cards/query', { platformCardNo });
-    cardId = extractUCardCardId(detail) || cardId || platformCardNo;
+    cardId = extractUCardCardId(detail) || cardId;
     platformCardNo = extractUCardPlatformCardNo(detail) || platformCardNo;
     cardNo = extractUCardCardNo(detail);
+  }
+  if (cardId && !isUCardPlatformCardNo(cardId)) {
+    try {
+      const upstreamDetail = await postUCardUpalJson('/open-api/cards/upstream-detail', { cardId });
+      platformCardNo = extractUCardPlatformCardNo(upstreamDetail) || platformCardNo;
+      cardNo = extractUCardCardNo(upstreamDetail) || cardNo;
+    } catch {
+      // Continue with the identifiers we already have.
+    }
   }
   if (!cardId || isUCardPlatformCardNo(cardId)) {
     const listBody = { status: 'ACTIVE', limit: 100 };
@@ -5379,7 +5407,7 @@ async function resolveUCardApplicationCardId(row = {}) {
       'approved',
       cardId,
       platformCardNo,
-      maskUCardNumber(cardNo || platformCardNo || cardId),
+      maskUCardNumber(cardNo),
       'approved',
       'approved',
       row.application_no
@@ -5426,6 +5454,40 @@ async function fetchUCardSecureInfo(cardId = '', platformCardNo = '') {
     }
     return result.payload;
   }
+  throw lastError || new Error('未找到卡');
+}
+
+async function fetchUCardCardDetail(cardId = '', platformCardNo = '') {
+  const primary = String(cardId || '').trim();
+  const platform = String(platformCardNo || '').trim();
+  const attempts = [];
+  if (platform) attempts.push(['/open-api/cards/query', { platformCardNo: platform }]);
+  if (primary && !isUCardPlatformCardNo(primary)) attempts.push(['/open-api/cards/upstream-detail', { cardId: primary }]);
+  if (primary && isUCardPlatformCardNo(primary)) attempts.push(['/open-api/cards/query', { platformCardNo: primary }]);
+
+  let mergedPayload = null;
+  let lastError = null;
+  for (const [pathname, body] of attempts) {
+    const result = await tryPostUCardUpalJson(pathname, body);
+    if (!result.ok) {
+      lastError = result.error;
+      continue;
+    }
+    if (!mergedPayload) {
+      mergedPayload = result.payload;
+      continue;
+    }
+    const existing = getUCardPayloadData(mergedPayload);
+    const incoming = getUCardPayloadData(result.payload);
+    mergedPayload = {
+      ok: true,
+      data: {
+        ...(existing && typeof existing === 'object' ? existing : {}),
+        ...(incoming && typeof incoming === 'object' ? incoming : {})
+      }
+    };
+  }
+  if (mergedPayload) return mergedPayload;
   throw lastError || new Error('未找到卡');
 }
 
@@ -5784,12 +5846,13 @@ app.post('/api/u-card/applications/:applicationNo/secure-info', async (req, res)
     if (item.status !== 'approved') return res.status(409).json({ error: '卡片还未审核通过' });
     const { cardId, platformCardNo } = await resolveUCardApplicationCardId(row);
     if (!cardId) return res.status(409).json({ error: '未找到上游卡 ID，请稍后刷新我的卡后重试' });
+    const detail = await fetchUCardCardDetail(cardId, platformCardNo).catch(() => null);
     const data = await fetchUCardSecureInfo(cardId, platformCardNo);
     const cardNo = extractUCardCardNo(data);
     if (cardNo) {
       updateUCardApplicationReviewStmt.run('approved', cardId, platformCardNo, maskUCardNumber(cardNo), 'approved', 'approved', applicationNo);
     }
-    res.json({ ok: true, item: data });
+    res.json({ ok: true, item: { detail, secure: data } });
   } catch (error) {
     const statusCode = Number(error?.statusCode || 502) || 502;
     res.status(statusCode).json({ error: String(error?.message || '查询卡号失败') });

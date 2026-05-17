@@ -238,7 +238,8 @@ test('public U card products endpoint signs and normalizes upstream products', a
               data: {
                 requestId: 'REQ_UCARD_001',
                 status: 'PROCESSING',
-                productCode: 'virtual-usd'
+                productCode: 'virtual-usd',
+                platformCardNo: 'CARD_UCARD_001'
               }
             };
           }
@@ -254,13 +255,15 @@ test('public U card products endpoint signs and normalizes upstream products', a
               data: {
                 request_id: 'REQ_UCARD_001',
                 status: 'SUCCESS',
-                card_id: 'CARD_UCARD_001'
+                card_id: '2026050811431914822000496491'
               }
             };
           }
         };
       }
       if (String(url).includes('/open-api/cards/query')) {
+        const body = JSON.parse(String(options.body || '{}'));
+        assert.equal(body.platformCardNo, 'CARD_UCARD_001');
         return {
           ok: true,
           status: 200,
@@ -269,7 +272,30 @@ test('public U card products endpoint signs and normalizes upstream products', a
               ok: true,
               data: {
                 platformCardNo: 'CARD_UCARD_001',
-                status: 'ACTIVE'
+                status: 'ACTIVE',
+                productCode: 'virtual-usd',
+                feeAmount: '10.00',
+                cardholderId: 'cardholder-001'
+              }
+            };
+          }
+        };
+      }
+      if (String(url).includes('/open-api/cards/upstream-detail')) {
+        const body = JSON.parse(String(options.body || '{}'));
+        assert.equal(body.cardId, '2026050811431914822000496491');
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              ok: true,
+              data: {
+                card_id: '2026050811431914822000496491',
+                card_no: '45659999991355',
+                status: 'ACTIVE',
+                balance: '1.00',
+                currency: 'USD'
               }
             };
           }
@@ -302,7 +328,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
       if (String(url).includes('/open-api/cards/secure-info')) {
         const body = JSON.parse(String(options.body || '{}'));
         capturedSecureBodies.push(body);
-        if (body.cardid !== 'CARD_UCARD_001') {
+        if (body.cardId !== '2026050811431914822000496491') {
           return {
             ok: false,
             status: 404,
@@ -504,15 +530,15 @@ test('public U card products endpoint signs and normalizes upstream products', a
       }
     );
     assert.equal(profiled.statusCode, 200, JSON.stringify(profiled.body));
-    assert.equal(profiled.body.item.status, 'review_pending');
+    assert.equal(profiled.body.item.status, 'approved');
     assert.equal(profiled.body.item.cardholder_id, 'cardholder-001');
     assert.equal(profiled.body.item.upstream_application_id, 'REQ_UCARD_001');
-    assert.match(profiled.body.item.next_review_check_at, /\d{4}-\d{2}-\d{2}/);
+    assert.equal(profiled.body.item.platform_card_no, 'CARD_UCARD_001');
 
     const listedAfterProfile = await harness.request('GET', '/api/u-card/applications?openId=nexa-open-id');
     assert.equal(listedAfterProfile.statusCode, 200, JSON.stringify(listedAfterProfile.body));
     assert.equal(listedAfterProfile.body.items[0].status, 'approved');
-    assert.ok(['2026050811431914822000496491', 'CARD_UCARD_001'].includes(listedAfterProfile.body.items[0].card_id));
+    assert.equal(listedAfterProfile.body.items[0].card_id, '2026050811431914822000496491');
     assert.equal(listedAfterProfile.body.items[0].platform_card_no, 'CARD_UCARD_001');
     assert.equal(listedAfterProfile.body.items[0].card_no_masked, '4565 **** **** 1355');
 
@@ -522,8 +548,9 @@ test('public U card products endpoint signs and normalizes upstream products', a
       { openId: 'nexa-open-id' }
     );
     assert.equal(secureInfo.statusCode, 200, JSON.stringify(secureInfo.body));
-    assert.equal(secureInfo.body.item.data.card_no, '45659999991355');
-    assert.ok(capturedSecureBodies.some((body) => body.cardid === 'CARD_UCARD_001'));
+    assert.equal(secureInfo.body.item.secure.data.card_no, '45659999991355');
+    assert.equal(secureInfo.body.item.detail.data.balance, '1.00');
+    assert.ok(capturedSecureBodies.some((body) => body.cardId === '2026050811431914822000496491'));
 
     const recharge = await harness.request(
       'POST',
@@ -531,7 +558,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
       { openId: 'nexa-open-id', amount: '3.50' }
     );
     assert.equal(recharge.statusCode, 200, JSON.stringify(recharge.body));
-    assert.ok(capturedRechargeBodies.some((body) => body.cardid === 'CARD_UCARD_001'));
+    assert.ok(capturedRechargeBodies.some((body) => body.cardId === '2026050811431914822000496491'));
     assert.equal(capturedRechargeBodies.at(-1).type, 'INCREASE');
     assert.equal(capturedRechargeBodies.at(-1).amount, '3.50');
 
@@ -542,7 +569,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
     );
     assert.equal(reviewed.statusCode, 200, JSON.stringify(reviewed.body));
     assert.equal(reviewed.body.item.status, 'approved');
-    assert.ok(['2026050811431914822000496491', 'CARD_UCARD_001'].includes(reviewed.body.item.card_id));
+    assert.equal(reviewed.body.item.card_id, '2026050811431914822000496491');
 
     const recovered = await harness.request(
       'POST',
