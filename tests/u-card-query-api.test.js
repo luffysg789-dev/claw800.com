@@ -133,6 +133,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
 
     let captured = null;
     let capturedPayment = null;
+    const capturedRechargeBodies = [];
     let mockPaymentQueryStatus = 'PENDING';
     global.fetch = async (url, options = {}) => {
       if (String(url).includes('/partner/api/openapi/payment/create')) {
@@ -316,6 +317,26 @@ test('public U card products endpoint signs and normalizes upstream products', a
           }
         };
       }
+      if (String(url).includes('/open-api/cards/balance-modify')) {
+        const body = JSON.parse(String(options.body || '{}'));
+        capturedRechargeBodies.push(body);
+        if (body.cardid === 'CARD_UCARD_001') {
+          return {
+            ok: true,
+            status: 200,
+            async json() {
+              return { ok: true, data: { requestId: body.requestId, status: 'PROCESSING' } };
+            }
+          };
+        }
+        return {
+          ok: false,
+          status: 404,
+          async json() {
+            return { ok: false, error: '找不到卡片' };
+          }
+        };
+      }
       captured = {
         url: String(url),
         method: options.method,
@@ -492,6 +513,16 @@ test('public U card products endpoint signs and normalizes upstream products', a
     );
     assert.equal(secureInfo.statusCode, 200, JSON.stringify(secureInfo.body));
     assert.equal(secureInfo.body.item.data.card_no, '45659999991355');
+
+    const recharge = await harness.request(
+      'POST',
+      `/api/u-card/applications/${applicationNo}/recharge`,
+      { openId: 'nexa-open-id', amount: '3.50' }
+    );
+    assert.equal(recharge.statusCode, 200, JSON.stringify(recharge.body));
+    assert.ok(capturedRechargeBodies.some((body) => body.cardid === 'CARD_UCARD_001'));
+    assert.equal(capturedRechargeBodies.at(-1).type, 'INCREASE');
+    assert.equal(capturedRechargeBodies.at(-1).amount, '3.50');
 
     const reviewed = await harness.request(
       'POST',

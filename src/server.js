@@ -5424,6 +5424,35 @@ async function fetchUCardSecureInfo(cardId = '', platformCardNo = '') {
   throw lastError || new Error('未找到卡');
 }
 
+async function postUCardBalanceModify({ cardId = '', platformCardNo = '', cardNo = '', requestId = '', amount = '' } = {}) {
+  const identifiers = [cardId, platformCardNo, cardNo].map((value) => String(value || '').trim()).filter(Boolean);
+  const uniqueIdentifiers = [...new Set(identifiers)];
+  if (!uniqueIdentifiers.length) {
+    const error = new Error('未找到上游卡 ID，请稍后刷新我的卡后重试');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const attempts = [];
+  uniqueIdentifiers.forEach((identifier) => {
+    attempts.push({ cardId: identifier, requestId, type: 'INCREASE', amount });
+    attempts.push({ card_id: identifier, requestId, type: 'INCREASE', amount });
+    attempts.push({ cardid: identifier, requestId, type: 'INCREASE', amount });
+  });
+  if (cardNo) {
+    attempts.push({ cardNo, requestId, type: 'INCREASE', amount });
+    attempts.push({ card_no: cardNo, requestId, type: 'INCREASE', amount });
+  }
+
+  let lastError = null;
+  for (const body of attempts) {
+    const result = await tryPostUCardUpalJson('/open-api/cards/balance-modify', body);
+    if (result.ok) return result.payload;
+    lastError = result.error;
+  }
+  throw lastError || new Error('充卡失败');
+}
+
 async function pollDueUCardApplicationReviews() {
   if (uCardReviewPollRunning) return;
   uCardReviewPollRunning = true;
@@ -5771,15 +5800,15 @@ app.post('/api/u-card/applications/:applicationNo/recharge', async (req, res) =>
     if (openId && openId !== String(row.open_id || '').trim()) return res.status(403).json({ error: '无权操作该 U 卡申请' });
     const item = formatUCardApplication(row);
     if (item.status !== 'approved') return res.status(409).json({ error: '卡片还未审核通过' });
-    const { cardId } = await resolveUCardApplicationCardId(row);
-    if (!cardId) return res.status(409).json({ error: '未找到上游卡 ID，请稍后刷新我的卡后重试' });
+    const { cardId, platformCardNo, cardNo } = await resolveUCardApplicationCardId(row);
     const amount = String(req.body?.amount || '').trim();
     if (!amount || parseMoneyToCents(amount) <= 0n) return res.status(400).json({ error: '充值金额必填' });
     const requestId = `BAL_${applicationNo}_${Date.now()}`;
-    const data = await postUCardUpalJson('/open-api/cards/balance-modify', {
+    const data = await postUCardBalanceModify({
       cardId,
+      platformCardNo,
+      cardNo,
       requestId,
-      type: 'INCREASE',
       amount
     });
     res.json({ ok: true, item: data });
