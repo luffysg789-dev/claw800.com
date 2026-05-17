@@ -287,8 +287,8 @@ test('public U card products endpoint signs and normalizes upstream products', a
                   {
                     card_id: '2026050811431914822000496491',
                     platformCardNo: 'CARD_UCARD_001',
-                    cardNo: '45659999991355',
-                    productCode: 'virtual-usd',
+                    masked_card_no: '456599******1355',
+                    card_product_no: '001-virtual-usd',
                     cardholderId: 'cardholder-001',
                     status: 'ACTIVE'
                   }

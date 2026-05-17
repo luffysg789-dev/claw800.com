@@ -5134,7 +5134,19 @@ function extractUCardPlatformCardNo(payload = {}) {
 
 function extractUCardCardNo(payload = {}) {
   const data = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
-  return String(data.cardNo || data.card_no || data.cardNumber || data.card_number || '').trim();
+  return String(
+    data.cardNo ||
+      data.card_no ||
+      data.cardNumber ||
+      data.card_number ||
+      data.maskedCardNo ||
+      data.masked_card_no ||
+      data.cardNoMasked ||
+      data.card_no_masked ||
+      data.pan ||
+      data.number ||
+      ''
+  ).trim();
 }
 
 function extractUCardStatus(payload = {}) {
@@ -5162,19 +5174,43 @@ function normalizeUCardRecordValue(item = {}, keys = []) {
   return '';
 }
 
+function normalizeUCardMatchValue(value = '') {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function isUCardLooseMatch(left = '', right = '') {
+  const a = normalizeUCardMatchValue(left);
+  const b = normalizeUCardMatchValue(right);
+  if (!a || !b) return false;
+  return a === b || a.endsWith(b) || b.endsWith(a) || a.includes(b) || b.includes(a);
+}
+
 function scoreUCardListCandidate(row = {}, item = {}) {
   let score = 0;
   const productCode = String(row.product_code || '').trim();
+  const productName = String(row.product_name || '').trim();
   const cardholderId = String(row.upstream_cardholder_id || '').trim();
   const applicationNo = String(row.application_no || '').trim();
-  const itemProductCode = normalizeUCardRecordValue(item, ['productCode', 'product_code', 'cardProductCode', 'card_product_code']);
+  const itemProductCode = normalizeUCardRecordValue(item, [
+    'productCode',
+    'product_code',
+    'cardProductCode',
+    'card_product_code',
+    'cardProductNo',
+    'card_product_no',
+    'productNo',
+    'product_no'
+  ]);
+  const itemProductName = normalizeUCardRecordValue(item, ['productName', 'product_name', 'cardProductName', 'card_product_name', 'name']);
   const itemCardholderId = normalizeUCardRecordValue(item, ['cardholderId', 'cardholder_id', 'cardHolderId', 'card_holder_id']);
   const itemMerchantOrderNo = normalizeUCardRecordValue(item, ['merchantOrderNo', 'merchant_order_no', 'requestId', 'request_id']);
   const itemStatus = normalizeUCardRecordValue(item, ['status', 'cardStatus', 'card_status']).toUpperCase();
-  if (productCode && itemProductCode && itemProductCode === productCode) score += 4;
+  if (isUCardLooseMatch(itemProductCode, productCode)) score += 5;
+  if (isUCardLooseMatch(itemProductName, productName) || isUCardLooseMatch(itemProductName, productCode)) score += 3;
   if (cardholderId && itemCardholderId && itemCardholderId === cardholderId) score += 6;
   if (applicationNo && itemMerchantOrderNo && itemMerchantOrderNo === applicationNo) score += 8;
   if (['ACTIVE', 'APPROVED', 'SUCCESS', 'COMPLETED'].includes(itemStatus)) score += 2;
+  if (extractUCardCardNo(item)) score += 1;
   return score;
 }
 
@@ -5292,20 +5328,42 @@ async function resolveUCardApplicationCardId(row = {}) {
     cardNo = extractUCardCardNo(detail);
   }
   if (!cardId) {
-    const listBody = {
-      productCode: item.product_code || undefined,
-      status: 'ACTIVE',
-      limit: 100
+    const listBody = { status: 'ACTIVE', limit: 100 };
+    const productFilteredListBody = {
+      ...listBody,
+      productCode: item.product_code || undefined
     };
     let candidate = null;
     try {
-      candidate = pickUCardListCandidate(row, await postUCardUpalJson('/open-api/cards/list', listBody));
+      candidate = pickUCardListCandidate(row, await postUCardUpalJson('/open-api/cards/list', productFilteredListBody));
     } catch {
       candidate = null;
     }
     if (!candidate) {
       try {
+        candidate = pickUCardListCandidate(row, await postUCardUpalJson('/open-api/cards/list', listBody));
+      } catch {
+        candidate = null;
+      }
+    }
+    if (!candidate) {
+      try {
+        candidate = pickUCardListCandidate(row, await postUCardUpalJson('/open-api/cards/upstream-list', productFilteredListBody));
+      } catch {
+        candidate = null;
+      }
+    }
+    if (!candidate) {
+      try {
         candidate = pickUCardListCandidate(row, await postUCardUpalJson('/open-api/cards/upstream-list', listBody));
+      } catch {
+        candidate = null;
+      }
+    }
+    if (!candidate && item.product_code) {
+      try {
+        const listItems = extractUCardListItems(await postUCardUpalJson('/open-api/cards/list', productFilteredListBody));
+        candidate = listItems.find((entry) => extractUCardCardNo(entry) || extractUCardCardId(entry) || extractUCardPlatformCardNo(entry)) || null;
       } catch {
         candidate = null;
       }
