@@ -4964,6 +4964,10 @@ function maskUCardNumber(value = '') {
   return `${compact.slice(0, 4)} **** **** ${compact.slice(-4)}`;
 }
 
+function isUCardPlatformCardNo(value = '') {
+  return /^CARD[_-]?/i.test(String(value || '').trim());
+}
+
 function normalizeUCardApplicationStatus(row = {}) {
   const paymentStatus = String(row.payment_status || '').trim().toUpperCase();
   const status = String(row.status || '').trim();
@@ -5116,20 +5120,21 @@ function requireUCardHolderFields(holder = {}) {
 
 function extractUCardCardId(payload = {}) {
   const data = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
-  return String(
-    data.card_id ||
-      data.cardId ||
-      data.platformCardNo ||
-      data.platform_card_no ||
-      data.cardNo ||
-      data.card_no ||
-      ''
-  ).trim();
+  const candidate = String(data.card_id || data.cardId || data.id || '').trim();
+  return isUCardPlatformCardNo(candidate) ? '' : candidate;
 }
 
 function extractUCardPlatformCardNo(payload = {}) {
   const data = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
-  return String(data.platformCardNo || data.platform_card_no || data.cardNo || data.card_no || data.card_id || data.cardId || '').trim();
+  const explicit = String(data.platformCardNo || data.platform_card_no || '').trim();
+  if (explicit) return explicit;
+  const candidate = String(data.card_id || data.cardId || '').trim();
+  return isUCardPlatformCardNo(candidate) ? candidate : '';
+}
+
+function extractUCardCardNo(payload = {}) {
+  const data = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
+  return String(data.cardNo || data.card_no || data.cardNumber || data.card_number || '').trim();
 }
 
 function extractUCardStatus(payload = {}) {
@@ -5218,17 +5223,40 @@ async function refreshUCardApplicationReview(row = {}) {
   const status = extractUCardStatus(payload);
   const cardId = extractUCardCardId(payload);
   const platformCardNo = extractUCardPlatformCardNo(payload);
+  const cardNo = extractUCardCardNo(payload);
   const nextStatus = ['ACTIVE', 'APPROVED', 'SUCCESS', 'COMPLETED'].includes(status) || cardId || platformCardNo ? 'approved' : 'review_pending';
   updateUCardApplicationReviewStmt.run(
     nextStatus,
     cardId,
     platformCardNo,
-    maskUCardNumber(platformCardNo || cardId),
+    maskUCardNumber(cardNo || platformCardNo || cardId),
     nextStatus,
     nextStatus,
     row.application_no
   );
   return formatUCardApplication(selectUCardApplicationByNoStmt.get(row.application_no));
+}
+
+async function resolveUCardApplicationCardId(row = {}) {
+  const item = formatUCardApplication(row);
+  let cardId = isUCardPlatformCardNo(item.card_id) ? '' : item.card_id;
+  let platformCardNo = item.platform_card_no || (isUCardPlatformCardNo(item.card_id) ? item.card_id : '');
+  if (!cardId && platformCardNo) {
+    const detail = await postUCardUpalJson('/open-api/cards/query', { platformCardNo });
+    cardId = extractUCardCardId(detail);
+    platformCardNo = extractUCardPlatformCardNo(detail) || platformCardNo;
+    const cardNo = extractUCardCardNo(detail);
+    updateUCardApplicationReviewStmt.run(
+      'approved',
+      cardId,
+      platformCardNo,
+      maskUCardNumber(cardNo || platformCardNo || cardId),
+      'approved',
+      'approved',
+      row.application_no
+    );
+  }
+  return { cardId, platformCardNo };
 }
 
 async function pollDueUCardApplicationReviews() {
@@ -5543,8 +5571,14 @@ app.post('/api/u-card/applications/:applicationNo/secure-info', async (req, res)
     const openId = String(req.body?.openId || '').trim();
     if (openId && openId !== String(row.open_id || '').trim()) return res.status(403).json({ error: '无权操作该 U 卡申请' });
     const item = formatUCardApplication(row);
-    if (item.status !== 'approved' || !item.card_id) return res.status(409).json({ error: '卡片还未审核通过' });
-    const data = await postUCardUpalJson('/open-api/cards/secure-info', { cardId: item.card_id });
+    if (item.status !== 'approved') return res.status(409).json({ error: '卡片还未审核通过' });
+    const { cardId, platformCardNo } = await resolveUCardApplicationCardId(row);
+    if (!cardId) return res.status(409).json({ error: '未找到上游卡 ID，请稍后刷新我的卡后重试' });
+    const data = await postUCardUpalJson('/open-api/cards/secure-info', { cardId });
+    const cardNo = extractUCardCardNo(data);
+    if (cardNo) {
+      updateUCardApplicationReviewStmt.run('approved', cardId, platformCardNo, maskUCardNumber(cardNo), 'approved', 'approved', applicationNo);
+    }
     res.json({ ok: true, item: data });
   } catch (error) {
     const statusCode = Number(error?.statusCode || 502) || 502;
@@ -5560,12 +5594,14 @@ app.post('/api/u-card/applications/:applicationNo/recharge', async (req, res) =>
     const openId = String(req.body?.openId || '').trim();
     if (openId && openId !== String(row.open_id || '').trim()) return res.status(403).json({ error: '无权操作该 U 卡申请' });
     const item = formatUCardApplication(row);
-    if (item.status !== 'approved' || !item.card_id) return res.status(409).json({ error: '卡片还未审核通过' });
+    if (item.status !== 'approved') return res.status(409).json({ error: '卡片还未审核通过' });
+    const { cardId } = await resolveUCardApplicationCardId(row);
+    if (!cardId) return res.status(409).json({ error: '未找到上游卡 ID，请稍后刷新我的卡后重试' });
     const amount = String(req.body?.amount || '').trim();
     if (!amount || parseMoneyToCents(amount) <= 0n) return res.status(400).json({ error: '充值金额必填' });
     const requestId = `BAL_${applicationNo}_${Date.now()}`;
     const data = await postUCardUpalJson('/open-api/cards/balance-modify', {
-      cardId: item.card_id,
+      cardId,
       requestId,
       type: 'INCREASE',
       amount
@@ -5585,9 +5621,11 @@ app.post('/api/u-card/applications/:applicationNo/transactions', async (req, res
     const openId = String(req.body?.openId || '').trim();
     if (openId && openId !== String(row.open_id || '').trim()) return res.status(403).json({ error: '无权操作该 U 卡申请' });
     const item = formatUCardApplication(row);
-    if (item.status !== 'approved' || !item.card_id) return res.status(409).json({ error: '卡片还未审核通过' });
+    if (item.status !== 'approved') return res.status(409).json({ error: '卡片还未审核通过' });
+    const { cardId } = await resolveUCardApplicationCardId(row);
+    if (!cardId) return res.status(409).json({ error: '未找到上游卡 ID，请稍后刷新我的卡后重试' });
     const data = await postUCardUpalJson('/open-api/cards/balance-history', {
-      cardId: item.card_id,
+      cardId,
       limit: Math.min(Number(req.body?.limit || 20) || 20, 100),
       page: Math.max(Number(req.body?.page || 1) || 1, 1)
     });

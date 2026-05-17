@@ -258,6 +258,41 @@ test('public U card products endpoint signs and normalizes upstream products', a
           }
         };
       }
+      if (String(url).includes('/open-api/cards/query')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              ok: true,
+              data: {
+                card_id: '2026050811431914822000496491',
+                platformCardNo: 'CARD_UCARD_001',
+                cardNo: '45659999991355',
+                status: 'ACTIVE'
+              }
+            };
+          }
+        };
+      }
+      if (String(url).includes('/open-api/cards/secure-info')) {
+        assert.equal(JSON.parse(String(options.body || '{}')).cardId, '2026050811431914822000496491');
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              ok: true,
+              data: {
+                card_no: '45659999991355',
+                cvv: '123',
+                expiry_month: '12',
+                expiry_year: '2030'
+              }
+            };
+          }
+        };
+      }
       captured = {
         url: String(url),
         method: options.method,
@@ -423,7 +458,15 @@ test('public U card products endpoint signs and normalizes upstream products', a
     const listedAfterProfile = await harness.request('GET', '/api/u-card/applications?openId=nexa-open-id');
     assert.equal(listedAfterProfile.statusCode, 200, JSON.stringify(listedAfterProfile.body));
     assert.equal(listedAfterProfile.body.items[0].status, 'approved');
-    assert.equal(listedAfterProfile.body.items[0].card_id, 'CARD_UCARD_001');
+    assert.equal(listedAfterProfile.body.items[0].platform_card_no, 'CARD_UCARD_001');
+
+    const secureInfo = await harness.request(
+      'POST',
+      `/api/u-card/applications/${applicationNo}/secure-info`,
+      { openId: 'nexa-open-id' }
+    );
+    assert.equal(secureInfo.statusCode, 200, JSON.stringify(secureInfo.body));
+    assert.equal(secureInfo.body.item.data.card_no, '45659999991355');
 
     const reviewed = await harness.request(
       'POST',
@@ -432,7 +475,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
     );
     assert.equal(reviewed.statusCode, 200, JSON.stringify(reviewed.body));
     assert.equal(reviewed.body.item.status, 'approved');
-    assert.equal(reviewed.body.item.card_id, 'CARD_UCARD_001');
+    assert.equal(reviewed.body.item.card_id, '2026050811431914822000496491');
 
     const recovered = await harness.request(
       'POST',
