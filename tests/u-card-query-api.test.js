@@ -266,10 +266,33 @@ test('public U card products endpoint signs and normalizes upstream products', a
             return {
               ok: true,
               data: {
-                card_id: '2026050811431914822000496491',
                 platformCardNo: 'CARD_UCARD_001',
-                cardNo: '45659999991355',
                 status: 'ACTIVE'
+              }
+            };
+          }
+        };
+      }
+      if (String(url).includes('/open-api/cards/list')) {
+        const body = JSON.parse(String(options.body || '{}'));
+        assert.equal(body.productCode, 'virtual-usd');
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              ok: true,
+              data: {
+                items: [
+                  {
+                    card_id: '2026050811431914822000496491',
+                    platformCardNo: 'CARD_UCARD_001',
+                    cardNo: '45659999991355',
+                    productCode: 'virtual-usd',
+                    cardholderId: 'cardholder-001',
+                    status: 'ACTIVE'
+                  }
+                ]
               }
             };
           }
@@ -458,7 +481,9 @@ test('public U card products endpoint signs and normalizes upstream products', a
     const listedAfterProfile = await harness.request('GET', '/api/u-card/applications?openId=nexa-open-id');
     assert.equal(listedAfterProfile.statusCode, 200, JSON.stringify(listedAfterProfile.body));
     assert.equal(listedAfterProfile.body.items[0].status, 'approved');
+    assert.equal(listedAfterProfile.body.items[0].card_id, '2026050811431914822000496491');
     assert.equal(listedAfterProfile.body.items[0].platform_card_no, 'CARD_UCARD_001');
+    assert.equal(listedAfterProfile.body.items[0].card_no_masked, '4565 **** **** 1355');
 
     const secureInfo = await harness.request(
       'POST',
