@@ -5388,6 +5388,42 @@ async function resolveUCardApplicationCardId(row = {}) {
   return { cardId, platformCardNo, cardNo };
 }
 
+async function tryPostUCardUpalJson(pathname, body = {}) {
+  try {
+    return { ok: true, payload: await postUCardUpalJson(pathname, body) };
+  } catch (error) {
+    return { ok: false, error };
+  }
+}
+
+async function fetchUCardSecureInfo(cardId = '', platformCardNo = '') {
+  const primary = String(cardId || '').trim();
+  const platform = String(platformCardNo || '').trim();
+  const attempts = [];
+  if (primary) {
+    attempts.push(['/open-api/cards/secure-info', { cardId: primary }]);
+    attempts.push(['/open-api/cards/secure-info', { card_id: primary }]);
+    attempts.push(['/open-api/cards/query', { cardId: primary }]);
+    attempts.push(['/open-api/cards/query', { card_id: primary }]);
+    attempts.push(['/open-api/cards/upstream-detail', { cardId: primary }]);
+  }
+  if (platform && platform !== primary) {
+    attempts.push(['/open-api/cards/secure-info', { cardId: platform }]);
+    attempts.push(['/open-api/cards/query', { platformCardNo: platform }]);
+  }
+
+  let lastError = null;
+  for (const [pathname, body] of attempts) {
+    const result = await tryPostUCardUpalJson(pathname, body);
+    if (!result.ok) {
+      lastError = result.error;
+      continue;
+    }
+    return result.payload;
+  }
+  throw lastError || new Error('未找到卡');
+}
+
 async function pollDueUCardApplicationReviews() {
   if (uCardReviewPollRunning) return;
   uCardReviewPollRunning = true;
@@ -5714,7 +5750,7 @@ app.post('/api/u-card/applications/:applicationNo/secure-info', async (req, res)
     if (item.status !== 'approved') return res.status(409).json({ error: '卡片还未审核通过' });
     const { cardId, platformCardNo } = await resolveUCardApplicationCardId(row);
     if (!cardId) return res.status(409).json({ error: '未找到上游卡 ID，请稍后刷新我的卡后重试' });
-    const data = await postUCardUpalJson('/open-api/cards/secure-info', { cardId });
+    const data = await fetchUCardSecureInfo(cardId, platformCardNo);
     const cardNo = extractUCardCardNo(data);
     if (cardNo) {
       updateUCardApplicationReviewStmt.run('approved', cardId, platformCardNo, maskUCardNumber(cardNo), 'approved', 'approved', applicationNo);

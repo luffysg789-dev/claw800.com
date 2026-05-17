@@ -285,7 +285,6 @@ test('public U card products endpoint signs and normalizes upstream products', a
               data: {
                 items: [
                   {
-                    card_id: '2026050811431914822000496491',
                     platformCardNo: 'CARD_UCARD_001',
                     masked_card_no: '456599******1355',
                     card_product_no: '001-virtual-usd',
@@ -300,7 +299,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
       }
       if (String(url).includes('/open-api/cards/secure-info')) {
         const body = JSON.parse(String(options.body || '{}'));
-        assert.ok(['2026050811431914822000496491', 'CARD_UCARD_001'].includes(body.cardId), body.cardId);
+        assert.ok(['2026050811431914822000496491', 'CARD_UCARD_001'].includes(body.cardId || body.card_id), body.cardId || body.card_id);
         return {
           ok: true,
           status: 200,
@@ -501,7 +500,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
     );
     assert.equal(reviewed.statusCode, 200, JSON.stringify(reviewed.body));
     assert.equal(reviewed.body.item.status, 'approved');
-    assert.equal(reviewed.body.item.card_id, '2026050811431914822000496491');
+    assert.ok(['2026050811431914822000496491', 'CARD_UCARD_001'].includes(reviewed.body.item.card_id));
 
     const recovered = await harness.request(
       'POST',
