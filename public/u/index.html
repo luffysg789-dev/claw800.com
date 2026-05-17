@@ -488,6 +488,7 @@
       const U_CARD_PAYMENT_CREATE_ENDPOINT = '/api/u-card/payment/create';
       const U_CARD_PAYMENT_QUERY_ENDPOINT = '/api/nexa/tip/query';
       const U_CARD_APPLICATIONS_ENDPOINT = '/api/u-card/applications';
+      const U_CARD_REVIEW_POLL_INTERVAL_MS = 5 * 60 * 1000;
       const U_CARD_SESSION_STORAGE_KEY = 'claw800:u-card:nexa-session';
       const U_CARD_PENDING_PAYMENT_STORAGE_KEY = 'claw800:u-card:pending-payment';
 
@@ -509,6 +510,7 @@
       let currentApplications = [];
       let holderOptionsLoaded = false;
       let activePaidApplication = null;
+      let uCardReviewPollTimer = null;
 
       tabButtons.forEach((button) => {
         button.addEventListener('click', () => {
@@ -600,7 +602,7 @@
                 <p>状态：${escapeHtml(item.status_label || status || '处理中')}</p>
                 <p>订单：${escapeHtml(item.order_no || '-')}</p>
                 ${item.card_no_masked ? `<p>卡号：${escapeHtml(item.card_no_masked)}</p>` : ''}
-                ${status === 'review_pending' ? `<p>已提交上游审核，系统会在约 20 分钟后继续查询。</p>` : ''}
+                ${status === 'review_pending' ? `<p>已提交上游审核，系统会每 5 分钟继续查询上游结果。</p>` : ''}
                 <div class="my-card-actions">
                   ${
                     canFillProfile
@@ -632,6 +634,7 @@
         const session = readCachedNexaSession();
         if (!session?.openId) {
           renderMyCards([]);
+          scheduleUCardReviewPolling();
           return;
         }
         setMineCardsStatus('正在加载我的卡...');
@@ -649,10 +652,37 @@
           const payload = await response.json().catch(() => ({}));
           if (!response.ok || payload?.ok === false) throw new Error(payload?.error || '我的卡加载失败');
           renderMyCards(Array.isArray(payload.items) ? payload.items : []);
+          scheduleUCardReviewPolling();
         } catch (error) {
           mineCardsList.innerHTML = '';
           setMineCardsStatus(error?.message || '我的卡加载失败', 'error');
         }
+      }
+
+      function hasReviewPendingCards() {
+        return currentApplications.some((item) => formatApplicationStatus(item) === 'review_pending');
+      }
+
+      function stopUCardReviewPolling() {
+        if (!uCardReviewPollTimer) return;
+        window.clearInterval(uCardReviewPollTimer);
+        uCardReviewPollTimer = null;
+      }
+
+      function scheduleUCardReviewPolling() {
+        if (!hasReviewPendingCards()) {
+          stopUCardReviewPolling();
+          return;
+        }
+        if (uCardReviewPollTimer) return;
+        uCardReviewPollTimer = window.setInterval(async () => {
+          if (!hasReviewPendingCards()) {
+            stopUCardReviewPolling();
+            return;
+          }
+          await loadMyCards().catch(() => {});
+          if (!hasReviewPendingCards()) stopUCardReviewPolling();
+        }, U_CARD_REVIEW_POLL_INTERVAL_MS);
       }
 
       function findProduct(productCode) {
@@ -1198,7 +1228,8 @@
           await loadMyCards();
           closeCardholderForm();
           selectTab('mine');
-          setSessionStatus('卡资料已提交，已进入审核中。约 20 分钟后会继续查询上游结果。', 'success');
+          scheduleUCardReviewPolling();
+          setSessionStatus('卡资料已提交，已进入审核中。系统会每 5 分钟继续查询上游结果。', 'success');
         } catch (error) {
           holderMessage.textContent = error?.message || '资料提交失败';
           holderMessage.classList.add('error');

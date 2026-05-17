@@ -52,6 +52,7 @@ const COOKIE_SECURE = String(process.env.COOKIE_SECURE || '') === 'true';
 const TRUST_PROXY = String(process.env.TRUST_PROXY || 'loopback, linklocal, uniquelocal').trim();
 const NEXA_TIP_AMOUNT = '0.10';
 const NEXA_TIP_CURRENCY = 'USDT';
+const U_CARD_REVIEW_POLL_INTERVAL_MS = 5 * 60 * 1000;
 const NEXA_ESCROW_CURRENCY = 'USDT';
 const NEXA_ESCROW_DEFAULT_MIN_AMOUNT = '1.00';
 const NEXA_ESCROW_DEFAULT_MAX_AMOUNT = '100000.00';
@@ -94,6 +95,7 @@ const nexaEscrowEventStreams = new Map();
 const nchatEventStreams = new Map();
 const xiangqiRoomEventStreams = new Map();
 let preferredNexaPaymentVariantName = 'github-doc-strict';
+let uCardReviewPollRunning = false;
 
 app.set('trust proxy', TRUST_PROXY);
 
@@ -3158,6 +3160,16 @@ const listAdminUCardApplicationsStmt = db.prepare(`
   ORDER BY datetime(created_at) DESC, id DESC
   LIMIT 300
 `);
+const listDueUCardReviewApplicationsStmt = db.prepare(`
+  SELECT *
+  FROM u_card_applications
+  WHERE status = 'review_pending'
+    AND payment_status = 'SUCCESS'
+    AND trim(next_review_check_at) <> ''
+    AND datetime(next_review_check_at) <= datetime('now')
+  ORDER BY datetime(next_review_check_at) ASC, id ASC
+  LIMIT 20
+`);
 const updateUCardApplicationPaymentStmt = db.prepare(`
   UPDATE u_card_applications
   SET payment_status = ?,
@@ -3177,7 +3189,7 @@ const updateUCardApplicationHolderStmt = db.prepare(`
       platform_card_no = ?,
       status = 'review_pending',
       submitted_at = datetime('now'),
-      next_review_check_at = datetime('now', '+20 minutes'),
+      next_review_check_at = datetime('now', '+5 minutes'),
       updated_at = datetime('now')
   WHERE application_no = ?
 `);
@@ -3188,6 +3200,10 @@ const updateUCardApplicationReviewStmt = db.prepare(`
       platform_card_no = COALESCE(NULLIF(?, ''), platform_card_no),
       card_no_masked = COALESCE(NULLIF(?, ''), card_no_masked),
       approved_at = CASE WHEN ? = 'approved' AND trim(approved_at) = '' THEN datetime('now') ELSE approved_at END,
+      next_review_check_at = CASE
+        WHEN ? = 'approved' THEN ''
+        ELSE datetime('now', '+5 minutes')
+      END,
       updated_at = datetime('now')
   WHERE application_no = ?
 `);
@@ -5209,9 +5225,27 @@ async function refreshUCardApplicationReview(row = {}) {
     platformCardNo,
     maskUCardNumber(platformCardNo || cardId),
     nextStatus,
+    nextStatus,
     row.application_no
   );
   return formatUCardApplication(selectUCardApplicationByNoStmt.get(row.application_no));
+}
+
+async function pollDueUCardApplicationReviews() {
+  if (uCardReviewPollRunning) return;
+  uCardReviewPollRunning = true;
+  try {
+    const rows = listDueUCardReviewApplicationsStmt.all();
+    for (const row of rows) {
+      try {
+        await refreshUCardApplicationReview(row);
+      } catch {
+        // Keep the poller alive; the next scheduled run can retry this order.
+      }
+    }
+  } finally {
+    uCardReviewPollRunning = false;
+  }
 }
 
 function replaceUCardUpstreamData({ platforms, cards }) {
@@ -5473,6 +5507,7 @@ app.post('/api/u-card/applications/:applicationNo/profile', async (req, res) => 
         upstream.cardId,
         upstream.platformCardNo,
         maskUCardNumber(upstream.platformCardNo || upstream.cardId),
+        'approved',
         'approved',
         applicationNo
       );
@@ -12733,6 +12768,10 @@ setInterval(() => {
 setInterval(() => {
   skillsCatalogTick().catch(() => {});
 }, SKILLS_CATALOG_SYNC_CHECK_MS).unref?.();
+
+setInterval(() => {
+  pollDueUCardApplicationReviews().catch(() => {});
+}, U_CARD_REVIEW_POLL_INTERVAL_MS).unref?.();
 
 setTimeout(() => {
   skillsCatalogTick({ forceIfEmpty: true }).catch(() => {});

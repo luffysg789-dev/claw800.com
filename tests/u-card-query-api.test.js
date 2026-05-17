@@ -242,6 +242,22 @@ test('public U card products endpoint signs and normalizes upstream products', a
           }
         };
       }
+      if (String(url).includes('/open-api/cards/apply-result')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              ok: true,
+              data: {
+                request_id: 'REQ_UCARD_001',
+                status: 'SUCCESS',
+                card_id: 'CARD_UCARD_001'
+              }
+            };
+          }
+        };
+      }
       captured = {
         url: String(url),
         method: options.method,
@@ -402,6 +418,16 @@ test('public U card products endpoint signs and normalizes upstream products', a
     assert.equal(profiled.body.item.status, 'review_pending');
     assert.equal(profiled.body.item.cardholder_id, 'cardholder-001');
     assert.equal(profiled.body.item.upstream_application_id, 'REQ_UCARD_001');
+    assert.match(profiled.body.item.next_review_check_at, /\d{4}-\d{2}-\d{2}/);
+
+    const reviewed = await harness.request(
+      'POST',
+      `/api/u-card/applications/${applicationNo}/check-review`,
+      { openId: 'nexa-open-id' }
+    );
+    assert.equal(reviewed.statusCode, 200, JSON.stringify(reviewed.body));
+    assert.equal(reviewed.body.item.status, 'approved');
+    assert.equal(reviewed.body.item.card_id, 'CARD_UCARD_001');
 
     const recovered = await harness.request(
       'POST',
