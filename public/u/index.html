@@ -583,6 +583,19 @@
           .join('');
       }
 
+      function isUCardApiCardId(value) {
+        return /^CARD/i.test(String(value || '').replace(/[\s*]+/g, '').trim());
+      }
+
+      function getUCardDisplayCardId(item) {
+        return String(item?.card_id || item?.platform_card_no || '').trim();
+      }
+
+      function getUCardDisplayCardNo(item) {
+        const cardNo = String(item?.card_no_masked || '').trim();
+        return cardNo && !isUCardApiCardId(cardNo) ? cardNo : '';
+      }
+
       function renderMyCards(items = currentApplications) {
         currentApplications = Array.isArray(items) ? items : [];
         if (!currentApplications.length) {
@@ -596,12 +609,15 @@
             const status = String(item.status || '').trim();
             const canFillProfile = status === 'needs_profile';
             const isApproved = status === 'approved';
+            const displayCardId = getUCardDisplayCardId(item);
+            const displayCardNo = getUCardDisplayCardNo(item);
             return `
               <article class="my-card-item" data-application-no="${escapeHtml(item.application_no || '')}">
                 <h2>${escapeHtml(item.product_name || 'U 卡申请')}</h2>
                 <p>状态：${escapeHtml(item.status_label || status || '处理中')}</p>
                 <p>订单：${escapeHtml(item.order_no || '-')}</p>
-                ${item.card_no_masked ? `<p>卡号：${escapeHtml(item.card_no_masked)}</p>` : ''}
+                ${displayCardId ? `<p>卡 ID：${escapeHtml(displayCardId)}</p>` : ''}
+                ${displayCardNo ? `<p>卡号：${escapeHtml(displayCardNo)}</p>` : ''}
                 ${status === 'review_pending' ? `<p>已提交上游审核，系统会每 5 分钟继续查询上游结果。</p>` : ''}
                 <div class="my-card-actions">
                   ${
