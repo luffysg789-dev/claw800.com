@@ -5411,9 +5411,10 @@ app.get('/api/u-card/applications', async (req, res) => {
           current = row;
         }
       }
-      if (String(current.status || '').trim() === 'review_pending' && isUCardReviewCheckDue(current)) {
+      if (String(current.status || '').trim() === 'review_pending') {
         try {
-          current = await refreshUCardApplicationReview(current);
+          await refreshUCardApplicationReview(current);
+          current = selectUCardApplicationByNoStmt.get(current.application_no) || current;
         } catch {
           current = selectUCardApplicationByNoStmt.get(current.application_no) || current;
         }

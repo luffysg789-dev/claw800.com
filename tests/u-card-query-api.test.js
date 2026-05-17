@@ -420,6 +420,11 @@ test('public U card products endpoint signs and normalizes upstream products', a
     assert.equal(profiled.body.item.upstream_application_id, 'REQ_UCARD_001');
     assert.match(profiled.body.item.next_review_check_at, /\d{4}-\d{2}-\d{2}/);
 
+    const listedAfterProfile = await harness.request('GET', '/api/u-card/applications?openId=nexa-open-id');
+    assert.equal(listedAfterProfile.statusCode, 200, JSON.stringify(listedAfterProfile.body));
+    assert.equal(listedAfterProfile.body.items[0].status, 'approved');
+    assert.equal(listedAfterProfile.body.items[0].card_id, 'CARD_UCARD_001');
+
     const reviewed = await harness.request(
       'POST',
       `/api/u-card/applications/${applicationNo}/check-review`,
