@@ -660,7 +660,7 @@
       }
 
       function hasReviewPendingCards() {
-        return currentApplications.some((item) => formatApplicationStatus(item) === 'review_pending');
+        return currentApplications.some((item) => String(item.status || '').trim() === 'review_pending');
       }
 
       function stopUCardReviewPolling() {

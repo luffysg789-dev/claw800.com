@@ -66,6 +66,7 @@ test('U card application requires payment before showing cardholder form', () =>
   assert.match(html, /const U_CARD_REVIEW_POLL_INTERVAL_MS = 5 \* 60 \* 1000;/);
   assert.match(html, /function scheduleUCardReviewPolling\(\)/);
   assert.match(html, /window\.setInterval\(async \(\) => \{[\s\S]*loadMyCards\(\)/);
+  assert.doesNotMatch(html, /formatApplicationStatus/);
   assert.match(html, /系统会每 5 分钟继续查询上游结果/);
   const server = fs.readFileSync(serverPath, 'utf8');
   assert.match(server, /const U_CARD_REVIEW_POLL_INTERVAL_MS = 5 \* 60 \* 1000;/);
