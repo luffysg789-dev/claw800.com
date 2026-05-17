@@ -232,6 +232,10 @@
         overflow: auto;
       }
 
+      .action-dialog {
+        padding-bottom: 0;
+      }
+
       .cardholder-header {
         position: sticky;
         top: 0;
@@ -308,6 +312,109 @@
         border-top: 1px solid var(--line);
         background: var(--surface);
         padding: 12px 14px;
+      }
+
+      .modal-actions.single {
+        grid-template-columns: 1fr;
+      }
+
+      .action-modal-body {
+        display: grid;
+        gap: 12px;
+        padding: 14px;
+      }
+
+      .secure-card-preview {
+        display: grid;
+        gap: 18px;
+        min-height: 178px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #1f7a4d, #2cb7a1);
+        color: #fff;
+        padding: 18px;
+        box-shadow: 0 14px 30px rgb(31 122 77 / 0.18);
+      }
+
+      .secure-card-preview__brand {
+        font-size: 14px;
+        font-weight: 900;
+        opacity: 0.9;
+      }
+
+      .secure-card-preview__number {
+        overflow-wrap: anywhere;
+        font-size: 22px;
+        font-weight: 900;
+        line-height: 1.25;
+      }
+
+      .secure-card-preview__meta {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .secure-card-preview__meta span {
+        display: block;
+        font-size: 11px;
+        opacity: 0.78;
+      }
+
+      .secure-card-preview__meta strong {
+        display: block;
+        margin-top: 3px;
+        font-size: 15px;
+      }
+
+      .card-info-grid {
+        display: grid;
+        gap: 8px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfb;
+        padding: 12px;
+      }
+
+      .card-info-row {
+        display: grid;
+        grid-template-columns: 76px minmax(0, 1fr);
+        gap: 10px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .card-info-row strong {
+        color: var(--ink);
+        overflow-wrap: anywhere;
+      }
+
+      .recharge-panel {
+        display: grid;
+        gap: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfb;
+        padding: 12px;
+      }
+
+      .recharge-amount-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 82px;
+        gap: 8px;
+      }
+
+      .recharge-amount-row input,
+      .recharge-amount-row select {
+        width: 100%;
+        min-height: 44px;
+        border: 1px solid #d7e3da;
+        border-radius: 8px;
+        background: #fff;
+        color: var(--ink);
+        font: inherit;
+        font-size: 16px;
+        padding: 0 12px;
       }
 
       .my-card-item {
@@ -479,6 +586,71 @@
       </div>
     </div>
 
+    <div id="uCardInfoModal" class="cardholder-modal hidden" role="dialog" aria-modal="true" aria-labelledby="uCardInfoTitle">
+      <div class="cardholder-dialog action-dialog">
+        <div class="cardholder-header">
+          <h2 id="uCardInfoTitle">卡信息</h2>
+          <p id="uCardInfoSubtitle" class="form-note"></p>
+        </div>
+        <div class="action-modal-body">
+          <div class="secure-card-preview" aria-label="U 卡信息">
+            <div class="secure-card-preview__brand">uPAL</div>
+            <div id="uCardInfoNumberPreview" class="secure-card-preview__number">-</div>
+            <div class="secure-card-preview__meta">
+              <div>
+                <span>有效期</span>
+                <strong id="uCardInfoExpiryPreview">-</strong>
+              </div>
+              <div>
+                <span>CVV</span>
+                <strong id="uCardInfoCvvPreview">-</strong>
+              </div>
+            </div>
+          </div>
+          <div class="card-info-grid">
+            <div class="card-info-row"><span>卡 ID</span><strong id="uCardInfoCardId">-</strong></div>
+            <div class="card-info-row"><span>卡号</span><strong id="uCardInfoCardNo">-</strong></div>
+            <div class="card-info-row"><span>有效期</span><strong id="uCardInfoExpiry">-</strong></div>
+            <div class="card-info-row"><span>CVV</span><strong id="uCardInfoCvv">-</strong></div>
+          </div>
+          <p id="uCardInfoMessage" class="form-note"></p>
+        </div>
+        <div class="modal-actions single">
+          <button id="uCardInfoCloseBtn" class="secondary-button" type="button">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="uCardRechargeModal" class="cardholder-modal hidden" role="dialog" aria-modal="true" aria-labelledby="uCardRechargeTitle">
+      <div class="cardholder-dialog action-dialog">
+        <div class="cardholder-header">
+          <h2 id="uCardRechargeTitle">充卡</h2>
+          <p id="uCardRechargeSubtitle" class="form-note"></p>
+        </div>
+        <form id="uCardRechargeForm" class="action-modal-body">
+          <div class="recharge-panel">
+            <div class="card-info-row"><span>卡 ID</span><strong id="uCardRechargeCardId">-</strong></div>
+            <div class="card-info-row"><span>卡号</span><strong id="uCardRechargeCardNo">-</strong></div>
+            <div class="form-row">
+              <label for="uCardRechargeAmount"><span class="required">*</span> 充值金额</label>
+              <div class="recharge-amount-row">
+                <input id="uCardRechargeAmount" name="amount" inputmode="decimal" placeholder="请输入金额" required />
+                <select id="uCardRechargeCurrency" name="currency" aria-label="充值币种">
+                  <option value="USDT">USDT</option>
+                </select>
+              </div>
+            </div>
+            <p class="form-note">提交后会向上游发起充卡请求，到账结果以资金明细为准。</p>
+          </div>
+          <p id="uCardRechargeMessage" class="list-status" aria-live="polite"></p>
+          <div class="modal-actions">
+            <button id="uCardRechargeCancelBtn" class="secondary-button" type="button">取消</button>
+            <button class="primary-button" type="submit">确认充卡</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <script>
       const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth://oauth/authorize';
       const NEXA_PROTOCOL_ORDER_BASE = 'nexaauth://order';
@@ -505,11 +677,17 @@
       const holderProduct = document.getElementById('uCardHolderProduct');
       const holderMessage = document.getElementById('uCardHolderMessage');
       const holderCancelButton = document.getElementById('uCardHolderCancelBtn');
+      const infoModal = document.getElementById('uCardInfoModal');
+      const infoCloseButton = document.getElementById('uCardInfoCloseBtn');
+      const rechargeModal = document.getElementById('uCardRechargeModal');
+      const rechargeForm = document.getElementById('uCardRechargeForm');
+      const rechargeCancelButton = document.getElementById('uCardRechargeCancelBtn');
       let cachedNexaPublicConfig = null;
       let currentProducts = [];
       let currentApplications = [];
       let holderOptionsLoaded = false;
       let activePaidApplication = null;
+      let activeRechargeApplication = null;
       let uCardReviewPollTimer = null;
 
       tabButtons.forEach((button) => {
@@ -617,7 +795,7 @@
                 <p>状态：${escapeHtml(item.status_label || status || '处理中')}</p>
                 <p>订单：${escapeHtml(item.order_no || '-')}</p>
                 ${displayCardId ? `<p>卡 ID：${escapeHtml(displayCardId)}</p>` : ''}
-                ${displayCardNo ? `<p>卡号：${escapeHtml(displayCardNo)}</p>` : ''}
+                ${isApproved || displayCardNo ? `<p>卡号：${escapeHtml(displayCardNo || '-')}</p>` : ''}
                 ${status === 'review_pending' ? `<p>已提交上游审核，系统会每 5 分钟继续查询上游结果。</p>` : ''}
                 <div class="my-card-actions">
                   ${
@@ -634,7 +812,7 @@
                     isApproved
                       ? `
                         <button class="primary-button" type="button" data-recharge-card="${escapeHtml(item.application_no || '')}">充卡</button>
-                        <button class="secondary-button" type="button" data-view-secure="${escapeHtml(item.application_no || '')}">查看卡号</button>
+                        <button class="secondary-button" type="button" data-view-secure="${escapeHtml(item.application_no || '')}">查看卡信息</button>
                         <button class="secondary-button" type="button" data-view-ledger="${escapeHtml(item.application_no || '')}">资金明细</button>
                       `
                       : ''
@@ -1077,6 +1255,107 @@
         });
       }
 
+      function getUCardPayloadObject(payload) {
+        const source = payload?.item || payload?.data || payload || {};
+        return source?.data && typeof source.data === 'object' ? source.data : source;
+      }
+
+      function findUCardPayloadValue(payload, keys, depth = 0) {
+        if (!payload || typeof payload !== 'object' || depth > 4) return '';
+        for (const key of keys) {
+          const value = payload[key];
+          if (value !== undefined && value !== null && String(value).trim()) return String(value).trim();
+        }
+        for (const value of Object.values(payload)) {
+          if (value && typeof value === 'object') {
+            const nested = findUCardPayloadValue(value, keys, depth + 1);
+            if (nested) return nested;
+          }
+        }
+        return '';
+      }
+
+      function getUCardSecureCardNo(payload) {
+        return findUCardPayloadValue(getUCardPayloadObject(payload), [
+          'cardNo',
+          'card_no',
+          'cardNumber',
+          'card_number',
+          'pan',
+          'number',
+          'maskedCardNo',
+          'masked_card_no',
+          'cardNoMasked',
+          'card_no_masked'
+        ]);
+      }
+
+      function getUCardSecureExpiry(payload) {
+        const data = getUCardPayloadObject(payload);
+        const explicit = findUCardPayloadValue(data, [
+          'expiry',
+          'expire',
+          'expireDate',
+          'expire_date',
+          'expirationDate',
+          'expiration_date',
+          'validThru',
+          'valid_thru'
+        ]);
+        if (explicit) return explicit;
+        const month = findUCardPayloadValue(data, ['expMonth', 'exp_month', 'expiryMonth', 'expiry_month']);
+        const year = findUCardPayloadValue(data, ['expYear', 'exp_year', 'expiryYear', 'expiry_year']);
+        return month && year ? `${month}/${year}` : '';
+      }
+
+      function getUCardSecureCvv(payload) {
+        return findUCardPayloadValue(getUCardPayloadObject(payload), ['cvv', 'cvv2', 'cvc', 'securityCode', 'security_code']);
+      }
+
+      function setText(id, value) {
+        const target = document.getElementById(id);
+        if (target) target.textContent = String(value || '-');
+      }
+
+      function openUCardInfoModal(application, payload) {
+        const cardId = getUCardDisplayCardId(application);
+        const cardNo = getUCardSecureCardNo(payload) || getUCardDisplayCardNo(application);
+        const expiry = getUCardSecureExpiry(payload);
+        const cvv = getUCardSecureCvv(payload);
+        setText('uCardInfoSubtitle', application?.product_name || 'U 卡');
+        setText('uCardInfoNumberPreview', cardNo);
+        setText('uCardInfoExpiryPreview', expiry);
+        setText('uCardInfoCvvPreview', cvv);
+        setText('uCardInfoCardId', cardId);
+        setText('uCardInfoCardNo', cardNo);
+        setText('uCardInfoExpiry', expiry);
+        setText('uCardInfoCvv', cvv);
+        setText('uCardInfoMessage', cardNo ? '卡信息来自上游接口，请妥善保管。' : '上游暂未返回完整卡号，请稍后再试。');
+        infoModal.classList.remove('hidden');
+      }
+
+      function closeUCardInfoModal() {
+        infoModal.classList.add('hidden');
+      }
+
+      function openUCardRechargeModal(application) {
+        activeRechargeApplication = application;
+        rechargeForm.reset();
+        setText('uCardRechargeSubtitle', application?.product_name || 'U 卡');
+        setText('uCardRechargeCardId', getUCardDisplayCardId(application));
+        setText('uCardRechargeCardNo', getUCardDisplayCardNo(application));
+        const message = document.getElementById('uCardRechargeMessage');
+        message.textContent = '';
+        message.classList.remove('error');
+        rechargeModal.classList.remove('hidden');
+        document.getElementById('uCardRechargeAmount').focus();
+      }
+
+      function closeUCardRechargeModal() {
+        rechargeModal.classList.add('hidden');
+        activeRechargeApplication = null;
+      }
+
       function openCardholderForm(application) {
         activePaidApplication = application;
         holderForm.reset();
@@ -1197,16 +1476,14 @@
           }
           if (secureButton) {
             secureButton.disabled = true;
+            const item = findApplication(secureButton.dataset.viewSecure);
             const payload = await callUCardAction(secureButton.dataset.viewSecure, 'secure-info');
-            alert(JSON.stringify(payload.item || payload, null, 2));
+            openUCardInfoModal(item || {}, payload);
             return;
           }
           if (rechargeButton) {
-            const amount = window.prompt('请输入充卡金额（USDT）');
-            if (!amount) return;
-            rechargeButton.disabled = true;
-            await callUCardAction(rechargeButton.dataset.rechargeCard, 'recharge', { amount });
-            setSessionStatus('充卡请求已提交，上游处理中。', 'success');
+            const item = findApplication(rechargeButton.dataset.rechargeCard);
+            if (item) openUCardRechargeModal(item);
             return;
           }
           if (ledgerButton) {
@@ -1223,6 +1500,33 @@
         }
       });
       holderCancelButton.addEventListener('click', closeCardholderForm);
+      infoCloseButton.addEventListener('click', closeUCardInfoModal);
+      rechargeCancelButton.addEventListener('click', closeUCardRechargeModal);
+      rechargeForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!activeRechargeApplication) return;
+        const amount = String(new FormData(rechargeForm).get('amount') || '').trim();
+        const message = document.getElementById('uCardRechargeMessage');
+        if (!amount || Number(amount) <= 0) {
+          message.textContent = '请输入有效的充值金额。';
+          message.classList.add('error');
+          return;
+        }
+        const submitButton = rechargeForm.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        message.textContent = '正在提交充卡请求...';
+        message.classList.remove('error');
+        try {
+          await callUCardAction(activeRechargeApplication.application_no, 'recharge', { amount });
+          closeUCardRechargeModal();
+          setSessionStatus('充卡请求已提交，上游处理中。', 'success');
+        } catch (error) {
+          message.textContent = error?.message || '充卡失败';
+          message.classList.add('error');
+        } finally {
+          submitButton.disabled = false;
+        }
+      });
       holderForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         if (!activePaidApplication) return;
