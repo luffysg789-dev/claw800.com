@@ -73,6 +73,12 @@ test('U card application requires payment before showing cardholder form', () =>
   assert.match(html, /<span class="required">\*<\/span> 生日/);
   assert.match(html, /<span class="required">\*<\/span> 手机号/);
   assert.match(html, /<select id="holderPhoneCode" name="phoneCode" required aria-label="区号">/);
+  assert.match(html, /<option value="\+86" selected>\+86<\/option>/);
+  assert.match(html, /function sortPhoneCountryCodeOptions\(items\)/);
+  assert.match(html, /function setDefaultHolderPhoneCode\(\)/);
+  assert.match(html, /renderOptionList\(document\.getElementById\('holderPhoneCode'\), sortPhoneCountryCodeOptions\(payload\.phoneCountryCodes\),/);
+  assert.match(html, /\['\+1', '\+61', '\+65', '\+81', '\+86', '\+852'\]/);
+  assert.match(html, /setDefaultHolderPhoneCode\(\);/);
   assert.doesNotMatch(html, /holderPhoneCodeSelect/);
   assert.match(html, /function loadUCardHolderOptions\(\)/);
   assert.match(html, /fetch\(U_CARD_HOLDER_OPTIONS_ENDPOINT/);

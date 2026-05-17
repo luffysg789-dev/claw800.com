@@ -418,12 +418,12 @@
             <span class="form-label"><span class="required">*</span> 手机号</span>
             <div class="phone-fields">
               <select id="holderPhoneCode" name="phoneCode" required aria-label="区号">
-                <option value="+86">+86</option>
-                <option value="+852">+852</option>
-                <option value="+81">+81</option>
-                <option value="+65">+65</option>
                 <option value="+1">+1</option>
                 <option value="+61">+61</option>
+                <option value="+65">+65</option>
+                <option value="+81">+81</option>
+                <option value="+86" selected>+86</option>
+                <option value="+852">+852</option>
               </select>
               <input name="phone" placeholder="手机号" required inputmode="tel" autocomplete="tel" />
             </div>
@@ -684,18 +684,57 @@
         }
       }
 
+      const DEFAULT_HOLDER_PHONE_CODE = '+86';
+
+      function normalizePhoneCountryCode(value) {
+        const raw = String(value || '').trim();
+        if (!raw) return '';
+        const digits = raw.replace(/[^\d]/g, '');
+        if (!digits) return raw;
+        return `+${digits}`;
+      }
+
+      function getPhoneCountryCodeNumber(item) {
+        const value = normalizePhoneCountryCode(item?.value || item);
+        const digits = value.replace(/[^\d]/g, '');
+        return Number(digits || Number.MAX_SAFE_INTEGER);
+      }
+
+      function sortPhoneCountryCodeOptions(items) {
+        return (Array.isArray(items) ? [...items] : []).sort((left, right) => {
+          const leftNumber = getPhoneCountryCodeNumber(left);
+          const rightNumber = getPhoneCountryCodeNumber(right);
+          if (leftNumber !== rightNumber) return leftNumber - rightNumber;
+          return String(left?.label || left?.value || left).localeCompare(String(right?.label || right?.value || right));
+        });
+      }
+
+      function setDefaultHolderPhoneCode() {
+        const target = document.getElementById('holderPhoneCode');
+        if (!target) return;
+        const defaultOption = Array.from(target.options).find((option) => normalizePhoneCountryCode(option.value) === DEFAULT_HOLDER_PHONE_CODE);
+        if (defaultOption) target.value = defaultOption.value;
+      }
+
       function renderOptionList(target, items = [], fallback = []) {
         if (!target) return;
         const merged = [...items, ...fallback.map((value) => ({ value, label: value }))];
         const seen = new Set();
         const options = merged
+          .map((item) => {
+            const value = normalizePhoneCountryCode(item?.value || item);
+            return {
+              value,
+              label: normalizePhoneCountryCode(item?.label || item?.value || item) || value
+            };
+          })
           .filter((item) => {
-            const value = String(item?.value || '').trim();
+            const value = item.value;
             if (!value || seen.has(value)) return false;
             seen.add(value);
             return true;
           })
-          .map((item) => ({ value: item.value, label: item.label || item.value }));
+          .sort((left, right) => getPhoneCountryCodeNumber(left) - getPhoneCountryCodeNumber(right));
         target.innerHTML = options.map((item) => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.value)}</option>`).join('');
       }
 
@@ -715,14 +754,8 @@
           });
           const payload = await response.json().catch(() => ({}));
           if (!response.ok || payload?.ok === false) throw new Error(payload?.error || '用卡人选项加载失败');
-          renderOptionList(document.getElementById('holderPhoneCode'), payload.phoneCountryCodes, [
-            '+86',
-            '+852',
-            '+81',
-            '+65',
-            '+1',
-            '+61'
-          ]);
+          renderOptionList(document.getElementById('holderPhoneCode'), sortPhoneCountryCodeOptions(payload.phoneCountryCodes), ['+1', '+61', '+65', '+81', '+86', '+852']);
+          setDefaultHolderPhoneCode();
         } catch (error) {
           holderOptionsLoaded = false;
         }
@@ -1001,7 +1034,7 @@
       function openCardholderForm(application) {
         activePaidApplication = application;
         holderForm.reset();
-        document.getElementById('holderPhoneCode').value = '+86';
+        setDefaultHolderPhoneCode();
         holderMessage.textContent = '';
         holderMessage.classList.remove('error');
         holderProduct.textContent = `${application.product_name || application.product?.name || 'U 卡产品'} · 已支付 ${application.amount || ''} ${application.currency || 'USDT'}`;
