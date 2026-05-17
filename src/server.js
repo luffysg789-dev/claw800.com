@@ -5403,13 +5403,18 @@ async function fetchUCardSecureInfo(cardId = '', platformCardNo = '') {
   if (primary) {
     attempts.push(['/open-api/cards/secure-info', { cardId: primary }]);
     attempts.push(['/open-api/cards/secure-info', { card_id: primary }]);
+    attempts.push(['/open-api/cards/secure-info', { cardid: primary }]);
     attempts.push(['/open-api/cards/query', { cardId: primary }]);
     attempts.push(['/open-api/cards/query', { card_id: primary }]);
+    attempts.push(['/open-api/cards/query', { cardid: primary }]);
     attempts.push(['/open-api/cards/upstream-detail', { cardId: primary }]);
+    attempts.push(['/open-api/cards/upstream-detail', { cardid: primary }]);
   }
   if (platform && platform !== primary) {
     attempts.push(['/open-api/cards/secure-info', { cardId: platform }]);
+    attempts.push(['/open-api/cards/secure-info', { cardid: platform }]);
     attempts.push(['/open-api/cards/query', { platformCardNo: platform }]);
+    attempts.push(['/open-api/cards/query', { cardid: platform }]);
   }
 
   let lastError = null;

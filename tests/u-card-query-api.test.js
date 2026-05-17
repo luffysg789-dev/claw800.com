@@ -133,6 +133,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
 
     let captured = null;
     let capturedPayment = null;
+    const capturedSecureBodies = [];
     const capturedRechargeBodies = [];
     let mockPaymentQueryStatus = 'PENDING';
     global.fetch = async (url, options = {}) => {
@@ -300,7 +301,16 @@ test('public U card products endpoint signs and normalizes upstream products', a
       }
       if (String(url).includes('/open-api/cards/secure-info')) {
         const body = JSON.parse(String(options.body || '{}'));
-        assert.ok(['2026050811431914822000496491', 'CARD_UCARD_001'].includes(body.cardId || body.card_id), body.cardId || body.card_id);
+        capturedSecureBodies.push(body);
+        if (body.cardid !== 'CARD_UCARD_001') {
+          return {
+            ok: false,
+            status: 404,
+            async json() {
+              return { ok: false, error: '找不到卡片' };
+            }
+          };
+        }
         return {
           ok: true,
           status: 200,
@@ -513,6 +523,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
     );
     assert.equal(secureInfo.statusCode, 200, JSON.stringify(secureInfo.body));
     assert.equal(secureInfo.body.item.data.card_no, '45659999991355');
+    assert.ok(capturedSecureBodies.some((body) => body.cardid === 'CARD_UCARD_001'));
 
     const recharge = await harness.request(
       'POST',
