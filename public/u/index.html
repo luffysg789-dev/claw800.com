@@ -851,6 +851,7 @@
       let currentApplications = [];
       let holderOptionsLoaded = false;
       let activePaidApplication = null;
+      let paidApplicationToProfile = null;
       let activeRechargeApplication = null;
       let uCardReviewPollTimer = null;
       let pendingPaymentSettleTimer = null;
@@ -1773,6 +1774,7 @@
         }
         setSessionStatus('正在确认 U 卡支付结果...');
         try {
+          paidApplicationToProfile = null;
           const status = await queryPaymentStatus(pending.orderNo);
           if (status === 'SUCCESS') {
             if (pending.type === 'recharge' && pending.applicationNo) {
@@ -1782,14 +1784,20 @@
                 paymentOrderNo: pending.orderNo
               });
             } else if (pending.applicationNo) {
-              await confirmUCardApplicationPayment(pending.applicationNo);
+              const confirmedItem = await confirmUCardApplicationPayment(pending.applicationNo);
+              paidApplicationToProfile = confirmedItem;
             } else {
-              await recoverPaidUCardApplication(pending);
+              paidApplicationToProfile = await recoverPaidUCardApplication(pending);
             }
             clearPendingPayment();
             await loadMyCards();
             selectTab('mine');
-            setSessionStatus(pending.type === 'recharge' ? '支付成功，充卡请求已提交，上游处理中。' : '支付成功，已放入我的卡。点开后可补充用卡人资料。', 'success');
+            if (pending.type === 'recharge') {
+              setSessionStatus('支付成功，充卡请求已提交，上游处理中。', 'success');
+            } else {
+              setSessionStatus('支付成功，请补充用卡人资料。', 'success');
+              if (paidApplicationToProfile) openCardholderForm(paidApplicationToProfile);
+            }
           } else if (status === 'FAILED' || status === 'CANCELED' || status === 'EXPIRED') {
             clearPendingPayment();
             setSessionStatus('支付未完成，请重新申请。', 'error');

@@ -77,6 +77,10 @@ test('U card application requires payment before showing cardholder form', () =>
   assert.match(server, /setInterval\(\(\) => \{[\s\S]*pollDueUCardApplicationReviews\(\)/);
   assert.match(server, /next_review_check_at = datetime\('now', '\+5 minutes'\)/);
   assert.match(html, /function openCardholderForm\(application\)/);
+  assert.match(html, /let paidApplicationToProfile = null;/);
+  assert.match(html, /paidApplicationToProfile = confirmedItem;/);
+  assert.match(html, /if \(paidApplicationToProfile\) openCardholderForm\(paidApplicationToProfile\);/);
+  assert.match(html, /支付成功，请补充用卡人资料。/);
   assert.match(html, /holderChannelBadge/);
   assert.match(html, /passportSignaturePage/);
   assert.match(html, /handheldPassportPhoto/);
@@ -84,6 +88,7 @@ test('U card application requires payment before showing cardholder form', () =>
   assert.match(html, /isUCardChannelTwo\(activePaidApplication\)/);
   assert.match(html, /data-fill-profile/);
   assert.match(html, /submitUCardHolderProfile\(activePaidApplication\.application_no, formData\)/);
+  assert.match(html, /await loadMyCards\(\);\s*closeCardholderForm\(\);\s*selectTab\('mine'\);/);
   assert.match(html, /scheduleUCardReviewPolling\(\);/);
   assert.match(html, /id="uCardHolderModal"/);
   assert.match(html, /<span class="required">\*<\/span> 名字/);
