@@ -1034,7 +1034,10 @@
                   }
                   ${
                     status === 'review_pending'
-                      ? `<button class="secondary-button" type="button" data-check-review="${escapeHtml(item.application_no || '')}">刷新审核</button>`
+                      ? `
+                        <button class="secondary-button" type="button" data-check-review="${escapeHtml(item.application_no || '')}">刷新审核</button>
+                        <button class="secondary-button" type="button" data-view-secure="${escapeHtml(item.application_no || '')}">查看卡信息</button>
+                      `
                       : ''
                   }
                   ${
@@ -1979,8 +1982,12 @@
             return;
           }
           if (secureButton) {
-            secureButton.disabled = true;
             const item = findApplication(secureButton.dataset.viewSecure);
+            if (item?.status === 'review_pending') {
+              flashSessionStatus('正在审核中，无法查看卡信息。', 'error');
+              return;
+            }
+            secureButton.disabled = true;
             const payload = await callUCardAction(secureButton.dataset.viewSecure, 'secure-info');
             openUCardInfoModal(item || {}, payload);
             return;

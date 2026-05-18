@@ -128,6 +128,9 @@ test('U card application page exposes approved card upstream actions', () => {
   assert.match(html, /data-review-pending-card/);
   assert.match(html, />审核中<\/button>/);
   assert.match(html, /data-view-secure/);
+  assert.match(html, /status === 'review_pending'[\s\S]*data-view-secure=/);
+  assert.match(html, /正在审核中，无法查看卡信息。/);
+  assert.match(html, /if \(item\?\.status === 'review_pending'\)/);
   assert.match(html, /data-view-ledger/);
   assert.match(html, />查看卡信息<\/button>/);
   assert.match(html, /id="uCardInfoModal"/);
