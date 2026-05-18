@@ -5844,13 +5844,20 @@ app.post('/api/u-card/applications/:applicationNo/secure-info', async (req, res)
     if (openId && openId !== String(row.open_id || '').trim()) return res.status(403).json({ error: '无权操作该 U 卡申请' });
     const item = formatUCardApplication(row);
     if (item.status !== 'approved') return res.status(409).json({ error: '卡片还未审核通过' });
-    const { cardId, platformCardNo } = await resolveUCardApplicationCardId(row);
+    const resolved = await resolveUCardApplicationCardId(row);
+    let cardId = resolved.cardId;
+    let platformCardNo = resolved.platformCardNo;
+    let detail = await fetchUCardCardDetail(cardId, platformCardNo).catch(() => null);
+    const detailCardId = extractUCardCardId(detail || {});
+    const detailPlatformCardNo = extractUCardPlatformCardNo(detail || {});
+    if (detailCardId && !isUCardPlatformCardNo(detailCardId)) cardId = detailCardId;
+    if (detailPlatformCardNo) platformCardNo = detailPlatformCardNo;
     if (!cardId) return res.status(409).json({ error: '未找到上游卡 ID，请稍后刷新我的卡后重试' });
-    const detail = await fetchUCardCardDetail(cardId, platformCardNo).catch(() => null);
     const data = await fetchUCardSecureInfo(cardId, platformCardNo);
-    const cardNo = extractUCardCardNo(data);
+    const cardNo = extractUCardCardNo(data) || extractUCardCardNo(detail || {});
     if (cardNo) {
       updateUCardApplicationReviewStmt.run('approved', cardId, platformCardNo, maskUCardNumber(cardNo), 'approved', 'approved', applicationNo);
+      detail = detail || { ok: true, data: {} };
     }
     res.json({ ok: true, item: { detail, secure: data } });
   } catch (error) {

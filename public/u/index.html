@@ -1292,6 +1292,10 @@
         ]);
       }
 
+      function getUCardDetailCardId(payload) {
+        return findUCardPayloadValue(getUCardPayloadObject(payload), ['card_id', 'cardId', 'id']);
+      }
+
       function getUCardSecureExpiry(payload) {
         const data = getUCardPayloadObject(payload);
         const explicit = findUCardPayloadValue(data, [
@@ -1331,7 +1335,7 @@
       }
 
       function openUCardInfoModal(application, payload) {
-        const cardId = getUCardDisplayCardId(application);
+        const cardId = getUCardDetailCardId(payload) || getUCardDisplayCardId(application);
         const cardNo = getUCardSecureCardNo(payload) || getUCardDisplayCardNo(application);
         const expiry = getUCardSecureExpiry(payload);
         const cvv = getUCardSecureCvv(payload);
