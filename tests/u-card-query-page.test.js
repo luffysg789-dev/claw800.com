@@ -24,6 +24,8 @@ test('U card application page is a separate mobile entry with all and my card ta
   assert.match(html, /<title>U 卡申请<\/title>/);
   assert.match(html, /data-tab="all"[\s\S]*所有卡/);
   assert.match(html, /data-tab="mine"[\s\S]*我的卡/);
+  assert.doesNotMatch(html, /class="back-link"/);
+  assert.doesNotMatch(html, /返回游戏与工具/);
   assert.doesNotMatch(html, /u卡场景查询/);
 });
 
