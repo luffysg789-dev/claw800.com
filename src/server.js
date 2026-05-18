@@ -53,6 +53,7 @@ const TRUST_PROXY = String(process.env.TRUST_PROXY || 'loopback, linklocal, uniq
 const NEXA_TIP_AMOUNT = '0.10';
 const NEXA_TIP_CURRENCY = 'USDT';
 const U_CARD_REVIEW_POLL_INTERVAL_MS = 5 * 60 * 1000;
+const U_CARD_RECHARGE_DEFAULT_FEE_RATE = '0.02';
 const NEXA_ESCROW_CURRENCY = 'USDT';
 const NEXA_ESCROW_DEFAULT_MIN_AMOUNT = '1.00';
 const NEXA_ESCROW_DEFAULT_MAX_AMOUNT = '100000.00';
@@ -378,7 +379,8 @@ function getUCardUpalConfig() {
     developerPrivateKey: '',
     hasDeveloperPrivateKey: Boolean(developerPrivateKey),
     customerPublicKey,
-    platformPublicKey: normalizePem(getSetting('u_card_upal_platform_public_key', ''))
+    platformPublicKey: normalizePem(getSetting('u_card_upal_platform_public_key', '')),
+    rechargeFeeRate: getUCardRechargeFeeRate()
   };
 }
 
@@ -397,6 +399,31 @@ function assertUCardUpalReady() {
     throw error;
   }
   return config;
+}
+
+function normalizeUCardRechargeFeeRate(value, fallback = U_CARD_RECHARGE_DEFAULT_FEE_RATE) {
+  const raw = String(value || '').trim();
+  const fallbackString = String(fallback || U_CARD_RECHARGE_DEFAULT_FEE_RATE).trim() || U_CARD_RECHARGE_DEFAULT_FEE_RATE;
+  if (!raw) return fallbackString;
+  if (!/^(?:0(?:\.\d{1,6})?|1(?:\.0{1,6})?)$/.test(raw)) return fallbackString;
+  const numericValue = Number(raw);
+  if (!Number.isFinite(numericValue) || numericValue < 0 || numericValue >= 1) return fallbackString;
+  return raw.replace(/(?:\.0+|(\.\d*[1-9])0+)$/, '$1');
+}
+
+function getUCardRechargeFeeRate() {
+  return normalizeUCardRechargeFeeRate(
+    getSetting('u_card_recharge_fee_rate', U_CARD_RECHARGE_DEFAULT_FEE_RATE),
+    U_CARD_RECHARGE_DEFAULT_FEE_RATE
+  );
+}
+
+function computeUCardRechargeCreditAmount(paymentAmount, feeRate = getUCardRechargeFeeRate()) {
+  const amountCents = parseMoneyToCents(paymentAmount);
+  if (amountCents <= 0n) return '0.00';
+  const feeBasisPoints = BigInt(Math.round(Number(normalizeUCardRechargeFeeRate(feeRate)) * 10000));
+  const keptBasisPoints = feeBasisPoints >= 10000n ? 0n : 10000n - feeBasisPoints;
+  return centsToMoneyString((amountCents * keptBasisPoints) / 10000n);
 }
 
 function encodePMiningSessionCookie(session) {
@@ -5739,6 +5766,11 @@ app.get('/api/u-card/holder-options', async (_req, res) => {
   }
 });
 
+app.get('/api/u-card/recharge-config', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+  res.json({ ok: true, rechargeFeeRate: getUCardRechargeFeeRate() });
+});
+
 app.post('/api/u-card/payment/create', async (req, res) => {
   try {
     const productCode = String(req.body?.productCode || req.body?.product_code || '').trim();
@@ -5988,6 +6020,8 @@ app.post('/api/u-card/applications/:applicationNo/recharge-payment/create', asyn
     if (item.status !== 'approved') return res.status(409).json({ error: '卡片还未审核通过' });
     const amount = String(req.body?.amount || '').trim();
     if (!amount || parseMoneyToCents(amount) <= 0n) return res.status(400).json({ error: '充值金额必填' });
+    const rechargeFeeRate = getUCardRechargeFeeRate();
+    const creditAmount = computeUCardRechargeCreditAmount(amount, rechargeFeeRate);
 
     const order = await createNexaTipOrder({
       req,
@@ -6001,7 +6035,10 @@ app.post('/api/u-card/applications/:applicationNo/recharge-payment/create', asyn
       ok: true,
       orderNo: order.orderNo,
       amount,
+      creditAmount,
+      rechargeFeeRate,
       currency: NEXA_TIP_CURRENCY,
+      creditCurrency: 'USD',
       payment: order.payment
     });
   } catch (error) {
@@ -6020,8 +6057,11 @@ app.post('/api/u-card/applications/:applicationNo/recharge', async (req, res) =>
     const item = formatUCardApplication(row);
     if (item.status !== 'approved') return res.status(409).json({ error: '卡片还未审核通过' });
     const { cardId, platformCardNo, cardNo } = await resolveUCardApplicationCardId(row);
-    const amount = String(req.body?.amount || '').trim();
-    if (!amount || parseMoneyToCents(amount) <= 0n) return res.status(400).json({ error: '充值金额必填' });
+    const paymentAmount = String(req.body?.paymentAmount || req.body?.payment_amount || req.body?.rechargeAmount || req.body?.recharge_amount || req.body?.amount || '').trim();
+    if (!paymentAmount || parseMoneyToCents(paymentAmount) <= 0n) return res.status(400).json({ error: '充值金额必填' });
+    const creditAmountInput = String(req.body?.creditAmount || req.body?.credit_amount || req.body?.netAmount || req.body?.net_amount || '').trim();
+    const creditAmount = creditAmountInput || computeUCardRechargeCreditAmount(paymentAmount);
+    if (!creditAmount || parseMoneyToCents(creditAmount) <= 0n) return res.status(400).json({ error: '到账金额无效' });
     const paymentOrderNo = String(req.body?.paymentOrderNo || req.body?.payment_order_no || '').trim();
     if (!paymentOrderNo) return res.status(400).json({ error: '请先完成 Nexa 支付' });
     const payment = await queryNexaTipOrder(paymentOrderNo);
@@ -6031,7 +6071,7 @@ app.post('/api/u-card/applications/:applicationNo/recharge', async (req, res) =>
     if (String(payment.openId || '').trim() && String(payment.openId || '').trim() !== String(row.open_id || '').trim()) {
       return res.status(403).json({ error: '支付订单与当前用户不匹配' });
     }
-    if (parseMoneyToCents(payment.amount || '0') !== parseMoneyToCents(amount)) {
+    if (parseMoneyToCents(payment.amount || '0') !== parseMoneyToCents(paymentAmount)) {
       return res.status(400).json({ error: '充值金额与支付金额不一致' });
     }
     const requestId = `BAL_${paymentOrderNo.replace(/[^A-Za-z0-9_-]/g, '_')}`;
@@ -6040,7 +6080,7 @@ app.post('/api/u-card/applications/:applicationNo/recharge', async (req, res) =>
       platformCardNo,
       cardNo,
       requestId,
-      amount
+      amount: creditAmount
     });
     res.json({ ok: true, item: data });
   } catch (error) {
@@ -11420,6 +11460,8 @@ app.put('/api/admin/u-card/upstream-config', requireAdmin, (req, res) => {
   const appId = String(req.body?.appId ?? req.body?.uCardUpalAppId ?? '').trim();
   const developerPrivateKey = normalizePem(req.body?.developerPrivateKey ?? req.body?.uCardUpalDeveloperPrivateKey ?? '');
   const platformPublicKey = normalizePem(req.body?.platformPublicKey ?? req.body?.uCardUpalPlatformPublicKey ?? '');
+  const rechargeFeeRateRaw = String(req.body?.rechargeFeeRate ?? req.body?.uCardRechargeFeeRate ?? U_CARD_RECHARGE_DEFAULT_FEE_RATE).trim();
+  const rechargeFeeRate = normalizeUCardRechargeFeeRate(rechargeFeeRateRaw, U_CARD_RECHARGE_DEFAULT_FEE_RATE);
   const keepDeveloperPrivateKey =
     req.body?.keepDeveloperPrivateKey === true ||
     req.body?.keepUCardUpalDeveloperPrivateKey === true ||
@@ -11429,6 +11471,9 @@ app.put('/api/admin/u-card/upstream-config', requireAdmin, (req, res) => {
   if (Buffer.byteLength(appId, 'utf8') > 500) return res.status(413).json({ error: 'APP ID 太长' });
   if (Buffer.byteLength(developerPrivateKey, 'utf8') > 20000) return res.status(413).json({ error: '开发者私钥太长' });
   if (Buffer.byteLength(platformPublicKey, 'utf8') > 20000) return res.status(413).json({ error: '平台公钥太长' });
+  if (!/^(?:0(?:\.\d{1,6})?|1(?:\.0{1,6})?)$/.test(rechargeFeeRateRaw) || Number(rechargeFeeRateRaw) >= 1) {
+    return res.status(400).json({ error: '充卡手续费必须是 0 到 1 之间的小数，例如 0.02' });
+  }
 
   try {
     if (shouldUpdateDeveloperPrivateKey) {
@@ -11441,6 +11486,7 @@ app.put('/api/admin/u-card/upstream-config', requireAdmin, (req, res) => {
   try {
     upsertSettingStmt.run('u_card_upal_app_id', appId);
     upsertSettingStmt.run('u_card_upal_platform_public_key', platformPublicKey);
+    upsertSettingStmt.run('u_card_recharge_fee_rate', rechargeFeeRate);
     if (shouldUpdateDeveloperPrivateKey) {
       upsertSettingStmt.run('u_card_upal_developer_private_key', developerPrivateKey);
     }

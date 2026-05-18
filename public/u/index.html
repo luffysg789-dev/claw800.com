@@ -738,11 +738,17 @@
               <label for="uCardRechargeAmount"><span class="required">*</span> 充值金额</label>
               <div class="recharge-amount-row">
                 <input id="uCardRechargeAmount" name="amount" inputmode="decimal" placeholder="请输入金额" required />
-                <select id="uCardRechargeCurrency" name="currency" aria-label="充值币种">
-                  <option value="USDT">USDT</option>
-                </select>
+                <input id="uCardRechargeCurrency" name="currency" value="USDT" aria-label="充值币种" readonly />
               </div>
             </div>
+            <div class="form-row">
+              <label for="uCardRechargeNetAmount">到账金额</label>
+              <div class="recharge-amount-row">
+                <input id="uCardRechargeNetAmount" name="creditAmount" inputmode="decimal" placeholder="自动计算" readonly />
+                <input id="uCardRechargeNetCurrency" name="creditCurrency" value="USD" aria-label="到账币种" readonly />
+              </div>
+            </div>
+            <p id="uCardRechargeFeeHint" class="form-note">默认手续费 2%，例如充 100 USDT 到账 98 USD。</p>
             <p class="form-note">提交后会向上游发起充卡请求，到账结果以资金明细为准。</p>
           </div>
           <p id="uCardRechargeMessage" class="list-status" aria-live="polite"></p>
@@ -776,12 +782,14 @@
       const NEXA_PUBLIC_CONFIG_ENDPOINT = '/api/nexa/public-config';
       const U_CARD_PRODUCTS_ENDPOINT = '/api/u-card/products';
       const U_CARD_HOLDER_OPTIONS_ENDPOINT = '/api/u-card/holder-options';
+      const U_CARD_RECHARGE_CONFIG_ENDPOINT = '/api/u-card/recharge-config';
       const U_CARD_PAYMENT_CREATE_ENDPOINT = '/api/u-card/payment/create';
       const U_CARD_PAYMENT_QUERY_ENDPOINT = '/api/nexa/tip/query';
       const U_CARD_RECHARGE_PAYMENT_CREATE_ENDPOINT = '/api/u-card/applications/:applicationNo/recharge-payment/create';
       const U_CARD_APPLICATIONS_ENDPOINT = '/api/u-card/applications';
       const U_CARD_REVIEW_POLL_INTERVAL_MS = 5 * 60 * 1000;
       const U_CARD_RECHARGE_PAYMENT_TIMEOUT_MS = 2 * 60 * 1000;
+      const U_CARD_RECHARGE_FEE_RATE_DEFAULT = 0.02;
       const U_CARD_SESSION_STORAGE_KEY = 'claw800:u-card:nexa-session';
       const U_CARD_PENDING_PAYMENT_STORAGE_KEY = 'claw800:u-card:pending-payment';
 
@@ -804,6 +812,8 @@
       const rechargeModal = document.getElementById('uCardRechargeModal');
       const rechargeForm = document.getElementById('uCardRechargeForm');
       const rechargeCancelButton = document.getElementById('uCardRechargeCancelBtn');
+      const uCardRechargeAmountInput = document.getElementById('uCardRechargeAmount');
+      const uCardRechargeNetAmountInput = document.getElementById('uCardRechargeNetAmount');
       const ledgerModal = document.getElementById('uCardLedgerModal');
       const ledgerCloseButton = document.getElementById('uCardLedgerCloseBtn');
       const ledgerList = document.getElementById('uCardLedgerList');
@@ -816,6 +826,7 @@
       let uCardReviewPollTimer = null;
       let pendingPaymentSettleTimer = null;
       let uCardInfoMessageTimer = null;
+      let currentUCardRechargeFeeRate = U_CARD_RECHARGE_FEE_RATE_DEFAULT;
 
       tabButtons.forEach((button) => {
         button.addEventListener('click', () => {
@@ -910,10 +921,50 @@
 
       function getUCardDisplayBalance(item) {
         const display = String(item?.card_balance_display || '').trim();
-        if (display) return display;
+        if (display) return formatUCardUsdAmount(display);
         const balance = String(item?.card_balance || '').trim();
         const currency = String(item?.card_balance_currency || '').trim();
-        return balance && currency ? `${balance} ${currency}` : balance;
+        if (!balance) return '';
+        return currency ? `${balance} ${currency}` : formatUCardUsdAmount(balance);
+      }
+
+      function formatUCardUsdAmount(value) {
+        const raw = String(value || '').trim();
+        if (!raw) return '';
+        if (/\bUSD\b/i.test(raw)) return raw.replace(/\busd\b/i, 'USD');
+        return `${raw} USD`;
+      }
+
+      function calculateUCardRechargeNetAmount(amount, feeRate = U_CARD_RECHARGE_FEE_RATE_DEFAULT) {
+        const numericAmount = Number(String(amount || '').trim());
+        const numericFeeRate = Number(feeRate);
+        if (!Number.isFinite(numericAmount) || numericAmount <= 0) return '';
+        const rate = Number.isFinite(numericFeeRate) && numericFeeRate >= 0 && numericFeeRate < 1 ? numericFeeRate : U_CARD_RECHARGE_FEE_RATE_DEFAULT;
+        return (Math.floor(numericAmount * (1 - rate) * 100) / 100).toFixed(2);
+      }
+
+      function syncUCardRechargeNetAmount() {
+        if (!uCardRechargeNetAmountInput || !uCardRechargeAmountInput) return;
+        uCardRechargeNetAmountInput.value = calculateUCardRechargeNetAmount(uCardRechargeAmountInput.value, currentUCardRechargeFeeRate);
+      }
+
+      async function loadUCardRechargeConfig() {
+        try {
+          const response = await fetch(U_CARD_RECHARGE_CONFIG_ENDPOINT, { headers: { Accept: 'application/json' } });
+          const payload = await response.json().catch(() => ({}));
+          if (response.ok) {
+            const feeRate = Number(payload.rechargeFeeRate);
+            currentUCardRechargeFeeRate = Number.isFinite(feeRate) && feeRate >= 0 && feeRate < 1 ? feeRate : U_CARD_RECHARGE_FEE_RATE_DEFAULT;
+          }
+        } catch {
+          currentUCardRechargeFeeRate = U_CARD_RECHARGE_FEE_RATE_DEFAULT;
+        }
+        const hint = document.getElementById('uCardRechargeFeeHint');
+        if (hint) {
+          const percent = (currentUCardRechargeFeeRate * 100).toFixed(2).replace(/\.?0+$/, '');
+          hint.textContent = `默认手续费 ${percent}%，例如充 100 USDT 到账 ${calculateUCardRechargeNetAmount('100', currentUCardRechargeFeeRate)} USD。`;
+        }
+        syncUCardRechargeNetAmount();
       }
 
       function renderMyCards(items = currentApplications) {
@@ -939,7 +990,7 @@
                 <p>订单：${escapeHtml(item.order_no || '-')}</p>
                 ${displayCardId ? `<p>卡 ID：${escapeHtml(displayCardId)}</p>` : ''}
                 ${isApproved || displayCardNo ? `<p>卡号：${escapeHtml(displayCardNo || '-')}</p>` : ''}
-                ${isApproved ? `<p>余额：${escapeHtml(displayBalance || '-')}</p>` : ''}
+                ${isApproved ? `<p>余额：${escapeHtml(formatUCardUsdAmount(displayBalance) || '-')}</p>` : ''}
                 ${status === 'review_pending' ? `<p>已提交上游审核，系统会每 5 分钟继续查询上游结果。</p>` : ''}
                 <div class="my-card-actions">
                   ${
@@ -1504,7 +1555,7 @@
             const time = getUCardLedgerValue(item, ['createdAt', 'created_at', 'time', 'createdTime', 'created_time', 'transactionTime', 'transaction_time']);
             const type = getUCardLedgerValue(item, ['type', 'transactionType', 'transaction_type', 'bizType', 'biz_type', 'remark']) || '资金变动';
             const amount = formatUCardLedgerAmount(item);
-            const balance = getUCardLedgerValue(item, ['balance', 'balanceAfter', 'balance_after', 'afterBalance', 'after_balance', 'availableBalance', 'available_balance']);
+            const balance = formatUCardUsdAmount(getUCardLedgerValue(item, ['balance', 'balanceAfter', 'balance_after', 'afterBalance', 'after_balance', 'availableBalance', 'available_balance']));
             const status = getUCardLedgerValue(item, ['status', 'state', 'result']) || '-';
             return `
               <article class="ledger-item">
@@ -1584,7 +1635,7 @@
         setText('uCardInfoExpiry', expiry);
         setText('uCardInfoCvv', cvv);
         setText('uCardInfoStatus', status);
-        setText('uCardInfoBalance', balance);
+        setText('uCardInfoBalance', formatUCardUsdAmount(balance));
         setText('uCardInfoMessage', cardNo ? '卡信息来自上游接口，请妥善保管。' : '上游暂未返回完整卡号，请稍后再试。');
         if (infoCardNoCopyButton) {
           infoCardNoCopyButton.dataset.cardNo = cardNo && cardNo !== '-' ? cardNo : '';
@@ -1609,7 +1660,9 @@
         message.textContent = '';
         message.classList.remove('error');
         rechargeModal.classList.remove('hidden');
-        document.getElementById('uCardRechargeAmount').focus();
+        loadUCardRechargeConfig();
+        syncUCardRechargeNetAmount();
+        uCardRechargeAmountInput.focus();
       }
 
       function closeUCardRechargeModal() {
@@ -1662,7 +1715,8 @@
           if (status === 'SUCCESS') {
             if (pending.type === 'recharge' && pending.applicationNo) {
               await callUCardAction(pending.applicationNo, 'recharge', {
-                amount: pending.amount,
+                paymentAmount: pending.amount,
+                creditAmount: pending.creditAmount,
                 paymentOrderNo: pending.orderNo
               });
             } else if (pending.applicationNo) {
@@ -1717,7 +1771,10 @@
           orderNo: response.orderNo,
           applicationNo,
           amount: response.amount || amount,
+          creditAmount: response.creditAmount || calculateUCardRechargeNetAmount(amount, response.rechargeFeeRate || currentUCardRechargeFeeRate),
+          rechargeFeeRate: response.rechargeFeeRate || String(currentUCardRechargeFeeRate),
           currency: response.currency || 'USDT',
+          creditCurrency: response.creditCurrency || 'USD',
           createdAt: Date.now(),
           expiresAt: Date.now() + U_CARD_RECHARGE_PAYMENT_TIMEOUT_MS
         };
@@ -1823,6 +1880,7 @@
       infoCardNoCopyButton.addEventListener('click', copyUCardInfoCardNo);
       rechargeCancelButton.addEventListener('click', closeUCardRechargeModal);
       ledgerCloseButton.addEventListener('click', closeUCardLedgerModal);
+      uCardRechargeAmountInput.addEventListener('input', syncUCardRechargeNetAmount);
       rechargeForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         if (!activeRechargeApplication) return;

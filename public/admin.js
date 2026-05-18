@@ -413,6 +413,7 @@ const texts = {
     uCardGenerateDeveloperKeypairBtn: '生成开发者密钥对',
     uCardUpalCustomerPublicKeyLabel: '客户公钥 / 商户公钥',
     uCardUpalPlatformPublicKeyLabel: '平台公钥',
+    uCardRechargeFeeRateLabel: '充卡手续费',
     uCardUpstreamConfigSaveBtn: '保存上游配置',
     uCardTestUpstreamProductsBtn: '测试产品接口',
     uCardUpstreamConfigSaved: 'U 卡上游配置已保存。',
@@ -765,6 +766,7 @@ const texts = {
     uCardGenerateDeveloperKeypairBtn: 'Generate Developer Keypair',
     uCardUpalCustomerPublicKeyLabel: 'Customer / Merchant Public Key',
     uCardUpalPlatformPublicKeyLabel: 'Platform Public Key',
+    uCardRechargeFeeRateLabel: 'Recharge Fee Rate',
     uCardUpstreamConfigSaveBtn: 'Save Upstream Config',
     uCardTestUpstreamProductsBtn: 'Test Product API',
     uCardUpstreamConfigSaved: 'U card upstream config saved.',
@@ -1400,6 +1402,7 @@ function applyLanguage() {
   document.getElementById('uCardGenerateDeveloperKeypairBtn').textContent = dict.uCardGenerateDeveloperKeypairBtn;
   document.getElementById('uCardUpalCustomerPublicKeyLabel').childNodes[0].textContent = dict.uCardUpalCustomerPublicKeyLabel;
   document.getElementById('uCardUpalPlatformPublicKeyLabel').childNodes[0].textContent = dict.uCardUpalPlatformPublicKeyLabel;
+  document.getElementById('uCardRechargeFeeRateLabel').childNodes[0].textContent = dict.uCardRechargeFeeRateLabel;
   document.getElementById('uCardUpstreamConfigSaveBtn').textContent = dict.uCardUpstreamConfigSaveBtn;
   document.getElementById('uCardTestUpstreamProductsBtn').textContent = dict.uCardTestUpstreamProductsBtn;
   document.getElementById('uCardPlatformNameLabel').childNodes[0].textContent = dict.uCardPlatformNameLabel;
@@ -2769,12 +2772,14 @@ function fillUCardUpstreamConfigForm(config = {}) {
   const developerPrivateKeyEl = getUCardUpstreamConfigControl('uCardUpalDeveloperPrivateKey');
   const customerPublicKeyEl = getUCardUpstreamConfigControl('uCardUpalCustomerPublicKey');
   const platformPublicKeyEl = getUCardUpstreamConfigControl('uCardUpalPlatformPublicKey');
+  const rechargeFeeRateEl = getUCardUpstreamConfigControl('uCardRechargeFeeRate');
   if (appIdEl) appIdEl.value = String(config.appId || '');
   if (developerPrivateKeyEl) {
     developerPrivateKeyEl.value = config.hasDeveloperPrivateKey ? SAVED_U_CARD_UPAL_PRIVATE_KEY_MASK : '';
   }
   if (customerPublicKeyEl) customerPublicKeyEl.value = String(config.customerPublicKey || '');
   if (platformPublicKeyEl) platformPublicKeyEl.value = String(config.platformPublicKey || '');
+  if (rechargeFeeRateEl) rechargeFeeRateEl.value = String(config.rechargeFeeRate || '0.02');
 }
 
 function setUCardUpstreamConfigMessage(text = '', className = 'message') {
@@ -3158,6 +3163,7 @@ if (uCardUpstreamConfigForm) {
       appId: String(payload.uCardUpalAppId || '').trim(),
       developerPrivateKey: String(payload.uCardUpalDeveloperPrivateKey || '').trim(),
       platformPublicKey: String(payload.uCardUpalPlatformPublicKey || '').trim(),
+      uCardRechargeFeeRate: String(payload.uCardRechargeFeeRate || '0.02').trim(),
       keepUCardUpalDeveloperPrivateKey:
         String(payload.uCardUpalDeveloperPrivateKey || '').trim() === SAVED_U_CARD_UPAL_PRIVATE_KEY_MASK
     };

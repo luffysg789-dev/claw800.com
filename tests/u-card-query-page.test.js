@@ -112,6 +112,13 @@ test('U card application page exposes approved card upstream actions', () => {
   assert.match(html, /id="uCardInfoCardNoCopy"/);
   assert.match(html, /aria-label="复制卡号"/);
   assert.match(html, /id="uCardRechargeModal"/);
+  assert.match(html, /const U_CARD_RECHARGE_FEE_RATE_DEFAULT = 0\.02;/);
+  assert.match(html, /id="uCardRechargeNetAmount"/);
+  assert.match(html, /充值金额[\s\S]*USDT/);
+  assert.match(html, /到账金额[\s\S]*USD/);
+  assert.match(html, /function calculateUCardRechargeNetAmount\(amount, feeRate = U_CARD_RECHARGE_FEE_RATE_DEFAULT\)/);
+  assert.match(html, /function syncUCardRechargeNetAmount\(\)/);
+  assert.match(html, /uCardRechargeAmountInput\.addEventListener\('input', syncUCardRechargeNetAmount\)/);
   assert.match(html, /id="uCardLedgerModal"/);
   assert.match(html, /id="uCardLedgerList"/);
   assert.match(html, /const U_CARD_RECHARGE_PAYMENT_CREATE_ENDPOINT = '\/api\/u-card\/applications\/:applicationNo\/recharge-payment\/create';/);
@@ -149,11 +156,11 @@ test('U card application page exposes approved card upstream actions', () => {
   assert.match(html, /function getUCardDisplayBalance\(item\)/);
   assert.match(html, /卡 ID：/);
   assert.match(html, /卡号：/);
-  assert.match(html, /余额：/);
+  assert.match(html, /余额：[\s\S]*formatUCardUsdAmount/);
   assert.doesNotMatch(html, /\$\{item\.card_no_masked \? `<p>卡号：/);
   assert.match(html, /callUCardAction\(secureButton\.dataset\.viewSecure, 'secure-info'\)/);
   assert.match(html, /window\.location\.href = buildNexaPaymentUrl\(response\.payment\);/);
-  assert.match(html, /callUCardAction\(pending\.applicationNo, 'recharge', \{[\s\S]*?paymentOrderNo: pending\.orderNo[\s\S]*?\}\)/);
+  assert.match(html, /callUCardAction\(pending\.applicationNo, 'recharge', \{[\s\S]*?paymentAmount: pending\.amount[\s\S]*?creditAmount: pending\.creditAmount[\s\S]*?paymentOrderNo: pending\.orderNo[\s\S]*?\}\)/);
   assert.match(html, /callUCardAction\(ledgerButton\.dataset\.viewLedger, 'transactions'\)/);
   assert.doesNotMatch(html, /alert\(JSON\.stringify\(payload\.item \|\| payload, null, 2\)\)/);
 });

@@ -367,19 +367,19 @@ test('public U card products endpoint signs and normalizes upstream products', a
             ok: true,
             status: 200,
             async json() {
-              return { ok: true, data: { request_id: body.requestId, status: 'SUCCESS', card_id: 'CARD_UCARD_001', amount: '3.50' } };
+              return { ok: true, data: { request_id: body.requestId, status: 'SUCCESS', card_id: 'CARD_UCARD_001', amount: '3.43' } };
             }
           };
         }
         capturedRechargeBodies.push(body);
         assert.equal(body.type, 'INCREASE');
-        assert.equal(body.amount, '3.50');
+        assert.equal(body.amount, '3.43');
         if (capturedRechargeBodies.length === 1) {
           assert.deepEqual(body, {
             platformCardNo: 'CARD_UCARD_001',
             requestId: 'BAL_nexa-u-card-recharge-2',
             type: 'INCREASE',
-            amount: '3.50'
+            amount: '3.43'
           });
         }
         if (body.platformCardNo === 'CARD_UCARD_001') {
@@ -596,11 +596,14 @@ test('public U card products endpoint signs and normalizes upstream products', a
     );
     assert.equal(rechargePayment.statusCode, 200, JSON.stringify(rechargePayment.body));
     assert.equal(rechargePayment.body.orderNo, 'nexa-u-card-recharge-2');
+    assert.equal(rechargePayment.body.amount, '3.50');
+    assert.equal(rechargePayment.body.creditAmount, '3.43');
+    assert.equal(rechargePayment.body.rechargeFeeRate, '0.02');
 
     const recharge = await harness.request(
       'POST',
       `/api/u-card/applications/${applicationNo}/recharge`,
-      { openId: 'nexa-open-id', amount: '3.50', paymentOrderNo: rechargePayment.body.orderNo }
+      { openId: 'nexa-open-id', paymentAmount: '3.50', creditAmount: rechargePayment.body.creditAmount, paymentOrderNo: rechargePayment.body.orderNo }
     );
     assert.equal(recharge.statusCode, 200, JSON.stringify(recharge.body));
     assert.equal(capturedRechargeBodies.length, 1);
@@ -716,6 +719,8 @@ test('admin U card panel includes upstream credential configuration controls', (
   assert.match(adminHtml, /id="uCardTestUpstreamProductsBtn"/);
   assert.match(adminHtml, /name="uCardUpalCustomerPublicKey"/);
   assert.match(adminHtml, /name="uCardUpalPlatformPublicKey"/);
+  assert.match(adminHtml, /name="uCardRechargeFeeRate"/);
+  assert.match(adminHtml, /value="0\.02"/);
   assert.match(adminHtml, /id="uCardUpstreamConfigMessage"/);
   assert.match(adminJs, /\/api\/admin\/u-card\/upstream-config/);
   assert.match(adminJs, /\/api\/admin\/u-card\/upstream-config\/generate-keypair/);
@@ -734,6 +739,7 @@ test('admin U card panel includes upstream credential configuration controls', (
   assert.match(adminJs, /adminUCardProductsSection\.classList\.toggle\('hidden', view !== 'u-card-products'\)/);
   assert.match(adminJs, /adminUCardApplicationsSection\.classList\.toggle\('hidden', view !== 'u-card-applications'\)/);
   assert.match(adminJs, /keepUCardUpalDeveloperPrivateKey:\s*String\(payload\.uCardUpalDeveloperPrivateKey \|\| ''\)\.trim\(\) === SAVED_U_CARD_UPAL_PRIVATE_KEY_MASK/);
+  assert.match(adminJs, /uCardRechargeFeeRate:\s*String\(payload\.uCardRechargeFeeRate \|\| '0\.02'\)\.trim\(\)/);
 });
 
 test('admin can save U card upstream credentials without private key disclosure', async () => {
@@ -770,6 +776,7 @@ test('admin can save U card upstream credentials without private key disclosure'
     assert.equal(adminConfig.body.developerPrivateKey, '');
     assert.equal(adminConfig.body.hasDeveloperPrivateKey, true);
     assert.equal(adminConfig.body.customerPublicKey, generated.body.customerPublicKey);
+    assert.equal(adminConfig.body.rechargeFeeRate, '0.02');
     assert.match(adminConfig.body.platformPublicKey, /platform-key/);
 
     const keepSave = await harness.request(
@@ -778,13 +785,15 @@ test('admin can save U card upstream credentials without private key disclosure'
       {
         appId: 'upal-app-002',
         developerPrivateKey: '',
-        platformPublicKey: 'platform-public-key-2'
+        platformPublicKey: 'platform-public-key-2',
+        uCardRechargeFeeRate: '0.05'
       },
       cookies
     );
     assert.equal(keepSave.statusCode, 200);
     assert.equal(keepSave.body.appId, 'upal-app-002');
     assert.equal(keepSave.body.hasDeveloperPrivateKey, true);
+    assert.equal(keepSave.body.rechargeFeeRate, '0.05');
     assert.equal(keepSave.body.customerPublicKey, generated.body.customerPublicKey);
 
     const storedPrivateKey = harness.db.prepare("SELECT value FROM settings WHERE key = 'u_card_upal_developer_private_key'").get();

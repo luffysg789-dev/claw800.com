@@ -1393,6 +1393,9 @@ db.prepare(
 db.prepare(
   "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('u_card_upal_platform_public_key', '', datetime('now'))"
 ).run();
+db.prepare(
+  "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('u_card_recharge_fee_rate', '0.02', datetime('now'))"
+).run();
 
 function migrateUniqueUrlToUrlCategory() {
   const tableSqlRow = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'sites'").get();
