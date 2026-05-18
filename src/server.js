@@ -5149,6 +5149,20 @@ function extractUCardCardNo(payload = {}) {
   ).trim();
 }
 
+function extractUCardSecureField(payload = {}, keys = []) {
+  const data = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
+  return keys.map((key) => String(data[key] || '').trim()).find(Boolean) || '';
+}
+
+function hasUCardSecureFields(payload = {}) {
+  return Boolean(
+    extractUCardCardNo(payload) ||
+      extractUCardSecureField(payload, ['cvv', 'cvv2', 'securityCode', 'security_code']) ||
+      extractUCardSecureField(payload, ['expiry_month', 'expiryMonth', 'expireMonth', 'expire_month']) ||
+      extractUCardSecureField(payload, ['expiry_year', 'expiryYear', 'expireYear', 'expire_year'])
+  );
+}
+
 function extractUCardStatus(payload = {}) {
   const data = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
   return String(data.status || data.applyStatus || data.apply_status || '').trim().toUpperCase();
@@ -5428,32 +5442,49 @@ async function fetchUCardSecureInfo(cardId = '', platformCardNo = '') {
   const primary = String(cardId || '').trim();
   const platform = String(platformCardNo || '').trim();
   const attempts = [];
-  if (primary) {
-    attempts.push(['/open-api/cards/secure-info', { cardId: primary }]);
-    attempts.push(['/open-api/cards/secure-info', { card_id: primary }]);
-    attempts.push(['/open-api/cards/secure-info', { cardid: primary }]);
-    attempts.push(['/open-api/cards/query', { cardId: primary }]);
-    attempts.push(['/open-api/cards/query', { card_id: primary }]);
-    attempts.push(['/open-api/cards/query', { cardid: primary }]);
-    attempts.push(['/open-api/cards/upstream-detail', { cardId: primary }]);
-    attempts.push(['/open-api/cards/upstream-detail', { cardid: primary }]);
-  }
-  if (platform && platform !== primary) {
-    attempts.push(['/open-api/cards/secure-info', { cardId: platform }]);
-    attempts.push(['/open-api/cards/secure-info', { cardid: platform }]);
-    attempts.push(['/open-api/cards/query', { platformCardNo: platform }]);
-    attempts.push(['/open-api/cards/query', { cardid: platform }]);
+  const addAttempt = (pathname, body) => {
+    const key = `${pathname}:${JSON.stringify(body)}`;
+    if (!attempts.some(([existingPathname, existingBody]) => `${existingPathname}:${JSON.stringify(existingBody)}` === key)) {
+      attempts.push([pathname, body]);
+    }
+  };
+  const secureIdentifiers = [
+    isUCardPlatformCardNo(platform) ? platform : '',
+    isUCardPlatformCardNo(primary) ? primary : '',
+    platform,
+    primary
+  ].filter(Boolean);
+  [...new Set(secureIdentifiers)].forEach((identifier) => {
+    addAttempt('/open-api/cards/secure-info', { cardId: identifier });
+    addAttempt('/open-api/cards/secure-info', { platformCardNo: identifier });
+    addAttempt('/open-api/cards/secure-info', { card_id: identifier });
+    addAttempt('/open-api/cards/secure-info', { cardid: identifier });
+  });
+  if (platform) addAttempt('/open-api/cards/query', { platformCardNo: platform });
+  if (primary && isUCardPlatformCardNo(primary)) addAttempt('/open-api/cards/query', { platformCardNo: primary });
+  if (primary && !isUCardPlatformCardNo(primary)) {
+    addAttempt('/open-api/cards/query', { cardId: primary });
+    addAttempt('/open-api/cards/query', { card_id: primary });
+    addAttempt('/open-api/cards/query', { cardid: primary });
+    addAttempt('/open-api/cards/upstream-detail', { cardId: primary });
+    addAttempt('/open-api/cards/upstream-detail', { cardid: primary });
   }
 
   let lastError = null;
+  let fallbackPayload = null;
   for (const [pathname, body] of attempts) {
     const result = await tryPostUCardUpalJson(pathname, body);
     if (!result.ok) {
       lastError = result.error;
       continue;
     }
+    if (pathname.includes('/secure-info') && !hasUCardSecureFields(result.payload)) {
+      fallbackPayload = fallbackPayload || result.payload;
+      continue;
+    }
     return result.payload;
   }
+  if (fallbackPayload) return fallbackPayload;
   throw lastError || new Error('未找到卡');
 }
 
@@ -5847,6 +5878,7 @@ app.post('/api/u-card/applications/:applicationNo/secure-info', async (req, res)
     const resolved = await resolveUCardApplicationCardId(row);
     let cardId = resolved.cardId;
     let platformCardNo = resolved.platformCardNo;
+    if (!platformCardNo && isUCardPlatformCardNo(cardId)) platformCardNo = cardId;
     let detail = await fetchUCardCardDetail(cardId, platformCardNo).catch(() => null);
     const detailCardId = extractUCardCardId(detail || {});
     const detailPlatformCardNo = extractUCardPlatformCardNo(detail || {});

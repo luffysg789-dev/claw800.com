@@ -328,7 +328,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
       if (String(url).includes('/open-api/cards/secure-info')) {
         const body = JSON.parse(String(options.body || '{}'));
         capturedSecureBodies.push(body);
-        if (body.cardId !== '2026050811431914822000496491') {
+        if (body.cardId !== 'CARD_UCARD_001') {
           return {
             ok: false,
             status: 404,
@@ -550,7 +550,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
     assert.equal(secureInfo.statusCode, 200, JSON.stringify(secureInfo.body));
     assert.equal(secureInfo.body.item.secure.data.card_no, '45659999991355');
     assert.equal(secureInfo.body.item.detail.data.balance, '1.00');
-    assert.ok(capturedSecureBodies.some((body) => body.cardId === '2026050811431914822000496491'));
+    assert.ok(capturedSecureBodies.some((body) => body.cardId === 'CARD_UCARD_001'));
 
     const recharge = await harness.request(
       'POST',
