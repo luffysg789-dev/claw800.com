@@ -5053,6 +5053,18 @@ function normalizeUCardApplicationStatus(row = {}) {
   return status || 'review_pending';
 }
 
+function isUCardApplicationChannelTwo(row = {}) {
+  return normalizeUCardApplicationChannel(row.application_channel || row.applicationChannel || row.card_channel || row.cardChannel) === '2';
+}
+
+function shouldApproveUCardApplication(row = {}, { status = '', cardId = '', platformCardNo = '', cardNo = '' } = {}) {
+  const normalizedStatus = String(status || '').trim().toUpperCase();
+  const hasActiveStatus = ['ACTIVE', 'APPROVED', 'SUCCESS', 'COMPLETED'].includes(normalizedStatus);
+  const hasCardNumber = Boolean(maskUCardNumber(cardNo));
+  if (isUCardApplicationChannelTwo(row)) return hasCardNumber;
+  return hasActiveStatus || Boolean(cardId || platformCardNo || hasCardNumber);
+}
+
 function formatUCardApplication(row = {}) {
   const status = normalizeUCardApplicationStatus(row);
   return {
@@ -5363,10 +5375,36 @@ function scoreUCardListCandidate(row = {}, item = {}) {
   return score;
 }
 
+function hasStrongUCardListCandidateMatch(row = {}, item = {}) {
+  const productCode = String(row.product_code || '').trim();
+  const productName = String(row.product_name || '').trim();
+  const cardholderId = String(row.upstream_cardholder_id || '').trim();
+  const applicationNo = String(row.application_no || '').trim();
+  const itemProductCode = normalizeUCardRecordValue(item, [
+    'productCode',
+    'product_code',
+    'cardProductCode',
+    'card_product_code',
+    'cardProductNo',
+    'card_product_no',
+    'productNo',
+    'product_no'
+  ]);
+  const itemProductName = normalizeUCardRecordValue(item, ['productName', 'product_name', 'cardProductName', 'card_product_name', 'name']);
+  const itemCardholderId = normalizeUCardRecordValue(item, ['cardholderId', 'cardholder_id', 'cardHolderId', 'card_holder_id']);
+  const itemMerchantOrderNo = normalizeUCardRecordValue(item, ['merchantOrderNo', 'merchant_order_no', 'requestId', 'request_id']);
+  return Boolean(
+    (productCode && isUCardLooseMatch(itemProductCode, productCode)) ||
+      (productName && (isUCardLooseMatch(itemProductName, productName) || isUCardLooseMatch(itemProductName, productCode))) ||
+      (cardholderId && itemCardholderId && itemCardholderId === cardholderId) ||
+      (applicationNo && itemMerchantOrderNo && itemMerchantOrderNo === applicationNo)
+  );
+}
+
 function pickUCardListCandidate(row = {}, payload = {}) {
   return extractUCardListItems(payload)
     .map((item) => ({ item, score: scoreUCardListCandidate(row, item) }))
-    .filter(({ item, score }) => score > 0 && (extractUCardCardId(item) || extractUCardCardNo(item) || extractUCardPlatformCardNo(item)))
+    .filter(({ item, score }) => score > 0 && hasStrongUCardListCandidateMatch(row, item) && (extractUCardCardId(item) || extractUCardCardNo(item) || extractUCardPlatformCardNo(item)))
     .sort((a, b) => b.score - a.score)[0]?.item || null;
 }
 
@@ -5475,7 +5513,32 @@ async function refreshUCardApplicationReview(row = {}) {
       // The application state is still useful even if sensitive/card details are not ready yet.
     }
   }
-  const nextStatus = ['ACTIVE', 'APPROVED', 'SUCCESS', 'COMPLETED'].includes(status) || cardId || platformCardNo ? 'approved' : 'review_pending';
+  if (!cardNo) {
+    const listBody = { status: 'ACTIVE', limit: 100 };
+    const productFilteredListBody = {
+      ...listBody,
+      productCode: formatted.product_code || undefined
+    };
+    let candidate = null;
+    try {
+      candidate = pickUCardListCandidate(row, await postUCardUpalJson('/open-api/cards/list', productFilteredListBody));
+    } catch {
+      candidate = null;
+    }
+    if (!candidate) {
+      try {
+        candidate = pickUCardListCandidate(row, await postUCardUpalJson('/open-api/cards/upstream-list', productFilteredListBody));
+      } catch {
+        candidate = null;
+      }
+    }
+    if (candidate) {
+      cardId = extractUCardCardId(candidate) || cardId;
+      platformCardNo = extractUCardPlatformCardNo(candidate) || platformCardNo;
+      cardNo = extractUCardCardNo(candidate) || cardNo;
+    }
+  }
+  const nextStatus = shouldApproveUCardApplication(row, { status, cardId, platformCardNo, cardNo }) ? 'approved' : 'review_pending';
   updateUCardApplicationReviewStmt.run(
     nextStatus,
     cardId,
@@ -5551,14 +5614,6 @@ async function resolveUCardApplicationCardId(row = {}) {
         candidate = null;
       }
     }
-    if (!candidate && item.product_code) {
-      try {
-        const listItems = extractUCardListItems(await postUCardUpalJson('/open-api/cards/list', productFilteredListBody));
-        candidate = listItems.find((entry) => extractUCardCardNo(entry) || extractUCardCardId(entry) || extractUCardPlatformCardNo(entry)) || null;
-      } catch {
-        candidate = null;
-      }
-    }
     if (candidate) {
       cardId = extractUCardCardId(candidate) || cardId;
       platformCardNo = extractUCardPlatformCardNo(candidate) || platformCardNo;
@@ -5573,7 +5628,7 @@ async function resolveUCardApplicationCardId(row = {}) {
       // Sensitive card info may not be ready yet; keep identifiers and retry on the next refresh.
     }
   }
-  if (cardId || cardNo) {
+  if (shouldApproveUCardApplication(row, { cardId, platformCardNo, cardNo })) {
     updateUCardApplicationReviewStmt.run(
       'approved',
       cardId,
@@ -5651,7 +5706,11 @@ async function fetchUCardCardDetail(cardId = '', platformCardNo = '') {
   const attempts = [];
   if (platform) attempts.push(['/open-api/cards/query', { platformCardNo: platform }]);
   if (primary && !isUCardPlatformCardNo(primary)) attempts.push(['/open-api/cards/upstream-detail', { cardId: primary }]);
-  if (primary && isUCardPlatformCardNo(primary)) attempts.push(['/open-api/cards/query', { platformCardNo: primary }]);
+  if (primary && isUCardPlatformCardNo(primary)) {
+    attempts.push(['/open-api/cards/query', { platformCardNo: primary }]);
+    attempts.push(['/open-api/cards/upstream-detail', { cardId: primary }]);
+    attempts.push(['/open-api/cards/upstream-detail', { cardid: primary }]);
+  }
 
   let mergedPayload = null;
   let lastError = null;
@@ -6031,7 +6090,13 @@ app.post('/api/u-card/applications/:applicationNo/profile', async (req, res) => 
       requireUCardPassportFields(holder);
     }
     const upstream = await submitUCardHolderAndOpen(row, holder);
-    const nextStatus = ['ACTIVE', 'APPROVED', 'SUCCESS', 'COMPLETED'].includes(upstream.status) || upstream.cardId || upstream.platformCardNo ? 'approved' : 'review_pending';
+    const nextStatus = shouldApproveUCardApplication(row, {
+      status: upstream.status,
+      cardId: upstream.cardId,
+      platformCardNo: upstream.platformCardNo
+    })
+      ? 'approved'
+      : 'review_pending';
     updateUCardApplicationHolderStmt.run(
       JSON.stringify(holder),
       upstream.cardholderId,

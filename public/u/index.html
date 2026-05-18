@@ -1046,6 +1046,11 @@
                       `
                       : ''
                   }
+                  ${
+                    status === 'review_pending'
+                      ? `<button class="primary-button" type="button" data-review-pending-card="${escapeHtml(item.application_no || '')}" disabled>审核中</button>`
+                      : ''
+                  }
                 </div>
               </article>
             `;

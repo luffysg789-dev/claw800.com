@@ -125,6 +125,8 @@ test('U card application requires payment before showing cardholder form', () =>
 test('U card application page exposes approved card upstream actions', () => {
   const html = fs.readFileSync(uCardApplyHtmlPath, 'utf8');
   assert.match(html, /data-recharge-card/);
+  assert.match(html, /data-review-pending-card/);
+  assert.match(html, />审核中<\/button>/);
   assert.match(html, /data-view-secure/);
   assert.match(html, /data-view-ledger/);
   assert.match(html, />查看卡信息<\/button>/);
