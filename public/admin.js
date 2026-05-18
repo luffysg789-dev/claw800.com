@@ -405,8 +405,11 @@ const texts = {
     uCardProductsEmpty: '暂无卡种，请先配置上游并抓取产品。',
     uCardApplicationsEmpty: '暂无 U 卡申请订单。',
     uCardProductsLoaded: (count) => `已加载 ${count} 个卡种。`,
-    uCardProductSaved: '卡种价格已保存。',
+    uCardProductSaved: '卡种配置已保存。',
     uCardProductUpstreamPrice: '上游原价',
+    uCardProductLocalName: '本地卡名',
+    uCardProductLocalDescription: '本地简介',
+    uCardProductSortOrder: '排序（数字越大越靠前）',
     uCardProductLocalPrice: '本地开卡价',
     uCardUpalAppIdLabel: 'APP ID',
     uCardUpalDeveloperPrivateKeyLabel: '开发者私钥（BEGIN PRIVATE KEY，用于 uPAL 请求签名；留空则保留已保存私钥）',
@@ -758,8 +761,11 @@ const texts = {
     uCardProductsEmpty: 'No products yet. Configure upstream and fetch products first.',
     uCardApplicationsEmpty: 'No U card application orders yet.',
     uCardProductsLoaded: (count) => `${count} card products loaded.`,
-    uCardProductSaved: 'Card product price saved.',
+    uCardProductSaved: 'Card product config saved.',
     uCardProductUpstreamPrice: 'Upstream Price',
+    uCardProductLocalName: 'Local Card Name',
+    uCardProductLocalDescription: 'Local Description',
+    uCardProductSortOrder: 'Sort Order (larger first)',
     uCardProductLocalPrice: 'Local Open Price',
     uCardUpalAppIdLabel: 'APP ID',
     uCardUpalDeveloperPrivateKeyLabel: 'Developer Private Key (BEGIN PRIVATE KEY; used to sign uPAL requests; leave blank to keep saved key)',
@@ -2826,6 +2832,15 @@ function renderUCardProductsAdmin() {
           <p class="small">${escapeHtml(t('uCardProductUpstreamPrice'))}：${escapeHtml(product.upstream_fee_amount || '-')} ${escapeHtml(product.upstream_currency || '')}</p>
           <p class="small">${escapeHtml(product.description || '')}</p>
           <div class="inline-edit-grid">
+            <label class="small">${escapeHtml(t('uCardProductLocalName'))}
+              <input id="uCardProductName-${escapeHtml(encodedCode)}" type="text" value="${escapeHtml(product.local_name || product.name || '')}" />
+            </label>
+            <label class="small">${escapeHtml(t('uCardProductLocalDescription'))}
+              <textarea id="uCardProductDescription-${escapeHtml(encodedCode)}" rows="2">${escapeHtml(product.local_description || product.description || '')}</textarea>
+            </label>
+            <label class="small">${escapeHtml(t('uCardProductSortOrder'))}
+              <input id="uCardProductSort-${escapeHtml(encodedCode)}" type="number" inputmode="numeric" value="${escapeHtml(String(product.sort_order || 0))}" />
+            </label>
             <label class="small">${escapeHtml(t('uCardProductLocalPrice'))}
               <input id="uCardProductFee-${escapeHtml(encodedCode)}" type="text" inputmode="decimal" value="${escapeHtml(product.local_fee_amount || product.fee_amount || '')}" />
             </label>
@@ -2923,8 +2938,11 @@ window.saveUCardProductConfig = async function saveUCardProductConfig(productCod
   const encodedCode = String(productCode || '').trim();
   const code = decodeURIComponent(encodedCode);
   const payload = {
+    localName: String(document.getElementById(`uCardProductName-${encodedCode}`)?.value || '').trim(),
+    localDescription: String(document.getElementById(`uCardProductDescription-${encodedCode}`)?.value || '').trim(),
     localFeeAmount: String(document.getElementById(`uCardProductFee-${encodedCode}`)?.value || '').trim(),
     localCurrency: String(document.getElementById(`uCardProductCurrency-${encodedCode}`)?.value || '').trim(),
+    sortOrder: Number(document.getElementById(`uCardProductSort-${encodedCode}`)?.value || 0),
     isEnabled: String(document.getElementById(`uCardProductEnabled-${encodedCode}`)?.value || '1') === '1' ? 1 : 0
   };
   const inlineMessage = document.getElementById(`uCardProductSaveMessage-${encodedCode}`);

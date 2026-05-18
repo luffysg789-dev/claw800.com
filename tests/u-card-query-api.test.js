@@ -471,17 +471,34 @@ test('public U card products endpoint signs and normalizes upstream products', a
       'PUT',
       '/api/admin/u-card/products/virtual-usd',
       {
+        localName: '优先虚拟卡',
+        localDescription: '后台自定义简介',
         localFeeAmount: '10.00',
         localCurrency: 'USDT',
+        sortOrder: 99,
         isEnabled: 1
       },
       cookies
     );
     assert.equal(updatedProduct.statusCode, 200);
+    assert.equal(updatedProduct.body.item.name, '优先虚拟卡');
+    assert.equal(updatedProduct.body.item.local_name, '优先虚拟卡');
+    assert.equal(updatedProduct.body.item.description, '后台自定义简介');
+    assert.equal(updatedProduct.body.item.local_description, '后台自定义简介');
     assert.equal(updatedProduct.body.item.local_fee_amount, '10.00');
+    assert.equal(updatedProduct.body.item.sort_order, 99);
+
+    harness.db.prepare(`
+      INSERT INTO u_card_products (
+        product_code, upstream_name, upstream_fee_amount, upstream_currency,
+        local_fee_amount, local_currency, card_currency, description, sort_order, is_enabled
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+    `).run('basic-usd', 'Basic USD Card', '1.00', 'USDT', '1.00', 'USDT', 'USD', 'Lower priority card', 1);
 
     const configuredProducts = await harness.request('GET', '/api/u-card/products');
     assert.equal(configuredProducts.statusCode, 200);
+    assert.equal(configuredProducts.body.items[0].name, '优先虚拟卡');
+    assert.equal(configuredProducts.body.items[0].description, '后台自定义简介');
     assert.equal(configuredProducts.body.items[0].fee_amount, '10.00');
 
     const holderOptions = await harness.request('GET', '/api/u-card/holder-options');
@@ -729,6 +746,12 @@ test('admin U card panel includes upstream credential configuration controls', (
   assert.match(adminJs, /\/api\/admin\/u-card\/applications/);
   assert.match(adminJs, /saveUCardProductConfig/);
   assert.match(adminJs, /uCardProductSaveMessage-/);
+  assert.match(adminJs, /uCardProductName-/);
+  assert.match(adminJs, /uCardProductDescription-/);
+  assert.match(adminJs, /uCardProductSort-/);
+  assert.match(adminJs, /localName:\s*String\(document\.getElementById\(`uCardProductName-\$\{encodedCode\}`\)\?\.value \|\| ''\)\.trim\(\)/);
+  assert.match(adminJs, /localDescription:\s*String\(document\.getElementById\(`uCardProductDescription-\$\{encodedCode\}`\)\?\.value \|\| ''\)\.trim\(\)/);
+  assert.match(adminJs, /sortOrder:\s*Number\(document\.getElementById\(`uCardProductSort-\$\{encodedCode\}`\)\?\.value \|\| 0\)/);
   assert.match(adminJs, /inlineMessage\.textContent = t\('uCardProductSaved'\)/);
   assert.match(adminJs, /loadUCardApplicationsAdmin/);
   assert.match(adminJs, /setUCardUpstreamConfigMessage\(t\('uCardUpstreamConfigSaved'\), 'message success'\)/);

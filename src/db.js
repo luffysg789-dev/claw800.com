@@ -1082,16 +1082,30 @@ db.exec(`
     upstream_name TEXT NOT NULL DEFAULT '',
     upstream_fee_amount TEXT NOT NULL DEFAULT '',
     upstream_currency TEXT NOT NULL DEFAULT '',
+    local_name TEXT NOT NULL DEFAULT '',
+    local_description TEXT NOT NULL DEFAULT '',
     local_fee_amount TEXT NOT NULL DEFAULT '',
     local_currency TEXT NOT NULL DEFAULT '',
     card_currency TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
+    sort_order INTEGER NOT NULL DEFAULT 0,
     is_enabled INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     last_seen_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
+
+for (const [column, definition] of [
+  ['local_name', "TEXT NOT NULL DEFAULT ''"],
+  ['local_description', "TEXT NOT NULL DEFAULT ''"],
+  ['sort_order', 'INTEGER NOT NULL DEFAULT 0']
+]) {
+  const exists = db.prepare("SELECT 1 FROM pragma_table_info('u_card_products') WHERE name = ?").get(column);
+  if (!exists) {
+    db.exec(`ALTER TABLE u_card_products ADD COLUMN ${column} ${definition}`);
+  }
+}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS u_card_applications (
@@ -1141,7 +1155,7 @@ db.exec(`
 
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_u_card_products_enabled_updated
-  ON u_card_products(is_enabled DESC, updated_at DESC, id DESC);
+  ON u_card_products(is_enabled DESC, sort_order DESC, updated_at DESC, id DESC);
 `);
 
 db.exec(`

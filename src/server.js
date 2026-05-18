@@ -3143,20 +3143,23 @@ const upsertUCardProductFromUpstreamStmt = db.prepare(`
 `);
 const listUCardProductConfigsStmt = db.prepare(`
   SELECT id, product_code, upstream_name, upstream_fee_amount, upstream_currency, local_fee_amount,
-         local_currency, card_currency, description, is_enabled, created_at, updated_at, last_seen_at
+         local_currency, local_name, local_description, card_currency, description, sort_order,
+         is_enabled, created_at, updated_at, last_seen_at
   FROM u_card_products
-  ORDER BY is_enabled DESC, updated_at DESC, id DESC
+  ORDER BY is_enabled DESC, sort_order DESC, updated_at DESC, id DESC
 `);
 const listEnabledUCardProductConfigsStmt = db.prepare(`
   SELECT id, product_code, upstream_name, upstream_fee_amount, upstream_currency, local_fee_amount,
-         local_currency, card_currency, description, is_enabled, created_at, updated_at, last_seen_at
+         local_currency, local_name, local_description, card_currency, description, sort_order,
+         is_enabled, created_at, updated_at, last_seen_at
   FROM u_card_products
   WHERE is_enabled = 1
-  ORDER BY updated_at DESC, id DESC
+  ORDER BY sort_order DESC, updated_at DESC, id DESC
 `);
 const selectUCardProductConfigByCodeStmt = db.prepare(`
   SELECT id, product_code, upstream_name, upstream_fee_amount, upstream_currency, local_fee_amount,
-         local_currency, card_currency, description, is_enabled, created_at, updated_at, last_seen_at
+         local_currency, local_name, local_description, card_currency, description, sort_order,
+         is_enabled, created_at, updated_at, last_seen_at
   FROM u_card_products
   WHERE product_code = ?
 `);
@@ -4859,11 +4862,16 @@ function normalizeUCardProductFee(value = '') {
 function formatUCardProductConfig(row = {}) {
   const localFeeAmount = normalizeUCardProductFee(row.local_fee_amount || row.upstream_fee_amount || '');
   const localCurrency = String(row.local_currency || row.upstream_currency || '').trim();
+  const upstreamName = String(row.upstream_name || '').trim();
+  const localName = String(row.local_name || '').trim();
+  const upstreamDescription = String(row.description || '').trim();
+  const localDescription = String(row.local_description || '').trim();
   return {
     id: String(row.product_code || row.id || '').trim(),
     product_code: String(row.product_code || '').trim(),
-    name: String(row.upstream_name || row.product_code || 'U 卡产品').trim(),
-    upstream_name: String(row.upstream_name || '').trim(),
+    name: localName || upstreamName || String(row.product_code || 'U 卡产品').trim(),
+    upstream_name: upstreamName,
+    local_name: localName,
     upstream_fee_amount: String(row.upstream_fee_amount || '').trim(),
     upstream_currency: String(row.upstream_currency || '').trim(),
     fee_amount: localFeeAmount,
@@ -4871,7 +4879,10 @@ function formatUCardProductConfig(row = {}) {
     local_fee_amount: localFeeAmount,
     local_currency: localCurrency,
     card_currency: String(row.card_currency || '').trim(),
-    description: String(row.description || '').trim(),
+    description: localDescription || upstreamDescription,
+    upstream_description: upstreamDescription,
+    local_description: localDescription,
+    sort_order: Number(row.sort_order || 0) || 0,
     is_enabled: Number(row.is_enabled || 0) ? 1 : 0,
     created_at: String(row.created_at || '').trim(),
     updated_at: String(row.updated_at || '').trim(),
@@ -11431,8 +11442,11 @@ app.get('/api/admin/u-card/applications', requireAdmin, (_req, res) => {
 
 app.put('/api/admin/u-card/products/:productCode', requireAdmin, (req, res) => {
   const productCode = String(req.params.productCode || '').trim();
+  const localName = String(req.body?.localName ?? req.body?.local_name ?? '').trim();
+  const localDescription = String(req.body?.localDescription ?? req.body?.local_description ?? '').trim();
   const localFeeAmount = normalizeUCardProductFee(req.body?.localFeeAmount ?? req.body?.local_fee_amount ?? '');
   const localCurrency = String(req.body?.localCurrency ?? req.body?.local_currency ?? 'USDT').trim() || 'USDT';
+  const sortOrder = Number(req.body?.sortOrder ?? req.body?.sort_order ?? 0);
   const isEnabled = Number(req.body?.isEnabled ?? req.body?.is_enabled ?? 1) ? 1 : 0;
   if (!productCode) return res.status(400).json({ error: '产品 code 必填' });
   try {
@@ -11440,15 +11454,19 @@ app.put('/api/admin/u-card/products/:productCode', requireAdmin, (req, res) => {
   } catch {
     return res.status(400).json({ error: '本地开卡价格式无效' });
   }
+  if (Buffer.byteLength(localName, 'utf8') > 200) return res.status(413).json({ error: '卡名太长' });
+  if (Buffer.byteLength(localDescription, 'utf8') > 2000) return res.status(413).json({ error: '简介太长' });
   if (Buffer.byteLength(localCurrency, 'utf8') > 20) return res.status(413).json({ error: '币种太长' });
+  if (!Number.isFinite(sortOrder)) return res.status(400).json({ error: '排序必须是数字' });
 
   const row = selectUCardProductConfigByCodeStmt.get(productCode);
   if (!row) return res.status(404).json({ error: '卡种不存在，请先抓取上游产品' });
   db.prepare(`
     UPDATE u_card_products
-    SET local_fee_amount = ?, local_currency = ?, is_enabled = ?, updated_at = datetime('now')
+    SET local_name = ?, local_description = ?, local_fee_amount = ?, local_currency = ?,
+        sort_order = ?, is_enabled = ?, updated_at = datetime('now')
     WHERE product_code = ?
-  `).run(localFeeAmount, localCurrency, isEnabled, productCode);
+  `).run(localName, localDescription, localFeeAmount, localCurrency, Math.trunc(sortOrder), isEnabled, productCode);
   res.json({ ok: true, item: formatUCardProductConfig(selectUCardProductConfigByCodeStmt.get(productCode)) });
 });
 
