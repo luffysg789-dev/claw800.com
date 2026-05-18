@@ -109,12 +109,18 @@ test('U card application page exposes approved card upstream actions', () => {
   assert.match(html, /data-view-ledger/);
   assert.match(html, />查看卡信息<\/button>/);
   assert.match(html, /id="uCardInfoModal"/);
+  assert.match(html, /id="uCardInfoCardNoCopy"/);
+  assert.match(html, /aria-label="复制卡号"/);
   assert.match(html, /id="uCardRechargeModal"/);
   assert.match(html, /id="uCardLedgerModal"/);
   assert.match(html, /id="uCardLedgerList"/);
   assert.match(html, /const U_CARD_RECHARGE_PAYMENT_CREATE_ENDPOINT = '\/api\/u-card\/applications\/:applicationNo\/recharge-payment\/create';/);
   assert.match(html, /const U_CARD_RECHARGE_PAYMENT_TIMEOUT_MS = 2 \* 60 \* 1000;/);
   assert.match(html, /function openUCardInfoModal\(application, payload\)/);
+  assert.match(html, /function copyUCardInfoCardNo\(\)/);
+  assert.match(html, /navigator\.clipboard\.writeText/);
+  assert.match(html, /flashUCardInfoMessage\('复制成功'\)/);
+  assert.match(html, /infoCardNoCopyButton\.addEventListener\('click', copyUCardInfoCardNo\)/);
   assert.match(html, /function openUCardRechargeModal\(application\)/);
   assert.match(html, /function openUCardLedgerModal\(application, payload\)/);
   assert.match(html, /function getUCardLedgerItems\(payload\)/);
