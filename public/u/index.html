@@ -1277,17 +1277,6 @@
         return String(payload.status || '').trim().toUpperCase();
       }
 
-      async function waitForPaymentSuccess(orderNo) {
-        const startedAt = Date.now();
-        while (Date.now() - startedAt < 45000) {
-          const status = await queryPaymentStatus(orderNo);
-          if (status === 'SUCCESS') return true;
-          if (status === 'FAILED' || status === 'CANCELED' || status === 'EXPIRED') return false;
-          await new Promise((resolve) => window.setTimeout(resolve, 2000));
-        }
-        return false;
-      }
-
       function findApplication(applicationNo) {
         const normalized = String(applicationNo || '').trim();
         return currentApplications.find((item) => String(item.application_no || '').trim() === normalized) || null;
@@ -1613,17 +1602,7 @@
         rememberPendingPayment(pending);
         setSessionStatus('请在 Nexa 中完成充卡支付，支付成功后会自动提交上游充卡。');
         window.location.href = buildNexaPaymentUrl(response.payment);
-        const paid = await waitForPaymentSuccess(response.orderNo);
-        if (paid) {
-          await callUCardAction(application.application_no, 'recharge', { amount, paymentOrderNo: response.orderNo });
-          clearPendingPayment();
-          await loadMyCards();
-          selectTab('mine');
-          setSessionStatus('支付成功，充卡请求已提交，上游处理中。', 'success');
-        } else if (Number(pending.expiresAt || 0) <= Date.now()) {
-          clearPendingPayment();
-          flashSessionStatus('充卡支付超时，订单已取消。', 'error');
-        }
+        return;
       }
 
       async function beginUCardPayment(productCode, button) {
@@ -1658,18 +1637,7 @@
           rememberPendingPayment(pending);
           setSessionStatus('请在 Nexa 中完成支付，支付成功后会先放入我的卡。');
           window.location.href = buildNexaPaymentUrl(response.payment);
-          const paid = await waitForPaymentSuccess(response.orderNo);
-          if (paid) {
-            if (pending.applicationNo) {
-              await confirmUCardApplicationPayment(pending.applicationNo);
-            } else {
-              await recoverPaidUCardApplication(pending);
-            }
-            clearPendingPayment();
-            await loadMyCards();
-            selectTab('mine');
-            setSessionStatus('支付成功，已放入我的卡。点开后可补充用卡人资料。', 'success');
-          }
+          return;
         } catch (error) {
           setSessionStatus(error?.message || 'U 卡支付下单失败', 'error');
         } finally {

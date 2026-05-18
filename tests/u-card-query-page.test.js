@@ -147,9 +147,22 @@ test('U card application page exposes approved card upstream actions', () => {
   assert.doesNotMatch(html, /\$\{item\.card_no_masked \? `<p>卡号：/);
   assert.match(html, /callUCardAction\(secureButton\.dataset\.viewSecure, 'secure-info'\)/);
   assert.match(html, /window\.location\.href = buildNexaPaymentUrl\(response\.payment\);/);
-  assert.match(html, /callUCardAction\(application\.application_no, 'recharge', \{ amount, paymentOrderNo: response\.orderNo \}\)/);
+  assert.match(html, /callUCardAction\(pending\.applicationNo, 'recharge', \{[\s\S]*?paymentOrderNo: pending\.orderNo[\s\S]*?\}\)/);
   assert.match(html, /callUCardAction\(ledgerButton\.dataset\.viewLedger, 'transactions'\)/);
   assert.doesNotMatch(html, /alert\(JSON\.stringify\(payload\.item \|\| payload, null, 2\)\)/);
+});
+
+test('U card recharge returns to my cards without local payment polling', () => {
+  const html = fs.readFileSync(uCardApplyHtmlPath, 'utf8');
+  const rechargeFunction = html.match(/async function beginUCardRechargePayment\(application, amount\) \{[\s\S]*?\n      \}/)?.[0] || '';
+  const applyFunction = html.match(/async function beginUCardPayment\(productCode, button\) \{[\s\S]*?\n      \}/)?.[0] || '';
+  assert.match(rechargeFunction, /window\.location\.href = buildNexaPaymentUrl\(response\.payment\);/);
+  assert.match(rechargeFunction, /return;/);
+  assert.doesNotMatch(rechargeFunction, /waitForPaymentSuccess/);
+  assert.match(applyFunction, /window\.location\.href = buildNexaPaymentUrl\(response\.payment\);/);
+  assert.match(applyFunction, /return;/);
+  assert.doesNotMatch(applyFunction, /waitForPaymentSuccess/);
+  assert.match(html, /await loadMyCards\(\);\s*selectTab\('mine'\);/);
 });
 
 test('U card query page includes language toggle after platform count', () => {
