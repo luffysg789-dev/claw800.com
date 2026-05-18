@@ -410,6 +410,9 @@ const texts = {
     uCardProductLocalName: '本地卡名',
     uCardProductLocalDescription: '本地简介',
     uCardProductSortOrder: '排序（数字越大越靠前）',
+    uCardProductChannel: '申请渠道',
+    uCardProductChannel1: '渠道 1（免实名）',
+    uCardProductChannel2: '渠道 2（护照实名）',
     uCardProductLocalPrice: '本地开卡价',
     uCardUpalAppIdLabel: 'APP ID',
     uCardUpalDeveloperPrivateKeyLabel: '开发者私钥（BEGIN PRIVATE KEY，用于 uPAL 请求签名；留空则保留已保存私钥）',
@@ -766,6 +769,9 @@ const texts = {
     uCardProductLocalName: 'Local Card Name',
     uCardProductLocalDescription: 'Local Description',
     uCardProductSortOrder: 'Sort Order (larger first)',
+    uCardProductChannel: 'Application Channel',
+    uCardProductChannel1: 'Channel 1 (no KYC)',
+    uCardProductChannel2: 'Channel 2 (passport KYC)',
     uCardProductLocalPrice: 'Local Open Price',
     uCardUpalAppIdLabel: 'APP ID',
     uCardUpalDeveloperPrivateKeyLabel: 'Developer Private Key (BEGIN PRIVATE KEY; used to sign uPAL requests; leave blank to keep saved key)',
@@ -2841,6 +2847,12 @@ function renderUCardProductsAdmin() {
             <label class="small">${escapeHtml(t('uCardProductSortOrder'))}
               <input id="uCardProductSort-${escapeHtml(encodedCode)}" type="number" inputmode="numeric" value="${escapeHtml(String(product.sort_order || 0))}" />
             </label>
+            <label class="small">${escapeHtml(t('uCardProductChannel'))}
+              <select id="uCardProductChannel-${escapeHtml(encodedCode)}">
+                <option value="1" ${String(product.application_channel || '1') === '2' ? '' : 'selected'}>${escapeHtml(t('uCardProductChannel1'))}</option>
+                <option value="2" ${String(product.application_channel || '1') === '2' ? 'selected' : ''}>${escapeHtml(t('uCardProductChannel2'))}</option>
+              </select>
+            </label>
             <label class="small">${escapeHtml(t('uCardProductLocalPrice'))}
               <input id="uCardProductFee-${escapeHtml(encodedCode)}" type="text" inputmode="decimal" value="${escapeHtml(product.local_fee_amount || product.fee_amount || '')}" />
             </label>
@@ -2942,6 +2954,7 @@ window.saveUCardProductConfig = async function saveUCardProductConfig(productCod
     localDescription: String(document.getElementById(`uCardProductDescription-${encodedCode}`)?.value || '').trim(),
     localFeeAmount: String(document.getElementById(`uCardProductFee-${encodedCode}`)?.value || '').trim(),
     localCurrency: String(document.getElementById(`uCardProductCurrency-${encodedCode}`)?.value || '').trim(),
+    applicationChannel: String(document.getElementById(`uCardProductChannel-${encodedCode}`)?.value || '1'),
     sortOrder: Number(document.getElementById(`uCardProductSort-${encodedCode}`)?.value || 0),
     isEnabled: String(document.getElementById(`uCardProductEnabled-${encodedCode}`)?.value || '1') === '1' ? 1 : 0
   };

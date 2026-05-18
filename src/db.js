@@ -1088,6 +1088,7 @@ db.exec(`
     local_currency TEXT NOT NULL DEFAULT '',
     card_currency TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
+    application_channel TEXT NOT NULL DEFAULT '1',
     sort_order INTEGER NOT NULL DEFAULT 0,
     is_enabled INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -1099,6 +1100,7 @@ db.exec(`
 for (const [column, definition] of [
   ['local_name', "TEXT NOT NULL DEFAULT ''"],
   ['local_description', "TEXT NOT NULL DEFAULT ''"],
+  ['application_channel', "TEXT NOT NULL DEFAULT '1'"],
   ['sort_order', 'INTEGER NOT NULL DEFAULT 0']
 ]) {
   const exists = db.prepare("SELECT 1 FROM pragma_table_info('u_card_products') WHERE name = ?").get(column);
@@ -1115,6 +1117,7 @@ db.exec(`
     open_id TEXT NOT NULL,
     product_code TEXT NOT NULL,
     product_name TEXT NOT NULL DEFAULT '',
+    application_channel TEXT NOT NULL DEFAULT '1',
     amount TEXT NOT NULL DEFAULT '0.00',
     currency TEXT NOT NULL DEFAULT 'USDT',
     payment_status TEXT NOT NULL DEFAULT 'PENDING',
@@ -1135,7 +1138,8 @@ db.exec(`
 
 for (const [column, definition] of [
   ['upstream_cardholder_id', "TEXT NOT NULL DEFAULT ''"],
-  ['platform_card_no', "TEXT NOT NULL DEFAULT ''"]
+  ['platform_card_no', "TEXT NOT NULL DEFAULT ''"],
+  ['application_channel', "TEXT NOT NULL DEFAULT '1'"]
 ]) {
   const exists = db.prepare("SELECT 1 FROM pragma_table_info('u_card_applications') WHERE name = ?").get(column);
   if (!exists) {

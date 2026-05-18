@@ -256,6 +256,31 @@
         padding: 0 12px;
       }
 
+      .form-row textarea {
+        width: 100%;
+        min-height: 82px;
+        border: 1px solid #d7e3da;
+        border-radius: 8px;
+        background: #fff;
+        color: var(--ink);
+        font: inherit;
+        font-size: 16px;
+        padding: 10px 12px;
+        resize: vertical;
+      }
+
+      .channel-badge {
+        display: inline-flex;
+        width: fit-content;
+        border: 1px solid #9ad8af;
+        border-radius: 999px;
+        background: #edf8f0;
+        color: #185936;
+        font-size: 12px;
+        font-weight: 900;
+        padding: 5px 10px;
+      }
+
       .phone-fields {
         display: grid;
         grid-template-columns: 96px minmax(0, 1fr);
@@ -548,6 +573,7 @@
         <div class="cardholder-header">
           <h2 id="uCardHolderTitle">用卡人详情</h2>
           <p id="uCardHolderProduct" class="form-note"></p>
+          <span id="holderChannelBadge" class="channel-badge hidden">渠道 1（免实名）</span>
         </div>
         <form id="uCardHolderForm" class="cardholder-form">
           <div class="form-row">
@@ -632,6 +658,42 @@
             <label for="holderSecurityAnswer">安全答案</label>
             <input id="holderSecurityAnswer" name="securityAnswer" placeholder="安全答案" />
           </div>
+          <section id="holderPassportSection" class="hidden">
+            <h3 class="form-section-title">护照实名信息</h3>
+            <p class="form-note">渠道 2 / exworth 卡申请必须填写护照实名资料。</p>
+            <div class="form-row">
+              <label for="holderGender"><span class="required">*</span> 性别</label>
+              <select id="holderGender" name="gender" data-channel-two-field>
+                <option value="">请选择性别</option>
+                <option value="MALE">MALE</option>
+                <option value="FEMALE">FEMALE</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label for="holderDocumentType"><span class="required">*</span> 证件类型</label>
+              <select id="holderDocumentType" name="documentType" data-channel-two-field>
+                <option value="PASSPORT">护照</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label for="holderDocumentNumber"><span class="required">*</span> 证件号</label>
+              <input id="holderDocumentNumber" name="documentNumber" placeholder="只能英文/数字" data-channel-two-field />
+            </div>
+            <div class="form-row">
+              <label for="holderDocumentExpiryDate"><span class="required">*</span> 证件有效期</label>
+              <input id="holderDocumentExpiryDate" name="documentExpiryDate" type="date" data-channel-two-field />
+            </div>
+            <div class="form-row">
+              <label for="holderPassportSignaturePage"><span class="required">*</span> 护照签名页</label>
+              <input id="holderPassportSignaturePage" name="passportSignaturePage" type="file" accept="image/png,image/jpeg" data-channel-two-field />
+              <p class="form-note">请上传 PNG/JPG/JPEG，单张上限 10MB。</p>
+            </div>
+            <div class="form-row">
+              <label for="holderHandheldPassportPhoto"><span class="required">*</span> 手持证件照片</label>
+              <input id="holderHandheldPassportPhoto" name="handheldPassportPhoto" type="file" accept="image/png,image/jpeg" data-channel-two-field />
+              <p class="form-note required">手持证件照不要遮挡脸部，照片不要镜像。</p>
+            </div>
+          </section>
           <p id="uCardHolderMessage" class="list-status" aria-live="polite"></p>
           <div class="modal-actions">
             <button id="uCardHolderCancelBtn" class="secondary-button" type="button">取消</button>
@@ -769,6 +831,8 @@
       const holderModal = document.getElementById('uCardHolderModal');
       const holderForm = document.getElementById('uCardHolderForm');
       const holderProduct = document.getElementById('uCardHolderProduct');
+      const holderChannelBadge = document.getElementById('holderChannelBadge');
+      const holderPassportSection = document.getElementById('holderPassportSection');
       const holderMessage = document.getElementById('uCardHolderMessage');
       const holderCancelButton = document.getElementById('uCardHolderCancelBtn');
       const infoModal = document.getElementById('uCardInfoModal');
@@ -856,12 +920,14 @@
             const currency = String(product.currency || '').trim();
             const cardCurrency = String(product.card_currency || '').trim();
             const description = String(product.description || '').trim();
+            const channelLabel = String(product.application_channel_label || (String(product.application_channel || '1') === '2' ? '渠道 2（护照实名）' : '')).trim();
             return `
               <article class="u-card-product" data-product-code="${escapeHtml(product.product_code || product.id || '')}">
                 <h2>${escapeHtml(product.name || 'U 卡产品')}</h2>
                 <div class="u-card-product__meta">
                   ${fee ? `<span>费用 ${escapeHtml(fee)}${currency ? ` ${escapeHtml(currency)}` : ''}</span>` : ''}
                   ${cardCurrency ? `<span>币种 ${escapeHtml(cardCurrency)}</span>` : ''}
+                  ${channelLabel ? `<span>${escapeHtml(channelLabel)}</span>` : ''}
                 </div>
                 ${description ? `<p>${escapeHtml(description)}</p>` : ''}
                 <button class="primary-button" type="button" data-apply-product="${escapeHtml(product.product_code || product.id || '')}">申请卡</button>
@@ -1042,6 +1108,10 @@
       function findProduct(productCode) {
         const normalized = String(productCode || '').trim();
         return currentProducts.find((product) => String(product.product_code || product.id || '').trim() === normalized) || null;
+      }
+
+      function isUCardChannelTwo(value) {
+        return String(value?.application_channel || value?.applicationChannel || value?.product?.application_channel || '').trim() === '2';
       }
 
       async function loadUCardProducts() {
@@ -1376,6 +1446,7 @@
           orderNo: pending?.orderNo || '',
           productCode: product.product_code || product.id || pending?.productCode || '',
           productName: pending?.product_name || product.name || 'U 卡申请',
+          applicationChannel: product.application_channel || pending?.applicationChannel || '1',
           amount: pending?.amount || product.fee_amount || '0.00',
           currency: pending?.currency || product.currency || 'USDT'
         });
@@ -1392,6 +1463,23 @@
           }
         );
         return payload.item || null;
+      }
+
+      function readUCardHolderFileAsDataUrl(file) {
+        return new Promise((resolve, reject) => {
+          if (!file || !file.size) {
+            resolve('');
+            return;
+          }
+          if (file.size > 10 * 1024 * 1024) {
+            reject(new Error('护照图片单张不能超过 10MB。'));
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ''));
+          reader.onerror = () => reject(new Error('护照图片读取失败'));
+          reader.readAsDataURL(file);
+        });
       }
 
       async function checkUCardReview(applicationNo) {
@@ -1652,6 +1740,13 @@
         holderMessage.textContent = '';
         holderMessage.classList.remove('error');
         holderProduct.textContent = `${application.product_name || application.product?.name || 'U 卡产品'} · 已支付 ${application.amount || ''} ${application.currency || 'USDT'}`;
+        const channelTwo = isUCardChannelTwo(application);
+        holderPassportSection.classList.toggle('hidden', !channelTwo);
+        holderChannelBadge.textContent = channelTwo ? '渠道 2（护照实名）' : '渠道 1（免实名）';
+        holderChannelBadge.classList.remove('hidden');
+        holderForm.querySelectorAll('[data-channel-two-field]').forEach((field) => {
+          field.required = channelTwo;
+        });
         holderModal.classList.remove('hidden');
         loadUCardHolderOptions();
         document.getElementById('holderFirstName').focus();
@@ -1659,6 +1754,8 @@
 
       function closeCardholderForm() {
         holderModal.classList.add('hidden');
+        holderChannelBadge.classList.add('hidden');
+        holderPassportSection.classList.add('hidden');
         activePaidApplication = null;
       }
 
@@ -1775,6 +1872,7 @@
             amount: response.amount,
             currency: response.currency,
             product: response.product || product,
+            applicationChannel: response.application?.application_channel || response.product?.application_channel || product.application_channel || '1',
             product_name: response.application?.product_name || response.product?.name || product.name || 'U 卡产品',
             createdAt: Date.now()
           };
@@ -1881,6 +1979,18 @@
           holderMessage.textContent = '生日必须大于 18 岁。';
           holderMessage.classList.add('error');
           return;
+        }
+        if (isUCardChannelTwo(activePaidApplication)) {
+          if (!/^[A-Za-z0-9]+$/.test(String(formData.documentNumber || '').trim())) {
+            holderMessage.textContent = '护照证件号只能填写英文和数字。';
+            holderMessage.classList.add('error');
+            return;
+          }
+          formData.passportSignaturePage = await readUCardHolderFileAsDataUrl(formData.passportSignaturePage);
+          formData.handheldPassportPhoto = await readUCardHolderFileAsDataUrl(formData.handheldPassportPhoto);
+        } else {
+          delete formData.passportSignaturePage;
+          delete formData.handheldPassportPhoto;
         }
         const submitButton = holderForm.querySelector('button[type="submit"]');
         submitButton.disabled = true;

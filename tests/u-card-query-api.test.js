@@ -137,6 +137,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
     const capturedSecureBodies = [];
     const capturedRechargeBodies = [];
     const capturedRechargeQueryBodies = [];
+    const capturedHolderBodies = [];
     let mockPaymentQueryStatus = 'PENDING';
     global.fetch = async (url, options = {}) => {
       if (String(url).includes('/partner/api/openapi/payment/create')) {
@@ -226,6 +227,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
         };
       }
       if (String(url).includes('/open-api/cardholders')) {
+        capturedHolderBodies.push(JSON.parse(String(options.body || '{}')));
         return {
           ok: true,
           status: 200,
@@ -458,7 +460,9 @@ test('public U card products endpoint signs and normalizes upstream products', a
         fee_amount: '5.00',
         currency: 'USDT',
         card_currency: 'USD',
-        description: 'Global virtual card'
+        description: 'Global virtual card',
+        application_channel: '1',
+        application_channel_label: '渠道 1（免实名）'
       }
     ]);
 
@@ -475,6 +479,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
         localDescription: '后台自定义简介',
         localFeeAmount: '10.00',
         localCurrency: 'USDT',
+        applicationChannel: '2',
         sortOrder: 99,
         isEnabled: 1
       },
@@ -486,6 +491,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
     assert.equal(updatedProduct.body.item.description, '后台自定义简介');
     assert.equal(updatedProduct.body.item.local_description, '后台自定义简介');
     assert.equal(updatedProduct.body.item.local_fee_amount, '10.00');
+    assert.equal(updatedProduct.body.item.application_channel, '2');
     assert.equal(updatedProduct.body.item.sort_order, 99);
 
     harness.db.prepare(`
@@ -500,6 +506,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
     assert.equal(configuredProducts.body.items[0].name, '优先虚拟卡');
     assert.equal(configuredProducts.body.items[0].description, '后台自定义简介');
     assert.equal(configuredProducts.body.items[0].fee_amount, '10.00');
+    assert.equal(configuredProducts.body.items[0].application_channel, '2');
 
     const holderOptions = await harness.request('GET', '/api/u-card/holder-options');
     assert.equal(holderOptions.statusCode, 200);
@@ -529,6 +536,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
     assert.equal(payment.body.payment.orderNo, 'nexa-u-card-order-1');
     assert.match(payment.body.application.application_no, /^UC/);
     assert.equal(payment.body.application.status, 'awaiting_payment');
+    assert.equal(payment.body.application.application_channel, '2');
     assert.equal(capturedPayment.body.amount, '10.00');
     assert.equal(capturedPayment.body.sessionKey, 'nexa-session-key');
 
@@ -550,8 +558,9 @@ test('public U card products endpoint signs and normalizes upstream products', a
     assert.equal(listed.statusCode, 200);
     assert.equal(listed.body.items.length, 1);
     assert.equal(listed.body.items[0].status, 'needs_profile');
+    assert.equal(listed.body.items[0].application_channel, '2');
 
-    const profiled = await harness.request(
+    const missingPassportProfile = await harness.request(
       'POST',
       `/api/u-card/applications/${applicationNo}/profile`,
       {
@@ -572,11 +581,45 @@ test('public U card products endpoint signs and normalizes upstream products', a
         }
       }
     );
+    assert.equal(missingPassportProfile.statusCode, 400);
+    assert.match(missingPassportProfile.body.error, /护照/);
+
+    const profiled = await harness.request(
+      'POST',
+      `/api/u-card/applications/${applicationNo}/profile`,
+      {
+        openId: 'nexa-open-id',
+        holder: {
+          firstName: 'Open',
+          lastName: 'Api',
+          nationality: '中国',
+          birthday: '1990-01-01',
+          phoneCode: '+86',
+          phone: '13800000000',
+          email: 'open@example.com',
+          country: '中国',
+          state: '广东',
+          city: '深圳',
+          postalCode: '518000',
+          address: 'Demo Street 1',
+          gender: 'MALE',
+          documentType: 'PASSPORT',
+          documentNumber: 'EC3160287',
+          documentExpiryDate: '2028-02-23',
+          passportSignaturePage: 'data:image/jpeg;base64,cGFzc3BvcnQ=',
+          handheldPassportPhoto: 'data:image/jpeg;base64,aGFuZGhlbGQ='
+        }
+      }
+    );
     assert.equal(profiled.statusCode, 200, JSON.stringify(profiled.body));
     assert.equal(profiled.body.item.status, 'approved');
     assert.equal(profiled.body.item.cardholder_id, 'cardholder-001');
     assert.equal(profiled.body.item.upstream_application_id, 'REQ_UCARD_001');
     assert.equal(profiled.body.item.platform_card_no, 'CARD_UCARD_001');
+    assert.equal(capturedHolderBodies.at(-1).channel, '2');
+    assert.equal(capturedHolderBodies.at(-1).documentType, 'PASSPORT');
+    assert.equal(capturedHolderBodies.at(-1).documentNumber, 'EC3160287');
+    assert.equal(capturedHolderBodies.at(-1).passportSignaturePage, 'data:image/jpeg;base64,cGFzc3BvcnQ=');
 
     const listedAfterProfile = await harness.request('GET', '/api/u-card/applications?openId=nexa-open-id');
     assert.equal(listedAfterProfile.statusCode, 200, JSON.stringify(listedAfterProfile.body));
@@ -749,6 +792,8 @@ test('admin U card panel includes upstream credential configuration controls', (
   assert.match(adminJs, /uCardProductName-/);
   assert.match(adminJs, /uCardProductDescription-/);
   assert.match(adminJs, /uCardProductSort-/);
+  assert.match(adminJs, /uCardProductChannel-/);
+  assert.match(adminJs, /applicationChannel:\s*String\(document\.getElementById\(`uCardProductChannel-\$\{encodedCode\}`\)\?\.value \|\| '1'\)/);
   assert.match(adminJs, /localName:\s*String\(document\.getElementById\(`uCardProductName-\$\{encodedCode\}`\)\?\.value \|\| ''\)\.trim\(\)/);
   assert.match(adminJs, /localDescription:\s*String\(document\.getElementById\(`uCardProductDescription-\$\{encodedCode\}`\)\?\.value \|\| ''\)\.trim\(\)/);
   assert.match(adminJs, /sortOrder:\s*Number\(document\.getElementById\(`uCardProductSort-\$\{encodedCode\}`\)\?\.value \|\| 0\)/);

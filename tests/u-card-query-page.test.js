@@ -77,6 +77,11 @@ test('U card application requires payment before showing cardholder form', () =>
   assert.match(server, /setInterval\(\(\) => \{[\s\S]*pollDueUCardApplicationReviews\(\)/);
   assert.match(server, /next_review_check_at = datetime\('now', '\+5 minutes'\)/);
   assert.match(html, /function openCardholderForm\(application\)/);
+  assert.match(html, /holderChannelBadge/);
+  assert.match(html, /passportSignaturePage/);
+  assert.match(html, /handheldPassportPhoto/);
+  assert.match(html, /readUCardHolderFileAsDataUrl/);
+  assert.match(html, /isUCardChannelTwo\(activePaidApplication\)/);
   assert.match(html, /data-fill-profile/);
   assert.match(html, /submitUCardHolderProfile\(activePaidApplication\.application_no, formData\)/);
   assert.match(html, /scheduleUCardReviewPolling\(\);/);

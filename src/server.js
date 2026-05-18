@@ -3143,14 +3143,14 @@ const upsertUCardProductFromUpstreamStmt = db.prepare(`
 `);
 const listUCardProductConfigsStmt = db.prepare(`
   SELECT id, product_code, upstream_name, upstream_fee_amount, upstream_currency, local_fee_amount,
-         local_currency, local_name, local_description, card_currency, description, sort_order,
+         local_currency, local_name, local_description, card_currency, description, application_channel, sort_order,
          is_enabled, created_at, updated_at, last_seen_at
   FROM u_card_products
   ORDER BY is_enabled DESC, sort_order DESC, updated_at DESC, id DESC
 `);
 const listEnabledUCardProductConfigsStmt = db.prepare(`
   SELECT id, product_code, upstream_name, upstream_fee_amount, upstream_currency, local_fee_amount,
-         local_currency, local_name, local_description, card_currency, description, sort_order,
+         local_currency, local_name, local_description, card_currency, description, application_channel, sort_order,
          is_enabled, created_at, updated_at, last_seen_at
   FROM u_card_products
   WHERE is_enabled = 1
@@ -3158,15 +3158,15 @@ const listEnabledUCardProductConfigsStmt = db.prepare(`
 `);
 const selectUCardProductConfigByCodeStmt = db.prepare(`
   SELECT id, product_code, upstream_name, upstream_fee_amount, upstream_currency, local_fee_amount,
-         local_currency, local_name, local_description, card_currency, description, sort_order,
+         local_currency, local_name, local_description, card_currency, description, application_channel, sort_order,
          is_enabled, created_at, updated_at, last_seen_at
   FROM u_card_products
   WHERE product_code = ?
 `);
 const insertUCardApplicationStmt = db.prepare(`
   INSERT INTO u_card_applications (
-    application_no, order_no, open_id, product_code, product_name, amount, currency, payment_status, status, updated_at
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    application_no, order_no, open_id, product_code, product_name, application_channel, amount, currency, payment_status, status, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
 `);
 const selectUCardApplicationByNoStmt = db.prepare(`
   SELECT *
@@ -4866,6 +4866,7 @@ function formatUCardProductConfig(row = {}) {
   const localName = String(row.local_name || '').trim();
   const upstreamDescription = String(row.description || '').trim();
   const localDescription = String(row.local_description || '').trim();
+  const applicationChannel = normalizeUCardApplicationChannel(row.application_channel);
   return {
     id: String(row.product_code || row.id || '').trim(),
     product_code: String(row.product_code || '').trim(),
@@ -4882,6 +4883,8 @@ function formatUCardProductConfig(row = {}) {
     description: localDescription || upstreamDescription,
     upstream_description: upstreamDescription,
     local_description: localDescription,
+    application_channel: applicationChannel,
+    application_channel_label: applicationChannel === '2' ? '渠道 2（护照实名）' : '渠道 1（免实名）',
     sort_order: Number(row.sort_order || 0) || 0,
     is_enabled: Number(row.is_enabled || 0) ? 1 : 0,
     created_at: String(row.created_at || '').trim(),
@@ -4899,8 +4902,14 @@ function formatPublicUCardProductConfig(row = {}) {
     fee_amount: product.fee_amount,
     currency: product.currency,
     card_currency: product.card_currency,
-    description: product.description
+    description: product.description,
+    application_channel: product.application_channel,
+    application_channel_label: product.application_channel_label
   };
+}
+
+function normalizeUCardApplicationChannel(value = '') {
+  return String(value || '').trim() === '2' ? '2' : '1';
 }
 
 const syncUCardProductsFromUpstream = db.transaction((products = []) => {
@@ -5025,6 +5034,8 @@ function formatUCardApplication(row = {}) {
     order_no: String(row.order_no || '').trim(),
     product_code: String(row.product_code || '').trim(),
     product_name: String(row.product_name || 'U 卡申请').trim(),
+    application_channel: normalizeUCardApplicationChannel(row.application_channel),
+    application_channel_label: normalizeUCardApplicationChannel(row.application_channel) === '2' ? '渠道 2（护照实名）' : '渠道 1（免实名）',
     amount: String(row.amount || '').trim(),
     currency: String(row.currency || 'USDT').trim(),
     payment_status: String(row.payment_status || '').trim(),
@@ -5067,6 +5078,7 @@ function insertUCardApplicationRecord({
   productName,
   amount,
   currency,
+  applicationChannel = '1',
   paymentStatus = 'PENDING',
   status = 'awaiting_payment'
 }) {
@@ -5079,6 +5091,7 @@ function insertUCardApplicationRecord({
     String(openId || '').trim(),
     String(productCode || '').trim(),
     String(productName || productCode || 'U 卡申请').trim(),
+    normalizeUCardApplicationChannel(applicationChannel),
     String(amount || '0.00').trim(),
     String(currency || NEXA_TIP_CURRENCY).trim(),
     String(paymentStatus || 'PENDING').trim().toUpperCase(),
@@ -5124,7 +5137,14 @@ function buildUCardHolderPayload(holder = {}) {
     addressLine: String(holder.address || holder.addressLine || '').trim(),
     postalCode: String(holder.postalCode || '').trim(),
     securityQuestion: String(holder.securityQuestion || '').trim(),
-    securityAnswer: String(holder.securityAnswer || '').trim()
+    securityAnswer: String(holder.securityAnswer || '').trim(),
+    channel: normalizeUCardApplicationChannel(holder.applicationChannel || holder.channel),
+    gender: String(holder.gender || '').trim(),
+    documentType: String(holder.documentType || holder.document_type || '').trim(),
+    documentNumber: String(holder.documentNumber || holder.document_no || holder.documentNo || '').trim(),
+    documentExpiryDate: String(holder.documentExpiryDate || holder.document_expiry_date || '').trim(),
+    passportSignaturePage: String(holder.passportSignaturePage || holder.passport_signature_page || '').trim(),
+    handheldPassportPhoto: String(holder.handheldPassportPhoto || holder.handheld_passport_photo || '').trim()
   };
 }
 
@@ -5157,6 +5177,24 @@ function requireUCardHolderFields(holder = {}) {
     const error = new Error('生日必须大于 18 岁');
     error.statusCode = 400;
     throw error;
+  }
+}
+
+function requireUCardPassportFields(holder = {}) {
+  const required = [
+    ['gender', '护照实名性别必填'],
+    ['documentType', '护照证件类型必填'],
+    ['documentNumber', '护照证件号必填'],
+    ['documentExpiryDate', '护照有效期必填'],
+    ['passportSignaturePage', '护照签名页必填'],
+    ['handheldPassportPhoto', '手持护照照片必填']
+  ];
+  for (const [field, message] of required) {
+    if (!String(holder[field] || '').trim()) {
+      const error = new Error(message);
+      error.statusCode = 400;
+      throw error;
+    }
   }
 }
 
@@ -5342,7 +5380,8 @@ async function fetchUCardHolderOptions() {
 }
 
 async function submitUCardHolderAndOpen(row = {}, holder = {}) {
-  const holderPayload = buildUCardHolderPayload(holder);
+  const applicationChannel = normalizeUCardApplicationChannel(row.application_channel);
+  const holderPayload = buildUCardHolderPayload({ ...holder, applicationChannel });
   const holderResponse = await postUCardUpalJson('/open-api/cardholders', holderPayload);
   const holderData = holderResponse?.data && typeof holderResponse.data === 'object' ? holderResponse.data : holderResponse;
   const cardholderId = String(holderData.id || holderData.cardholderId || holderData.cardholder_id || '').trim();
@@ -5812,6 +5851,7 @@ app.post('/api/u-card/payment/create', async (req, res) => {
       openId,
       productCode: product.product_code || product.id || productCode,
       productName: product.name || productCode,
+      applicationChannel: product.application_channel || '1',
       amount,
       currency: NEXA_TIP_CURRENCY,
       paymentStatus: 'PENDING',
@@ -5902,6 +5942,7 @@ app.post('/api/u-card/applications/recover-paid', async (req, res) => {
       openId,
       productCode,
       productName,
+      applicationChannel: req.body?.applicationChannel ?? req.body?.application_channel ?? '1',
       amount: amount || order.amount || '0.00',
       currency: currency || order.currency || NEXA_TIP_CURRENCY,
       paymentStatus: 'SUCCESS',
@@ -5943,6 +5984,9 @@ app.post('/api/u-card/applications/:applicationNo/profile', async (req, res) => 
     }
     const holder = req.body?.holder && typeof req.body.holder === 'object' ? req.body.holder : req.body || {};
     requireUCardHolderFields(holder);
+    if (normalizeUCardApplicationChannel(row.application_channel) === '2') {
+      requireUCardPassportFields(holder);
+    }
     const upstream = await submitUCardHolderAndOpen(row, holder);
     const nextStatus = ['ACTIVE', 'APPROVED', 'SUCCESS', 'COMPLETED'].includes(upstream.status) || upstream.cardId || upstream.platformCardNo ? 'approved' : 'review_pending';
     updateUCardApplicationHolderStmt.run(
@@ -11441,10 +11485,11 @@ app.get('/api/admin/u-card/applications', requireAdmin, (_req, res) => {
 });
 
 app.put('/api/admin/u-card/products/:productCode', requireAdmin, (req, res) => {
-  const productCode = String(req.params.productCode || '').trim();
-  const localName = String(req.body?.localName ?? req.body?.local_name ?? '').trim();
-  const localDescription = String(req.body?.localDescription ?? req.body?.local_description ?? '').trim();
-  const localFeeAmount = normalizeUCardProductFee(req.body?.localFeeAmount ?? req.body?.local_fee_amount ?? '');
+    const productCode = String(req.params.productCode || '').trim();
+    const localName = String(req.body?.localName ?? req.body?.local_name ?? '').trim();
+    const localDescription = String(req.body?.localDescription ?? req.body?.local_description ?? '').trim();
+    const applicationChannel = normalizeUCardApplicationChannel(req.body?.applicationChannel ?? req.body?.application_channel ?? '1');
+    const localFeeAmount = normalizeUCardProductFee(req.body?.localFeeAmount ?? req.body?.local_fee_amount ?? '');
   const localCurrency = String(req.body?.localCurrency ?? req.body?.local_currency ?? 'USDT').trim() || 'USDT';
   const sortOrder = Number(req.body?.sortOrder ?? req.body?.sort_order ?? 0);
   const isEnabled = Number(req.body?.isEnabled ?? req.body?.is_enabled ?? 1) ? 1 : 0;
@@ -11464,9 +11509,9 @@ app.put('/api/admin/u-card/products/:productCode', requireAdmin, (req, res) => {
   db.prepare(`
     UPDATE u_card_products
     SET local_name = ?, local_description = ?, local_fee_amount = ?, local_currency = ?,
-        sort_order = ?, is_enabled = ?, updated_at = datetime('now')
+        application_channel = ?, sort_order = ?, is_enabled = ?, updated_at = datetime('now')
     WHERE product_code = ?
-  `).run(localName, localDescription, localFeeAmount, localCurrency, Math.trunc(sortOrder), isEnabled, productCode);
+  `).run(localName, localDescription, localFeeAmount, localCurrency, applicationChannel, Math.trunc(sortOrder), isEnabled, productCode);
   res.json({ ok: true, item: formatUCardProductConfig(selectUCardProductConfigByCodeStmt.get(productCode)) });
 });
 
