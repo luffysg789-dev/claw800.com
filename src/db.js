@@ -1088,6 +1088,9 @@ db.exec(`
     local_currency TEXT NOT NULL DEFAULT '',
     card_currency TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
+    card_channel TEXT NOT NULL DEFAULT '',
+    card_channel_name TEXT NOT NULL DEFAULT '',
+    kyc_requirements_json TEXT NOT NULL DEFAULT '',
     application_channel TEXT NOT NULL DEFAULT '1',
     sort_order INTEGER NOT NULL DEFAULT 0,
     is_enabled INTEGER NOT NULL DEFAULT 1,
@@ -1100,6 +1103,9 @@ db.exec(`
 for (const [column, definition] of [
   ['local_name', "TEXT NOT NULL DEFAULT ''"],
   ['local_description', "TEXT NOT NULL DEFAULT ''"],
+  ['card_channel', "TEXT NOT NULL DEFAULT ''"],
+  ['card_channel_name', "TEXT NOT NULL DEFAULT ''"],
+  ['kyc_requirements_json', "TEXT NOT NULL DEFAULT ''"],
   ['application_channel', "TEXT NOT NULL DEFAULT '1'"],
   ['sort_order', 'INTEGER NOT NULL DEFAULT 0']
 ]) {

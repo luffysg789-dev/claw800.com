@@ -3122,8 +3122,9 @@ const listUCardsByPlatformStmt = db.prepare(`
 const upsertUCardProductFromUpstreamStmt = db.prepare(`
   INSERT INTO u_card_products (
     product_code, upstream_name, upstream_fee_amount, upstream_currency, local_fee_amount, local_currency,
-    card_currency, description, is_enabled, updated_at, last_seen_at
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))
+    card_currency, description, card_channel, card_channel_name, kyc_requirements_json, application_channel,
+    is_enabled, updated_at, last_seen_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))
   ON CONFLICT(product_code) DO UPDATE SET
     upstream_name = excluded.upstream_name,
     upstream_fee_amount = excluded.upstream_fee_amount,
@@ -3138,19 +3139,25 @@ const upsertUCardProductFromUpstreamStmt = db.prepare(`
     END,
     card_currency = excluded.card_currency,
     description = excluded.description,
+    card_channel = excluded.card_channel,
+    card_channel_name = excluded.card_channel_name,
+    kyc_requirements_json = excluded.kyc_requirements_json,
+    application_channel = excluded.application_channel,
     updated_at = datetime('now'),
     last_seen_at = datetime('now')
 `);
 const listUCardProductConfigsStmt = db.prepare(`
   SELECT id, product_code, upstream_name, upstream_fee_amount, upstream_currency, local_fee_amount,
-         local_currency, local_name, local_description, card_currency, description, application_channel, sort_order,
+         local_currency, local_name, local_description, card_currency, description, card_channel,
+         card_channel_name, kyc_requirements_json, application_channel, sort_order,
          is_enabled, created_at, updated_at, last_seen_at
   FROM u_card_products
   ORDER BY is_enabled DESC, sort_order DESC, updated_at DESC, id DESC
 `);
 const listEnabledUCardProductConfigsStmt = db.prepare(`
   SELECT id, product_code, upstream_name, upstream_fee_amount, upstream_currency, local_fee_amount,
-         local_currency, local_name, local_description, card_currency, description, application_channel, sort_order,
+         local_currency, local_name, local_description, card_currency, description, card_channel,
+         card_channel_name, kyc_requirements_json, application_channel, sort_order,
          is_enabled, created_at, updated_at, last_seen_at
   FROM u_card_products
   WHERE is_enabled = 1
@@ -3158,7 +3165,8 @@ const listEnabledUCardProductConfigsStmt = db.prepare(`
 `);
 const selectUCardProductConfigByCodeStmt = db.prepare(`
   SELECT id, product_code, upstream_name, upstream_fee_amount, upstream_currency, local_fee_amount,
-         local_currency, local_name, local_description, card_currency, description, application_channel, sort_order,
+         local_currency, local_name, local_description, card_currency, description, card_channel,
+         card_channel_name, kyc_requirements_json, application_channel, sort_order,
          is_enabled, created_at, updated_at, last_seen_at
   FROM u_card_products
   WHERE product_code = ?
@@ -4819,6 +4827,7 @@ function summarizeUCardUpalPayload(payload = {}) {
 }
 
 function normalizeUCardProduct(item = {}, index = 0) {
+  const kycRequirements = item.kycRequirements && typeof item.kycRequirements === 'object' ? item.kycRequirements : {};
   const productCode = String(
     item.productCode ||
       item.product_code ||
@@ -4838,6 +4847,7 @@ function normalizeUCardProduct(item = {}, index = 0) {
       productCode ||
       `U 卡产品 ${index + 1}`
   ).trim();
+  const cardChannel = String(item.cardChannel || item.card_channel || kycRequirements.upstreamChannel || kycRequirements.upstream_channel || '').trim();
   return {
     id: productCode || `product-${index + 1}`,
     product_code: productCode,
@@ -4845,7 +4855,11 @@ function normalizeUCardProduct(item = {}, index = 0) {
     fee_amount: String(item.feeAmount ?? item.fee_amount ?? item.openFee ?? item.open_fee ?? item.fee ?? '').trim(),
     currency: String(item.currency || item.feeCurrency || item.fee_currency || '').trim(),
     card_currency: String(item.cardCurrency || item.card_currency || item.settlementCurrency || item.settlement_currency || '').trim(),
-    description: String(item.description || item.desc || item.remark || '').trim()
+    description: String(item.description || item.desc || item.remark || '').trim(),
+    card_channel: cardChannel,
+    card_channel_name: String(item.cardChannelName || item.card_channel_name || '').trim(),
+    kyc_requirements: kycRequirements,
+    application_channel: normalizeUCardApplicationChannel(cardChannel || kycRequirements.upstreamChannel || '')
   };
 }
 
@@ -4867,6 +4881,8 @@ function formatUCardProductConfig(row = {}) {
   const upstreamDescription = String(row.description || '').trim();
   const localDescription = String(row.local_description || '').trim();
   const applicationChannel = normalizeUCardApplicationChannel(row.application_channel);
+  const cardChannel = String(row.card_channel || '').trim();
+  const cardChannelName = String(row.card_channel_name || '').trim();
   return {
     id: String(row.product_code || row.id || '').trim(),
     product_code: String(row.product_code || '').trim(),
@@ -4883,6 +4899,9 @@ function formatUCardProductConfig(row = {}) {
     description: localDescription || upstreamDescription,
     upstream_description: upstreamDescription,
     local_description: localDescription,
+    card_channel: cardChannel,
+    card_channel_name: cardChannelName,
+    kyc_requirements: parseJsonObject(row.kyc_requirements_json),
     application_channel: applicationChannel,
     application_channel_label: applicationChannel === '2' ? '渠道 2（护照实名）' : '渠道 1（免实名）',
     sort_order: Number(row.sort_order || 0) || 0,
@@ -4904,12 +4923,15 @@ function formatPublicUCardProductConfig(row = {}) {
     card_currency: product.card_currency,
     description: product.description,
     application_channel: product.application_channel,
-    application_channel_label: product.application_channel_label
+    application_channel_label: product.application_channel_label,
+    card_channel: product.card_channel,
+    card_channel_name: product.card_channel_name
   };
 }
 
 function normalizeUCardApplicationChannel(value = '') {
-  return String(value || '').trim() === '2' ? '2' : '1';
+  const raw = String(value || '').trim().toUpperCase();
+  return raw === '2' || raw === '002' || raw === 'CHANNEL_2' ? '2' : '1';
 }
 
 const syncUCardProductsFromUpstream = db.transaction((products = []) => {
@@ -4925,7 +4947,11 @@ const syncUCardProductsFromUpstream = db.transaction((products = []) => {
       normalizeUCardProductFee(product.fee_amount),
       upstreamCurrency,
       String(product.card_currency || '').trim(),
-      String(product.description || '').trim()
+      String(product.description || '').trim(),
+      String(product.card_channel || '').trim(),
+      String(product.card_channel_name || '').trim(),
+      JSON.stringify(product.kyc_requirements || {}),
+      normalizeUCardApplicationChannel(product.application_channel || product.card_channel)
     );
   }
 });
@@ -5138,14 +5164,18 @@ function buildUCardHolderPayload(holder = {}) {
     postalCode: String(holder.postalCode || '').trim(),
     securityQuestion: String(holder.securityQuestion || '').trim(),
     securityAnswer: String(holder.securityAnswer || '').trim(),
-    channel: normalizeUCardApplicationChannel(holder.applicationChannel || holder.channel),
+    upstreamChannel: normalizeUCardUpstreamChannel(holder.upstreamChannel || holder.applicationChannel || holder.channel),
     gender: String(holder.gender || '').trim(),
     documentType: String(holder.documentType || holder.document_type || '').trim(),
-    documentNumber: String(holder.documentNumber || holder.document_no || holder.documentNo || '').trim(),
-    documentExpiryDate: String(holder.documentExpiryDate || holder.document_expiry_date || '').trim(),
-    passportSignaturePage: String(holder.passportSignaturePage || holder.passport_signature_page || '').trim(),
-    handheldPassportPhoto: String(holder.handheldPassportPhoto || holder.handheld_passport_photo || '').trim()
+    idCard: String(holder.idCard || holder.documentNumber || holder.document_no || holder.documentNo || '').trim(),
+    idCardExpiryDate: String(holder.idCardExpiryDate || holder.documentExpiryDate || holder.document_expiry_date || '').trim(),
+    passportSignatureImage: String(holder.passportSignatureImage || holder.passportSignaturePage || holder.passport_signature_page || '').trim(),
+    faceImage: String(holder.faceImage || holder.handheldPassportPhoto || holder.handheld_passport_photo || '').trim()
   };
+}
+
+function normalizeUCardUpstreamChannel(value = '') {
+  return normalizeUCardApplicationChannel(value) === '2' ? '002' : '001';
 }
 
 function requireUCardHolderFields(holder = {}) {
@@ -11488,7 +11518,7 @@ app.put('/api/admin/u-card/products/:productCode', requireAdmin, (req, res) => {
     const productCode = String(req.params.productCode || '').trim();
     const localName = String(req.body?.localName ?? req.body?.local_name ?? '').trim();
     const localDescription = String(req.body?.localDescription ?? req.body?.local_description ?? '').trim();
-    const applicationChannel = normalizeUCardApplicationChannel(req.body?.applicationChannel ?? req.body?.application_channel ?? '1');
+    const requestedApplicationChannel = req.body?.applicationChannel ?? req.body?.application_channel;
     const localFeeAmount = normalizeUCardProductFee(req.body?.localFeeAmount ?? req.body?.local_fee_amount ?? '');
   const localCurrency = String(req.body?.localCurrency ?? req.body?.local_currency ?? 'USDT').trim() || 'USDT';
   const sortOrder = Number(req.body?.sortOrder ?? req.body?.sort_order ?? 0);
@@ -11506,6 +11536,7 @@ app.put('/api/admin/u-card/products/:productCode', requireAdmin, (req, res) => {
 
   const row = selectUCardProductConfigByCodeStmt.get(productCode);
   if (!row) return res.status(404).json({ error: '卡种不存在，请先抓取上游产品' });
+  const applicationChannel = normalizeUCardApplicationChannel(requestedApplicationChannel ?? row.application_channel ?? row.card_channel);
   db.prepare(`
     UPDATE u_card_products
     SET local_name = ?, local_description = ?, local_fee_amount = ?, local_currency = ?,

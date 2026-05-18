@@ -432,11 +432,18 @@ test('public U card products endpoint signs and normalizes upstream products', a
             data: {
               products: [
                 {
-                  productCode: 'virtual-usd',
-                  productName: 'Virtual USD Card',
+                  code: 'virtual-usd',
+                  name: 'exworth 虚拟卡',
                   feeAmount: '5.00',
                   currency: 'USDT',
                   cardCurrency: 'USD',
+                  cardChannel: '002',
+                  cardChannelName: '渠道 2',
+                  kycRequirements: {
+                    upstreamChannel: '002',
+                    documentType: 'PASSPORT',
+                    requiredImageFields: ['passportSignatureImage', 'faceImage']
+                  },
                   description: 'Global virtual card'
                 }
               ]
@@ -456,13 +463,15 @@ test('public U card products endpoint signs and normalizes upstream products', a
       {
         id: 'virtual-usd',
         product_code: 'virtual-usd',
-        name: 'Virtual USD Card',
+        name: 'exworth 虚拟卡',
         fee_amount: '5.00',
         currency: 'USDT',
         card_currency: 'USD',
         description: 'Global virtual card',
-        application_channel: '1',
-        application_channel_label: '渠道 1（免实名）'
+        application_channel: '2',
+        application_channel_label: '渠道 2（护照实名）',
+        card_channel: '002',
+        card_channel_name: '渠道 2'
       }
     ]);
 
@@ -470,6 +479,9 @@ test('public U card products endpoint signs and normalizes upstream products', a
     assert.equal(adminProducts.statusCode, 200);
     assert.equal(adminProducts.body.items[0].upstream_fee_amount, '5.00');
     assert.equal(adminProducts.body.items[0].local_fee_amount, '5.00');
+    assert.equal(adminProducts.body.items[0].card_channel, '002');
+    assert.equal(adminProducts.body.items[0].card_channel_name, '渠道 2');
+    assert.deepEqual(adminProducts.body.items[0].kyc_requirements.requiredImageFields, ['passportSignatureImage', 'faceImage']);
 
     const updatedProduct = await harness.request(
       'PUT',
@@ -479,7 +491,6 @@ test('public U card products endpoint signs and normalizes upstream products', a
         localDescription: '后台自定义简介',
         localFeeAmount: '10.00',
         localCurrency: 'USDT',
-        applicationChannel: '2',
         sortOrder: 99,
         isEnabled: 1
       },
@@ -492,6 +503,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
     assert.equal(updatedProduct.body.item.local_description, '后台自定义简介');
     assert.equal(updatedProduct.body.item.local_fee_amount, '10.00');
     assert.equal(updatedProduct.body.item.application_channel, '2');
+    assert.equal(updatedProduct.body.item.card_channel, '002');
     assert.equal(updatedProduct.body.item.sort_order, 99);
 
     harness.db.prepare(`
@@ -616,10 +628,12 @@ test('public U card products endpoint signs and normalizes upstream products', a
     assert.equal(profiled.body.item.cardholder_id, 'cardholder-001');
     assert.equal(profiled.body.item.upstream_application_id, 'REQ_UCARD_001');
     assert.equal(profiled.body.item.platform_card_no, 'CARD_UCARD_001');
-    assert.equal(capturedHolderBodies.at(-1).channel, '2');
+    assert.equal(capturedHolderBodies.at(-1).upstreamChannel, '002');
     assert.equal(capturedHolderBodies.at(-1).documentType, 'PASSPORT');
-    assert.equal(capturedHolderBodies.at(-1).documentNumber, 'EC3160287');
-    assert.equal(capturedHolderBodies.at(-1).passportSignaturePage, 'data:image/jpeg;base64,cGFzc3BvcnQ=');
+    assert.equal(capturedHolderBodies.at(-1).idCard, 'EC3160287');
+    assert.equal(capturedHolderBodies.at(-1).idCardExpiryDate, '2028-02-23');
+    assert.equal(capturedHolderBodies.at(-1).passportSignatureImage, 'data:image/jpeg;base64,cGFzc3BvcnQ=');
+    assert.equal(capturedHolderBodies.at(-1).faceImage, 'data:image/jpeg;base64,aGFuZGhlbGQ=');
 
     const listedAfterProfile = await harness.request('GET', '/api/u-card/applications?openId=nexa-open-id');
     assert.equal(listedAfterProfile.statusCode, 200, JSON.stringify(listedAfterProfile.body));

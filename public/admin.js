@@ -407,6 +407,7 @@ const texts = {
     uCardProductsLoaded: (count) => `已加载 ${count} 个卡种。`,
     uCardProductSaved: '卡种配置已保存。',
     uCardProductUpstreamPrice: '上游原价',
+    uCardProductUpstreamChannel: '上游卡渠道',
     uCardProductLocalName: '本地卡名',
     uCardProductLocalDescription: '本地简介',
     uCardProductSortOrder: '排序（数字越大越靠前）',
@@ -766,6 +767,7 @@ const texts = {
     uCardProductsLoaded: (count) => `${count} card products loaded.`,
     uCardProductSaved: 'Card product config saved.',
     uCardProductUpstreamPrice: 'Upstream Price',
+    uCardProductUpstreamChannel: 'Upstream Card Channel',
     uCardProductLocalName: 'Local Card Name',
     uCardProductLocalDescription: 'Local Description',
     uCardProductSortOrder: 'Sort Order (larger first)',
@@ -2836,6 +2838,7 @@ function renderUCardProductsAdmin() {
           </div>
           <p class="small">Code：${escapeHtml(code || '-')}</p>
           <p class="small">${escapeHtml(t('uCardProductUpstreamPrice'))}：${escapeHtml(product.upstream_fee_amount || '-')} ${escapeHtml(product.upstream_currency || '')}</p>
+          <p class="small">${escapeHtml(t('uCardProductUpstreamChannel'))}：${escapeHtml(product.card_channel || '-')} ${escapeHtml(product.card_channel_name || '')}</p>
           <p class="small">${escapeHtml(product.description || '')}</p>
           <div class="inline-edit-grid">
             <label class="small">${escapeHtml(t('uCardProductLocalName'))}
