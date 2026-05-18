@@ -4960,8 +4960,12 @@ function maskUCardNumber(value = '') {
   const raw = String(value || '').trim();
   if (!raw) return '';
   const compact = raw.replace(/\s+/g, '');
+  if (isUCardPlatformCardNo(compact)) return '';
+  const digits = compact.replace(/\D/g, '');
+  if (digits.length >= 10) return `${digits.slice(0, 6)}******${digits.slice(-4)}`;
+  if (compact.includes('*')) return compact;
   if (compact.length <= 8) return compact;
-  return `${compact.slice(0, 4)} **** **** ${compact.slice(-4)}`;
+  return `${compact.slice(0, 6)}******${compact.slice(-4)}`;
 }
 
 function isUCardPlatformCardNo(value = '') {
@@ -5416,6 +5420,14 @@ async function resolveUCardApplicationCardId(row = {}) {
       cardNo = extractUCardCardNo(candidate) || cardNo;
     }
   }
+  if (!cardNo && platformCardNo) {
+    try {
+      const secureInfo = await fetchUCardSecureInfo(cardId, platformCardNo);
+      cardNo = extractUCardCardNo(secureInfo) || cardNo;
+    } catch {
+      // Sensitive card info may not be ready yet; keep identifiers and retry on the next refresh.
+    }
+  }
   if (cardId || cardNo) {
     updateUCardApplicationReviewStmt.run(
       'approved',
@@ -5838,7 +5850,7 @@ app.post('/api/u-card/applications/:applicationNo/profile', async (req, res) => 
         'approved',
         upstream.cardId,
         upstream.platformCardNo,
-        maskUCardNumber(upstream.platformCardNo || upstream.cardId),
+        '',
         'approved',
         'approved',
         applicationNo
