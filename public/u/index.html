@@ -762,6 +762,7 @@
       let activePaidApplication = null;
       let activeRechargeApplication = null;
       let uCardReviewPollTimer = null;
+      let pendingPaymentSettleTimer = null;
 
       tabButtons.forEach((button) => {
         button.addEventListener('click', () => {
@@ -1143,7 +1144,9 @@
         });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok || payload?.ok === false) {
-          throw new Error(payload?.error || payload?.message || '请求失败');
+          const error = new Error(payload?.error || payload?.message || '请求失败');
+          error.statusCode = response.status;
+          throw error;
         }
         return payload;
       }
@@ -1547,6 +1550,10 @@
       async function settlePendingPayment() {
         const pending = readPendingPayment();
         if (!pending?.orderNo) return;
+        if (pendingPaymentSettleTimer) {
+          window.clearTimeout(pendingPaymentSettleTimer);
+          pendingPaymentSettleTimer = null;
+        }
         if (pending.type === 'recharge' && Number(pending.expiresAt || 0) <= Date.now()) {
           clearPendingPayment();
           flashSessionStatus('充卡支付超时，订单已取消。', 'error');
@@ -1575,8 +1582,21 @@
             setSessionStatus('支付未完成，请重新申请。', 'error');
           }
         } catch (error) {
+          if (error?.statusCode === 429) {
+            setSessionStatus('Nexa 请求频繁，稍后自动确认支付结果...');
+            schedulePendingPaymentSettle();
+            return;
+          }
           setSessionStatus(error?.message || '支付结果确认失败', 'error');
         }
+      }
+
+      function schedulePendingPaymentSettle(delayMs = 10000) {
+        if (pendingPaymentSettleTimer) window.clearTimeout(pendingPaymentSettleTimer);
+        pendingPaymentSettleTimer = window.setTimeout(() => {
+          pendingPaymentSettleTimer = null;
+          settlePendingPayment();
+        }, delayMs);
       }
 
       async function beginUCardRechargePayment(application, amount) {

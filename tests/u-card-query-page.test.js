@@ -166,6 +166,9 @@ test('U card recharge returns to my cards without local payment polling', () => 
   assert.match(html, /function selectPendingPaymentTab\(\)/);
   assert.match(html, /pending\?\.type === 'recharge'/);
   assert.match(html, /selectPendingPaymentTab\(\);\s*loadUCardProducts\(\);/);
+  assert.match(html, /function schedulePendingPaymentSettle\(delayMs = 10000\)/);
+  assert.match(html, /error\?\.statusCode === 429/);
+  assert.match(html, /Nexa 请求频繁，稍后自动确认支付结果/);
 });
 
 test('U card query page includes language toggle after platform count', () => {
