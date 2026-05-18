@@ -140,8 +140,10 @@ test('U card application page exposes approved card upstream actions', () => {
   assert.match(html, /checkUCardReview/);
   assert.match(html, /function getUCardDisplayCardId\(item\)/);
   assert.match(html, /function getUCardDisplayCardNo\(item\)/);
+  assert.match(html, /function getUCardDisplayBalance\(item\)/);
   assert.match(html, /卡 ID：/);
   assert.match(html, /卡号：/);
+  assert.match(html, /余额：/);
   assert.doesNotMatch(html, /\$\{item\.card_no_masked \? `<p>卡号：/);
   assert.match(html, /callUCardAction\(secureButton\.dataset\.viewSecure, 'secure-info'\)/);
   assert.match(html, /window\.location\.href = buildNexaPaymentUrl\(response\.payment\);/);

@@ -854,6 +854,14 @@
         return cardNo && !isUCardApiCardId(cardNo) ? cardNo : '';
       }
 
+      function getUCardDisplayBalance(item) {
+        const display = String(item?.card_balance_display || '').trim();
+        if (display) return display;
+        const balance = String(item?.card_balance || '').trim();
+        const currency = String(item?.card_balance_currency || '').trim();
+        return balance && currency ? `${balance} ${currency}` : balance;
+      }
+
       function renderMyCards(items = currentApplications) {
         currentApplications = Array.isArray(items) ? items : [];
         if (!currentApplications.length) {
@@ -869,6 +877,7 @@
             const isApproved = status === 'approved';
             const displayCardId = getUCardDisplayCardId(item);
             const displayCardNo = getUCardDisplayCardNo(item);
+            const displayBalance = getUCardDisplayBalance(item);
             return `
               <article class="my-card-item" data-application-no="${escapeHtml(item.application_no || '')}">
                 <h2>${escapeHtml(item.product_name || 'U 卡申请')}</h2>
@@ -876,6 +885,7 @@
                 <p>订单：${escapeHtml(item.order_no || '-')}</p>
                 ${displayCardId ? `<p>卡 ID：${escapeHtml(displayCardId)}</p>` : ''}
                 ${isApproved || displayCardNo ? `<p>卡号：${escapeHtml(displayCardNo || '-')}</p>` : ''}
+                ${isApproved ? `<p>余额：${escapeHtml(displayBalance || '-')}</p>` : ''}
                 ${status === 'review_pending' ? `<p>已提交上游审核，系统会每 5 分钟继续查询上游结果。</p>` : ''}
                 <div class="my-card-actions">
                   ${

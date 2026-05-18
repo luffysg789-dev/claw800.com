@@ -5153,6 +5153,31 @@ function extractUCardCardNo(payload = {}) {
   ).trim();
 }
 
+function extractUCardBalance(payload = {}) {
+  const data = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
+  const candidate = [
+    data.balance,
+    data.availableBalance,
+    data.available_balance,
+    data.availableAmount,
+    data.available_amount,
+    data.remainBalance,
+    data.remain_balance
+  ].find((value) => value !== undefined && value !== null && String(value).trim() !== '');
+  return String(candidate ?? '').trim();
+}
+
+function extractUCardBalanceCurrency(payload = {}) {
+  const data = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
+  return String(data.currency || data.balanceCurrency || data.balance_currency || data.cardCurrency || data.card_currency || '').trim();
+}
+
+function formatUCardBalanceDisplay(balance = '', currency = '') {
+  const value = String(balance || '').trim();
+  const unit = String(currency || '').trim();
+  return value && unit ? `${value} ${unit}` : value;
+}
+
 function extractUCardSecureField(payload = {}, keys = []) {
   const data = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
   return keys.map((key) => String(data[key] || '').trim()).find(Boolean) || '';
@@ -5534,6 +5559,28 @@ async function fetchUCardCardDetail(cardId = '', platformCardNo = '') {
   throw lastError || new Error('未找到卡');
 }
 
+async function enrichUCardApplicationWithLiveBalance(item = {}) {
+  if (String(item.status || '').trim() !== 'approved') return item;
+  const cardId = String(item.card_id || '').trim();
+  const platformCardNo = String(item.platform_card_no || '').trim();
+  if (!cardId && !platformCardNo) return item;
+
+  try {
+    const detail = await fetchUCardCardDetail(cardId, platformCardNo);
+    const balance = extractUCardBalance(detail);
+    if (!balance) return item;
+    const currency = extractUCardBalanceCurrency(detail);
+    return {
+      ...item,
+      card_balance: balance,
+      card_balance_currency: currency,
+      card_balance_display: formatUCardBalanceDisplay(balance, currency)
+    };
+  } catch {
+    return item;
+  }
+}
+
 async function postUCardBalanceModify({ cardId = '', platformCardNo = '', cardNo = '', requestId = '', amount = '' } = {}) {
   const identifiers = [cardId, platformCardNo, cardNo].map((value) => String(value || '').trim()).filter(Boolean);
   const uniqueIdentifiers = [...new Set(identifiers)];
@@ -5763,7 +5810,7 @@ app.get('/api/u-card/applications', async (req, res) => {
         }
       }
       if (String(current.payment_status || '').trim().toUpperCase() === 'SUCCESS') {
-        items.push(formatUCardApplication(current));
+        items.push(await enrichUCardApplicationWithLiveBalance(formatUCardApplication(current)));
       }
     }
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');

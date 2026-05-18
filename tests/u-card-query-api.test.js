@@ -545,6 +545,9 @@ test('public U card products endpoint signs and normalizes upstream products', a
     assert.equal(listedAfterProfile.body.items[0].card_id, '2026050811431914822000496491');
     assert.equal(listedAfterProfile.body.items[0].platform_card_no, 'CARD_UCARD_001');
     assert.equal(listedAfterProfile.body.items[0].card_no_masked, '456599******1355');
+    assert.equal(listedAfterProfile.body.items[0].card_balance, '1.00');
+    assert.equal(listedAfterProfile.body.items[0].card_balance_currency, 'USD');
+    assert.equal(listedAfterProfile.body.items[0].card_balance_display, '1.00 USD');
 
     const secureInfo = await harness.request(
       'POST',
