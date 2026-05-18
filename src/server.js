@@ -4847,7 +4847,20 @@ function normalizeUCardProduct(item = {}, index = 0) {
       productCode ||
       `U 卡产品 ${index + 1}`
   ).trim();
-  const cardChannel = String(item.cardChannel || item.card_channel || kycRequirements.upstreamChannel || kycRequirements.upstream_channel || '').trim();
+  const cardChannel = String(
+    item.cardChannel ||
+      item.card_channel ||
+      item.upstreamChannel ||
+      item.upstream_channel ||
+      item.channel ||
+      item.channelCode ||
+      item.channel_code ||
+      item.cardChannelCode ||
+      item.card_channel_code ||
+      kycRequirements.upstreamChannel ||
+      kycRequirements.upstream_channel ||
+      ''
+  ).trim();
   const cardChannelName = String(item.cardChannelName || item.card_channel_name || '').trim();
   return {
     id: productCode || `product-${index + 1}`,

@@ -2849,16 +2849,22 @@ function renderUCardProductsAdmin() {
     .map((product) => {
       const code = String(product.product_code || product.id || '').trim();
       const encodedCode = encodeURIComponent(code);
-      const uCardProductEffectiveUpstreamChannel = product.card_channel || product.application_channel || '';
+      const uCardProductEffectiveUpstreamChannel =
+        product.card_channel || product.upstream_channel || product.channel || product.application_channel || '';
+      const uCardProductUpstreamChannelLabel = formatUCardProductChannelLabel(
+        uCardProductEffectiveUpstreamChannel,
+        product.card_channel_name || product.upstream_channel_name || product.channel_name
+      );
       const applicationChannel = String(product.application_channel || '1');
       return `
         <article class="review-card">
           <div class="u-card-admin-row-head">
             <h3>${escapeHtml(product.name || code || 'U 卡产品')}</h3>
+            <span class="u-card-product-channel-badge">${escapeHtml(t('uCardProductUpstreamChannel'))}：${escapeHtml(uCardProductUpstreamChannelLabel)}</span>
           </div>
           <p class="small">Code：${escapeHtml(code || '-')}</p>
           <p class="small">${escapeHtml(t('uCardProductUpstreamPrice'))}：${escapeHtml(product.upstream_fee_amount || '-')} ${escapeHtml(product.upstream_currency || '')}</p>
-          <p class="small">${escapeHtml(t('uCardProductUpstreamChannel'))}：${escapeHtml(formatUCardProductChannelLabel(uCardProductEffectiveUpstreamChannel, product.card_channel_name))}${product.card_channel ? `（${escapeHtml(product.card_channel)}）` : ''}</p>
+          <p class="small">${escapeHtml(t('uCardProductUpstreamChannel'))}：${escapeHtml(uCardProductUpstreamChannelLabel)}${uCardProductEffectiveUpstreamChannel ? `（${escapeHtml(uCardProductEffectiveUpstreamChannel)}）` : ''}</p>
           <p class="small">${escapeHtml(product.description || '')}</p>
           <div class="inline-edit-grid">
             <label class="small">${escapeHtml(t('uCardProductLocalName'))}

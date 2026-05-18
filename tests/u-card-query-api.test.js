@@ -922,6 +922,9 @@ test('admin U card panel includes upstream credential configuration controls', (
   assert.match(adminJs, /uCardProductChannel-/);
   assert.match(adminJs, /function formatUCardProductChannelLabel\(channel, fallback = ''\)/);
   assert.match(adminJs, /uCardProductEffectiveUpstreamChannel/);
+  assert.match(adminJs, /uCardProductUpstreamChannelLabel/);
+  assert.match(adminJs, /class="u-card-product-channel-badge"/);
+  assert.match(adminJs, /product\.upstream_channel/);
   assert.match(adminJs, /applicationChannel:\s*String\(document\.getElementById\(`uCardProductChannel-\$\{encodedCode\}`\)\?\.value \|\| '1'\)/);
   assert.match(adminJs, /<option value="3"/);
   assert.match(adminJs, /uCardProductChannel3:\s*'渠道 3'/);

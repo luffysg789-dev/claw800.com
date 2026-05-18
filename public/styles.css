@@ -768,6 +768,20 @@ button.danger { background: var(--danger); }
   word-break: break-word;
 }
 
+.u-card-product-channel-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #e4f3e8;
+  color: var(--brand-2);
+  border: 1px solid #bdddc7;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .u-card-admin-row-actions {
   display: flex;
   flex-wrap: nowrap;
