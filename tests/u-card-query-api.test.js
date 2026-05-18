@@ -133,11 +133,14 @@ test('public U card products endpoint signs and normalizes upstream products', a
 
     let captured = null;
     let capturedPayment = null;
+    let paymentCreateCount = 0;
     const capturedSecureBodies = [];
     const capturedRechargeBodies = [];
     let mockPaymentQueryStatus = 'PENDING';
     global.fetch = async (url, options = {}) => {
       if (String(url).includes('/partner/api/openapi/payment/create')) {
+        paymentCreateCount += 1;
+        const orderNo = paymentCreateCount === 1 ? 'nexa-u-card-order-1' : `nexa-u-card-recharge-${paymentCreateCount}`;
         capturedPayment = {
           url: String(url),
           body: JSON.parse(String(options.body || '{}'))
@@ -149,7 +152,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
             return JSON.stringify({
               code: '0',
               data: {
-                orderNo: 'nexa-u-card-order-1',
+                orderNo,
                 paySign: 'pay-sign',
                 signType: 'MD5',
                 nonce: 'nonce',
@@ -161,7 +164,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
             return {
               code: '0',
               data: {
-                orderNo: 'nexa-u-card-order-1',
+                orderNo,
                 paySign: 'pay-sign',
                 signType: 'MD5',
                 nonce: 'nonce',
@@ -172,6 +175,8 @@ test('public U card products endpoint signs and normalizes upstream products', a
         };
       }
       if (String(url).includes('/partner/api/openapi/payment/query')) {
+        const body = JSON.parse(String(options.body || '{}'));
+        const amount = String(body.orderNo || '').includes('recharge') ? '3.50' : '10.00';
         return {
           ok: true,
           status: 200,
@@ -179,9 +184,9 @@ test('public U card products endpoint signs and normalizes upstream products', a
             return JSON.stringify({
               code: '0',
               data: {
-                orderNo: 'nexa-u-card-order-1',
+                orderNo: body.orderNo || 'nexa-u-card-order-1',
                 status: mockPaymentQueryStatus,
-                amount: '10.00',
+                amount,
                 currency: 'USDT',
                 paidTime: '2026-05-15 12:00:00'
               }
@@ -191,9 +196,9 @@ test('public U card products endpoint signs and normalizes upstream products', a
             return {
               code: '0',
               data: {
-                orderNo: 'nexa-u-card-order-1',
+                orderNo: body.orderNo || 'nexa-u-card-order-1',
                 status: mockPaymentQueryStatus,
-                amount: '10.00',
+                amount,
                 currency: 'USDT',
                 paidTime: '2026-05-15 12:00:00'
               }
@@ -551,10 +556,26 @@ test('public U card products endpoint signs and normalizes upstream products', a
     assert.equal(secureInfo.body.item.detail.data.balance, '1.00');
     assert.ok(capturedSecureBodies.some((body) => body.cardId === 'CARD_UCARD_001'));
 
-    const recharge = await harness.request(
+    const unpaidRecharge = await harness.request(
       'POST',
       `/api/u-card/applications/${applicationNo}/recharge`,
       { openId: 'nexa-open-id', amount: '3.50' }
+    );
+    assert.equal(unpaidRecharge.statusCode, 400, JSON.stringify(unpaidRecharge.body));
+    assert.equal(capturedRechargeBodies.length, 0);
+
+    const rechargePayment = await harness.request(
+      'POST',
+      `/api/u-card/applications/${applicationNo}/recharge-payment/create`,
+      { openId: 'nexa-open-id', sessionKey: 'nexa-session-key', amount: '3.50' }
+    );
+    assert.equal(rechargePayment.statusCode, 200, JSON.stringify(rechargePayment.body));
+    assert.equal(rechargePayment.body.orderNo, 'nexa-u-card-recharge-2');
+
+    const recharge = await harness.request(
+      'POST',
+      `/api/u-card/applications/${applicationNo}/recharge`,
+      { openId: 'nexa-open-id', amount: '3.50', paymentOrderNo: rechargePayment.body.orderNo }
     );
     assert.equal(recharge.statusCode, 200, JSON.stringify(recharge.body));
     assert.ok(capturedRechargeBodies.some((body) => body.cardId === '2026050811431914822000496491'));

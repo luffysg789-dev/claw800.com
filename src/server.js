@@ -5910,6 +5910,41 @@ app.post('/api/u-card/applications/:applicationNo/secure-info', async (req, res)
   }
 });
 
+app.post('/api/u-card/applications/:applicationNo/recharge-payment/create', async (req, res) => {
+  try {
+    const applicationNo = String(req.params.applicationNo || '').trim();
+    const row = selectUCardApplicationByNoStmt.get(applicationNo);
+    if (!row) return res.status(404).json({ error: 'U 卡申请不存在' });
+    const openId = String(req.body?.openId || '').trim();
+    const sessionKey = String(req.body?.sessionKey || '').trim();
+    if (!openId || !sessionKey) return res.status(400).json({ error: 'openId 和 sessionKey 必填' });
+    if (openId !== String(row.open_id || '').trim()) return res.status(403).json({ error: '无权操作该 U 卡申请' });
+    const item = formatUCardApplication(row);
+    if (item.status !== 'approved') return res.status(409).json({ error: '卡片还未审核通过' });
+    const amount = String(req.body?.amount || '').trim();
+    if (!amount || parseMoneyToCents(amount) <= 0n) return res.status(400).json({ error: '充值金额必填' });
+
+    const order = await createNexaTipOrder({
+      req,
+      gameSlug: 'u-card',
+      openId,
+      sessionKey,
+      amount
+    });
+
+    res.json({
+      ok: true,
+      orderNo: order.orderNo,
+      amount,
+      currency: NEXA_TIP_CURRENCY,
+      payment: order.payment
+    });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 502) || 502;
+    res.status(statusCode).json({ error: String(error?.message || '创建充卡支付订单失败') });
+  }
+});
+
 app.post('/api/u-card/applications/:applicationNo/recharge', async (req, res) => {
   try {
     const applicationNo = String(req.params.applicationNo || '').trim();
@@ -5922,6 +5957,18 @@ app.post('/api/u-card/applications/:applicationNo/recharge', async (req, res) =>
     const { cardId, platformCardNo, cardNo } = await resolveUCardApplicationCardId(row);
     const amount = String(req.body?.amount || '').trim();
     if (!amount || parseMoneyToCents(amount) <= 0n) return res.status(400).json({ error: '充值金额必填' });
+    const paymentOrderNo = String(req.body?.paymentOrderNo || req.body?.payment_order_no || '').trim();
+    if (!paymentOrderNo) return res.status(400).json({ error: '请先完成 Nexa 支付' });
+    const payment = await queryNexaTipOrder(paymentOrderNo);
+    if (String(payment.status || '').trim().toUpperCase() !== 'SUCCESS') {
+      return res.status(409).json({ error: 'Nexa 支付尚未成功，暂不能充卡' });
+    }
+    if (String(payment.openId || '').trim() && String(payment.openId || '').trim() !== String(row.open_id || '').trim()) {
+      return res.status(403).json({ error: '支付订单与当前用户不匹配' });
+    }
+    if (parseMoneyToCents(payment.amount || '0') !== parseMoneyToCents(amount)) {
+      return res.status(400).json({ error: '充值金额与支付金额不一致' });
+    }
     const requestId = `BAL_${applicationNo}_${Date.now()}`;
     const data = await postUCardBalanceModify({
       cardId,
