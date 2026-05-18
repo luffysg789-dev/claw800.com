@@ -5582,19 +5582,24 @@ async function enrichUCardApplicationWithLiveBalance(item = {}) {
 }
 
 async function postUCardBalanceModify({ cardId = '', platformCardNo = '', cardNo = '', requestId = '', amount = '' } = {}) {
-  const identifiers = [platformCardNo, isUCardPlatformCardNo(cardId) ? cardId : '', cardId, cardNo].map((value) => String(value || '').trim()).filter(Boolean);
+  const platform = String(platformCardNo || (isUCardPlatformCardNo(cardId) ? cardId : '') || '').trim();
+  const identifiers = [cardId, cardNo].map((value) => String(value || '').trim()).filter(Boolean);
   const uniqueIdentifiers = [...new Set(identifiers)];
-  if (!uniqueIdentifiers.length) {
+  if (!platform && !uniqueIdentifiers.length) {
     const error = new Error('未找到上游卡 ID，请稍后刷新我的卡后重试');
     error.statusCode = 409;
     throw error;
   }
 
   const attempts = [];
+  if (platform) {
+    attempts.push({ platformCardNo: platform, requestId, type: 'INCREASE', amount });
+  }
   uniqueIdentifiers.forEach((identifier) => {
-    attempts.push({ cardid: identifier, requestId, type: 'INCREASE', amount });
+    if (isUCardPlatformCardNo(identifier)) attempts.push({ platformCardNo: identifier, requestId, type: 'INCREASE', amount });
     attempts.push({ cardId: identifier, requestId, type: 'INCREASE', amount });
     attempts.push({ card_id: identifier, requestId, type: 'INCREASE', amount });
+    attempts.push({ cardid: identifier, requestId, type: 'INCREASE', amount });
   });
   if (cardNo) {
     attempts.push({ cardNo, requestId, type: 'INCREASE', amount });
@@ -5604,7 +5609,17 @@ async function postUCardBalanceModify({ cardId = '', platformCardNo = '', cardNo
   let lastError = null;
   for (const body of attempts) {
     const result = await tryPostUCardUpalJson('/open-api/cards/balance-modify', body);
-    if (result.ok) return result.payload;
+    if (result.ok) {
+      let query = null;
+      if (requestId) {
+        try {
+          query = await postUCardUpalJson('/open-api/cards/balance-modify/query', { requestId });
+        } catch {
+          query = null;
+        }
+      }
+      return query ? { modify: result.payload, query } : result.payload;
+    }
     lastError = result.error;
   }
   const message = String(lastError?.message || '充卡失败').trim();
@@ -6019,7 +6034,7 @@ app.post('/api/u-card/applications/:applicationNo/recharge', async (req, res) =>
     if (parseMoneyToCents(payment.amount || '0') !== parseMoneyToCents(amount)) {
       return res.status(400).json({ error: '充值金额与支付金额不一致' });
     }
-    const requestId = `BAL_${applicationNo}_${Date.now()}`;
+    const requestId = `BAL_${paymentOrderNo.replace(/[^A-Za-z0-9_-]/g, '_')}`;
     const data = await postUCardBalanceModify({
       cardId,
       platformCardNo,

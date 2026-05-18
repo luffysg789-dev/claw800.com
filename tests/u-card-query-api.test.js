@@ -136,6 +136,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
     let paymentCreateCount = 0;
     const capturedSecureBodies = [];
     const capturedRechargeBodies = [];
+    const capturedRechargeQueryBodies = [];
     let mockPaymentQueryStatus = 'PENDING';
     global.fetch = async (url, options = {}) => {
       if (String(url).includes('/partner/api/openapi/payment/create')) {
@@ -359,18 +360,29 @@ test('public U card products endpoint signs and normalizes upstream products', a
       }
       if (String(url).includes('/open-api/cards/balance-modify')) {
         const body = JSON.parse(String(options.body || '{}'));
+        if (String(url).includes('/open-api/cards/balance-modify/query')) {
+          capturedRechargeQueryBodies.push(body);
+          assert.deepEqual(body, { requestId: 'BAL_nexa-u-card-recharge-2' });
+          return {
+            ok: true,
+            status: 200,
+            async json() {
+              return { ok: true, data: { request_id: body.requestId, status: 'SUCCESS', card_id: 'CARD_UCARD_001', amount: '3.50' } };
+            }
+          };
+        }
         capturedRechargeBodies.push(body);
         assert.equal(body.type, 'INCREASE');
         assert.equal(body.amount, '3.50');
         if (capturedRechargeBodies.length === 1) {
           assert.deepEqual(body, {
-            cardid: 'CARD_UCARD_001',
-            requestId: body.requestId,
+            platformCardNo: 'CARD_UCARD_001',
+            requestId: 'BAL_nexa-u-card-recharge-2',
             type: 'INCREASE',
             amount: '3.50'
           });
         }
-        if (body.cardid === 'CARD_UCARD_001') {
+        if (body.platformCardNo === 'CARD_UCARD_001') {
           return {
             ok: true,
             status: 200,
@@ -592,7 +604,9 @@ test('public U card products endpoint signs and normalizes upstream products', a
     );
     assert.equal(recharge.statusCode, 200, JSON.stringify(recharge.body));
     assert.equal(capturedRechargeBodies.length, 1);
-    assert.equal(capturedRechargeBodies.at(-1).cardid, 'CARD_UCARD_001');
+    assert.equal(capturedRechargeBodies.at(-1).platformCardNo, 'CARD_UCARD_001');
+    assert.equal(capturedRechargeQueryBodies.length, 1);
+    assert.equal(recharge.body.item.query.data.status, 'SUCCESS');
 
     const reviewed = await harness.request(
       'POST',
