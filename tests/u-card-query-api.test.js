@@ -681,6 +681,26 @@ test('public U card products endpoint signs and normalizes upstream products', a
     assert.equal(listedAfterProfile.body.items[0].card_no_masked, '');
     assert.equal(listedAfterProfile.body.items[0].card_balance, undefined);
 
+    harness.db
+      .prepare(`
+        UPDATE u_card_applications
+        SET status = 'approved',
+            upstream_card_id = 'CARD_a6c38da3',
+            platform_card_no = 'CARD_a6c38da3',
+            card_no_masked = '456599******1355',
+            approved_at = datetime('now')
+        WHERE application_no = ?
+      `)
+      .run(applicationNo);
+    const listedAfterLegacyBadMatch = await harness.request('GET', '/api/u-card/applications?openId=nexa-open-id');
+    assert.equal(listedAfterLegacyBadMatch.statusCode, 200, JSON.stringify(listedAfterLegacyBadMatch.body));
+    assert.equal(listedAfterLegacyBadMatch.body.items[0].status, 'review_pending');
+    assert.equal(listedAfterLegacyBadMatch.body.items[0].status_label, '审核中');
+    assert.equal(listedAfterLegacyBadMatch.body.items[0].card_id, '');
+    assert.equal(listedAfterLegacyBadMatch.body.items[0].platform_card_no, '');
+    assert.equal(listedAfterLegacyBadMatch.body.items[0].card_no_masked, '');
+    assert.equal(listedAfterLegacyBadMatch.body.items[0].card_balance, undefined);
+
     const rechargeBeforeApproved = await harness.request(
       'POST',
       `/api/u-card/applications/${applicationNo}/recharge-payment/create`,

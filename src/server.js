@@ -3245,6 +3245,17 @@ const updateUCardApplicationReviewStmt = db.prepare(`
       updated_at = datetime('now')
   WHERE application_no = ?
 `);
+const resetUCardApplicationReviewStmt = db.prepare(`
+  UPDATE u_card_applications
+  SET status = 'review_pending',
+      upstream_card_id = '',
+      platform_card_no = '',
+      card_no_masked = '',
+      approved_at = '',
+      next_review_check_at = datetime('now', '+5 minutes'),
+      updated_at = datetime('now')
+  WHERE application_no = ?
+`);
 const listSkillsCatalogStmt = db.prepare(`
   SELECT id, name, name_en, url, description, description_en, category, category_en, icon, sort_order, is_pinned, is_hot, created_at, updated_at
   FROM skills_catalog
@@ -5577,6 +5588,45 @@ async function refreshUCardApplicationReview(row = {}) {
   return formatUCardApplication(selectUCardApplicationByNoStmt.get(row.application_no));
 }
 
+async function validateApprovedUCardApplication(row = {}) {
+  const formatted = formatUCardApplication(row);
+  if (formatted.status !== 'approved' || !isUCardApplicationChannelTwo(row)) return row;
+  if (!formatted.upstream_application_id) {
+    resetUCardApplicationReviewStmt.run(row.application_no);
+    return selectUCardApplicationByNoStmt.get(row.application_no) || row;
+  }
+  try {
+    const payload = await postUCardUpalJson('/open-api/cards/apply-result', { requestId: formatted.upstream_application_id });
+    const status = extractUCardStatus(payload);
+    const cardId = extractUCardCardId(payload);
+    const platformCardNo = extractUCardPlatformCardNo(payload);
+    const cardNo = extractUCardCardNo(payload);
+    const hasUpstreamApprovalSignal = Boolean(
+      ['ACTIVE', 'APPROVED', 'SUCCESS', 'COMPLETED'].includes(String(status || '').trim().toUpperCase()) ||
+        cardId ||
+        platformCardNo
+    );
+    const shouldRemainApproved = hasUpstreamApprovalSignal && shouldApproveUCardApplication(row, {
+      status,
+      cardId,
+      platformCardNo,
+      cardNo: cardNo || row.card_no_masked
+    });
+    const storedCardId = String(row.upstream_card_id || '').trim();
+    const storedPlatformCardNo = String(row.platform_card_no || '').trim();
+    const upstreamCardIdMatches = !cardId || !storedCardId || storedCardId === cardId;
+    const upstreamPlatformNoMatches = !platformCardNo || !storedPlatformCardNo || storedPlatformCardNo === platformCardNo;
+    if (!shouldRemainApproved || !upstreamCardIdMatches || !upstreamPlatformNoMatches) {
+      resetUCardApplicationReviewStmt.run(row.application_no);
+      return selectUCardApplicationByNoStmt.get(row.application_no) || row;
+    }
+  } catch {
+    resetUCardApplicationReviewStmt.run(row.application_no);
+    return selectUCardApplicationByNoStmt.get(row.application_no) || row;
+  }
+  return row;
+}
+
 async function resolveUCardApplicationCardId(row = {}) {
   const item = formatUCardApplication(row);
   let cardId = item.card_id;
@@ -6026,6 +6076,9 @@ app.get('/api/u-card/applications', async (req, res) => {
         } catch {
           current = selectUCardApplicationByNoStmt.get(current.application_no) || current;
         }
+      }
+      if (String(current.status || '').trim() === 'approved' && isUCardApplicationChannelTwo(current)) {
+        current = await validateApprovedUCardApplication(current);
       }
       if (
         String(current.status || '').trim() === 'approved' &&
