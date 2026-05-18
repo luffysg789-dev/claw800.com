@@ -2826,17 +2826,31 @@ async function loadUCardUpstreamConfig() {
 function formatUCardProductChannelLabel(channel, fallback = '') {
   const raw = String(channel || fallback || '').trim().toUpperCase();
   const normalized =
-    raw === '001' || raw === 'CHANNEL_1' || raw === '渠道 1'.toUpperCase()
+    raw === '1' || raw === '001' || raw === 'CHANNEL_1' || raw === '渠道 1'.toUpperCase()
       ? '1'
-      : raw === '002' || raw === 'CHANNEL_2' || raw === '渠道 2'.toUpperCase()
+      : raw === '2' || raw === '002' || raw === 'CHANNEL_2' || raw === '渠道 2'.toUpperCase()
         ? '2'
-        : raw === '003' || raw === 'CHANNEL_3' || raw === '渠道 3'.toUpperCase()
+        : raw === '3' || raw === '003' || raw === 'CHANNEL_3' || raw === '渠道 3'.toUpperCase()
           ? '3'
           : raw;
   if (normalized === '1') return t('uCardProductChannel1');
   if (normalized === '2') return t('uCardProductChannel2');
   if (normalized === '3') return t('uCardProductChannel3');
   return raw || '-';
+}
+
+function normalizeUCardProductUpstreamChannel(value = '') {
+  const raw = String(value || '').trim().toUpperCase();
+  if (raw === '2' || raw === '002' || raw === 'CHANNEL_2' || raw === '渠道 2'.toUpperCase()) return '002';
+  if (raw === '3' || raw === '003' || raw === 'CHANNEL_3' || raw === '渠道 3'.toUpperCase()) return '003';
+  return '001';
+}
+
+function normalizeUCardProductChannelForApplication(value = '') {
+  const channel = normalizeUCardProductUpstreamChannel(value);
+  if (channel === '002') return '2';
+  if (channel === '003') return '3';
+  return '1';
 }
 
 function renderUCardProductsAdmin() {
@@ -2851,8 +2865,9 @@ function renderUCardProductsAdmin() {
       const encodedCode = encodeURIComponent(code);
       const uCardProductEffectiveUpstreamChannel =
         product.card_channel || product.upstream_channel || product.channel || product.application_channel || '';
+      const uCardProductUpstreamChannel = normalizeUCardProductUpstreamChannel(uCardProductEffectiveUpstreamChannel);
       const uCardProductUpstreamChannelLabel = formatUCardProductChannelLabel(
-        uCardProductEffectiveUpstreamChannel,
+        uCardProductUpstreamChannel,
         product.card_channel_name || product.upstream_channel_name || product.channel_name
       );
       const applicationChannel = String(product.application_channel || '1');
@@ -2867,6 +2882,13 @@ function renderUCardProductsAdmin() {
           <p class="small">${escapeHtml(t('uCardProductUpstreamChannel'))}：${escapeHtml(uCardProductUpstreamChannelLabel)}${uCardProductEffectiveUpstreamChannel ? `（${escapeHtml(uCardProductEffectiveUpstreamChannel)}）` : ''}</p>
           <p class="small">${escapeHtml(product.description || '')}</p>
           <div class="inline-edit-grid">
+            <label class="small">${escapeHtml(t('uCardProductUpstreamChannel'))}
+              <select id="uCardProductUpstreamChannel-${escapeHtml(encodedCode)}">
+                <option value="001" ${uCardProductUpstreamChannel === '001' ? 'selected' : ''}>${escapeHtml(t('uCardProductChannel1'))}</option>
+                <option value="002" ${uCardProductUpstreamChannel === '002' ? 'selected' : ''}>${escapeHtml(t('uCardProductChannel2'))}</option>
+                <option value="003" ${uCardProductUpstreamChannel === '003' ? 'selected' : ''}>${escapeHtml(t('uCardProductChannel3'))}</option>
+              </select>
+            </label>
             <label class="small">${escapeHtml(t('uCardProductLocalName'))}
               <input id="uCardProductName-${escapeHtml(encodedCode)}" type="text" value="${escapeHtml(product.local_name || product.name || '')}" />
             </label>
@@ -2979,12 +3001,14 @@ async function loadUCardApplicationsAdmin() {
 window.saveUCardProductConfig = async function saveUCardProductConfig(productCode) {
   const encodedCode = String(productCode || '').trim();
   const code = decodeURIComponent(encodedCode);
+  const cardChannel = String(document.getElementById(`uCardProductUpstreamChannel-${encodedCode}`)?.value || '');
   const payload = {
     localName: String(document.getElementById(`uCardProductName-${encodedCode}`)?.value || '').trim(),
     localDescription: String(document.getElementById(`uCardProductDescription-${encodedCode}`)?.value || '').trim(),
     localFeeAmount: String(document.getElementById(`uCardProductFee-${encodedCode}`)?.value || '').trim(),
     localCurrency: String(document.getElementById(`uCardProductCurrency-${encodedCode}`)?.value || '').trim(),
-    applicationChannel: String(document.getElementById(`uCardProductChannel-${encodedCode}`)?.value || '1'),
+    cardChannel,
+    applicationChannel: normalizeUCardProductChannelForApplication(cardChannel),
     sortOrder: Number(document.getElementById(`uCardProductSort-${encodedCode}`)?.value || 0),
     isEnabled: String(document.getElementById(`uCardProductEnabled-${encodedCode}`)?.value || '1') === '1' ? 1 : 0
   };

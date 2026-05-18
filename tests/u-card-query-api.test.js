@@ -518,6 +518,7 @@ test('public U card products endpoint signs and normalizes upstream products', a
         localDescription: '后台自定义简介',
         localFeeAmount: '10.00',
         localCurrency: 'USDT',
+        cardChannel: '003',
         sortOrder: 99,
         isEnabled: 1
       },
@@ -529,8 +530,9 @@ test('public U card products endpoint signs and normalizes upstream products', a
     assert.equal(updatedProduct.body.item.description, '后台自定义简介');
     assert.equal(updatedProduct.body.item.local_description, '后台自定义简介');
     assert.equal(updatedProduct.body.item.local_fee_amount, '10.00');
-    assert.equal(updatedProduct.body.item.application_channel, '2');
-    assert.equal(updatedProduct.body.item.card_channel, '002');
+    assert.equal(updatedProduct.body.item.application_channel, '3');
+    assert.equal(updatedProduct.body.item.card_channel, '003');
+    assert.equal(updatedProduct.body.item.card_channel_name, '渠道 3');
     assert.equal(updatedProduct.body.item.sort_order, 99);
 
     harness.db.prepare(`
@@ -919,13 +921,16 @@ test('admin U card panel includes upstream credential configuration controls', (
   assert.match(adminJs, /uCardProductName-/);
   assert.match(adminJs, /uCardProductDescription-/);
   assert.match(adminJs, /uCardProductSort-/);
+  assert.match(adminJs, /uCardProductUpstreamChannel-/);
   assert.match(adminJs, /uCardProductChannel-/);
   assert.match(adminJs, /function formatUCardProductChannelLabel\(channel, fallback = ''\)/);
   assert.match(adminJs, /uCardProductEffectiveUpstreamChannel/);
   assert.match(adminJs, /uCardProductUpstreamChannelLabel/);
   assert.match(adminJs, /class="u-card-product-channel-badge"/);
   assert.match(adminJs, /product\.upstream_channel/);
-  assert.match(adminJs, /applicationChannel:\s*String\(document\.getElementById\(`uCardProductChannel-\$\{encodedCode\}`\)\?\.value \|\| '1'\)/);
+  assert.match(adminJs, /const cardChannel = String\(document\.getElementById\(`uCardProductUpstreamChannel-\$\{encodedCode\}`\)\?\.value \|\| ''\)/);
+  assert.match(adminJs, /cardChannel,/);
+  assert.match(adminJs, /applicationChannel:\s*normalizeUCardProductChannelForApplication\(cardChannel\)/);
   assert.match(adminJs, /<option value="3"/);
   assert.match(adminJs, /uCardProductChannel3:\s*'渠道 3'/);
   assert.match(adminJs, /localName:\s*String\(document\.getElementById\(`uCardProductName-\$\{encodedCode\}`\)\?\.value \|\| ''\)\.trim\(\)/);

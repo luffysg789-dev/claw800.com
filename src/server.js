@@ -11622,6 +11622,7 @@ app.put('/api/admin/u-card/products/:productCode', requireAdmin, (req, res) => {
     const productCode = String(req.params.productCode || '').trim();
     const localName = String(req.body?.localName ?? req.body?.local_name ?? '').trim();
     const localDescription = String(req.body?.localDescription ?? req.body?.local_description ?? '').trim();
+    const requestedCardChannel = req.body?.cardChannel ?? req.body?.card_channel ?? req.body?.upstreamChannel ?? req.body?.upstream_channel;
     const requestedApplicationChannel = req.body?.applicationChannel ?? req.body?.application_channel;
     const localFeeAmount = normalizeUCardProductFee(req.body?.localFeeAmount ?? req.body?.local_fee_amount ?? '');
   const localCurrency = String(req.body?.localCurrency ?? req.body?.local_currency ?? 'USDT').trim() || 'USDT';
@@ -11640,13 +11641,26 @@ app.put('/api/admin/u-card/products/:productCode', requireAdmin, (req, res) => {
 
   const row = selectUCardProductConfigByCodeStmt.get(productCode);
   if (!row) return res.status(404).json({ error: '卡种不存在，请先抓取上游产品' });
-  const applicationChannel = normalizeUCardApplicationChannel(requestedApplicationChannel ?? row.application_channel ?? row.card_channel);
+  const cardChannel = normalizeUCardUpstreamChannel(requestedCardChannel ?? row.card_channel ?? row.application_channel);
+  const applicationChannel = normalizeUCardApplicationChannel(requestedApplicationChannel ?? cardChannel ?? row.application_channel ?? row.card_channel);
+  const cardChannelName = `渠道 ${normalizeUCardApplicationChannel(cardChannel)}`;
   db.prepare(`
     UPDATE u_card_products
     SET local_name = ?, local_description = ?, local_fee_amount = ?, local_currency = ?,
-        application_channel = ?, sort_order = ?, is_enabled = ?, updated_at = datetime('now')
+        card_channel = ?, card_channel_name = ?, application_channel = ?, sort_order = ?, is_enabled = ?, updated_at = datetime('now')
     WHERE product_code = ?
-  `).run(localName, localDescription, localFeeAmount, localCurrency, applicationChannel, Math.trunc(sortOrder), isEnabled, productCode);
+  `).run(
+    localName,
+    localDescription,
+    localFeeAmount,
+    localCurrency,
+    cardChannel,
+    cardChannelName,
+    applicationChannel,
+    Math.trunc(sortOrder),
+    isEnabled,
+    productCode
+  );
   res.json({ ok: true, item: formatUCardProductConfig(selectUCardProductConfigByCodeStmt.get(productCode)) });
 });
 
