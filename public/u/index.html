@@ -201,6 +201,8 @@
         border-radius: 8px 8px 0 0;
         background: var(--surface);
         overflow: auto;
+        overscroll-behavior: contain;
+        scroll-padding-bottom: 140px;
       }
 
       .action-dialog {
@@ -224,7 +226,7 @@
       .cardholder-form {
         display: grid;
         gap: 12px;
-        padding: 14px;
+        padding: 14px 14px calc(86px + env(safe-area-inset-bottom));
       }
 
       .form-row {
@@ -1734,6 +1736,17 @@
         ledgerModal.classList.add('hidden');
       }
 
+      function scrollFocusedHolderFieldIntoView(field) {
+        if (!field || holderModal.classList.contains('hidden')) return;
+        window.setTimeout(() => {
+          field.scrollIntoView({
+            block: 'center',
+            inline: 'nearest',
+            behavior: 'smooth'
+          });
+        }, 120);
+      }
+
       function openCardholderForm(application) {
         activePaidApplication = application;
         holderForm.reset();
@@ -1750,7 +1763,9 @@
         });
         holderModal.classList.remove('hidden');
         loadUCardHolderOptions();
-        document.getElementById('holderFirstName').focus();
+        const firstField = document.getElementById('holderFirstName');
+        firstField.focus();
+        scrollFocusedHolderFieldIntoView(firstField);
       }
 
       function closeCardholderForm() {
@@ -1976,6 +1991,17 @@
           submitButton.disabled = false;
         }
       });
+      holderForm.addEventListener('focusin', (event) => {
+        const field = event.target.closest('input, select, textarea');
+        scrollFocusedHolderFieldIntoView(field);
+      });
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', () => {
+          if (!holderModal.classList.contains('hidden') && holderForm.contains(document.activeElement)) {
+            scrollFocusedHolderFieldIntoView(document.activeElement);
+          }
+        });
+      }
       holderForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         if (!activePaidApplication) return;

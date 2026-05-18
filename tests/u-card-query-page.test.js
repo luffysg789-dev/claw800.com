@@ -90,6 +90,10 @@ test('U card application requires payment before showing cardholder form', () =>
   assert.match(html, /submitUCardHolderProfile\(activePaidApplication\.application_no, formData\)/);
   assert.match(html, /await loadMyCards\(\);\s*closeCardholderForm\(\);\s*selectTab\('mine'\);/);
   assert.match(html, /scheduleUCardReviewPolling\(\);/);
+  assert.match(html, /function scrollFocusedHolderFieldIntoView\(field\)/);
+  assert.match(html, /holderForm\.addEventListener\('focusin',/);
+  assert.match(html, /window\.visualViewport\.addEventListener\('resize',/);
+  assert.match(html, /scroll-padding-bottom: 140px;/);
   assert.match(html, /id="uCardHolderModal"/);
   assert.match(html, /<span class="required">\*<\/span> 名字/);
   assert.match(html, /<span class="required">\*<\/span> 姓氏/);
