@@ -238,7 +238,7 @@ app.get(['/u', '/u/'], (_req, res) => {
 app.use(express.static(path.join(__dirname, '..', 'public'), {
   maxAge: '7d',
   setHeaders(res, filePath) {
-    if (/\.html?$/i.test(filePath)) {
+    if (/\.html?$/i.test(filePath) || path.basename(filePath) === 'admin.js') {
       res.setHeader('Cache-Control', 'no-store');
     }
   }

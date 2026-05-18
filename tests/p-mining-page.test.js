@@ -330,6 +330,7 @@ test('p-mining startup avoids unnecessary uncached requests in Nexa webview', ()
   assert.match(server, /express\.static\(path\.join\(__dirname, '\.\.', 'public'\), \{/);
   assert.match(server, /maxAge:\s*'7d'/);
   assert.match(server, /Cache-Control', 'no-store'/);
+  assert.match(server, /path\.basename\(filePath\) === 'admin\.js'[\s\S]*?Cache-Control', 'no-store'/);
 });
 
 test('p-mining invite prompt waits for synced account state instead of opening during initial app creation', () => {
