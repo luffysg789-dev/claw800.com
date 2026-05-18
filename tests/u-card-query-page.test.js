@@ -113,6 +113,7 @@ test('U card application page exposes approved card upstream actions', () => {
   assert.match(html, /id="uCardLedgerModal"/);
   assert.match(html, /id="uCardLedgerList"/);
   assert.match(html, /const U_CARD_RECHARGE_PAYMENT_CREATE_ENDPOINT = '\/api\/u-card\/applications\/:applicationNo\/recharge-payment\/create';/);
+  assert.match(html, /const U_CARD_RECHARGE_PAYMENT_TIMEOUT_MS = 2 \* 60 \* 1000;/);
   assert.match(html, /function openUCardInfoModal\(application, payload\)/);
   assert.match(html, /function openUCardRechargeModal\(application\)/);
   assert.match(html, /function openUCardLedgerModal\(application, payload\)/);
@@ -123,6 +124,9 @@ test('U card application page exposes approved card upstream actions', () => {
   assert.match(html, /余额/);
   assert.match(html, /状态/);
   assert.match(html, /function beginUCardRechargePayment\(application, amount\)/);
+  assert.match(html, /expiresAt: Date\.now\(\) \+ U_CARD_RECHARGE_PAYMENT_TIMEOUT_MS/);
+  assert.match(html, /pending\.type === 'recharge' && Number\(pending\.expiresAt \|\| 0\) <= Date\.now\(\)/);
+  assert.match(html, /充卡支付超时，订单已取消/);
   assert.match(html, /function getUCardSecureCardNo\(payload\)/);
   assert.match(html, /function getUCardSecureExpiry\(payload\)/);
   assert.match(html, /function getUCardSecureCvv\(payload\)/);

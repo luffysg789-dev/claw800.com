@@ -730,6 +730,7 @@
       const U_CARD_RECHARGE_PAYMENT_CREATE_ENDPOINT = '/api/u-card/applications/:applicationNo/recharge-payment/create';
       const U_CARD_APPLICATIONS_ENDPOINT = '/api/u-card/applications';
       const U_CARD_REVIEW_POLL_INTERVAL_MS = 5 * 60 * 1000;
+      const U_CARD_RECHARGE_PAYMENT_TIMEOUT_MS = 2 * 60 * 1000;
       const U_CARD_SESSION_STORAGE_KEY = 'claw800:u-card:nexa-session';
       const U_CARD_PENDING_PAYMENT_STORAGE_KEY = 'claw800:u-card:pending-payment';
 
@@ -1535,6 +1536,11 @@
       async function settlePendingPayment() {
         const pending = readPendingPayment();
         if (!pending?.orderNo) return;
+        if (pending.type === 'recharge' && Number(pending.expiresAt || 0) <= Date.now()) {
+          clearPendingPayment();
+          setSessionStatus('充卡支付超时，订单已取消。', 'error');
+          return;
+        }
         setSessionStatus('正在确认 U 卡支付结果...');
         try {
           const status = await queryPaymentStatus(pending.orderNo);
@@ -1584,7 +1590,8 @@
           applicationNo,
           amount: response.amount || amount,
           currency: response.currency || 'USDT',
-          createdAt: Date.now()
+          createdAt: Date.now(),
+          expiresAt: Date.now() + U_CARD_RECHARGE_PAYMENT_TIMEOUT_MS
         };
         rememberPendingPayment(pending);
         setSessionStatus('请在 Nexa 中完成充卡支付，支付成功后会自动提交上游充卡。');
@@ -1596,6 +1603,9 @@
           await loadMyCards();
           selectTab('mine');
           setSessionStatus('支付成功，充卡请求已提交，上游处理中。', 'success');
+        } else if (Number(pending.expiresAt || 0) <= Date.now()) {
+          clearPendingPayment();
+          setSessionStatus('充卡支付超时，订单已取消。', 'error');
         }
       }
 
