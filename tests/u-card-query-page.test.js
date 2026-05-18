@@ -127,6 +127,8 @@ test('U card application page exposes approved card upstream actions', () => {
   assert.match(html, /expiresAt: Date\.now\(\) \+ U_CARD_RECHARGE_PAYMENT_TIMEOUT_MS/);
   assert.match(html, /pending\.type === 'recharge' && Number\(pending\.expiresAt \|\| 0\) <= Date\.now\(\)/);
   assert.match(html, /充卡支付超时，订单已取消/);
+  assert.match(html, /function flashSessionStatus\(message, tone = '', duration = 3000\)/);
+  assert.match(html, /flashSessionStatus\('充卡支付超时，订单已取消。', 'error'\)/);
   assert.match(html, /function getUCardSecureCardNo\(payload\)/);
   assert.match(html, /function getUCardSecureExpiry\(payload\)/);
   assert.match(html, /function getUCardSecureCvv\(payload\)/);

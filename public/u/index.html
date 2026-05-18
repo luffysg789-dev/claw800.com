@@ -778,6 +778,13 @@
         sessionStatus.classList.toggle('error', tone === 'error');
       }
 
+      function flashSessionStatus(message, tone = '', duration = 3000) {
+        setSessionStatus(message, tone);
+        window.setTimeout(() => {
+          if (sessionStatus.textContent === message) setSessionStatus('');
+        }, duration);
+      }
+
       function setAllCardsStatus(message, tone = '') {
         allCardsStatus.textContent = message || '';
         allCardsStatus.classList.toggle('error', tone === 'error');
@@ -1538,7 +1545,7 @@
         if (!pending?.orderNo) return;
         if (pending.type === 'recharge' && Number(pending.expiresAt || 0) <= Date.now()) {
           clearPendingPayment();
-          setSessionStatus('充卡支付超时，订单已取消。', 'error');
+          flashSessionStatus('充卡支付超时，订单已取消。', 'error');
           return;
         }
         setSessionStatus('正在确认 U 卡支付结果...');
@@ -1605,7 +1612,7 @@
           setSessionStatus('支付成功，充卡请求已提交，上游处理中。', 'success');
         } else if (Number(pending.expiresAt || 0) <= Date.now()) {
           clearPendingPayment();
-          setSessionStatus('充卡支付超时，订单已取消。', 'error');
+          flashSessionStatus('充卡支付超时，订单已取消。', 'error');
         }
       }
 
