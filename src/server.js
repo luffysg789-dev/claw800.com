@@ -5582,7 +5582,7 @@ async function enrichUCardApplicationWithLiveBalance(item = {}) {
 }
 
 async function postUCardBalanceModify({ cardId = '', platformCardNo = '', cardNo = '', requestId = '', amount = '' } = {}) {
-  const identifiers = [cardId, platformCardNo, cardNo].map((value) => String(value || '').trim()).filter(Boolean);
+  const identifiers = [platformCardNo, isUCardPlatformCardNo(cardId) ? cardId : '', cardId, cardNo].map((value) => String(value || '').trim()).filter(Boolean);
   const uniqueIdentifiers = [...new Set(identifiers)];
   if (!uniqueIdentifiers.length) {
     const error = new Error('未找到上游卡 ID，请稍后刷新我的卡后重试');
@@ -5592,9 +5592,9 @@ async function postUCardBalanceModify({ cardId = '', platformCardNo = '', cardNo
 
   const attempts = [];
   uniqueIdentifiers.forEach((identifier) => {
+    attempts.push({ cardid: identifier, requestId, type: 'INCREASE', amount });
     attempts.push({ cardId: identifier, requestId, type: 'INCREASE', amount });
     attempts.push({ card_id: identifier, requestId, type: 'INCREASE', amount });
-    attempts.push({ cardid: identifier, requestId, type: 'INCREASE', amount });
   });
   if (cardNo) {
     attempts.push({ cardNo, requestId, type: 'INCREASE', amount });
@@ -5607,7 +5607,10 @@ async function postUCardBalanceModify({ cardId = '', platformCardNo = '', cardNo
     if (result.ok) return result.payload;
     lastError = result.error;
   }
-  throw lastError || new Error('充卡失败');
+  const message = String(lastError?.message || '充卡失败').trim();
+  const error = new Error(`上游调额失败：${message}`);
+  error.statusCode = Number(lastError?.statusCode || 502) || 502;
+  throw error;
 }
 
 async function pollDueUCardApplicationReviews() {

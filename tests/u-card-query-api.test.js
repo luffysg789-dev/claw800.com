@@ -360,6 +360,16 @@ test('public U card products endpoint signs and normalizes upstream products', a
       if (String(url).includes('/open-api/cards/balance-modify')) {
         const body = JSON.parse(String(options.body || '{}'));
         capturedRechargeBodies.push(body);
+        assert.equal(body.type, 'INCREASE');
+        assert.equal(body.amount, '3.50');
+        if (capturedRechargeBodies.length === 1) {
+          assert.deepEqual(body, {
+            cardid: 'CARD_UCARD_001',
+            requestId: body.requestId,
+            type: 'INCREASE',
+            amount: '3.50'
+          });
+        }
         if (body.cardid === 'CARD_UCARD_001') {
           return {
             ok: true,
@@ -581,9 +591,8 @@ test('public U card products endpoint signs and normalizes upstream products', a
       { openId: 'nexa-open-id', amount: '3.50', paymentOrderNo: rechargePayment.body.orderNo }
     );
     assert.equal(recharge.statusCode, 200, JSON.stringify(recharge.body));
-    assert.ok(capturedRechargeBodies.some((body) => body.cardId === '2026050811431914822000496491'));
-    assert.equal(capturedRechargeBodies.at(-1).type, 'INCREASE');
-    assert.equal(capturedRechargeBodies.at(-1).amount, '3.50');
+    assert.equal(capturedRechargeBodies.length, 1);
+    assert.equal(capturedRechargeBodies.at(-1).cardid, 'CARD_UCARD_001');
 
     const reviewed = await harness.request(
       'POST',
