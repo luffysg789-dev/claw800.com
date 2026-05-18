@@ -5394,10 +5394,23 @@ function normalizeUCardOptionItems(items = [], { valueKeys = [], labelKeys = [] 
 async function fetchUCardHolderOptions() {
   const payload = await postUCardUpalJson('/open-api/cardholders/options', {});
   const data = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
+  const countryItems = data.countries
+    || data.countryCodes
+    || data.country_codes
+    || data.countryList
+    || data.country_list
+    || data.countryOptions
+    || data.country_options
+    || data.nationalities
+    || data.nationalityCodes
+    || data.nationality_codes
+    || data.regions
+    || data.areas
+    || [];
   return {
-    countries: normalizeUCardOptionItems(data.countries || data.countryCodes || data.country_codes || [], {
-      valueKeys: ['code', 'value', 'countryCode', 'country_code', 'iso2', 'name'],
-      labelKeys: ['name', 'label', 'text', 'title', 'code', 'value']
+    countries: normalizeUCardOptionItems(countryItems, {
+      valueKeys: ['code', 'value', 'countryCode', 'country_code', 'iso2', 'isoCode', 'iso_code', 'alpha2', 'countryIso', 'country_iso', 'countryAlpha2', 'country_alpha2', 'name'],
+      labelKeys: ['name', 'zhName', 'zh_name', 'nameZh', 'name_zh', 'chineseName', 'chinese_name', 'cnName', 'cn_name', 'displayName', 'display_name', 'label', 'text', 'title', 'code', 'value']
     }),
     phoneCountryCodes: normalizeUCardOptionItems(
       data.phoneCountryCodes || data.phone_country_codes || data.phoneCodes || data.phone_codes || [],

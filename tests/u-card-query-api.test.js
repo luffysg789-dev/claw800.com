@@ -216,7 +216,14 @@ test('public U card products endpoint signs and normalizes upstream products', a
             return {
               ok: true,
               data: {
-                countries: [{ code: 'CN', name: '中国' }],
+                countryList: [
+                  { isoCode: 'CN', zhName: '中国' },
+                  { isoCode: 'US', zhName: '美国' },
+                  { isoCode: 'SG', zhName: '新加坡' },
+                  { isoCode: 'AE', zhName: '阿联酋' },
+                  { isoCode: 'BR', zhName: '巴西' },
+                  { isoCode: 'CA', zhName: '加拿大' }
+                ],
                 phoneCountryCodes: [
                   { code: '+86', name: '中国' },
                   { code: '+852', name: '香港' }
@@ -525,6 +532,14 @@ test('public U card products endpoint signs and normalizes upstream products', a
     assert.deepEqual(holderOptions.body.phoneCountryCodes, [
       { value: '+86', label: '中国' },
       { value: '+852', label: '香港' }
+    ]);
+    assert.deepEqual(holderOptions.body.countries, [
+      { value: 'CN', label: '中国' },
+      { value: 'US', label: '美国' },
+      { value: 'SG', label: '新加坡' },
+      { value: 'AE', label: '阿联酋' },
+      { value: 'BR', label: '巴西' },
+      { value: 'CA', label: '加拿大' }
     ]);
 
     harness.db

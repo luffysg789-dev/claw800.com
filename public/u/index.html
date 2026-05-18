@@ -1142,6 +1142,13 @@
       }
 
       const DEFAULT_HOLDER_PHONE_CODE = '+86';
+      const DEFAULT_HOLDER_COUNTRIES = [
+        { value: 'CN', label: '中国' },
+        { value: 'HK', label: '香港' },
+        { value: 'JP', label: '日本' },
+        { value: 'AU', label: '澳大利亚' },
+        { value: 'AM', label: '亚美尼亚' }
+      ];
 
       function normalizePhoneCountryCode(value) {
         const raw = String(value || '').trim();
@@ -1195,6 +1202,35 @@
         target.innerHTML = options.map((item) => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.value)}</option>`).join('');
       }
 
+      function normalizeCountryOption(item) {
+        if (typeof item === 'string' || typeof item === 'number') {
+          const value = String(item).trim();
+          return value ? { value, label: value } : null;
+        }
+        if (!item || typeof item !== 'object') return null;
+        const value = String(item.value || item.code || item.countryCode || item.isoCode || item.iso2 || item.alpha2 || '').trim();
+        const label = String(item.label || item.name || item.zhName || item.text || item.title || value).trim();
+        return value ? { value, label: label || value } : null;
+      }
+
+      function renderCountryOptionList(target, items = []) {
+        if (!target) return;
+        const placeholder = target.querySelector('option[value=""]')?.textContent || '请选择国家/地区';
+        const currentValue = target.value;
+        const seen = new Set();
+        const options = [...(Array.isArray(items) ? items : []), ...DEFAULT_HOLDER_COUNTRIES]
+          .map(normalizeCountryOption)
+          .filter((item) => {
+            if (!item?.value || seen.has(item.value)) return false;
+            seen.add(item.value);
+            return true;
+          });
+        target.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>${options
+          .map((item) => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`)
+          .join('')}`;
+        if (currentValue && options.some((item) => item.value === currentValue)) target.value = currentValue;
+      }
+
       async function loadUCardHolderOptions() {
         if (holderOptionsLoaded) return;
         holderOptionsLoaded = true;
@@ -1211,6 +1247,8 @@
           });
           const payload = await response.json().catch(() => ({}));
           if (!response.ok || payload?.ok === false) throw new Error(payload?.error || '用卡人选项加载失败');
+          renderCountryOptionList(document.getElementById('holderNationality'), payload.countries);
+          renderCountryOptionList(document.getElementById('holderCountry'), payload.countries);
           renderOptionList(document.getElementById('holderPhoneCode'), sortPhoneCountryCodeOptions(payload.phoneCountryCodes), ['+1', '+61', '+65', '+81', '+86', '+852']);
           setDefaultHolderPhoneCode();
         } catch (error) {

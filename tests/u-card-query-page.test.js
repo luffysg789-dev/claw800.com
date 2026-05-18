@@ -107,6 +107,9 @@ test('U card application requires payment before showing cardholder form', () =>
   assert.match(html, /renderOptionList\(document\.getElementById\('holderPhoneCode'\), sortPhoneCountryCodeOptions\(payload\.phoneCountryCodes\),/);
   assert.match(html, /\['\+1', '\+61', '\+65', '\+81', '\+86', '\+852'\]/);
   assert.match(html, /setDefaultHolderPhoneCode\(\);/);
+  assert.match(html, /function renderCountryOptionList\(target, items = \[\]/);
+  assert.match(html, /renderCountryOptionList\(document\.getElementById\('holderNationality'\), payload\.countries/);
+  assert.match(html, /renderCountryOptionList\(document\.getElementById\('holderCountry'\), payload\.countries/);
   assert.doesNotMatch(html, /holderPhoneCodeSelect/);
   assert.match(html, /function loadUCardHolderOptions\(\)/);
   assert.match(html, /fetch\(U_CARD_HOLDER_OPTIONS_ENDPOINT/);
