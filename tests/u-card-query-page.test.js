@@ -110,9 +110,18 @@ test('U card application page exposes approved card upstream actions', () => {
   assert.match(html, />查看卡信息<\/button>/);
   assert.match(html, /id="uCardInfoModal"/);
   assert.match(html, /id="uCardRechargeModal"/);
+  assert.match(html, /id="uCardLedgerModal"/);
+  assert.match(html, /id="uCardLedgerList"/);
   assert.match(html, /const U_CARD_RECHARGE_PAYMENT_CREATE_ENDPOINT = '\/api\/u-card\/applications\/:applicationNo\/recharge-payment\/create';/);
   assert.match(html, /function openUCardInfoModal\(application, payload\)/);
   assert.match(html, /function openUCardRechargeModal\(application\)/);
+  assert.match(html, /function openUCardLedgerModal\(application, payload\)/);
+  assert.match(html, /function getUCardLedgerItems\(payload\)/);
+  assert.match(html, /时间/);
+  assert.match(html, /类型/);
+  assert.match(html, /金额/);
+  assert.match(html, /余额/);
+  assert.match(html, /状态/);
   assert.match(html, /function beginUCardRechargePayment\(application, amount\)/);
   assert.match(html, /function getUCardSecureCardNo\(payload\)/);
   assert.match(html, /function getUCardSecureExpiry\(payload\)/);
@@ -132,6 +141,7 @@ test('U card application page exposes approved card upstream actions', () => {
   assert.match(html, /window\.location\.href = buildNexaPaymentUrl\(response\.payment\);/);
   assert.match(html, /callUCardAction\(application\.application_no, 'recharge', \{ amount, paymentOrderNo: response\.orderNo \}\)/);
   assert.match(html, /callUCardAction\(ledgerButton\.dataset\.viewLedger, 'transactions'\)/);
+  assert.doesNotMatch(html, /alert\(JSON\.stringify\(payload\.item \|\| payload, null, 2\)\)/);
 });
 
 test('U card query page includes language toggle after platform count', () => {

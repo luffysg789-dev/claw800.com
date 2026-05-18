@@ -417,6 +417,56 @@
         padding: 0 12px;
       }
 
+      .ledger-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .ledger-item {
+        display: grid;
+        gap: 8px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfb;
+        padding: 12px;
+      }
+
+      .ledger-item__head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .ledger-item__type {
+        color: var(--ink);
+        font-size: 14px;
+        font-weight: 900;
+      }
+
+      .ledger-item__amount {
+        color: #16633d;
+        font-size: 14px;
+        font-weight: 900;
+        text-align: right;
+        word-break: break-word;
+      }
+
+      .ledger-item__grid {
+        display: grid;
+        grid-template-columns: 64px minmax(0, 1fr);
+        gap: 6px 10px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .ledger-item__grid strong {
+        color: var(--ink);
+        font-weight: 800;
+        overflow-wrap: anywhere;
+      }
+
       .my-card-item {
         border: 1px solid var(--line);
         border-radius: 8px;
@@ -653,6 +703,22 @@
       </div>
     </div>
 
+    <div id="uCardLedgerModal" class="cardholder-modal hidden" role="dialog" aria-modal="true" aria-labelledby="uCardLedgerTitle">
+      <div class="cardholder-dialog action-dialog">
+        <div class="cardholder-header">
+          <h2 id="uCardLedgerTitle">资金明细</h2>
+          <p id="uCardLedgerSubtitle" class="form-note"></p>
+        </div>
+        <div class="action-modal-body">
+          <div id="uCardLedgerList" class="ledger-list"></div>
+          <p id="uCardLedgerMessage" class="form-note"></p>
+        </div>
+        <div class="modal-actions single">
+          <button id="uCardLedgerCloseBtn" class="secondary-button" type="button">关闭</button>
+        </div>
+      </div>
+    </div>
+
     <script>
       const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth://oauth/authorize';
       const NEXA_PROTOCOL_ORDER_BASE = 'nexaauth://order';
@@ -685,6 +751,9 @@
       const rechargeModal = document.getElementById('uCardRechargeModal');
       const rechargeForm = document.getElementById('uCardRechargeForm');
       const rechargeCancelButton = document.getElementById('uCardRechargeCancelBtn');
+      const ledgerModal = document.getElementById('uCardLedgerModal');
+      const ledgerCloseButton = document.getElementById('uCardLedgerCloseBtn');
+      const ledgerList = document.getElementById('uCardLedgerList');
       let cachedNexaPublicConfig = null;
       let currentProducts = [];
       let currentApplications = [];
@@ -1330,6 +1399,64 @@
         return balance && currency ? `${balance} ${currency}` : balance;
       }
 
+      function getUCardLedgerItems(payload) {
+        const data = getUCardPayloadObject(payload);
+        const candidates = [
+          data.items,
+          data.records,
+          data.list,
+          data.transactions,
+          data.logs,
+          data.data,
+          payload?.item?.items,
+          payload?.item?.data?.items
+        ];
+        return candidates.find((item) => Array.isArray(item)) || [];
+      }
+
+      function getUCardLedgerValue(item, keys) {
+        return keys.map((key) => String(item?.[key] || '').trim()).find(Boolean) || '';
+      }
+
+      function formatUCardLedgerAmount(item) {
+        const amount = getUCardLedgerValue(item, ['amount', 'changeAmount', 'change_amount', 'balanceChange', 'balance_change', 'money']);
+        const currency = getUCardLedgerValue(item, ['currency', 'cardCurrency', 'card_currency']);
+        return amount && currency ? `${amount} ${currency}` : amount || '-';
+      }
+
+      function renderUCardLedgerItems(items) {
+        if (!items.length) {
+          ledgerList.innerHTML = '';
+          setText('uCardLedgerMessage', '暂无资金明细。');
+          return;
+        }
+        setText('uCardLedgerMessage', '');
+        ledgerList.innerHTML = items
+          .map((item) => {
+            const time = getUCardLedgerValue(item, ['createdAt', 'created_at', 'time', 'createdTime', 'created_time', 'transactionTime', 'transaction_time']);
+            const type = getUCardLedgerValue(item, ['type', 'transactionType', 'transaction_type', 'bizType', 'biz_type', 'remark']) || '资金变动';
+            const amount = formatUCardLedgerAmount(item);
+            const balance = getUCardLedgerValue(item, ['balance', 'balanceAfter', 'balance_after', 'afterBalance', 'after_balance', 'availableBalance', 'available_balance']);
+            const status = getUCardLedgerValue(item, ['status', 'state', 'result']) || '-';
+            return `
+              <article class="ledger-item">
+                <div class="ledger-item__head">
+                  <strong class="ledger-item__type">${escapeHtml(type)}</strong>
+                  <strong class="ledger-item__amount">${escapeHtml(amount)}</strong>
+                </div>
+                <div class="ledger-item__grid">
+                  <span>时间</span><strong>${escapeHtml(time || '-')}</strong>
+                  <span>类型</span><strong>${escapeHtml(type)}</strong>
+                  <span>金额</span><strong>${escapeHtml(amount)}</strong>
+                  <span>余额</span><strong>${escapeHtml(balance || '-')}</strong>
+                  <span>状态</span><strong>${escapeHtml(status)}</strong>
+                </div>
+              </article>
+            `;
+          })
+          .join('');
+      }
+
       function setText(id, value) {
         const target = document.getElementById(id);
         if (target) target.textContent = String(value || '-');
@@ -1376,6 +1503,16 @@
       function closeUCardRechargeModal() {
         rechargeModal.classList.add('hidden');
         activeRechargeApplication = null;
+      }
+
+      function openUCardLedgerModal(application, payload) {
+        setText('uCardLedgerSubtitle', application?.product_name || 'U 卡');
+        renderUCardLedgerItems(getUCardLedgerItems(payload));
+        ledgerModal.classList.remove('hidden');
+      }
+
+      function closeUCardLedgerModal() {
+        ledgerModal.classList.add('hidden');
       }
 
       function openCardholderForm(application) {
@@ -1552,8 +1689,9 @@
           }
           if (ledgerButton) {
             ledgerButton.disabled = true;
+            const item = findApplication(ledgerButton.dataset.viewLedger);
             const payload = await callUCardAction(ledgerButton.dataset.viewLedger, 'transactions');
-            alert(JSON.stringify(payload.item || payload, null, 2));
+            openUCardLedgerModal(item || {}, payload);
           }
         } catch (error) {
           setSessionStatus(error?.message || 'U 卡操作失败', 'error');
@@ -1566,6 +1704,7 @@
       holderCancelButton.addEventListener('click', closeCardholderForm);
       infoCloseButton.addEventListener('click', closeUCardInfoModal);
       rechargeCancelButton.addEventListener('click', closeUCardRechargeModal);
+      ledgerCloseButton.addEventListener('click', closeUCardLedgerModal);
       rechargeForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         if (!activeRechargeApplication) return;
