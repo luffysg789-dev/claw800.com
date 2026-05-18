@@ -1202,6 +1202,11 @@
         localStorage.removeItem(U_CARD_PENDING_PAYMENT_STORAGE_KEY);
       }
 
+      function selectPendingPaymentTab() {
+        const pending = readPendingPayment();
+        if (pending?.type === 'recharge') selectTab('mine');
+      }
+
       function showLoggedInState(session) {
         loginButton.textContent = '已登录';
         const name = String(session?.nickname || 'Nexa 用户').trim() || 'Nexa 用户';
@@ -1754,6 +1759,7 @@
           submitButton.disabled = false;
         }
       });
+      selectPendingPaymentTab();
       loadUCardProducts();
       syncSessionFromAuthCode().then(() => loadMyCards()).then(settlePendingPayment);
     </script>

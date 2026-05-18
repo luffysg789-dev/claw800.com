@@ -163,6 +163,9 @@ test('U card recharge returns to my cards without local payment polling', () => 
   assert.match(applyFunction, /return;/);
   assert.doesNotMatch(applyFunction, /waitForPaymentSuccess/);
   assert.match(html, /await loadMyCards\(\);\s*selectTab\('mine'\);/);
+  assert.match(html, /function selectPendingPaymentTab\(\)/);
+  assert.match(html, /pending\?\.type === 'recharge'/);
+  assert.match(html, /selectPendingPaymentTab\(\);\s*loadUCardProducts\(\);/);
 });
 
 test('U card query page includes language toggle after platform count', () => {
