@@ -775,6 +775,67 @@ test('public U card products endpoint signs and normalizes upstream products', a
   }
 });
 
+test('U card product config keeps upstream channel 3 visible', async () => {
+  const harness = await createHarness();
+  const previousFetch = global.fetch;
+  try {
+    const cookies = await loginAdmin(harness);
+    const generated = await harness.request('POST', '/api/admin/u-card/upstream-config/generate-keypair', {}, cookies);
+    const save = await harness.request(
+      'PUT',
+      '/api/admin/u-card/upstream-config',
+      {
+        appId: 'upal-app-003',
+        developerPrivateKey: generated.body.developerPrivateKey,
+        platformPublicKey: '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A\n-----END PUBLIC KEY-----'
+      },
+      cookies
+    );
+    assert.equal(save.statusCode, 200);
+    global.fetch = async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, data: { items: [] } })
+    });
+    harness.db.prepare(`
+      INSERT INTO u_card_products (
+        product_code, upstream_name, upstream_fee_amount, upstream_currency,
+        local_fee_amount, local_currency, card_currency, description,
+        card_channel, card_channel_name, application_channel, sort_order, is_enabled
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+    `).run('channel-3-card', 'Channel 3 Card', '8.00', 'USDT', '8.00', 'USDT', 'USD', 'Channel 3 upstream card', '003', '渠道 3', '3', 3);
+
+    const adminProducts = await harness.request('GET', '/api/admin/u-card/products', null, cookies);
+    assert.equal(adminProducts.statusCode, 200);
+    const item = adminProducts.body.items.find((product) => product.product_code === 'channel-3-card');
+    assert.equal(item.card_channel, '003');
+    assert.equal(item.card_channel_name, '渠道 3');
+    assert.equal(item.application_channel, '3');
+    assert.equal(item.application_channel_label, '渠道 3');
+
+    const updatedProduct = await harness.request(
+      'PUT',
+      '/api/admin/u-card/products/channel-3-card',
+      {
+        localName: '渠道 3 卡',
+        localDescription: '后台保留渠道 3',
+        localFeeAmount: '9.00',
+        localCurrency: 'USDT',
+        applicationChannel: '3',
+        sortOrder: 8,
+        isEnabled: 1
+      },
+      cookies
+    );
+    assert.equal(updatedProduct.statusCode, 200);
+    assert.equal(updatedProduct.body.item.application_channel, '3');
+    assert.equal(updatedProduct.body.item.application_channel_label, '渠道 3');
+  } finally {
+    global.fetch = previousFetch;
+    harness.cleanup();
+  }
+});
+
 test('U card query seeds default platforms and returns cards for a selected platform without login', async () => {
   const harness = createHarness();
   try {
@@ -859,7 +920,11 @@ test('admin U card panel includes upstream credential configuration controls', (
   assert.match(adminJs, /uCardProductDescription-/);
   assert.match(adminJs, /uCardProductSort-/);
   assert.match(adminJs, /uCardProductChannel-/);
+  assert.match(adminJs, /function formatUCardProductChannelLabel\(channel, fallback = ''\)/);
+  assert.match(adminJs, /uCardProductEffectiveUpstreamChannel/);
   assert.match(adminJs, /applicationChannel:\s*String\(document\.getElementById\(`uCardProductChannel-\$\{encodedCode\}`\)\?\.value \|\| '1'\)/);
+  assert.match(adminJs, /<option value="3"/);
+  assert.match(adminJs, /uCardProductChannel3:\s*'渠道 3'/);
   assert.match(adminJs, /localName:\s*String\(document\.getElementById\(`uCardProductName-\$\{encodedCode\}`\)\?\.value \|\| ''\)\.trim\(\)/);
   assert.match(adminJs, /localDescription:\s*String\(document\.getElementById\(`uCardProductDescription-\$\{encodedCode\}`\)\?\.value \|\| ''\)\.trim\(\)/);
   assert.match(adminJs, /sortOrder:\s*Number\(document\.getElementById\(`uCardProductSort-\$\{encodedCode\}`\)\?\.value \|\| 0\)/);

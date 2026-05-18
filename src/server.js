@@ -4848,6 +4848,7 @@ function normalizeUCardProduct(item = {}, index = 0) {
       `U 卡产品 ${index + 1}`
   ).trim();
   const cardChannel = String(item.cardChannel || item.card_channel || kycRequirements.upstreamChannel || kycRequirements.upstream_channel || '').trim();
+  const cardChannelName = String(item.cardChannelName || item.card_channel_name || '').trim();
   return {
     id: productCode || `product-${index + 1}`,
     product_code: productCode,
@@ -4857,9 +4858,9 @@ function normalizeUCardProduct(item = {}, index = 0) {
     card_currency: String(item.cardCurrency || item.card_currency || item.settlementCurrency || item.settlement_currency || '').trim(),
     description: String(item.description || item.desc || item.remark || '').trim(),
     card_channel: cardChannel,
-    card_channel_name: String(item.cardChannelName || item.card_channel_name || '').trim(),
+    card_channel_name: cardChannelName,
     kyc_requirements: kycRequirements,
-    application_channel: normalizeUCardApplicationChannel(cardChannel || kycRequirements.upstreamChannel || '')
+    application_channel: normalizeUCardApplicationChannel(cardChannel || cardChannelName || kycRequirements.upstreamChannel || '')
   };
 }
 
@@ -4903,7 +4904,7 @@ function formatUCardProductConfig(row = {}) {
     card_channel_name: cardChannelName,
     kyc_requirements: parseJsonObject(row.kyc_requirements_json),
     application_channel: applicationChannel,
-    application_channel_label: applicationChannel === '2' ? '渠道 2（护照实名）' : '渠道 1（免实名）',
+    application_channel_label: formatUCardApplicationChannelLabel(applicationChannel),
     sort_order: Number(row.sort_order || 0) || 0,
     is_enabled: Number(row.is_enabled || 0) ? 1 : 0,
     created_at: String(row.created_at || '').trim(),
@@ -4931,7 +4932,16 @@ function formatPublicUCardProductConfig(row = {}) {
 
 function normalizeUCardApplicationChannel(value = '') {
   const raw = String(value || '').trim().toUpperCase();
-  return raw === '2' || raw === '002' || raw === 'CHANNEL_2' ? '2' : '1';
+  if (raw === '2' || raw === '002' || raw === 'CHANNEL_2' || raw === '渠道 2'.toUpperCase()) return '2';
+  if (raw === '3' || raw === '003' || raw === 'CHANNEL_3' || raw === '渠道 3'.toUpperCase()) return '3';
+  return '1';
+}
+
+function formatUCardApplicationChannelLabel(value = '') {
+  const channel = normalizeUCardApplicationChannel(value);
+  if (channel === '2') return '渠道 2（护照实名）';
+  if (channel === '3') return '渠道 3';
+  return '渠道 1（免实名）';
 }
 
 const syncUCardProductsFromUpstream = db.transaction((products = []) => {
@@ -5073,7 +5083,7 @@ function formatUCardApplication(row = {}) {
     product_code: String(row.product_code || '').trim(),
     product_name: String(row.product_name || 'U 卡申请').trim(),
     application_channel: normalizeUCardApplicationChannel(row.application_channel),
-    application_channel_label: normalizeUCardApplicationChannel(row.application_channel) === '2' ? '渠道 2（护照实名）' : '渠道 1（免实名）',
+    application_channel_label: formatUCardApplicationChannelLabel(row.application_channel),
     amount: String(row.amount || '').trim(),
     currency: String(row.currency || 'USDT').trim(),
     payment_status: String(row.payment_status || '').trim(),
@@ -5187,7 +5197,10 @@ function buildUCardHolderPayload(holder = {}) {
 }
 
 function normalizeUCardUpstreamChannel(value = '') {
-  return normalizeUCardApplicationChannel(value) === '2' ? '002' : '001';
+  const channel = normalizeUCardApplicationChannel(value);
+  if (channel === '2') return '002';
+  if (channel === '3') return '003';
+  return '001';
 }
 
 function requireUCardHolderFields(holder = {}) {

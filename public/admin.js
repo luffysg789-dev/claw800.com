@@ -414,6 +414,7 @@ const texts = {
     uCardProductChannel: '申请渠道',
     uCardProductChannel1: '渠道 1（免实名）',
     uCardProductChannel2: '渠道 2（护照实名）',
+    uCardProductChannel3: '渠道 3',
     uCardProductLocalPrice: '本地开卡价',
     uCardUpalAppIdLabel: 'APP ID',
     uCardUpalDeveloperPrivateKeyLabel: '开发者私钥（BEGIN PRIVATE KEY，用于 uPAL 请求签名；留空则保留已保存私钥）',
@@ -774,6 +775,7 @@ const texts = {
     uCardProductChannel: 'Application Channel',
     uCardProductChannel1: 'Channel 1 (no KYC)',
     uCardProductChannel2: 'Channel 2 (passport KYC)',
+    uCardProductChannel3: 'Channel 3',
     uCardProductLocalPrice: 'Local Open Price',
     uCardUpalAppIdLabel: 'APP ID',
     uCardUpalDeveloperPrivateKeyLabel: 'Developer Private Key (BEGIN PRIVATE KEY; used to sign uPAL requests; leave blank to keep saved key)',
@@ -2821,6 +2823,22 @@ async function loadUCardUpstreamConfig() {
   fillUCardUpstreamConfigForm(result.data || {});
 }
 
+function formatUCardProductChannelLabel(channel, fallback = '') {
+  const raw = String(channel || fallback || '').trim().toUpperCase();
+  const normalized =
+    raw === '001' || raw === 'CHANNEL_1' || raw === '渠道 1'.toUpperCase()
+      ? '1'
+      : raw === '002' || raw === 'CHANNEL_2' || raw === '渠道 2'.toUpperCase()
+        ? '2'
+        : raw === '003' || raw === 'CHANNEL_3' || raw === '渠道 3'.toUpperCase()
+          ? '3'
+          : raw;
+  if (normalized === '1') return t('uCardProductChannel1');
+  if (normalized === '2') return t('uCardProductChannel2');
+  if (normalized === '3') return t('uCardProductChannel3');
+  return raw || '-';
+}
+
 function renderUCardProductsAdmin() {
   if (!uCardProductsList) return;
   if (!uCardProductItems.length) {
@@ -2831,6 +2849,8 @@ function renderUCardProductsAdmin() {
     .map((product) => {
       const code = String(product.product_code || product.id || '').trim();
       const encodedCode = encodeURIComponent(code);
+      const uCardProductEffectiveUpstreamChannel = product.card_channel || product.application_channel || '';
+      const applicationChannel = String(product.application_channel || '1');
       return `
         <article class="review-card">
           <div class="u-card-admin-row-head">
@@ -2838,7 +2858,7 @@ function renderUCardProductsAdmin() {
           </div>
           <p class="small">Code：${escapeHtml(code || '-')}</p>
           <p class="small">${escapeHtml(t('uCardProductUpstreamPrice'))}：${escapeHtml(product.upstream_fee_amount || '-')} ${escapeHtml(product.upstream_currency || '')}</p>
-          <p class="small">${escapeHtml(t('uCardProductUpstreamChannel'))}：${escapeHtml(product.card_channel || '-')} ${escapeHtml(product.card_channel_name || '')}</p>
+          <p class="small">${escapeHtml(t('uCardProductUpstreamChannel'))}：${escapeHtml(formatUCardProductChannelLabel(uCardProductEffectiveUpstreamChannel, product.card_channel_name))}${product.card_channel ? `（${escapeHtml(product.card_channel)}）` : ''}</p>
           <p class="small">${escapeHtml(product.description || '')}</p>
           <div class="inline-edit-grid">
             <label class="small">${escapeHtml(t('uCardProductLocalName'))}
@@ -2852,8 +2872,9 @@ function renderUCardProductsAdmin() {
             </label>
             <label class="small">${escapeHtml(t('uCardProductChannel'))}
               <select id="uCardProductChannel-${escapeHtml(encodedCode)}">
-                <option value="1" ${String(product.application_channel || '1') === '2' ? '' : 'selected'}>${escapeHtml(t('uCardProductChannel1'))}</option>
-                <option value="2" ${String(product.application_channel || '1') === '2' ? 'selected' : ''}>${escapeHtml(t('uCardProductChannel2'))}</option>
+                <option value="1" ${applicationChannel === '1' ? 'selected' : ''}>${escapeHtml(t('uCardProductChannel1'))}</option>
+                <option value="2" ${applicationChannel === '2' ? 'selected' : ''}>${escapeHtml(t('uCardProductChannel2'))}</option>
+                <option value="3" ${applicationChannel === '3' ? 'selected' : ''}>${escapeHtml(t('uCardProductChannel3'))}</option>
               </select>
             </label>
             <label class="small">${escapeHtml(t('uCardProductLocalPrice'))}
