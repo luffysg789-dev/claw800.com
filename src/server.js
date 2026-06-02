@@ -4809,6 +4809,11 @@ function isUCardUpalUnauthorized(response, payload = {}) {
   return response?.status === 401 || /^unauthorized$/i.test(message);
 }
 
+function getUCardUpalClientStatusCode(error, fallback = 502) {
+  const statusCode = Number(error?.statusCode || fallback) || fallback;
+  return statusCode === 401 ? 502 : statusCode;
+}
+
 const U_CARD_UPAL_LIST_KEYS = [
   'items',
   'products',
@@ -6002,7 +6007,7 @@ app.get('/api/u-card/products', async (_req, res) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
     res.json({ ok: true, items });
   } catch (error) {
-    const statusCode = Number(error?.statusCode || 502);
+    const statusCode = getUCardUpalClientStatusCode(error, 502);
     res.status(statusCode).json({ error: String(error?.message || '获取 U 卡产品失败') });
   }
 });
@@ -6013,7 +6018,7 @@ app.get('/api/u-card/holder-options', async (_req, res) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
     res.json({ ok: true, ...options });
   } catch (error) {
-    const statusCode = Number(error?.statusCode || 502);
+    const statusCode = getUCardUpalClientStatusCode(error, 502);
     res.status(statusCode).json({ error: String(error?.message || '获取用卡人选项失败') });
   }
 });
@@ -11679,7 +11684,7 @@ app.get('/api/admin/u-card/products', requireAdmin, async (_req, res) => {
     const items = await listConfiguredUCardProducts({ refresh: true, publicOnly: false });
     res.json({ ok: true, items });
   } catch (error) {
-    res.status(Number(error?.statusCode || 502)).json({ error: String(error?.message || '加载 U 卡卡种失败') });
+    res.status(getUCardUpalClientStatusCode(error, 502)).json({ error: String(error?.message || '加载 U 卡卡种失败') });
   }
 });
 
@@ -11813,7 +11818,7 @@ app.post('/api/admin/u-card/upstream-config/test-products', requireAdmin, async 
       upstream: summary
     });
   } catch (error) {
-    res.status(Number(error?.statusCode || 502)).json({ error: String(error?.message || '测试上游产品接口失败') });
+    res.status(getUCardUpalClientStatusCode(error, 502)).json({ error: String(error?.message || '测试上游产品接口失败') });
   }
 });
 

@@ -244,6 +244,41 @@ test('U card upstream falls back to legacy apiKey signature after RSA unauthoriz
   }
 });
 
+test('admin U card product fetch does not treat upstream unauthorized as admin logout', async () => {
+  const harness = createHarness();
+  const previousFetch = global.fetch;
+  try {
+    const cookies = await loginAdmin(harness);
+    await harness.request(
+      'PUT',
+      '/api/admin/u-card/upstream-config',
+      {
+        appId: 'upal-app-unauthorized',
+        apiKey: 'bad-api-key'
+      },
+      cookies
+    );
+    global.fetch = async () => ({
+      ok: false,
+      status: 401,
+      async json() {
+        return { ok: false, error: 'Unauthorized' };
+      }
+    });
+
+    const products = await harness.request('GET', '/api/admin/u-card/products', null, cookies);
+    assert.equal(products.statusCode, 502);
+    assert.equal(products.body.error, 'Unauthorized');
+
+    const testProducts = await harness.request('POST', '/api/admin/u-card/upstream-config/test-products', {}, cookies);
+    assert.equal(testProducts.statusCode, 502);
+    assert.equal(testProducts.body.error, 'Unauthorized');
+  } finally {
+    global.fetch = previousFetch;
+    harness.cleanup();
+  }
+});
+
 test('public U card products endpoint signs and normalizes upstream products', async () => {
   const harness = createHarness();
   const previousFetch = global.fetch;
