@@ -65,10 +65,12 @@ test('U card application requires payment before showing cardholder form', () =>
   assert.match(html, /window\.location\.href = buildNexaPaymentUrl\(response\.payment\);/);
   assert.match(html, /function confirmUCardApplicationPayment\(applicationNo\)/);
   assert.match(html, /function recoverPaidUCardApplication\(pending\)/);
-  assert.match(html, /function loadMyCards\(\)/);
+  assert.match(html, /async function loadMyCards\(options = \{\}\)/);
+  assert.match(html, /if \(fast\) params\.set\('fast', '1'\)/);
+  assert.match(html, /loadMyCards\(\{ fast: false, silent: true, backgroundRefresh: false \}\)/);
   assert.match(html, /const U_CARD_REVIEW_POLL_INTERVAL_MS = 5 \* 60 \* 1000;/);
   assert.match(html, /function scheduleUCardReviewPolling\(\)/);
-  assert.match(html, /window\.setInterval\(async \(\) => \{[\s\S]*loadMyCards\(\)/);
+  assert.match(html, /window\.setInterval\(async \(\) => \{[\s\S]*loadMyCards\(\{ fast: false, silent: true, backgroundRefresh: false \}\)/);
   assert.doesNotMatch(html, /formatApplicationStatus/);
   assert.match(html, /系统会每 5 分钟继续查询上游结果/);
   const server = fs.readFileSync(serverPath, 'utf8');

@@ -859,6 +859,7 @@
       let pendingPaymentSettleTimer = null;
       let uCardInfoMessageTimer = null;
       let currentUCardRechargeFeeRate = U_CARD_RECHARGE_FEE_RATE_DEFAULT;
+      let myCardsRefreshController = null;
 
       tabButtons.forEach((button) => {
         button.addEventListener('click', () => {
@@ -1061,19 +1062,28 @@
           .join('');
       }
 
-      async function loadMyCards() {
+      async function loadMyCards(options = {}) {
+        const fast = options.fast !== false;
+        const silent = Boolean(options.silent);
+        const backgroundRefresh = options.backgroundRefresh !== false;
         const session = readCachedNexaSession();
         if (!session?.openId) {
           renderMyCards([]);
           scheduleUCardReviewPolling();
           return;
         }
-        setMineCardsStatus('正在加载我的卡...');
+        if (myCardsRefreshController) myCardsRefreshController.abort();
+        const controller = new AbortController();
+        myCardsRefreshController = controller;
+        if (!silent) setMineCardsStatus(fast && currentApplications.length ? '' : '正在加载我的卡...');
         try {
-          const response = await fetch(`${U_CARD_APPLICATIONS_ENDPOINT}?openId=${encodeURIComponent(session.openId)}`, {
+          const params = new URLSearchParams({ openId: session.openId });
+          if (fast) params.set('fast', '1');
+          const response = await fetch(`${U_CARD_APPLICATIONS_ENDPOINT}?${params.toString()}`, {
             method: 'GET',
             cache: 'no-store',
             credentials: 'same-origin',
+            signal: controller.signal,
             headers: {
               Accept: 'application/json',
               'Cache-Control': 'no-store',
@@ -1084,9 +1094,17 @@
           if (!response.ok || payload?.ok === false) throw new Error(payload?.error || '我的卡加载失败');
           renderMyCards(Array.isArray(payload.items) ? payload.items : []);
           scheduleUCardReviewPolling();
+          if (fast && backgroundRefresh) {
+            window.setTimeout(() => loadMyCards({ fast: false, silent: true, backgroundRefresh: false }).catch(() => {}), 120);
+          }
         } catch (error) {
-          mineCardsList.innerHTML = '';
-          setMineCardsStatus(error?.message || '我的卡加载失败', 'error');
+          if (error?.name === 'AbortError') return;
+          if (!silent) {
+            mineCardsList.innerHTML = '';
+            setMineCardsStatus(error?.message || '我的卡加载失败', 'error');
+          }
+        } finally {
+          if (myCardsRefreshController === controller) myCardsRefreshController = null;
         }
       }
 
@@ -1111,7 +1129,7 @@
             stopUCardReviewPolling();
             return;
           }
-          await loadMyCards().catch(() => {});
+          await loadMyCards({ fast: false, silent: true, backgroundRefresh: false }).catch(() => {});
           if (!hasReviewPendingCards()) stopUCardReviewPolling();
         }, U_CARD_REVIEW_POLL_INTERVAL_MS);
       }

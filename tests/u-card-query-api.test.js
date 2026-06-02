@@ -253,6 +253,63 @@ test('admin U card product fetch does not treat upstream unauthorized as admin l
   }
 });
 
+test('public U card applications fast mode returns local cards without upstream calls', async () => {
+  const harness = createHarness();
+  const previousFetch = global.fetch;
+  try {
+    const cookies = await loginAdmin(harness);
+    const generated = await harness.request('POST', '/api/admin/u-card/upstream-config/generate-keypair', {}, cookies);
+    await harness.request(
+      'PUT',
+      '/api/admin/u-card/upstream-config',
+      {
+        appId: 'upal-app-fast',
+        developerPrivateKey: generated.body.developerPrivateKey
+      },
+      cookies
+    );
+    harness.db
+      .prepare(`
+        INSERT INTO u_card_applications (
+          application_no, order_no, open_id, product_code, product_name, application_channel,
+          amount, currency, payment_status, status, holder_json, upstream_application_id, platform_card_no, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      `)
+      .run(
+        'UC_FAST_001',
+        'ORDER_FAST_001',
+        'nexa-open-fast',
+        'virtual-usd',
+        'exworth 虚拟卡',
+        '2',
+        '5.00',
+        'USDT',
+        'SUCCESS',
+        'review_pending',
+        '{"firstName":"Fast","lastName":"User"}',
+        'REQ_FAST_001',
+        'CARD_FAST_PENDING'
+      );
+    let upstreamCallCount = 0;
+    global.fetch = async () => {
+      upstreamCallCount += 1;
+      throw new Error('upstream should not be called in fast mode');
+    };
+
+    const response = await harness.request('GET', '/api/u-card/applications?openId=nexa-open-fast&fast=1');
+
+    assert.equal(response.statusCode, 200, JSON.stringify(response.body));
+    assert.equal(upstreamCallCount, 0);
+    assert.equal(response.body.items.length, 1);
+    assert.equal(response.body.items[0].application_no, 'UC_FAST_001');
+    assert.equal(response.body.items[0].status, 'review_pending');
+    assert.equal(response.body.items[0].platform_card_no, 'CARD_FAST_PENDING');
+  } finally {
+    global.fetch = previousFetch;
+    harness.cleanup();
+  }
+});
+
 test('public U card products endpoint signs and normalizes upstream products', async () => {
   const harness = createHarness();
   const previousFetch = global.fetch;

@@ -6069,7 +6069,18 @@ app.get('/api/u-card/applications', async (req, res) => {
   try {
     const openId = String(req.query?.openId || '').trim();
     if (!openId) return res.status(400).json({ error: 'openId 必填' });
+    const fastMode =
+      String(req.query?.fast || '').trim() === '1' ||
+      String(req.query?.fast || '').trim().toLowerCase() === 'true' ||
+      String(req.query?.mode || '').trim().toLowerCase() === 'fast';
     const rows = listUCardApplicationsByOpenIdStmt.all(openId);
+    if (fastMode) {
+      const items = rows
+        .filter((row) => String(row.payment_status || '').trim().toUpperCase() === 'SUCCESS')
+        .map((row) => formatUCardApplication(row));
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      return res.json({ ok: true, items, fast: true });
+    }
     const items = [];
     for (const row of rows) {
       let current = row;
