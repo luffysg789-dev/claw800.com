@@ -376,8 +376,6 @@ function getUCardUpalConfig() {
   }
   return {
     appId: String(getSetting('u_card_upal_app_id', '') || '').trim(),
-    apiKey: '',
-    hasApiKey: Boolean(String(getSetting('u_card_upal_api_key', '') || '').trim()),
     developerPrivateKey: '',
     hasDeveloperPrivateKey: Boolean(developerPrivateKey),
     customerPublicKey,
@@ -389,15 +387,14 @@ function getUCardUpalConfig() {
 function getUCardUpalPrivateConfig() {
   return {
     appId: String(getSetting('u_card_upal_app_id', '') || '').trim(),
-    apiKey: String(getSetting('u_card_upal_api_key', '') || '').trim(),
     developerPrivateKey: normalizePem(getSetting('u_card_upal_developer_private_key', ''))
   };
 }
 
 function assertUCardUpalReady() {
   const config = getUCardUpalPrivateConfig();
-  if (!config.appId || (!config.developerPrivateKey && !config.apiKey)) {
-    const error = new Error('U 卡上游配置不完整，请先配置 APP ID 和开发者私钥或 API Key');
+  if (!config.appId || !config.developerPrivateKey) {
+    const error = new Error('U 卡上游配置不完整，请先配置 APP ID 和开发者私钥');
     error.statusCode = 503;
     throw error;
   }
@@ -4782,15 +4779,12 @@ async function fetchTextWithTimeout(url, timeoutMs = 30000) {
   }
 }
 
-function buildUCardUpalSignatureHeaders(body = {}, config = assertUCardUpalReady(), mode = 'rsa') {
+function buildUCardUpalSignatureHeaders(body = {}, config = assertUCardUpalReady()) {
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const nonce = crypto.randomUUID();
   const bodyText = JSON.stringify(body || {});
   const payloadParts = [config.appId, timestamp, nonce, bodyText];
-  const useLegacyApiKey = mode === 'apiKey' || !config.developerPrivateKey;
-  const signature = useLegacyApiKey
-    ? crypto.createHash('sha256').update([...payloadParts, config.apiKey].join('.')).digest('hex')
-    : crypto.sign('RSA-SHA256', Buffer.from(payloadParts.join('.'), 'utf8'), config.developerPrivateKey).toString('base64');
+  const signature = crypto.sign('RSA-SHA256', Buffer.from(payloadParts.join('.'), 'utf8'), config.developerPrivateKey).toString('base64');
   return {
     bodyText,
     headers: {
@@ -5009,30 +5003,20 @@ const syncUCardProductsFromUpstream = db.transaction((products = []) => {
 async function postUCardUpalJson(pathname, body = {}) {
   if (typeof fetch !== 'function') throw new Error('当前 Node 版本不支持 fetch');
   const config = assertUCardUpalReady();
-  const modes = config.developerPrivateKey && config.apiKey ? ['rsa', 'apiKey'] : [config.developerPrivateKey ? 'rsa' : 'apiKey'];
-  let lastResponse = null;
-  let lastPayload = {};
-  for (const mode of modes) {
-    const { bodyText, headers } = buildUCardUpalSignatureHeaders(body, config, mode);
-    const response = await fetch(`${U_CARD_UPAL_BASE_URL}${pathname}`, {
-      method: 'POST',
-      headers,
-      body: bodyText
-    });
-    const payload = await response.json().catch(() => ({}));
-    lastResponse = response;
-    lastPayload = payload;
-    if (response.ok && payload?.ok !== false && payload?.success !== false) {
-      return payload;
-    }
-    if (!(mode === 'rsa' && config.apiKey && isUCardUpalUnauthorized(response, payload))) {
-      break;
-    }
+  const { bodyText, headers } = buildUCardUpalSignatureHeaders(body, config);
+  const response = await fetch(`${U_CARD_UPAL_BASE_URL}${pathname}`, {
+    method: 'POST',
+    headers,
+    body: bodyText
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (response.ok && payload?.ok !== false && payload?.success !== false) {
+    return payload;
   }
   const message =
-    lastPayload?.error || lastPayload?.message || lastPayload?.msg || `上游请求失败：${lastResponse?.status || 0}`;
+    payload?.error || payload?.message || payload?.msg || `上游请求失败：${response?.status || 0}`;
   const error = new Error(String(message || '上游请求失败'));
-  error.statusCode = Number(lastResponse?.status || 502) || 502;
+  error.statusCode = Number(response?.status || 502) || 502;
   throw error;
 }
 
@@ -11752,7 +11736,6 @@ app.get('/api/admin/u-card/upstream-config', requireAdmin, (_req, res) => {
 
 app.put('/api/admin/u-card/upstream-config', requireAdmin, (req, res) => {
   const appId = String(req.body?.appId ?? req.body?.uCardUpalAppId ?? '').trim();
-  const apiKey = String(req.body?.apiKey ?? req.body?.uCardUpalApiKey ?? '').trim();
   const developerPrivateKey = normalizePem(req.body?.developerPrivateKey ?? req.body?.uCardUpalDeveloperPrivateKey ?? '');
   const platformPublicKey = normalizePem(req.body?.platformPublicKey ?? req.body?.uCardUpalPlatformPublicKey ?? '');
   const rechargeFeeRateRaw = String(req.body?.rechargeFeeRate ?? req.body?.uCardRechargeFeeRate ?? U_CARD_RECHARGE_DEFAULT_FEE_RATE).trim();
@@ -11761,15 +11744,9 @@ app.put('/api/admin/u-card/upstream-config', requireAdmin, (req, res) => {
     req.body?.keepDeveloperPrivateKey === true ||
     req.body?.keepUCardUpalDeveloperPrivateKey === true ||
     String(req.body?.keepDeveloperPrivateKey ?? req.body?.keepUCardUpalDeveloperPrivateKey ?? '').trim() === 'true';
-  const keepApiKey =
-    req.body?.keepApiKey === true ||
-    req.body?.keepUCardUpalApiKey === true ||
-    String(req.body?.keepApiKey ?? req.body?.keepUCardUpalApiKey ?? '').trim() === 'true';
   const shouldUpdateDeveloperPrivateKey = Boolean(developerPrivateKey && !keepDeveloperPrivateKey);
-  const shouldUpdateApiKey = Boolean(apiKey && !keepApiKey);
 
   if (Buffer.byteLength(appId, 'utf8') > 500) return res.status(413).json({ error: 'APP ID 太长' });
-  if (Buffer.byteLength(apiKey, 'utf8') > 2000) return res.status(413).json({ error: 'API Key 太长' });
   if (Buffer.byteLength(developerPrivateKey, 'utf8') > 20000) return res.status(413).json({ error: '开发者私钥太长' });
   if (Buffer.byteLength(platformPublicKey, 'utf8') > 20000) return res.status(413).json({ error: '平台公钥太长' });
   if (!/^(?:0(?:\.\d{1,6})?|1(?:\.0{1,6})?)$/.test(rechargeFeeRateRaw) || Number(rechargeFeeRateRaw) >= 1) {
@@ -11788,9 +11765,6 @@ app.put('/api/admin/u-card/upstream-config', requireAdmin, (req, res) => {
     upsertSettingStmt.run('u_card_upal_app_id', appId);
     upsertSettingStmt.run('u_card_upal_platform_public_key', platformPublicKey);
     upsertSettingStmt.run('u_card_recharge_fee_rate', rechargeFeeRate);
-    if (shouldUpdateApiKey) {
-      upsertSettingStmt.run('u_card_upal_api_key', apiKey);
-    }
     if (shouldUpdateDeveloperPrivateKey) {
       upsertSettingStmt.run('u_card_upal_developer_private_key', developerPrivateKey);
     }

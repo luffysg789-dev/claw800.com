@@ -190,7 +190,6 @@ const TUTORIAL_MAX_BYTES = 5000000;
 const TUTORIAL_UPLOAD_CHUNK_SIZE = 100000;
 const SAVED_NEXA_SECRET_MASK = '••••••••已保存';
 const SAVED_U_CARD_UPAL_PRIVATE_KEY_MASK = '••••••••私钥已保存';
-const SAVED_U_CARD_UPAL_API_KEY_MASK = '••••••••API Key 已保存';
 const DEFAULT_SITE_CONFIG = {
   title: 'claw800.com',
   subtitleZh: '龙虾学习导航网，为你的龙虾赋能。',
@@ -418,7 +417,6 @@ const texts = {
     uCardProductChannel3: '渠道 3',
     uCardProductLocalPrice: '本地开卡价',
     uCardUpalAppIdLabel: 'APP ID',
-    uCardUpalApiKeyLabel: 'API Key（兼容旧 SHA256 签名；留空则保留已保存 API Key）',
     uCardUpalDeveloperPrivateKeyLabel: '开发者私钥（BEGIN PRIVATE KEY，用于 uPAL 请求签名；留空则保留已保存私钥）',
     uCardGenerateDeveloperKeypairBtn: '生成开发者密钥对',
     uCardUpalCustomerPublicKeyLabel: '客户公钥 / 商户公钥',
@@ -780,7 +778,6 @@ const texts = {
     uCardProductChannel3: 'Channel 3',
     uCardProductLocalPrice: 'Local Open Price',
     uCardUpalAppIdLabel: 'APP ID',
-    uCardUpalApiKeyLabel: 'API Key (legacy SHA256 signing; leave blank to keep saved key)',
     uCardUpalDeveloperPrivateKeyLabel: 'Developer Private Key (BEGIN PRIVATE KEY; used to sign uPAL requests; leave blank to keep saved key)',
     uCardGenerateDeveloperKeypairBtn: 'Generate Developer Keypair',
     uCardUpalCustomerPublicKeyLabel: 'Customer / Merchant Public Key',
@@ -1417,7 +1414,6 @@ function applyLanguage() {
   document.getElementById('uCardApplicationsTitle').textContent = dict.uCardApplicationsTitle;
   document.getElementById('uCardProductsRefreshBtn').textContent = dict.uCardProductsRefreshBtn;
   document.getElementById('uCardUpalAppIdLabel').childNodes[0].textContent = dict.uCardUpalAppIdLabel;
-  document.getElementById('uCardUpalApiKeyLabel').childNodes[0].textContent = dict.uCardUpalApiKeyLabel;
   document.getElementById('uCardUpalDeveloperPrivateKeyLabel').childNodes[0].textContent = dict.uCardUpalDeveloperPrivateKeyLabel;
   document.getElementById('uCardGenerateDeveloperKeypairBtn').textContent = dict.uCardGenerateDeveloperKeypairBtn;
   document.getElementById('uCardUpalCustomerPublicKeyLabel').childNodes[0].textContent = dict.uCardUpalCustomerPublicKeyLabel;
@@ -2789,15 +2785,11 @@ function getUCardUpstreamConfigControl(name) {
 
 function fillUCardUpstreamConfigForm(config = {}) {
   const appIdEl = getUCardUpstreamConfigControl('uCardUpalAppId');
-  const apiKeyEl = getUCardUpstreamConfigControl('uCardUpalApiKey');
   const developerPrivateKeyEl = getUCardUpstreamConfigControl('uCardUpalDeveloperPrivateKey');
   const customerPublicKeyEl = getUCardUpstreamConfigControl('uCardUpalCustomerPublicKey');
   const platformPublicKeyEl = getUCardUpstreamConfigControl('uCardUpalPlatformPublicKey');
   const rechargeFeeRateEl = getUCardUpstreamConfigControl('uCardRechargeFeeRate');
   if (appIdEl) appIdEl.value = String(config.appId || '');
-  if (apiKeyEl) {
-    apiKeyEl.value = config.hasApiKey ? SAVED_U_CARD_UPAL_API_KEY_MASK : '';
-  }
   if (developerPrivateKeyEl) {
     developerPrivateKeyEl.value = config.hasDeveloperPrivateKey ? SAVED_U_CARD_UPAL_PRIVATE_KEY_MASK : '';
   }
@@ -3254,11 +3246,9 @@ if (uCardUpstreamConfigForm) {
     setUCardUpstreamConfigMessage();
     const body = {
       appId: String(payload.uCardUpalAppId || '').trim(),
-      apiKey: String(payload.uCardUpalApiKey || '').trim(),
       developerPrivateKey: String(payload.uCardUpalDeveloperPrivateKey || '').trim(),
       platformPublicKey: String(payload.uCardUpalPlatformPublicKey || '').trim(),
       uCardRechargeFeeRate: String(payload.uCardRechargeFeeRate || '0.02').trim(),
-      keepUCardUpalApiKey: String(payload.uCardUpalApiKey || '').trim() === SAVED_U_CARD_UPAL_API_KEY_MASK,
       keepUCardUpalDeveloperPrivateKey:
         String(payload.uCardUpalDeveloperPrivateKey || '').trim() === SAVED_U_CARD_UPAL_PRIVATE_KEY_MASK
     };

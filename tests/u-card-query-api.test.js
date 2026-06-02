@@ -113,23 +113,23 @@ test('public U card products endpoint requires upstream config', async () => {
   }
 });
 
-test('public U card products endpoint supports legacy apiKey sha256 signature', async () => {
+test('public U card products endpoint signs requests with developer RSA private key', async () => {
   const harness = createHarness();
   const previousFetch = global.fetch;
   try {
     const cookies = await loginAdmin(harness);
+    const generated = await harness.request('POST', '/api/admin/u-card/upstream-config/generate-keypair', {}, cookies);
     const save = await harness.request(
       'PUT',
       '/api/admin/u-card/upstream-config',
       {
-        appId: 'upal-app-legacy',
-        apiKey: 'legacy-api-secret'
+        appId: 'upal-app-rsa',
+        developerPrivateKey: generated.body.developerPrivateKey
       },
       cookies
     );
     assert.equal(save.statusCode, 200);
-    assert.equal(save.body.hasApiKey, true);
-    assert.equal(save.body.apiKey, '');
+    assert.equal(save.body.hasDeveloperPrivateKey, true);
 
     let captured = null;
     global.fetch = async (url, options = {}) => {
@@ -138,19 +138,16 @@ test('public U card products endpoint supports legacy apiKey sha256 signature', 
         headers: options.headers,
         body: String(options.body || '')
       };
-      const expected = crypto
-        .createHash('sha256')
-        .update(
-          [
-            captured.headers['x-app-id'],
-            captured.headers['x-timestamp'],
-            captured.headers['x-nonce'],
-            captured.body,
-            'legacy-api-secret'
-          ].join('.')
-        )
-        .digest('hex');
-      assert.equal(captured.headers['x-signature'], expected);
+      const signedPayload = [
+        captured.headers['x-app-id'],
+        captured.headers['x-timestamp'],
+        captured.headers['x-nonce'],
+        captured.body
+      ].join('.');
+      assert.equal(
+        crypto.verify('RSA-SHA256', Buffer.from(signedPayload, 'utf8'), generated.body.customerPublicKey, Buffer.from(captured.headers['x-signature'], 'base64')),
+        true
+      );
       return {
         ok: true,
         status: 200,
@@ -160,8 +157,8 @@ test('public U card products endpoint supports legacy apiKey sha256 signature', 
             data: {
               products: [
                 {
-                  code: 'legacy-card',
-                  name: 'Legacy Card',
+                  code: 'rsa-card',
+                  name: 'RSA Card',
                   feeAmount: '5.00',
                   currency: 'USDT'
                 }
@@ -175,14 +172,14 @@ test('public U card products endpoint supports legacy apiKey sha256 signature', 
     const response = await harness.request('GET', '/api/u-card/products');
     assert.equal(response.statusCode, 200);
     assert.equal(captured.url, 'https://b.alipay.bot/backend/open-api/cards/products');
-    assert.equal(response.body.items[0].product_code, 'legacy-card');
+    assert.equal(response.body.items[0].product_code, 'rsa-card');
   } finally {
     global.fetch = previousFetch;
     harness.cleanup();
   }
 });
 
-test('U card upstream falls back to legacy apiKey signature after RSA unauthorized', async () => {
+test('U card upstream does not fall back to apiKey when RSA is unauthorized', async () => {
   const harness = createHarness();
   const previousFetch = global.fetch;
   try {
@@ -192,8 +189,7 @@ test('U card upstream falls back to legacy apiKey signature after RSA unauthoriz
       'PUT',
       '/api/admin/u-card/upstream-config',
       {
-        appId: 'upal-app-fallback',
-        apiKey: 'fallback-api-secret',
+        appId: 'upal-app-no-fallback',
         developerPrivateKey: generated.body.developerPrivateKey
       },
       cookies
@@ -202,42 +198,19 @@ test('U card upstream falls back to legacy apiKey signature after RSA unauthoriz
     const signatures = [];
     global.fetch = async (_url, options = {}) => {
       signatures.push(String(options.headers?.['x-signature'] || ''));
-      if (signatures.length === 1) {
-        return {
-          ok: false,
-          status: 401,
-          async json() {
-            return { ok: false, error: 'Unauthorized' };
-          }
-        };
-      }
-      const bodyText = String(options.body || '');
-      const expected = crypto
-        .createHash('sha256')
-        .update(
-          [
-            options.headers['x-app-id'],
-            options.headers['x-timestamp'],
-            options.headers['x-nonce'],
-            bodyText,
-            'fallback-api-secret'
-          ].join('.')
-        )
-        .digest('hex');
-      assert.equal(options.headers['x-signature'], expected);
       return {
-        ok: true,
-        status: 200,
+        ok: false,
+        status: 401,
         async json() {
-          return { ok: true, data: { products: [{ code: 'fallback-card', name: 'Fallback Card', feeAmount: '6.00', currency: 'USDT' }] } };
+          return { ok: false, error: 'Unauthorized' };
         }
       };
     };
 
     const response = await harness.request('GET', '/api/admin/u-card/products', null, cookies);
-    assert.equal(response.statusCode, 200);
-    assert.equal(response.body.items[0].product_code, 'fallback-card');
-    assert.equal(signatures.length, 2);
+    assert.equal(response.statusCode, 502);
+    assert.equal(response.body.error, 'Unauthorized');
+    assert.equal(signatures.length, 1);
   } finally {
     global.fetch = previousFetch;
     harness.cleanup();
@@ -249,12 +222,13 @@ test('admin U card product fetch does not treat upstream unauthorized as admin l
   const previousFetch = global.fetch;
   try {
     const cookies = await loginAdmin(harness);
+    const generated = await harness.request('POST', '/api/admin/u-card/upstream-config/generate-keypair', {}, cookies);
     await harness.request(
       'PUT',
       '/api/admin/u-card/upstream-config',
       {
         appId: 'upal-app-unauthorized',
-        apiKey: 'bad-api-key'
+        developerPrivateKey: generated.body.developerPrivateKey
       },
       cookies
     );
