@@ -819,6 +819,7 @@
       const U_CARD_REVIEW_POLL_INTERVAL_MS = 5 * 60 * 1000;
       const U_CARD_RECHARGE_PAYMENT_TIMEOUT_MS = 2 * 60 * 1000;
       const U_CARD_RECHARGE_FEE_RATE_DEFAULT = 0.02;
+      const U_CARD_SESSION_WAIT_TIMEOUT_MS = 2000;
       const U_CARD_SESSION_STORAGE_KEY = 'claw800:u-card:nexa-session';
       const U_CARD_PENDING_PAYMENT_STORAGE_KEY = 'claw800:u-card:pending-payment';
 
@@ -860,6 +861,8 @@
       let uCardInfoMessageTimer = null;
       let currentUCardRechargeFeeRate = U_CARD_RECHARGE_FEE_RATE_DEFAULT;
       let myCardsRefreshController = null;
+      let nexaSessionSyncPromise = null;
+      let nexaSessionSyncInFlight = false;
 
       tabButtons.forEach((button) => {
         button.addEventListener('click', () => {
@@ -1066,9 +1069,14 @@
         const fast = options.fast !== false;
         const silent = Boolean(options.silent);
         const backgroundRefresh = options.backgroundRefresh !== false;
-        const session = readCachedNexaSession();
+        let session = readCachedNexaSession();
+        if (!session?.openId && nexaSessionSyncInFlight) {
+          if (!silent) setMineCardsStatus('正在加载我的卡...');
+          session = await waitForNexaSessionSync();
+        }
         if (!session?.openId) {
-          renderMyCards([]);
+          mineCardsList.innerHTML = '';
+          setMineCardsStatus(nexaSessionSyncInFlight ? '正在完成 Nexa 登录...' : '申请成功后，卡会显示在这里。');
           scheduleUCardReviewPolling();
           return;
         }
@@ -1106,6 +1114,16 @@
         } finally {
           if (myCardsRefreshController === controller) myCardsRefreshController = null;
         }
+      }
+
+      async function waitForNexaSessionSync(timeoutMs = U_CARD_SESSION_WAIT_TIMEOUT_MS) {
+        if (!nexaSessionSyncPromise) return readCachedNexaSession();
+        return Promise.race([
+          nexaSessionSyncPromise.then(() => readCachedNexaSession()),
+          new Promise((resolve) => {
+            window.setTimeout(() => resolve(readCachedNexaSession()), timeoutMs);
+          })
+        ]);
       }
 
       function hasReviewPendingCards() {
@@ -2114,7 +2132,11 @@
       });
       selectPendingPaymentTab();
       loadUCardProducts();
-      syncSessionFromAuthCode().then(() => loadMyCards()).then(settlePendingPayment);
+      nexaSessionSyncInFlight = true;
+      nexaSessionSyncPromise = syncSessionFromAuthCode().finally(() => {
+        nexaSessionSyncInFlight = false;
+      });
+      nexaSessionSyncPromise.then(() => loadMyCards()).then(settlePendingPayment);
     </script>
   </body>
 </html>

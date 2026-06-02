@@ -124,6 +124,19 @@ test('U card application requires payment before showing cardholder form', () =>
   assert.match(html, /\.form-row input,\s*\.form-row select\s*\{[\s\S]*font-size:\s*16px;/);
 });
 
+test('U card my cards waits briefly for Nexa session before showing an empty list', () => {
+  const html = fs.readFileSync(uCardApplyHtmlPath, 'utf8');
+  assert.match(html, /const U_CARD_SESSION_WAIT_TIMEOUT_MS = 2000;/);
+  assert.match(html, /let nexaSessionSyncPromise = null;/);
+  assert.match(html, /let nexaSessionSyncInFlight = false;/);
+  assert.match(html, /async function waitForNexaSessionSync\(timeoutMs = U_CARD_SESSION_WAIT_TIMEOUT_MS\)/);
+  assert.match(html, /if \(!session\?\.openId && nexaSessionSyncInFlight\) \{[\s\S]*setMineCardsStatus\('正在加载我的卡\.\.\.'\)/);
+  assert.match(html, /session = await waitForNexaSessionSync\(\);/);
+  assert.match(html, /nexaSessionSyncInFlight \? '正在完成 Nexa 登录\.\.\.' : '申请成功后，卡会显示在这里。'/);
+  assert.match(html, /nexaSessionSyncInFlight = true;\s*nexaSessionSyncPromise = syncSessionFromAuthCode\(\)\.finally\(\(\) => \{/);
+  assert.match(html, /nexaSessionSyncPromise\.then\(\(\) => loadMyCards\(\)\)\.then\(settlePendingPayment\);/);
+});
+
 test('U card application page exposes approved card upstream actions', () => {
   const html = fs.readFileSync(uCardApplyHtmlPath, 'utf8');
   assert.match(html, /data-recharge-card/);
