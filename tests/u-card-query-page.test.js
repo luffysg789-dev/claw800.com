@@ -269,7 +269,7 @@ test('U card admin supports optional issuer region on add and edit forms', () =>
 
   assert.match(adminHtml, /id="uCardIssuerRegionLabel"[\s\S]*name="issuerRegion"[\s\S]*value="美国"[\s\S]*value="香港"[\s\S]*value="新加坡"/);
   assert.match(adminHtml, /id="uCardSyncUpstreamBtn"[\s\S]*一键同步上游场景资料/);
-  assert.match(adminHtml, /\/admin\.js\?v=20260519-03/);
+  assert.match(adminHtml, /\/admin\.js\?v=20260602-01/);
   assert.match(adminJs, /uCardIssuerRegionLabel:\s*'发行地'/);
   assert.match(adminJs, /uCardIssuerRegionNone:\s*'不选择'/);
   assert.match(adminJs, /uCardSyncUpstreamBtn:\s*'一键同步上游场景资料'/);

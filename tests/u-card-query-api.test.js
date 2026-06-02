@@ -113,6 +113,137 @@ test('public U card products endpoint requires upstream config', async () => {
   }
 });
 
+test('public U card products endpoint supports legacy apiKey sha256 signature', async () => {
+  const harness = createHarness();
+  const previousFetch = global.fetch;
+  try {
+    const cookies = await loginAdmin(harness);
+    const save = await harness.request(
+      'PUT',
+      '/api/admin/u-card/upstream-config',
+      {
+        appId: 'upal-app-legacy',
+        apiKey: 'legacy-api-secret'
+      },
+      cookies
+    );
+    assert.equal(save.statusCode, 200);
+    assert.equal(save.body.hasApiKey, true);
+    assert.equal(save.body.apiKey, '');
+
+    let captured = null;
+    global.fetch = async (url, options = {}) => {
+      captured = {
+        url: String(url),
+        headers: options.headers,
+        body: String(options.body || '')
+      };
+      const expected = crypto
+        .createHash('sha256')
+        .update(
+          [
+            captured.headers['x-app-id'],
+            captured.headers['x-timestamp'],
+            captured.headers['x-nonce'],
+            captured.body,
+            'legacy-api-secret'
+          ].join('.')
+        )
+        .digest('hex');
+      assert.equal(captured.headers['x-signature'], expected);
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            ok: true,
+            data: {
+              products: [
+                {
+                  code: 'legacy-card',
+                  name: 'Legacy Card',
+                  feeAmount: '5.00',
+                  currency: 'USDT'
+                }
+              ]
+            }
+          };
+        }
+      };
+    };
+
+    const response = await harness.request('GET', '/api/u-card/products');
+    assert.equal(response.statusCode, 200);
+    assert.equal(captured.url, 'https://b.alipay.bot/backend/open-api/cards/products');
+    assert.equal(response.body.items[0].product_code, 'legacy-card');
+  } finally {
+    global.fetch = previousFetch;
+    harness.cleanup();
+  }
+});
+
+test('U card upstream falls back to legacy apiKey signature after RSA unauthorized', async () => {
+  const harness = createHarness();
+  const previousFetch = global.fetch;
+  try {
+    const cookies = await loginAdmin(harness);
+    const generated = await harness.request('POST', '/api/admin/u-card/upstream-config/generate-keypair', {}, cookies);
+    await harness.request(
+      'PUT',
+      '/api/admin/u-card/upstream-config',
+      {
+        appId: 'upal-app-fallback',
+        apiKey: 'fallback-api-secret',
+        developerPrivateKey: generated.body.developerPrivateKey
+      },
+      cookies
+    );
+
+    const signatures = [];
+    global.fetch = async (_url, options = {}) => {
+      signatures.push(String(options.headers?.['x-signature'] || ''));
+      if (signatures.length === 1) {
+        return {
+          ok: false,
+          status: 401,
+          async json() {
+            return { ok: false, error: 'Unauthorized' };
+          }
+        };
+      }
+      const bodyText = String(options.body || '');
+      const expected = crypto
+        .createHash('sha256')
+        .update(
+          [
+            options.headers['x-app-id'],
+            options.headers['x-timestamp'],
+            options.headers['x-nonce'],
+            bodyText,
+            'fallback-api-secret'
+          ].join('.')
+        )
+        .digest('hex');
+      assert.equal(options.headers['x-signature'], expected);
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { ok: true, data: { products: [{ code: 'fallback-card', name: 'Fallback Card', feeAmount: '6.00', currency: 'USDT' }] } };
+        }
+      };
+    };
+
+    const response = await harness.request('GET', '/api/admin/u-card/products', null, cookies);
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.items[0].product_code, 'fallback-card');
+    assert.equal(signatures.length, 2);
+  } finally {
+    global.fetch = previousFetch;
+    harness.cleanup();
+  }
+});
+
 test('public U card products endpoint signs and normalizes upstream products', async () => {
   const harness = createHarness();
   const previousFetch = global.fetch;

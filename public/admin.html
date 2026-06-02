@@ -368,6 +368,7 @@
               <div class="review-card">
                 <form id="uCardUpstreamConfigForm" class="admin-add-form">
                   <label id="uCardUpalAppIdLabel">APP ID<input name="uCardUpalAppId" autocomplete="off" spellcheck="false" /></label>
+                  <label id="uCardUpalApiKeyLabel">API Key（兼容旧 SHA256 签名；留空则保留已保存 API Key）<input name="uCardUpalApiKey" autocomplete="off" spellcheck="false" /></label>
                   <label id="uCardUpalDeveloperPrivateKeyLabel">
                     开发者私钥（BEGIN PRIVATE KEY，用于 uPAL 请求签名；留空则保留已保存私钥）
                     <textarea name="uCardUpalDeveloperPrivateKey" rows="6" autocomplete="off" spellcheck="false"></textarea>
@@ -499,6 +500,6 @@
       </section>
     </main>
 
-    <script src="/admin.js?v=20260519-03"></script>
+    <script src="/admin.js?v=20260602-01"></script>
   </body>
 </html>

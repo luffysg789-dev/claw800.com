@@ -1412,6 +1412,9 @@ db.prepare(
   "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('u_card_upal_app_id', '', datetime('now'))"
 ).run();
 db.prepare(
+  "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('u_card_upal_api_key', '', datetime('now'))"
+).run();
+db.prepare(
   "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('u_card_upal_developer_private_key', '', datetime('now'))"
 ).run();
 db.prepare(
