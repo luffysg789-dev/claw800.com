@@ -387,6 +387,7 @@ function getUCardUpalConfig() {
 function getUCardUpalPrivateConfig() {
   return {
     appId: String(getSetting('u_card_upal_app_id', '') || '').trim(),
+    apiKey: String(getSetting('u_card_upal_api_key', '') || '').trim(),
     developerPrivateKey: normalizePem(getSetting('u_card_upal_developer_private_key', ''))
   };
 }
@@ -4779,12 +4780,15 @@ async function fetchTextWithTimeout(url, timeoutMs = 30000) {
   }
 }
 
-function buildUCardUpalSignatureHeaders(body = {}, config = assertUCardUpalReady()) {
+function buildUCardUpalSignatureHeaders(body = {}, config = assertUCardUpalReady(), mode = 'rsa') {
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const nonce = crypto.randomUUID();
   const bodyText = JSON.stringify(body || {});
   const payloadParts = [config.appId, timestamp, nonce, bodyText];
-  const signature = crypto.sign('RSA-SHA256', Buffer.from(payloadParts.join('.'), 'utf8'), config.developerPrivateKey).toString('base64');
+  const useLegacyApiKey = mode === 'apiKey' || !config.developerPrivateKey;
+  const signature = useLegacyApiKey
+    ? crypto.createHash('sha256').update([...payloadParts, config.apiKey].join('.')).digest('hex')
+    : crypto.sign('RSA-SHA256', Buffer.from(payloadParts.join('.'), 'utf8'), config.developerPrivateKey).toString('base64');
   return {
     bodyText,
     headers: {
@@ -5003,20 +5007,30 @@ const syncUCardProductsFromUpstream = db.transaction((products = []) => {
 async function postUCardUpalJson(pathname, body = {}) {
   if (typeof fetch !== 'function') throw new Error('当前 Node 版本不支持 fetch');
   const config = assertUCardUpalReady();
-  const { bodyText, headers } = buildUCardUpalSignatureHeaders(body, config);
-  const response = await fetch(`${U_CARD_UPAL_BASE_URL}${pathname}`, {
-    method: 'POST',
-    headers,
-    body: bodyText
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (response.ok && payload?.ok !== false && payload?.success !== false) {
-    return payload;
+  const modes = config.developerPrivateKey && config.apiKey ? ['rsa', 'apiKey'] : [config.developerPrivateKey ? 'rsa' : 'apiKey'];
+  let lastResponse = null;
+  let lastPayload = {};
+  for (const mode of modes) {
+    const { bodyText, headers } = buildUCardUpalSignatureHeaders(body, config, mode);
+    const response = await fetch(`${U_CARD_UPAL_BASE_URL}${pathname}`, {
+      method: 'POST',
+      headers,
+      body: bodyText
+    });
+    const payload = await response.json().catch(() => ({}));
+    lastResponse = response;
+    lastPayload = payload;
+    if (response.ok && payload?.ok !== false && payload?.success !== false) {
+      return payload;
+    }
+    if (!(mode === 'rsa' && config.apiKey && isUCardUpalUnauthorized(response, payload))) {
+      break;
+    }
   }
   const message =
-    payload?.error || payload?.message || payload?.msg || `上游请求失败：${response?.status || 0}`;
+    lastPayload?.error || lastPayload?.message || lastPayload?.msg || `上游请求失败：${lastResponse?.status || 0}`;
   const error = new Error(String(message || '上游请求失败'));
-  error.statusCode = Number(response?.status || 502) || 502;
+  error.statusCode = Number(lastResponse?.status || 502) || 502;
   throw error;
 }
 

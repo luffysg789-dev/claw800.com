@@ -179,7 +179,7 @@ test('public U card products endpoint signs requests with developer RSA private 
   }
 });
 
-test('U card upstream does not fall back to apiKey when RSA is unauthorized', async () => {
+test('U card upstream falls back to saved legacy apiKey when RSA is unauthorized', async () => {
   const harness = createHarness();
   const previousFetch = global.fetch;
   try {
@@ -194,10 +194,42 @@ test('U card upstream does not fall back to apiKey when RSA is unauthorized', as
       },
       cookies
     );
+    harness.db
+      .prepare("UPDATE settings SET value = ?, updated_at = datetime('now') WHERE key = 'u_card_upal_api_key'")
+      .run('legacy-upstream-api-key');
 
     const signatures = [];
     global.fetch = async (_url, options = {}) => {
       signatures.push(String(options.headers?.['x-signature'] || ''));
+      if (signatures.length === 2) {
+        const signedPayload = [
+          options.headers['x-app-id'],
+          options.headers['x-timestamp'],
+          options.headers['x-nonce'],
+          String(options.body || ''),
+          'legacy-upstream-api-key'
+        ].join('.');
+        assert.equal(signatures[1], crypto.createHash('sha256').update(signedPayload).digest('hex'));
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              ok: true,
+              data: {
+                products: [
+                  {
+                    code: 'legacy-fallback-card',
+                    name: 'Legacy Fallback Card',
+                    feeAmount: '5.00',
+                    currency: 'USDT'
+                  }
+                ]
+              }
+            };
+          }
+        };
+      }
       return {
         ok: false,
         status: 401,
@@ -208,9 +240,9 @@ test('U card upstream does not fall back to apiKey when RSA is unauthorized', as
     };
 
     const response = await harness.request('GET', '/api/admin/u-card/products', null, cookies);
-    assert.equal(response.statusCode, 502);
-    assert.equal(response.body.error, 'Unauthorized');
-    assert.equal(signatures.length, 1);
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.items[0].product_code, 'legacy-fallback-card');
+    assert.equal(signatures.length, 2);
   } finally {
     global.fetch = previousFetch;
     harness.cleanup();
