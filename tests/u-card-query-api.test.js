@@ -1152,6 +1152,7 @@ test('admin U card panel includes upstream credential configuration controls', (
   assert.doesNotMatch(uCardSection, /id="uCardNavUpstreamConfig"/);
   assert.match(adminHtml, /id="uCardUpstreamConfigSection"/);
   assert.match(adminHtml, /name="uCardUpalAppId"/);
+  assert.match(adminHtml, /name="uCardUpalApiKey"/);
   assert.match(adminHtml, /name="uCardUpalDeveloperPrivateKey"/);
   assert.match(adminHtml, /id="uCardGenerateDeveloperKeypairBtn"/);
   assert.match(adminHtml, /id="uCardTestUpstreamProductsBtn"/);
@@ -1194,6 +1195,10 @@ test('admin U card panel includes upstream credential configuration controls', (
   assert.match(adminJs, /adminUCardUpstreamConfigSection\.classList\.toggle\('hidden', view !== 'u-card-upstream-config'\)/);
   assert.match(adminJs, /adminUCardProductsSection\.classList\.toggle\('hidden', view !== 'u-card-products'\)/);
   assert.match(adminJs, /adminUCardApplicationsSection\.classList\.toggle\('hidden', view !== 'u-card-applications'\)/);
+  assert.match(adminJs, /SAVED_U_CARD_UPAL_API_KEY_MASK/);
+  assert.match(adminJs, /config\.hasApiKey \? SAVED_U_CARD_UPAL_API_KEY_MASK : ''/);
+  assert.match(adminJs, /apiKey:\s*String\(payload\.uCardUpalApiKey \|\| ''\)\.trim\(\)/);
+  assert.match(adminJs, /keepUCardUpalApiKey:\s*String\(payload\.uCardUpalApiKey \|\| ''\)\.trim\(\) === SAVED_U_CARD_UPAL_API_KEY_MASK/);
   assert.match(adminJs, /keepUCardUpalDeveloperPrivateKey:\s*String\(payload\.uCardUpalDeveloperPrivateKey \|\| ''\)\.trim\(\) === SAVED_U_CARD_UPAL_PRIVATE_KEY_MASK/);
   assert.match(adminJs, /uCardRechargeFeeRate:\s*String\(payload\.uCardRechargeFeeRate \|\| '0\.02'\)\.trim\(\)/);
 });
@@ -1214,6 +1219,7 @@ test('admin can save U card upstream credentials without private key disclosure'
       '/api/admin/u-card/upstream-config',
       {
         appId: 'upal-app-001',
+        apiKey: 'legacy-api-key-save',
         developerPrivateKey: generated.body.developerPrivateKey,
         platformPublicKey: '-----BEGIN PUBLIC KEY-----\nplatform-key\n-----END PUBLIC KEY-----'
       },
@@ -1222,6 +1228,8 @@ test('admin can save U card upstream credentials without private key disclosure'
     assert.equal(save.statusCode, 200);
     assert.equal(save.body.ok, true);
     assert.equal(save.body.appId, 'upal-app-001');
+    assert.equal(save.body.apiKey, '');
+    assert.equal(save.body.hasApiKey, true);
     assert.equal(save.body.developerPrivateKey, '');
     assert.equal(save.body.hasDeveloperPrivateKey, true);
     assert.equal(save.body.customerPublicKey, generated.body.customerPublicKey);
@@ -1229,6 +1237,8 @@ test('admin can save U card upstream credentials without private key disclosure'
     const adminConfig = await harness.request('GET', '/api/admin/u-card/upstream-config', null, cookies);
     assert.equal(adminConfig.statusCode, 200);
     assert.equal(adminConfig.body.appId, 'upal-app-001');
+    assert.equal(adminConfig.body.apiKey, '');
+    assert.equal(adminConfig.body.hasApiKey, true);
     assert.equal(adminConfig.body.developerPrivateKey, '');
     assert.equal(adminConfig.body.hasDeveloperPrivateKey, true);
     assert.equal(adminConfig.body.customerPublicKey, generated.body.customerPublicKey);
@@ -1240,6 +1250,8 @@ test('admin can save U card upstream credentials without private key disclosure'
       '/api/admin/u-card/upstream-config',
       {
         appId: 'upal-app-002',
+        apiKey: '',
+        keepUCardUpalApiKey: true,
         developerPrivateKey: '',
         platformPublicKey: 'platform-public-key-2',
         uCardRechargeFeeRate: '0.05'
@@ -1248,18 +1260,23 @@ test('admin can save U card upstream credentials without private key disclosure'
     );
     assert.equal(keepSave.statusCode, 200);
     assert.equal(keepSave.body.appId, 'upal-app-002');
+    assert.equal(keepSave.body.hasApiKey, true);
     assert.equal(keepSave.body.hasDeveloperPrivateKey, true);
     assert.equal(keepSave.body.rechargeFeeRate, '0.05');
     assert.equal(keepSave.body.customerPublicKey, generated.body.customerPublicKey);
 
     const storedPrivateKey = harness.db.prepare("SELECT value FROM settings WHERE key = 'u_card_upal_developer_private_key'").get();
     assert.equal(storedPrivateKey.value, generated.body.developerPrivateKey);
+    const storedApiKey = harness.db.prepare("SELECT value FROM settings WHERE key = 'u_card_upal_api_key'").get();
+    assert.equal(storedApiKey.value, 'legacy-api-key-save');
 
     const maskedSave = await harness.request(
       'PUT',
       '/api/admin/u-card/upstream-config',
       {
         appId: 'upal-app-003',
+        apiKey: '••••••••API Key 已保存',
+        keepUCardUpalApiKey: false,
         developerPrivateKey: '••••••••私钥已保存',
         keepUCardUpalDeveloperPrivateKey: true,
         platformPublicKey: 'platform-public-key-3'
@@ -1269,6 +1286,8 @@ test('admin can save U card upstream credentials without private key disclosure'
     assert.equal(maskedSave.statusCode, 200);
     const storedAfterMaskedSave = harness.db.prepare("SELECT value FROM settings WHERE key = 'u_card_upal_developer_private_key'").get();
     assert.equal(storedAfterMaskedSave.value, generated.body.developerPrivateKey);
+    const storedApiKeyAfterMaskedSave = harness.db.prepare("SELECT value FROM settings WHERE key = 'u_card_upal_api_key'").get();
+    assert.equal(storedApiKeyAfterMaskedSave.value, 'legacy-api-key-save');
   } finally {
     harness.cleanup();
   }

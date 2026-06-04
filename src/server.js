@@ -376,6 +376,8 @@ function getUCardUpalConfig() {
   }
   return {
     appId: String(getSetting('u_card_upal_app_id', '') || '').trim(),
+    apiKey: '',
+    hasApiKey: Boolean(String(getSetting('u_card_upal_api_key', '') || '').trim()),
     developerPrivateKey: '',
     hasDeveloperPrivateKey: Boolean(developerPrivateKey),
     customerPublicKey,
@@ -11761,6 +11763,7 @@ app.get('/api/admin/u-card/upstream-config', requireAdmin, (_req, res) => {
 
 app.put('/api/admin/u-card/upstream-config', requireAdmin, (req, res) => {
   const appId = String(req.body?.appId ?? req.body?.uCardUpalAppId ?? '').trim();
+  const apiKey = String(req.body?.apiKey ?? req.body?.uCardUpalApiKey ?? '').trim();
   const developerPrivateKey = normalizePem(req.body?.developerPrivateKey ?? req.body?.uCardUpalDeveloperPrivateKey ?? '');
   const platformPublicKey = normalizePem(req.body?.platformPublicKey ?? req.body?.uCardUpalPlatformPublicKey ?? '');
   const rechargeFeeRateRaw = String(req.body?.rechargeFeeRate ?? req.body?.uCardRechargeFeeRate ?? U_CARD_RECHARGE_DEFAULT_FEE_RATE).trim();
@@ -11769,9 +11772,15 @@ app.put('/api/admin/u-card/upstream-config', requireAdmin, (req, res) => {
     req.body?.keepDeveloperPrivateKey === true ||
     req.body?.keepUCardUpalDeveloperPrivateKey === true ||
     String(req.body?.keepDeveloperPrivateKey ?? req.body?.keepUCardUpalDeveloperPrivateKey ?? '').trim() === 'true';
+  const keepApiKey =
+    req.body?.keepApiKey === true ||
+    req.body?.keepUCardUpalApiKey === true ||
+    String(req.body?.keepApiKey ?? req.body?.keepUCardUpalApiKey ?? '').trim() === 'true';
   const shouldUpdateDeveloperPrivateKey = Boolean(developerPrivateKey && !keepDeveloperPrivateKey);
+  const shouldUpdateApiKey = Boolean(apiKey && !keepApiKey && !apiKey.includes('已保存'));
 
   if (Buffer.byteLength(appId, 'utf8') > 500) return res.status(413).json({ error: 'APP ID 太长' });
+  if (Buffer.byteLength(apiKey, 'utf8') > 2000) return res.status(413).json({ error: 'API Key 太长' });
   if (Buffer.byteLength(developerPrivateKey, 'utf8') > 20000) return res.status(413).json({ error: '开发者私钥太长' });
   if (Buffer.byteLength(platformPublicKey, 'utf8') > 20000) return res.status(413).json({ error: '平台公钥太长' });
   if (!/^(?:0(?:\.\d{1,6})?|1(?:\.0{1,6})?)$/.test(rechargeFeeRateRaw) || Number(rechargeFeeRateRaw) >= 1) {
@@ -11790,6 +11799,9 @@ app.put('/api/admin/u-card/upstream-config', requireAdmin, (req, res) => {
     upsertSettingStmt.run('u_card_upal_app_id', appId);
     upsertSettingStmt.run('u_card_upal_platform_public_key', platformPublicKey);
     upsertSettingStmt.run('u_card_recharge_fee_rate', rechargeFeeRate);
+    if (shouldUpdateApiKey) {
+      upsertSettingStmt.run('u_card_upal_api_key', apiKey);
+    }
     if (shouldUpdateDeveloperPrivateKey) {
       upsertSettingStmt.run('u_card_upal_developer_private_key', developerPrivateKey);
     }
