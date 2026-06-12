@@ -110,6 +110,60 @@ test('Detrade balance endpoint returns the user USDT wallet balance', async () =
   }
 });
 
+test('Detrade callbacks append diagnostic logs with response status and message', async () => {
+  const harness = createHarness();
+  seedWallet(harness.db, { balance: '42.50' });
+
+  try {
+    const balance = await harness.request('GET', '/wallet/balance?currency=BTC&userId=1727404213474304');
+    assert.equal(balance.body.code, 30009);
+
+    const deduction = await harness.request('POST', '/wallet/amount/deduction', {
+      userId: '1727404213474304',
+      amount: '1',
+      currency: 'USDT',
+      bizId: 'log-order-1',
+      bizType: 'PREDICT_ORDER',
+      source: 'PLACE_PREDICT_ORDER',
+      bizSubId: 'fill-1'
+    });
+    assert.equal(deduction.body.code, 200);
+
+    const rows = harness.db
+      .prepare(
+        `SELECT request_path, request_method, external_user_id, biz_id, source, response_code, response_msg, success, error_message
+         FROM detrade_callback_logs
+         ORDER BY id ASC`
+      )
+      .all();
+    assert.equal(rows.length, 2);
+    assert.deepEqual(rows[0], {
+      request_path: '/wallet/balance',
+      request_method: 'GET',
+      external_user_id: '1727404213474304',
+      biz_id: '',
+      source: '',
+      response_code: 30009,
+      response_msg: 'Not support currency',
+      success: 0,
+      error_message: 'Not support currency'
+    });
+    assert.deepEqual(rows[1], {
+      request_path: '/wallet/amount/deduction',
+      request_method: 'POST',
+      external_user_id: '1727404213474304',
+      biz_id: 'log-order-1',
+      source: 'PLACE_PREDICT_ORDER',
+      response_code: 200,
+      response_msg: 'Success',
+      success: 1,
+      error_message: ''
+    });
+  } finally {
+    harness.cleanup();
+  }
+});
+
 test('Detrade deduction debits once and returns idempotent success for repeated callback', async () => {
   const harness = createHarness();
   const localUserId = seedWallet(harness.db, { balance: '100.00' });

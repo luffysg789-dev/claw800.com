@@ -6549,16 +6549,18 @@ app.get('/wallet/balance', (req, res) => {
   const externalUserId = String(req.query.userId ?? req.query.user_id ?? '').trim();
   const currency = normalizeDetradeCurrency(req.query.currency);
   if (!externalUserId) {
-    return res.json(detradeResponse(30001, 'Platform param invalid'));
+    return sendDetradeCallbackResponse(req, res, detradeResponse(30001, 'Platform param invalid'));
   }
   const ensured = ensureDetradeUserWallet(externalUserId);
   if (!ensured?.wallet) {
-    return res.json(detradeResponse(30005, 'Platform account not found'));
+    return sendDetradeCallbackResponse(req, res, detradeResponse(30005, 'Platform account not found'));
   }
   if (currency !== 'USDT') {
-    return res.json(detradeResponse(30009, 'Not support currency'));
+    return sendDetradeCallbackResponse(req, res, detradeResponse(30009, 'Not support currency'));
   }
-  return res.json(
+  return sendDetradeCallbackResponse(
+    req,
+    res,
     detradeResponse(200, 'Success', {
       currency,
       balance: String(ensured.wallet.available_balance || '0.00')
@@ -6569,47 +6571,55 @@ app.get('/wallet/balance', (req, res) => {
 app.post('/wallet/amount/deduction', (req, res) => {
   try {
     const result = applyDetradeDeduction(req.body || {});
-    if (result.kind === 'param_invalid') return res.json(detradeResponse(30001, 'Platform param invalid'));
-    if (result.kind === 'account_not_found') return res.json(detradeResponse(30005, 'Platform account not found'));
-    if (result.kind === 'balance_not_enough') return res.json(detradeResponse(30002, 'Balance not enough'));
-    if (result.kind !== 'ok') return res.json(detradeResponse(30004, 'Bet amount failed'));
-    return res.json(
+    if (result.kind === 'param_invalid') return sendDetradeCallbackResponse(req, res, detradeResponse(30001, 'Platform param invalid'));
+    if (result.kind === 'account_not_found') return sendDetradeCallbackResponse(req, res, detradeResponse(30005, 'Platform account not found'));
+    if (result.kind === 'balance_not_enough') return sendDetradeCallbackResponse(req, res, detradeResponse(30002, 'Balance not enough'));
+    if (result.kind !== 'ok') return sendDetradeCallbackResponse(req, res, detradeResponse(30004, 'Bet amount failed'));
+    return sendDetradeCallbackResponse(
+      req,
+      res,
       detradeResponse(200, 'Success', {
         usdAmount: String(result.transaction?.usd_amount || result.transaction?.amount || '0.00')
       })
     );
   } catch (error) {
     if (String(error?.message || '') === 'INVALID_AMOUNT') {
-      return res.json(detradeResponse(30001, 'Platform param invalid'));
+      return sendDetradeCallbackResponse(req, res, detradeResponse(30001, 'Platform param invalid'));
     }
-    return res.json(detradeResponse(30000, 'Platform system error'));
+    return sendDetradeCallbackResponse(req, res, detradeResponse(30000, 'Platform system error'), {
+      errorMessage: String(error?.message || 'Platform system error')
+    });
   }
 });
 
 app.post('/wallet/amount/add', (req, res) => {
   try {
     const result = applyDetradeAdd(req.body || {});
-    if (result.kind === 'param_invalid') return res.json(detradeResponse(30001, 'Platform param invalid'));
-    if (result.kind === 'account_not_found') return res.json(detradeResponse(30005, 'Platform account not found'));
-    if (result.kind === 'missing_deduction') return res.json(detradeResponse(30015, 'Add amount fail not found bet'));
-    if (result.kind !== 'ok') return res.json(detradeResponse(30003, 'Add amount failed'));
-    return res.json(
+    if (result.kind === 'param_invalid') return sendDetradeCallbackResponse(req, res, detradeResponse(30001, 'Platform param invalid'));
+    if (result.kind === 'account_not_found') return sendDetradeCallbackResponse(req, res, detradeResponse(30005, 'Platform account not found'));
+    if (result.kind === 'missing_deduction') return sendDetradeCallbackResponse(req, res, detradeResponse(30015, 'Add amount fail not found bet'));
+    if (result.kind !== 'ok') return sendDetradeCallbackResponse(req, res, detradeResponse(30003, 'Add amount failed'));
+    return sendDetradeCallbackResponse(
+      req,
+      res,
       detradeResponse(200, 'Success', {
         usdAmount: String(result.transaction?.usd_amount || result.transaction?.amount || '0.00')
       })
     );
   } catch (error) {
     if (String(error?.message || '') === 'INVALID_AMOUNT') {
-      return res.json(detradeResponse(30001, 'Platform param invalid'));
+      return sendDetradeCallbackResponse(req, res, detradeResponse(30001, 'Platform param invalid'));
     }
-    return res.json(detradeResponse(30000, 'Platform system error'));
+    return sendDetradeCallbackResponse(req, res, detradeResponse(30000, 'Platform system error'), {
+      errorMessage: String(error?.message || 'Platform system error')
+    });
   }
 });
 
 app.post('/order/push', (req, res) => {
   const payload = req.body || {};
   const orderId = String(payload.id ?? payload.orderId ?? payload.order_id ?? '').trim();
-  if (!orderId) return res.json(detradeResponse(30001, 'Platform param invalid'));
+  if (!orderId) return sendDetradeCallbackResponse(req, res, detradeResponse(30001, 'Platform param invalid'));
   try {
     upsertDetradeOrderPushStmt.run(
       orderId,
@@ -6622,16 +6632,18 @@ app.post('/order/push', (req, res) => {
       String(payload.symbol ?? ''),
       serializeNotifyPayload(payload)
     );
-    return res.json(detradeResponse(200, 'Success'));
-  } catch {
-    return res.json(detradeResponse(30000, 'Platform system error'));
+    return sendDetradeCallbackResponse(req, res, detradeResponse(200, 'Success'));
+  } catch (error) {
+    return sendDetradeCallbackResponse(req, res, detradeResponse(30000, 'Platform system error'), {
+      errorMessage: String(error?.message || 'Platform system error')
+    });
   }
 });
 
 app.post('/wallet/risk/report', (req, res) => {
   const payload = req.body || {};
   const externalUserId = String(payload.userId ?? payload.user_id ?? '').trim();
-  if (!externalUserId) return res.json(detradeResponse(30001, 'Platform param invalid'));
+  if (!externalUserId) return sendDetradeCallbackResponse(req, res, detradeResponse(30001, 'Platform param invalid'));
   try {
     insertDetradeRiskReportStmt.run(
       externalUserId,
@@ -6639,14 +6651,16 @@ app.post('/wallet/risk/report', (req, res) => {
       String(payload.desc ?? payload.description ?? '').trim(),
       serializeNotifyPayload(payload)
     );
-    return res.json(detradeResponse(200, 'Success'));
-  } catch {
-    return res.json(detradeResponse(30000, 'Platform system error'));
+    return sendDetradeCallbackResponse(req, res, detradeResponse(200, 'Success'));
+  } catch (error) {
+    return sendDetradeCallbackResponse(req, res, detradeResponse(30000, 'Platform system error'), {
+      errorMessage: String(error?.message || 'Platform system error')
+    });
   }
 });
 
-app.post('/wallet/notify', (_req, res) => {
-  res.json(detradeResponse(200, 'Success'));
+app.post('/wallet/notify', (req, res) => {
+  sendDetradeCallbackResponse(req, res, detradeResponse(200, 'Success'));
 });
 
 app.post('/wallet/predict/shares/add', (req, res) => {
@@ -6654,7 +6668,7 @@ app.post('/wallet/predict/shares/add', (req, res) => {
   const externalUserId = String(payload.userId ?? payload.user_id ?? '').trim();
   const bizId = String(payload.bizId ?? payload.biz_id ?? '').trim();
   const bizSubId = String(payload.bizSubId ?? payload.biz_sub_id ?? '').trim();
-  if (!externalUserId || !bizId || !bizSubId) return res.json(detradeResponse(30001, 'Platform param invalid'));
+  if (!externalUserId || !bizId || !bizSubId) return sendDetradeCallbackResponse(req, res, detradeResponse(30001, 'Platform param invalid'));
   try {
     upsertDetradePredictSharesStmt.run(
       externalUserId,
@@ -6665,20 +6679,24 @@ app.post('/wallet/predict/shares/add', (req, res) => {
       bizSubId,
       serializeNotifyPayload(payload)
     );
-    return res.json(detradeResponse(200, 'Success'));
-  } catch {
-    return res.json(detradeResponse(30000, 'Platform system error'));
+    return sendDetradeCallbackResponse(req, res, detradeResponse(200, 'Success'));
+  } catch (error) {
+    return sendDetradeCallbackResponse(req, res, detradeResponse(30000, 'Platform system error'), {
+      errorMessage: String(error?.message || 'Platform system error')
+    });
   }
 });
 
 app.post('/wallet/predict/shares/over', (req, res) => {
   const sharesId = String(req.body?.sharesId ?? req.body?.shares_id ?? '').trim();
-  if (!sharesId) return res.json(detradeResponse(30001, 'Platform param invalid'));
+  if (!sharesId) return sendDetradeCallbackResponse(req, res, detradeResponse(30001, 'Platform param invalid'));
   try {
     markDetradePredictSharesOverStmt.run(sharesId);
-    return res.json(detradeResponse(200, 'Success'));
-  } catch {
-    return res.json(detradeResponse(30000, 'Platform system error'));
+    return sendDetradeCallbackResponse(req, res, detradeResponse(200, 'Success'));
+  } catch (error) {
+    return sendDetradeCallbackResponse(req, res, detradeResponse(30000, 'Platform system error'), {
+      errorMessage: String(error?.message || 'Platform system error')
+    });
   }
 });
 
@@ -8952,6 +8970,19 @@ const markDetradePredictSharesOverStmt = db.prepare(`
   SET status = 'over', updated_at = datetime('now')
   WHERE shares_id = ?
 `);
+const insertDetradeCallbackLogStmt = db.prepare(`
+  INSERT INTO detrade_callback_logs (
+    request_path, request_method, query_json, body_json, external_user_id, biz_id, biz_sub_id, source,
+    response_code, response_msg, http_status, success, error_message
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`);
+const listDetradeCallbackLogsStmt = db.prepare(`
+  SELECT id, request_path, request_method, query_json, body_json, external_user_id, biz_id, biz_sub_id, source,
+         response_code, response_msg, http_status, success, error_message, created_at
+  FROM detrade_callback_logs
+  ORDER BY id DESC
+  LIMIT ?
+`);
 const insertNexaEscrowWalletLedgerStmt = db.prepare(`
   INSERT INTO nexa_escrow_wallet_ledger (user_id, type, amount, balance_after, related_type, related_id, remark)
   VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -9361,6 +9392,66 @@ function serializeNotifyPayload(payload) {
 
 function detradeResponse(code = 200, msg = 'Success', data = {}) {
   return { code, msg, data };
+}
+
+function extractDetradeCallbackPayload(req) {
+  return String(req?.method || '').toUpperCase() === 'GET' ? req.query || {} : req.body || {};
+}
+
+function extractDetradeCallbackPath(req) {
+  return String(req?.path || req?.originalUrl || req?.url || '').split('?')[0];
+}
+
+function recordDetradeCallbackLog(req, responsePayload, { httpStatus = 200, errorMessage = '' } = {}) {
+  try {
+    const payload = extractDetradeCallbackPayload(req);
+    const key = getDetradeTransactionKey(payload);
+    const code = Number(responsePayload?.code || 0) || 0;
+    const msg = String(responsePayload?.msg || responsePayload?.message || '').trim();
+    const requestMethod = String(req?.method || '').toUpperCase();
+    insertDetradeCallbackLogStmt.run(
+      extractDetradeCallbackPath(req),
+      requestMethod,
+      serializeNotifyPayload(req?.query || {}),
+      serializeNotifyPayload(req?.body || {}),
+      String(payload.userId ?? payload.user_id ?? '').trim(),
+      key.bizId,
+      key.bizSubId,
+      key.source,
+      code,
+      msg,
+      Number(httpStatus || 200) || 200,
+      code === 0 || code === 200 ? 1 : 0,
+      String(errorMessage || (code === 0 || code === 200 ? '' : msg)).trim()
+    );
+  } catch {
+    // Logging is diagnostic only; never let it affect upstream settlement callbacks.
+  }
+}
+
+function sendDetradeCallbackResponse(req, res, responsePayload, { httpStatus = 200, errorMessage = '' } = {}) {
+  recordDetradeCallbackLog(req, responsePayload, { httpStatus, errorMessage });
+  return res.status(httpStatus).json(responsePayload);
+}
+
+function formatDetradeCallbackLog(row = {}) {
+  return {
+    id: Number(row.id || 0) || 0,
+    requestPath: String(row.request_path || ''),
+    requestMethod: String(row.request_method || ''),
+    query: safeJsonParse(row.query_json, {}),
+    body: safeJsonParse(row.body_json, {}),
+    externalUserId: String(row.external_user_id || ''),
+    bizId: String(row.biz_id || ''),
+    bizSubId: String(row.biz_sub_id || ''),
+    source: String(row.source || ''),
+    responseCode: Number(row.response_code || 0) || 0,
+    responseMsg: String(row.response_msg || ''),
+    httpStatus: Number(row.http_status || 0) || 0,
+    success: Boolean(Number(row.success || 0)),
+    errorMessage: String(row.error_message || ''),
+    createdAt: String(row.created_at || '')
+  };
 }
 
 function normalizeDetradeCurrency(value) {
@@ -12103,6 +12194,13 @@ app.put('/api/admin/partners/:id', requireAdmin, (req, res) => {
 
 app.get('/api/admin/predict-master-config', requireAdmin, (_req, res) => {
   res.json(formatAdminPredictMasterConfig());
+});
+
+app.get('/api/admin/predict-master-callback-logs', requireAdmin, (req, res) => {
+  const limitRaw = Number(req.query?.limit || 100);
+  const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
+  const items = listDetradeCallbackLogsStmt.all(limit).map(formatDetradeCallbackLog);
+  res.json({ ok: true, items });
 });
 
 app.put('/api/admin/predict-master-config', requireAdmin, (req, res) => {

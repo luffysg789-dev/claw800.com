@@ -354,6 +354,31 @@ db.exec(`
 `);
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS detrade_callback_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_path TEXT NOT NULL DEFAULT '',
+    request_method TEXT NOT NULL DEFAULT '',
+    query_json TEXT NOT NULL DEFAULT '',
+    body_json TEXT NOT NULL DEFAULT '',
+    external_user_id TEXT NOT NULL DEFAULT '',
+    biz_id TEXT NOT NULL DEFAULT '',
+    biz_sub_id TEXT NOT NULL DEFAULT '',
+    source TEXT NOT NULL DEFAULT '',
+    response_code INTEGER NOT NULL DEFAULT 0,
+    response_msg TEXT NOT NULL DEFAULT '',
+    http_status INTEGER NOT NULL DEFAULT 200,
+    success INTEGER NOT NULL DEFAULT 0,
+    error_message TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_detrade_callback_logs_created
+  ON detrade_callback_logs(created_at DESC, id DESC);
+`);
+
+db.exec(`
   CREATE TABLE IF NOT EXISTS nchat_users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     openid TEXT NOT NULL UNIQUE,

@@ -214,6 +214,48 @@ test('admin accepts bare base64 Detrade private key from test credentials', asyn
   }
 });
 
+test('admin can view recent predict-master upstream callback logs', async () => {
+  const harness = createHarness();
+
+  try {
+    const cookies = await harness.adminCookies();
+    harness.db
+      .prepare(
+        `INSERT INTO detrade_callback_logs (
+          request_path, request_method, query_json, body_json, external_user_id, biz_id, source,
+          response_code, response_msg, http_status, success, error_message
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        '/wallet/amount/deduction',
+        'POST',
+        '{}',
+        JSON.stringify({ userId: '1727404213474304', amount: '10' }),
+        '1727404213474304',
+        'order-1',
+        'PLACE_PREDICT_ORDER',
+        30002,
+        'Balance not enough',
+        200,
+        0,
+        'Balance not enough'
+      );
+
+    const response = await harness.request('GET', '/api/admin/predict-master-callback-logs', null, { cookies });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.ok, true);
+    assert.equal(response.body.items.length, 1);
+    assert.equal(response.body.items[0].requestPath, '/wallet/amount/deduction');
+    assert.equal(response.body.items[0].externalUserId, '1727404213474304');
+    assert.equal(response.body.items[0].responseCode, 30002);
+    assert.equal(response.body.items[0].success, false);
+    assert.equal(response.body.items[0].errorMessage, 'Balance not enough');
+  } finally {
+    harness.cleanup();
+  }
+});
+
 test('predict-master login url requires Nexa session identity', async () => {
   const harness = createHarness();
 
