@@ -296,6 +296,110 @@ test('admin can view recent predict-master login logs', async () => {
   }
 });
 
+test('admin can view recent predict-master operational records', async () => {
+  const harness = createHarness();
+
+  try {
+    const cookies = await harness.adminCookies();
+    harness.db
+      .prepare(
+        `INSERT INTO detrade_order_pushes (
+          order_id, external_user_id, currency, amount, profit, biz_type, status, symbol, raw_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        'order-1',
+        'nexa-open-id-123',
+        'USDT',
+        10.5,
+        1.25,
+        'predict',
+        'settled',
+        'BTCUSDT',
+        JSON.stringify({ orderId: 'order-1' })
+      );
+    const user = harness.db
+      .prepare("INSERT INTO game_users (openid, nickname, avatar) VALUES (?, 'Nexa User', '')")
+      .run('nexa-open-id-123');
+    harness.db
+      .prepare(
+        `INSERT INTO detrade_wallet_transactions (
+          user_id, external_user_id, currency, direction, amount, usd_amount, biz_id, biz_type,
+          source, biz_sub_id, balance_type, balance_after, raw_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        user.lastInsertRowid,
+        'nexa-open-id-123',
+        'USDT',
+        'deduction',
+        10,
+        10,
+        'biz-1',
+        'predict',
+        'PLACE_PREDICT_ORDER',
+        'sub-1',
+        1,
+        90,
+        JSON.stringify({ amount: '10' })
+      );
+    harness.db
+      .prepare(
+        `INSERT INTO detrade_predict_shares (
+          external_user_id, shares_id, shares_qty, order_id, biz_id, biz_sub_id, status, raw_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        'nexa-open-id-123',
+        'share-1',
+        3,
+        'order-1',
+        'biz-1',
+        'sub-1',
+        'active',
+        JSON.stringify({ sharesId: 'share-1' })
+      );
+    harness.db
+      .prepare(
+        `INSERT INTO detrade_risk_reports (
+          external_user_id, risk_status, description, raw_json
+        ) VALUES (?, ?, ?, ?)`
+      )
+      .run('nexa-open-id-123', 'warning', 'Risk warning', JSON.stringify({ riskStatus: 'warning' }));
+
+    const orders = await harness.request('GET', '/api/admin/predict-master-orders', null, { cookies });
+    const walletTransactions = await harness.request('GET', '/api/admin/predict-master-wallet-transactions', null, {
+      cookies
+    });
+    const shares = await harness.request('GET', '/api/admin/predict-master-shares', null, { cookies });
+    const riskReports = await harness.request('GET', '/api/admin/predict-master-risk-reports', null, { cookies });
+
+    assert.equal(orders.statusCode, 200);
+    assert.equal(orders.body.ok, true);
+    assert.equal(orders.body.items[0].orderId, 'order-1');
+    assert.equal(orders.body.items[0].profit, 1.25);
+    assert.deepEqual(orders.body.items[0].raw, { orderId: 'order-1' });
+
+    assert.equal(walletTransactions.statusCode, 200);
+    assert.equal(walletTransactions.body.ok, true);
+    assert.equal(walletTransactions.body.items[0].direction, 'deduction');
+    assert.equal(walletTransactions.body.items[0].source, 'PLACE_PREDICT_ORDER');
+    assert.equal(walletTransactions.body.items[0].balanceAfter, 90);
+
+    assert.equal(shares.statusCode, 200);
+    assert.equal(shares.body.ok, true);
+    assert.equal(shares.body.items[0].sharesId, 'share-1');
+    assert.equal(shares.body.items[0].sharesQty, 3);
+
+    assert.equal(riskReports.statusCode, 200);
+    assert.equal(riskReports.body.ok, true);
+    assert.equal(riskReports.body.items[0].riskStatus, 'warning');
+    assert.equal(riskReports.body.items[0].description, 'Risk warning');
+  } finally {
+    harness.cleanup();
+  }
+});
+
 test('predict-master login url requires Nexa session identity', async () => {
   const harness = createHarness();
 

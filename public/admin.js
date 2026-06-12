@@ -71,6 +71,22 @@ const predictMasterCallbackLogsSection = document.getElementById('predictMasterC
 const predictMasterCallbackLogsRefreshBtn = document.getElementById('predictMasterCallbackLogsRefreshBtn');
 const predictMasterCallbackLogsMessage = document.getElementById('predictMasterCallbackLogsMessage');
 const predictMasterCallbackLogsList = document.getElementById('predictMasterCallbackLogsList');
+const predictMasterOrdersSection = document.getElementById('predictMasterOrdersSection');
+const predictMasterOrdersRefreshBtn = document.getElementById('predictMasterOrdersRefreshBtn');
+const predictMasterOrdersMessage = document.getElementById('predictMasterOrdersMessage');
+const predictMasterOrdersList = document.getElementById('predictMasterOrdersList');
+const predictMasterWalletTransactionsSection = document.getElementById('predictMasterWalletTransactionsSection');
+const predictMasterWalletTransactionsRefreshBtn = document.getElementById('predictMasterWalletTransactionsRefreshBtn');
+const predictMasterWalletTransactionsMessage = document.getElementById('predictMasterWalletTransactionsMessage');
+const predictMasterWalletTransactionsList = document.getElementById('predictMasterWalletTransactionsList');
+const predictMasterSharesSection = document.getElementById('predictMasterSharesSection');
+const predictMasterSharesRefreshBtn = document.getElementById('predictMasterSharesRefreshBtn');
+const predictMasterSharesMessage = document.getElementById('predictMasterSharesMessage');
+const predictMasterSharesList = document.getElementById('predictMasterSharesList');
+const predictMasterRiskReportsSection = document.getElementById('predictMasterRiskReportsSection');
+const predictMasterRiskReportsRefreshBtn = document.getElementById('predictMasterRiskReportsRefreshBtn');
+const predictMasterRiskReportsMessage = document.getElementById('predictMasterRiskReportsMessage');
+const predictMasterRiskReportsList = document.getElementById('predictMasterRiskReportsList');
 const adminUCardSection = document.getElementById('adminUCardSection');
 const adminOrdersSection = document.getElementById('adminOrdersSection');
 const adminPMiningOrdersSection = document.getElementById('adminPMiningOrdersSection');
@@ -270,6 +286,10 @@ const texts = {
     navPredictMasterConfig: '预测大师设置',
     navPredictMasterLoginLogs: '预测登录日志',
     navPredictMasterCallbackLogs: '预测上游回调日志',
+    navPredictMasterOrders: '预测订单',
+    navPredictMasterWalletTransactions: '预测资金流水',
+    navPredictMasterShares: '预测仓位记录',
+    navPredictMasterRiskReports: '预测风控报告',
     navUCard: 'U卡场景',
     navUCardUpstreamConfig: 'U 卡上游配置',
     navUCardProducts: 'U 卡卡种配置',
@@ -463,6 +483,22 @@ const texts = {
     predictMasterCallbackLogsRefreshBtn: '刷新',
     predictMasterCallbackLogsEmpty: '暂无回调日志。',
     predictMasterCallbackLogsLoadFailed: '预测上游回调日志加载失败。',
+    predictMasterOrdersTitle: '预测订单',
+    predictMasterOrdersRefreshBtn: '刷新',
+    predictMasterOrdersEmpty: '暂无预测订单。',
+    predictMasterOrdersLoadFailed: '预测订单加载失败。',
+    predictMasterWalletTransactionsTitle: '预测资金流水',
+    predictMasterWalletTransactionsRefreshBtn: '刷新',
+    predictMasterWalletTransactionsEmpty: '暂无预测资金流水。',
+    predictMasterWalletTransactionsLoadFailed: '预测资金流水加载失败。',
+    predictMasterSharesTitle: '预测仓位记录',
+    predictMasterSharesRefreshBtn: '刷新',
+    predictMasterSharesEmpty: '暂无预测仓位记录。',
+    predictMasterSharesLoadFailed: '预测仓位记录加载失败。',
+    predictMasterRiskReportsTitle: '预测风控报告',
+    predictMasterRiskReportsRefreshBtn: '刷新',
+    predictMasterRiskReportsEmpty: '暂无预测风控报告。',
+    predictMasterRiskReportsLoadFailed: '预测风控报告加载失败。',
     uCardUpstreamProductsTestDone: (count) =>
       count > 0
         ? `上游产品接口已打通：抓到 ${count} 个产品。`
@@ -656,6 +692,10 @@ const texts = {
     navPredictMasterConfig: 'Predict Master Settings',
     navPredictMasterLoginLogs: 'Predict Login Logs',
     navPredictMasterCallbackLogs: 'Predict Callback Logs',
+    navPredictMasterOrders: 'Predict Orders',
+    navPredictMasterWalletTransactions: 'Predict Wallet Ledger',
+    navPredictMasterShares: 'Predict Positions',
+    navPredictMasterRiskReports: 'Predict Risk Reports',
     navUCard: 'U Card Scenes',
     navUCardUpstreamConfig: 'U Card Upstream Config',
     navUCardProducts: 'U Card Product Config',
@@ -849,6 +889,22 @@ const texts = {
     predictMasterCallbackLogsRefreshBtn: 'Refresh',
     predictMasterCallbackLogsEmpty: 'No callback logs yet.',
     predictMasterCallbackLogsLoadFailed: 'Failed to load predict callback logs.',
+    predictMasterOrdersTitle: 'Predict Orders',
+    predictMasterOrdersRefreshBtn: 'Refresh',
+    predictMasterOrdersEmpty: 'No predict orders yet.',
+    predictMasterOrdersLoadFailed: 'Failed to load predict orders.',
+    predictMasterWalletTransactionsTitle: 'Predict Wallet Ledger',
+    predictMasterWalletTransactionsRefreshBtn: 'Refresh',
+    predictMasterWalletTransactionsEmpty: 'No predict wallet ledger yet.',
+    predictMasterWalletTransactionsLoadFailed: 'Failed to load predict wallet ledger.',
+    predictMasterSharesTitle: 'Predict Positions',
+    predictMasterSharesRefreshBtn: 'Refresh',
+    predictMasterSharesEmpty: 'No predict positions yet.',
+    predictMasterSharesLoadFailed: 'Failed to load predict positions.',
+    predictMasterRiskReportsTitle: 'Predict Risk Reports',
+    predictMasterRiskReportsRefreshBtn: 'Refresh',
+    predictMasterRiskReportsEmpty: 'No predict risk reports yet.',
+    predictMasterRiskReportsLoadFailed: 'Failed to load predict risk reports.',
     uCardUpstreamProductsTestDone: (count) =>
       count > 0
         ? `Upstream product API connected: ${count} products found.`
@@ -1356,6 +1412,10 @@ function applyLanguage() {
   document.getElementById('navPredictMasterConfig').textContent = dict.navPredictMasterConfig;
   document.getElementById('navPredictMasterLoginLogs').textContent = dict.navPredictMasterLoginLogs;
   document.getElementById('navPredictMasterCallbackLogs').textContent = dict.navPredictMasterCallbackLogs;
+  document.getElementById('navPredictMasterOrders').textContent = dict.navPredictMasterOrders;
+  document.getElementById('navPredictMasterWalletTransactions').textContent = dict.navPredictMasterWalletTransactions;
+  document.getElementById('navPredictMasterShares').textContent = dict.navPredictMasterShares;
+  document.getElementById('navPredictMasterRiskReports').textContent = dict.navPredictMasterRiskReports;
   document.getElementById('navUCard').textContent = dict.navUCard;
   document.getElementById('navUCardUpstreamConfig').textContent = dict.navUCardUpstreamConfig;
   document.getElementById('navUCardProducts').textContent = dict.navUCardProducts;
@@ -1491,6 +1551,14 @@ function applyLanguage() {
   document.getElementById('predictMasterLoginLogsRefreshBtn').textContent = dict.predictMasterLoginLogsRefreshBtn;
   document.getElementById('predictMasterCallbackLogsTitle').textContent = dict.predictMasterCallbackLogsTitle;
   document.getElementById('predictMasterCallbackLogsRefreshBtn').textContent = dict.predictMasterCallbackLogsRefreshBtn;
+  document.getElementById('predictMasterOrdersTitle').textContent = dict.predictMasterOrdersTitle;
+  document.getElementById('predictMasterOrdersRefreshBtn').textContent = dict.predictMasterOrdersRefreshBtn;
+  document.getElementById('predictMasterWalletTransactionsTitle').textContent = dict.predictMasterWalletTransactionsTitle;
+  document.getElementById('predictMasterWalletTransactionsRefreshBtn').textContent = dict.predictMasterWalletTransactionsRefreshBtn;
+  document.getElementById('predictMasterSharesTitle').textContent = dict.predictMasterSharesTitle;
+  document.getElementById('predictMasterSharesRefreshBtn').textContent = dict.predictMasterSharesRefreshBtn;
+  document.getElementById('predictMasterRiskReportsTitle').textContent = dict.predictMasterRiskReportsTitle;
+  document.getElementById('predictMasterRiskReportsRefreshBtn').textContent = dict.predictMasterRiskReportsRefreshBtn;
   document.getElementById('uCardProductsTitle').textContent = dict.uCardProductsTitle;
   document.getElementById('uCardApplicationsTitle').textContent = dict.uCardApplicationsTitle;
   document.getElementById('uCardProductsRefreshBtn').textContent = dict.uCardProductsRefreshBtn;
@@ -1577,6 +1645,10 @@ function setView(view) {
   predictMasterConfigSection.classList.toggle('hidden', view !== 'predict-master-config');
   predictMasterLoginLogsSection.classList.toggle('hidden', view !== 'predict-master-login-logs');
   predictMasterCallbackLogsSection.classList.toggle('hidden', view !== 'predict-master-callback-logs');
+  predictMasterOrdersSection.classList.toggle('hidden', view !== 'predict-master-orders');
+  predictMasterWalletTransactionsSection.classList.toggle('hidden', view !== 'predict-master-wallet-transactions');
+  predictMasterSharesSection.classList.toggle('hidden', view !== 'predict-master-shares');
+  predictMasterRiskReportsSection.classList.toggle('hidden', view !== 'predict-master-risk-reports');
   adminUCardSection.classList.toggle('hidden', view !== 'u-card');
   adminUCardUpstreamConfigSection.classList.toggle('hidden', view !== 'u-card-upstream-config');
   adminUCardProductsSection.classList.toggle('hidden', view !== 'u-card-products');
@@ -1609,6 +1681,18 @@ function setView(view) {
   }
   if (view === 'predict-master-callback-logs') {
     loadPredictMasterCallbackLogs();
+  }
+  if (view === 'predict-master-orders') {
+    loadPredictMasterOrders();
+  }
+  if (view === 'predict-master-wallet-transactions') {
+    loadPredictMasterWalletTransactions();
+  }
+  if (view === 'predict-master-shares') {
+    loadPredictMasterShares();
+  }
+  if (view === 'predict-master-risk-reports') {
+    loadPredictMasterRiskReports();
   }
   if (view === 'visit-stats') {
     loadVisitStats();
@@ -3054,6 +3138,168 @@ async function loadPredictMasterCallbackLogs() {
     return;
   }
   renderPredictMasterCallbackLogs(result.data?.items || []);
+}
+
+function renderPredictMasterRawDetails(raw = {}) {
+  const rawJson = JSON.stringify(raw || {}, null, 2);
+  return `
+    <details>
+      <summary>原始数据</summary>
+      <pre class="small">${escapeHtml(rawJson)}</pre>
+    </details>
+  `;
+}
+
+async function loadPredictMasterList({ list, message, endpoint, render, loadFailedKey }) {
+  if (!list) return;
+  if (message) {
+    message.textContent = '';
+    message.className = 'message';
+  }
+  const result = await requestTutorialJson([endpoint], { method: 'GET' });
+  if (result.res?.status === 401) {
+    showLogin();
+    return;
+  }
+  if (!result.res || !result.res.ok) {
+    if (message) {
+      message.textContent = localizeApiError(result.data?.error || t(loadFailedKey));
+      message.className = 'message error';
+    }
+    return;
+  }
+  render(result.data?.items || []);
+}
+
+function renderPredictMasterOrders(items = []) {
+  if (!predictMasterOrdersList) return;
+  if (!Array.isArray(items) || !items.length) {
+    predictMasterOrdersList.innerHTML = `<p class="empty">${escapeHtml(t('predictMasterOrdersEmpty'))}</p>`;
+    return;
+  }
+
+  predictMasterOrdersList.innerHTML = items
+    .map(
+      (item) => `
+        <article class="review-card">
+          <h3>${escapeHtml(item.orderId || '预测订单')}</h3>
+          <p class="small">用户 ID: ${escapeHtml(item.externalUserId || '-')}</p>
+          <p class="small">币种: ${escapeHtml(item.currency || '-')} · 金额: ${escapeHtml(String(item.amount ?? '-'))} · 盈亏: ${escapeHtml(String(item.profit ?? '-'))}</p>
+          <p class="small">状态: ${escapeHtml(item.status || '-')} · 标的: ${escapeHtml(item.symbol || '-')} · 类型: ${escapeHtml(item.bizType || '-')}</p>
+          <p class="small">创建: ${escapeHtml(formatAdminLocalDateTime(item.createdAt))} · 更新: ${escapeHtml(formatAdminLocalDateTime(item.updatedAt))}</p>
+          ${renderPredictMasterRawDetails(item.raw)}
+        </article>
+      `
+    )
+    .join('');
+}
+
+function renderPredictMasterWalletTransactions(items = []) {
+  if (!predictMasterWalletTransactionsList) return;
+  if (!Array.isArray(items) || !items.length) {
+    predictMasterWalletTransactionsList.innerHTML = `<p class="empty">${escapeHtml(t('predictMasterWalletTransactionsEmpty'))}</p>`;
+    return;
+  }
+
+  predictMasterWalletTransactionsList.innerHTML = items
+    .map(
+      (item) => `
+        <article class="review-card">
+          <h3>${escapeHtml(item.direction || '资金流水')} · ${escapeHtml(String(item.amount ?? '-'))} ${escapeHtml(item.currency || '')}</h3>
+          <p class="small">用户 ID: ${escapeHtml(item.externalUserId || '-')}</p>
+          <p class="small">bizId: ${escapeHtml(item.bizId || '-')} · bizSubId: ${escapeHtml(item.bizSubId || '-')}</p>
+          <p class="small">source: ${escapeHtml(item.source || '-')} · bizType: ${escapeHtml(item.bizType || '-')}</p>
+          <p class="small">USD: ${escapeHtml(String(item.usdAmount ?? '-'))} · 余额: ${escapeHtml(String(item.balanceAfter ?? '-'))} · 资金类型: ${escapeHtml(String(item.balanceType || '-'))}</p>
+          <p class="small">时间: ${escapeHtml(formatAdminLocalDateTime(item.createdAt))}</p>
+          ${renderPredictMasterRawDetails(item.raw)}
+        </article>
+      `
+    )
+    .join('');
+}
+
+function renderPredictMasterShares(items = []) {
+  if (!predictMasterSharesList) return;
+  if (!Array.isArray(items) || !items.length) {
+    predictMasterSharesList.innerHTML = `<p class="empty">${escapeHtml(t('predictMasterSharesEmpty'))}</p>`;
+    return;
+  }
+
+  predictMasterSharesList.innerHTML = items
+    .map(
+      (item) => `
+        <article class="review-card">
+          <h3>${escapeHtml(item.sharesId || '仓位记录')} · ${escapeHtml(item.status || '-')}</h3>
+          <p class="small">用户 ID: ${escapeHtml(item.externalUserId || '-')} · 数量: ${escapeHtml(String(item.sharesQty ?? '-'))}</p>
+          <p class="small">订单: ${escapeHtml(item.orderId || '-')} · bizId: ${escapeHtml(item.bizId || '-')} · bizSubId: ${escapeHtml(item.bizSubId || '-')}</p>
+          <p class="small">创建: ${escapeHtml(formatAdminLocalDateTime(item.createdAt))} · 更新: ${escapeHtml(formatAdminLocalDateTime(item.updatedAt))}</p>
+          ${renderPredictMasterRawDetails(item.raw)}
+        </article>
+      `
+    )
+    .join('');
+}
+
+function renderPredictMasterRiskReports(items = []) {
+  if (!predictMasterRiskReportsList) return;
+  if (!Array.isArray(items) || !items.length) {
+    predictMasterRiskReportsList.innerHTML = `<p class="empty">${escapeHtml(t('predictMasterRiskReportsEmpty'))}</p>`;
+    return;
+  }
+
+  predictMasterRiskReportsList.innerHTML = items
+    .map(
+      (item) => `
+        <article class="review-card">
+          <h3>${escapeHtml(item.riskStatus || '风控报告')}</h3>
+          <p class="small">用户 ID: ${escapeHtml(item.externalUserId || '-')}</p>
+          <p class="small">说明: ${escapeHtml(item.description || '-')}</p>
+          <p class="small">时间: ${escapeHtml(formatAdminLocalDateTime(item.createdAt))}</p>
+          ${renderPredictMasterRawDetails(item.raw)}
+        </article>
+      `
+    )
+    .join('');
+}
+
+function loadPredictMasterOrders() {
+  return loadPredictMasterList({
+    list: predictMasterOrdersList,
+    message: predictMasterOrdersMessage,
+    endpoint: '/api/admin/predict-master-orders',
+    render: renderPredictMasterOrders,
+    loadFailedKey: 'predictMasterOrdersLoadFailed'
+  });
+}
+
+function loadPredictMasterWalletTransactions() {
+  return loadPredictMasterList({
+    list: predictMasterWalletTransactionsList,
+    message: predictMasterWalletTransactionsMessage,
+    endpoint: '/api/admin/predict-master-wallet-transactions',
+    render: renderPredictMasterWalletTransactions,
+    loadFailedKey: 'predictMasterWalletTransactionsLoadFailed'
+  });
+}
+
+function loadPredictMasterShares() {
+  return loadPredictMasterList({
+    list: predictMasterSharesList,
+    message: predictMasterSharesMessage,
+    endpoint: '/api/admin/predict-master-shares',
+    render: renderPredictMasterShares,
+    loadFailedKey: 'predictMasterSharesLoadFailed'
+  });
+}
+
+function loadPredictMasterRiskReports() {
+  return loadPredictMasterList({
+    list: predictMasterRiskReportsList,
+    message: predictMasterRiskReportsMessage,
+    endpoint: '/api/admin/predict-master-risk-reports',
+    render: renderPredictMasterRiskReports,
+    loadFailedKey: 'predictMasterRiskReportsLoadFailed'
+  });
 }
 
 async function loadUCardUpstreamConfig() {
@@ -5427,6 +5673,12 @@ document.getElementById('navPartners').addEventListener('click', () => setView('
 document.getElementById('navPredictMasterConfig').addEventListener('click', () => setView('predict-master-config'));
 document.getElementById('navPredictMasterLoginLogs').addEventListener('click', () => setView('predict-master-login-logs'));
 document.getElementById('navPredictMasterCallbackLogs').addEventListener('click', () => setView('predict-master-callback-logs'));
+document.getElementById('navPredictMasterOrders').addEventListener('click', () => setView('predict-master-orders'));
+document
+  .getElementById('navPredictMasterWalletTransactions')
+  .addEventListener('click', () => setView('predict-master-wallet-transactions'));
+document.getElementById('navPredictMasterShares').addEventListener('click', () => setView('predict-master-shares'));
+document.getElementById('navPredictMasterRiskReports').addEventListener('click', () => setView('predict-master-risk-reports'));
 document.getElementById('navUCard').addEventListener('click', () => setView('u-card'));
 document.getElementById('navUCardUpstreamConfig').addEventListener('click', () => setView('u-card-upstream-config'));
 document.getElementById('navUCardProducts').addEventListener('click', () => setView('u-card-products'));
@@ -5453,6 +5705,18 @@ if (predictMasterLoginLogsRefreshBtn) {
 }
 if (predictMasterCallbackLogsRefreshBtn) {
   predictMasterCallbackLogsRefreshBtn.addEventListener('click', () => loadPredictMasterCallbackLogs());
+}
+if (predictMasterOrdersRefreshBtn) {
+  predictMasterOrdersRefreshBtn.addEventListener('click', () => loadPredictMasterOrders());
+}
+if (predictMasterWalletTransactionsRefreshBtn) {
+  predictMasterWalletTransactionsRefreshBtn.addEventListener('click', () => loadPredictMasterWalletTransactions());
+}
+if (predictMasterSharesRefreshBtn) {
+  predictMasterSharesRefreshBtn.addEventListener('click', () => loadPredictMasterShares());
+}
+if (predictMasterRiskReportsRefreshBtn) {
+  predictMasterRiskReportsRefreshBtn.addEventListener('click', () => loadPredictMasterRiskReports());
 }
 document.getElementById('navHome').addEventListener('click', () => {
   window.open('/', '_blank', 'noopener');

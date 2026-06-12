@@ -39,6 +39,10 @@
             <button id="navPredictMasterConfig">预测大师设置</button>
             <button id="navPredictMasterLoginLogs">预测登录日志</button>
             <button id="navPredictMasterCallbackLogs">预测上游回调日志</button>
+            <button id="navPredictMasterOrders">预测订单</button>
+            <button id="navPredictMasterWalletTransactions">预测资金流水</button>
+            <button id="navPredictMasterShares">预测仓位记录</button>
+            <button id="navPredictMasterRiskReports">预测风控报告</button>
             <button id="navUCard">U卡场景</button>
             <button id="navUCardUpstreamConfig">U 卡上游配置</button>
             <button id="navUCardProducts">U 卡卡种配置</button>
@@ -358,6 +362,50 @@
               </div>
               <p id="predictMasterCallbackLogsMessage" class="message"></p>
               <div id="predictMasterCallbackLogsList" class="admin-list"></div>
+            </div>
+
+            <div id="predictMasterOrdersSection" class="hidden">
+              <div class="admin-section-title-row">
+                <h2 id="predictMasterOrdersTitle">预测订单</h2>
+                <div class="toolbar">
+                  <button id="predictMasterOrdersRefreshBtn" type="button">刷新</button>
+                </div>
+              </div>
+              <p id="predictMasterOrdersMessage" class="message"></p>
+              <div id="predictMasterOrdersList" class="admin-list"></div>
+            </div>
+
+            <div id="predictMasterWalletTransactionsSection" class="hidden">
+              <div class="admin-section-title-row">
+                <h2 id="predictMasterWalletTransactionsTitle">预测资金流水</h2>
+                <div class="toolbar">
+                  <button id="predictMasterWalletTransactionsRefreshBtn" type="button">刷新</button>
+                </div>
+              </div>
+              <p id="predictMasterWalletTransactionsMessage" class="message"></p>
+              <div id="predictMasterWalletTransactionsList" class="admin-list"></div>
+            </div>
+
+            <div id="predictMasterSharesSection" class="hidden">
+              <div class="admin-section-title-row">
+                <h2 id="predictMasterSharesTitle">预测仓位记录</h2>
+                <div class="toolbar">
+                  <button id="predictMasterSharesRefreshBtn" type="button">刷新</button>
+                </div>
+              </div>
+              <p id="predictMasterSharesMessage" class="message"></p>
+              <div id="predictMasterSharesList" class="admin-list"></div>
+            </div>
+
+            <div id="predictMasterRiskReportsSection" class="hidden">
+              <div class="admin-section-title-row">
+                <h2 id="predictMasterRiskReportsTitle">预测风控报告</h2>
+                <div class="toolbar">
+                  <button id="predictMasterRiskReportsRefreshBtn" type="button">刷新</button>
+                </div>
+              </div>
+              <p id="predictMasterRiskReportsMessage" class="message"></p>
+              <div id="predictMasterRiskReportsList" class="admin-list"></div>
             </div>
 
             <div id="adminUCardSection" class="hidden">

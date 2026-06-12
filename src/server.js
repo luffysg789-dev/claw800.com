@@ -9019,6 +9019,33 @@ const listDetradeLoginLogsStmt = db.prepare(`
   ORDER BY id DESC
   LIMIT ?
 `);
+const listDetradeOrderPushesStmt = db.prepare(`
+  SELECT id, order_id, external_user_id, currency, amount, profit, biz_type, status, symbol, raw_json,
+         created_at, updated_at
+  FROM detrade_order_pushes
+  ORDER BY id DESC
+  LIMIT ?
+`);
+const listDetradeWalletTransactionsStmt = db.prepare(`
+  SELECT id, external_user_id, currency, direction, amount, usd_amount, biz_id, biz_type,
+         source, biz_sub_id, balance_type, balance_after, raw_json, created_at
+  FROM detrade_wallet_transactions
+  ORDER BY id DESC
+  LIMIT ?
+`);
+const listDetradePredictSharesStmt = db.prepare(`
+  SELECT id, external_user_id, shares_id, shares_qty, order_id, biz_id, biz_sub_id, status,
+         raw_json, created_at, updated_at
+  FROM detrade_predict_shares
+  ORDER BY id DESC
+  LIMIT ?
+`);
+const listDetradeRiskReportsStmt = db.prepare(`
+  SELECT id, external_user_id, risk_status, description, raw_json, created_at
+  FROM detrade_risk_reports
+  ORDER BY id DESC
+  LIMIT ?
+`);
 const insertNexaEscrowWalletLedgerStmt = db.prepare(`
   INSERT INTO nexa_escrow_wallet_ledger (user_id, type, amount, balance_after, related_type, related_id, remark)
   VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -9539,6 +9566,69 @@ function formatDetradeLoginLog(row = {}) {
     accessCode: String(row.access_code || ''),
     success: Boolean(Number(row.success || 0)),
     errorMessage: String(row.error_message || ''),
+    createdAt: String(row.created_at || '')
+  };
+}
+
+function formatDetradeOrderPush(row = {}) {
+  return {
+    id: Number(row.id || 0) || 0,
+    orderId: String(row.order_id || ''),
+    externalUserId: String(row.external_user_id || ''),
+    currency: String(row.currency || ''),
+    amount: Number(row.amount || 0) || 0,
+    profit: Number(row.profit || 0) || 0,
+    bizType: String(row.biz_type || ''),
+    status: String(row.status || ''),
+    symbol: String(row.symbol || ''),
+    raw: safeJsonParse(row.raw_json, {}),
+    createdAt: String(row.created_at || ''),
+    updatedAt: String(row.updated_at || '')
+  };
+}
+
+function formatDetradeWalletTransaction(row = {}) {
+  return {
+    id: Number(row.id || 0) || 0,
+    externalUserId: String(row.external_user_id || ''),
+    currency: String(row.currency || ''),
+    direction: String(row.direction || ''),
+    amount: Number(row.amount || 0) || 0,
+    usdAmount: Number(row.usd_amount || 0) || 0,
+    bizId: String(row.biz_id || ''),
+    bizType: String(row.biz_type || ''),
+    source: String(row.source || ''),
+    bizSubId: String(row.biz_sub_id || ''),
+    balanceType: row.balance_type === null || row.balance_type === undefined ? '' : Number(row.balance_type),
+    balanceAfter: Number(row.balance_after || 0) || 0,
+    raw: safeJsonParse(row.raw_json, {}),
+    createdAt: String(row.created_at || '')
+  };
+}
+
+function formatDetradePredictShare(row = {}) {
+  return {
+    id: Number(row.id || 0) || 0,
+    externalUserId: String(row.external_user_id || ''),
+    sharesId: String(row.shares_id || ''),
+    sharesQty: Number(row.shares_qty || 0) || 0,
+    orderId: String(row.order_id || ''),
+    bizId: String(row.biz_id || ''),
+    bizSubId: String(row.biz_sub_id || ''),
+    status: String(row.status || ''),
+    raw: safeJsonParse(row.raw_json, {}),
+    createdAt: String(row.created_at || ''),
+    updatedAt: String(row.updated_at || '')
+  };
+}
+
+function formatDetradeRiskReport(row = {}) {
+  return {
+    id: Number(row.id || 0) || 0,
+    externalUserId: String(row.external_user_id || ''),
+    riskStatus: String(row.risk_status || ''),
+    description: String(row.description || ''),
+    raw: safeJsonParse(row.raw_json, {}),
     createdAt: String(row.created_at || '')
   };
 }
@@ -12296,6 +12386,34 @@ app.get('/api/admin/predict-master-login-logs', requireAdmin, (req, res) => {
   const limitRaw = Number(req.query?.limit || 100);
   const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
   const items = listDetradeLoginLogsStmt.all(limit).map(formatDetradeLoginLog);
+  res.json({ ok: true, items });
+});
+
+app.get('/api/admin/predict-master-orders', requireAdmin, (req, res) => {
+  const limitRaw = Number(req.query?.limit || 100);
+  const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
+  const items = listDetradeOrderPushesStmt.all(limit).map(formatDetradeOrderPush);
+  res.json({ ok: true, items });
+});
+
+app.get('/api/admin/predict-master-wallet-transactions', requireAdmin, (req, res) => {
+  const limitRaw = Number(req.query?.limit || 100);
+  const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
+  const items = listDetradeWalletTransactionsStmt.all(limit).map(formatDetradeWalletTransaction);
+  res.json({ ok: true, items });
+});
+
+app.get('/api/admin/predict-master-shares', requireAdmin, (req, res) => {
+  const limitRaw = Number(req.query?.limit || 100);
+  const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
+  const items = listDetradePredictSharesStmt.all(limit).map(formatDetradePredictShare);
+  res.json({ ok: true, items });
+});
+
+app.get('/api/admin/predict-master-risk-reports', requireAdmin, (req, res) => {
+  const limitRaw = Number(req.query?.limit || 100);
+  const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
+  const items = listDetradeRiskReportsStmt.all(limit).map(formatDetradeRiskReport);
   res.json({ ok: true, items });
 });
 
