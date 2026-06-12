@@ -1,0 +1,251 @@
+:root {
+  color-scheme: dark;
+  --bg: #111816;
+  --panel: #1c2421;
+  --panel-strong: #222c28;
+  --line: rgba(213, 230, 222, 0.14);
+  --text: #eef7f2;
+  --muted: #9fb2aa;
+  --accent: #25e58d;
+  --danger: #ff6b6b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.predict-master-app {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.predict-master-header {
+  min-height: 76px;
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px clamp(14px, 3vw, 28px);
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+
+.predict-master-brand {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 10px;
+}
+
+.predict-master-logo {
+  width: 58px;
+  height: 34px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #08100c;
+  color: var(--accent);
+  border: 1px solid rgba(37, 229, 141, 0.35);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.back-link,
+#predictMasterReloadBtn {
+  height: 42px;
+  min-width: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel-strong);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+#predictMasterReloadBtn {
+  padding: 0 16px;
+  color: #05120d;
+  background: var(--accent);
+  border-color: transparent;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.predict-master-header h1 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.2;
+  min-width: 0;
+}
+
+.predict-master-header p {
+  grid-column: 2;
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  min-width: 0;
+}
+
+.predict-master-frame-shell {
+  position: relative;
+  min-height: 0;
+  background: #0d1210;
+}
+
+.predict-master-iframe-brand-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 214px;
+  height: 86px;
+  z-index: 2;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  padding-left: 18px;
+  background: #181f1d;
+  border-right: 1px solid rgba(213, 230, 222, 0.06);
+}
+
+.predict-master-iframe-brand-mask span {
+  width: 82px;
+  height: 38px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #08100c;
+  color: var(--accent);
+  border: 1px solid rgba(37, 229, 141, 0.38);
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.predict-master-frame-shell iframe {
+  width: 100%;
+  height: calc(100vh - 76px);
+  display: block;
+  border: 0;
+  background: #0d1210;
+}
+
+.predict-master-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  background: #0d1210;
+  z-index: 1;
+}
+
+.predict-master-loading.hidden,
+.hidden {
+  display: none;
+}
+
+.predict-master-error {
+  margin: clamp(16px, 4vw, 36px);
+  padding: 20px;
+  border: 1px solid rgba(255, 107, 107, 0.28);
+  border-radius: 8px;
+  background: rgba(255, 107, 107, 0.08);
+}
+
+.predict-master-error h2 {
+  margin: 0 0 8px;
+  color: var(--danger);
+  font-size: 18px;
+}
+
+.predict-master-error p {
+  margin: 0;
+  color: var(--text);
+  line-height: 1.7;
+  word-break: break-word;
+}
+
+@media (max-width: 640px) {
+  .predict-master-header {
+    grid-template-columns: 40px 1fr 64px;
+    gap: 10px;
+    min-height: 70px;
+    padding: 12px;
+  }
+
+  .back-link,
+  #predictMasterReloadBtn {
+    height: 38px;
+    min-width: 38px;
+  }
+
+  #predictMasterReloadBtn {
+    padding: 0 10px;
+  }
+
+  .predict-master-header h1 {
+    font-size: 18px;
+  }
+
+  .predict-master-header p {
+    font-size: 12px;
+  }
+
+  .predict-master-logo {
+    width: 48px;
+    height: 30px;
+    font-size: 11px;
+  }
+
+  .predict-master-iframe-brand-mask {
+    width: 156px;
+    height: 74px;
+    padding-left: 12px;
+  }
+
+  .predict-master-iframe-brand-mask span {
+    width: 66px;
+    height: 32px;
+    font-size: 13px;
+  }
+
+  .predict-master-frame-shell iframe {
+    height: calc(100vh - 70px);
+  }
+}

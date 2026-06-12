@@ -279,6 +279,81 @@ db.exec(`
 `);
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS detrade_wallet_transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    external_user_id TEXT NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'USDT',
+    direction TEXT NOT NULL,
+    amount TEXT NOT NULL,
+    usd_amount TEXT NOT NULL DEFAULT '',
+    biz_id TEXT NOT NULL,
+    biz_type TEXT NOT NULL DEFAULT '',
+    source TEXT NOT NULL,
+    biz_sub_id TEXT NOT NULL DEFAULT '',
+    balance_type TEXT NOT NULL DEFAULT '',
+    balance_after TEXT NOT NULL,
+    raw_json TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY(user_id) REFERENCES game_users(id)
+  );
+`);
+
+db.exec(`
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_detrade_wallet_tx_unique
+  ON detrade_wallet_transactions(direction, source, biz_id, biz_sub_id);
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS detrade_order_pushes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id TEXT NOT NULL UNIQUE,
+    external_user_id TEXT NOT NULL DEFAULT '',
+    currency TEXT NOT NULL DEFAULT '',
+    amount TEXT NOT NULL DEFAULT '',
+    profit TEXT NOT NULL DEFAULT '',
+    biz_type TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT '',
+    symbol TEXT NOT NULL DEFAULT '',
+    raw_json TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS detrade_risk_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    external_user_id TEXT NOT NULL,
+    risk_status TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    raw_json TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS detrade_predict_shares (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    external_user_id TEXT NOT NULL DEFAULT '',
+    shares_id TEXT NOT NULL DEFAULT '',
+    shares_qty TEXT NOT NULL DEFAULT '',
+    order_id TEXT NOT NULL DEFAULT '',
+    biz_id TEXT NOT NULL DEFAULT '',
+    biz_sub_id TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'active',
+    raw_json TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+db.exec(`
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_detrade_predict_shares_fill_unique
+  ON detrade_predict_shares(biz_id, biz_sub_id);
+`);
+
+db.exec(`
   CREATE TABLE IF NOT EXISTS nchat_users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     openid TEXT NOT NULL UNIQUE,
@@ -811,6 +886,17 @@ db.exec(`
 `);
 
 const DEFAULT_GAMES_CATALOG = [
+  {
+    slug: 'predict-master',
+    name: '预测大师',
+    description: 'Detrade 预测市场入口，授权后进入预测交易页面。',
+    cover_image: '',
+    secondary_image: '',
+    sound_file: '',
+    background_music_file: '',
+    is_enabled: 1,
+    sort_order: 60
+  },
   {
     slug: 'u-card-query',
     name: 'u卡场景查询',
@@ -1422,6 +1508,34 @@ db.prepare(
 ).run();
 db.prepare(
   "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('u_card_recharge_fee_rate', '0.02', datetime('now'))"
+).run();
+// Detrade Predict Master settings. Private key is write-only in admin UI.
+db.prepare(
+  "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('predict_master_base_url', '', datetime('now'))"
+).run();
+db.prepare(
+  "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('predict_master_api_key', '', datetime('now'))"
+).run();
+db.prepare(
+  "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('predict_master_private_key', '', datetime('now'))"
+).run();
+db.prepare(
+  "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('predict_master_user_id', '1727404213474304', datetime('now'))"
+).run();
+db.prepare(
+  "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('predict_master_username', 'Yxxvz', datetime('now'))"
+).run();
+db.prepare(
+  "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('predict_master_avatar', '', datetime('now'))"
+).run();
+db.prepare(
+  "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('predict_master_currency', 'USDT', datetime('now'))"
+).run();
+db.prepare(
+  "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('predict_master_exchange_rate', '1', datetime('now'))"
+).run();
+db.prepare(
+  "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('predict_master_balance_type', '', datetime('now'))"
 ).run();
 
 function migrateUniqueUrlToUrlCategory() {

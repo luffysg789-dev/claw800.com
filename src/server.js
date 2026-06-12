@@ -25,6 +25,15 @@ const {
   extractSessionKey,
   extractOpenId
 } = require('./nexa-pay');
+const {
+  DEFAULT_DETRADE_BASE_URL,
+  DEFAULT_DETRADE_API_KEY,
+  DEFAULT_DETRADE_PRIVATE_KEY,
+  normalizeDetradeBaseUrl,
+  normalizeDetradePrivateKey,
+  normalizeDetradeLoginPayload,
+  applyDetradeLogin
+} = require('./detrade');
 const execFileAsync = promisify(execFile);
 
 const app = express();
@@ -229,6 +238,10 @@ app.use((req, res, next) => {
 
 app.get(['/u-card-query', '/u-card-query/'], (_req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'u-card-query', 'index.html'));
+});
+
+app.get(['/predict-master', '/predict-master/'], (_req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'predict-master', 'index.html'));
 });
 
 app.get(['/u', '/u/'], (_req, res) => {
@@ -2915,6 +2928,62 @@ function computeEscrowFeeAmountCents(amountCents, feePermille) {
   return (normalizedAmountCents * feeCentiPermille + 50000n) / 100000n;
 }
 
+function normalizePredictMasterExchangeRate(value, fallback = '1') {
+  const raw = String(value || '').trim() || String(fallback || '1').trim();
+  if (!/^\d+(?:\.\d{1,10})?$/.test(raw)) return String(fallback || '1').trim() || '1';
+  const numericValue = Number(raw);
+  if (!Number.isFinite(numericValue) || numericValue <= 0) return String(fallback || '1').trim() || '1';
+  return raw.replace(/(?:\.0+|(\.\d*[1-9])0+)$/, '$1');
+}
+
+function normalizePredictMasterBalanceType(value) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+  const numericValue = Number(raw);
+  if (!Number.isInteger(numericValue) || numericValue < 0) return '';
+  return String(numericValue);
+}
+
+function getPredictMasterConfig() {
+  const baseUrl = normalizeDetradeBaseUrl(getSetting('predict_master_base_url', DEFAULT_DETRADE_BASE_URL));
+  const apiKey = getSetting('predict_master_api_key', DEFAULT_DETRADE_API_KEY);
+  const privateKey = normalizeDetradePrivateKey(getSetting('predict_master_private_key', DEFAULT_DETRADE_PRIVATE_KEY));
+  const userId = getSetting('predict_master_user_id', '1727404213474304');
+  const username = getSetting('predict_master_username', 'Yxxvz');
+  const avatar = getSetting('predict_master_avatar', '');
+  const currency = getSetting('predict_master_currency', 'USDT').toUpperCase();
+  const exchangeRate = normalizePredictMasterExchangeRate(getSetting('predict_master_exchange_rate', '1'), '1');
+  const balanceType = normalizePredictMasterBalanceType(getSetting('predict_master_balance_type', ''));
+  return {
+    baseUrl,
+    apiKey,
+    privateKey,
+    userId,
+    username,
+    avatar,
+    currency,
+    exchangeRate,
+    balanceType,
+    hasPrivateKey: Boolean(privateKey)
+  };
+}
+
+function formatAdminPredictMasterConfig(config = getPredictMasterConfig()) {
+  return {
+    ok: true,
+    baseUrl: String(config.baseUrl || ''),
+    apiKey: String(config.apiKey || ''),
+    privateKey: '',
+    hasPrivateKey: Boolean(config.hasPrivateKey),
+    userId: String(config.userId || ''),
+    username: String(config.username || ''),
+    avatar: String(config.avatar || ''),
+    currency: String(config.currency || 'USDT'),
+    exchangeRate: String(config.exchangeRate || '1'),
+    balanceType: String(config.balanceType || '')
+  };
+}
+
 function safeJsonParse(raw, fallback) {
   try {
     return JSON.parse(String(raw || ''));
@@ -3007,6 +3076,7 @@ const DEFAULT_SKILLS_PAGE_BOT_PROMPT_EN = 'claw800.com is a curated OpenClaw ski
 const DEFAULT_SKILLS_PAGE_INSTALL_PROMPT_ZH = '你是 OpenClaw 用户的技能安装助手。现在请帮我安装技能「{{name}}」。\n技能简介：{{description}}\n技能分类：{{category}}\n详情链接：{{url}}\n请按这个流程执行：\n1. 先打开详情链接，阅读 README、SKILL.md 或安装说明。\n2. 用中文告诉我这个技能做什么、是否安全、安装后会影响什么。\n3. 如果需要环境变量、依赖或权限，先明确列出来，再征求我确认。\n4. 只有在我确认后，才开始安装。\n5. 安装完成后，告诉我验证方法、使用方法，以及如何卸载或回滚。\n不要跳过确认步骤，也不要一次性安装无关技能。';
 const DEFAULT_SKILLS_PAGE_INSTALL_PROMPT_EN = 'You are an OpenClaw skill installation assistant. Help me install the skill "{{name}}".\nSkill summary: {{description}}\nSkill category: {{category}}\nDetail URL: {{url}}\nFollow this process:\n1. Open the detail page and read the README, SKILL.md, or install docs.\n2. Explain what the skill does, whether it looks safe, and what it may change.\n3. List any dependencies, env vars, permissions, or prerequisites before installing.\n4. Wait for my confirmation before you run or install anything.\n5. After installation, tell me how to verify it, use it, and uninstall or roll it back.\nDo not skip confirmation and do not install unrelated skills.';
 const GAME_ROUTE_MAP = {
+  'predict-master': '/predict-master/',
   'u-card-query': '/u-card-query/',
   'u-card': '/u',
   'nchat': '/nchat/',
@@ -3024,6 +3094,7 @@ const GAME_ROUTE_MAP = {
   muyu: '/muyu.html'
 };
 const GAME_ICON_MAP = {
+  'predict-master': '📈',
   'u-card-query': '💳',
   'u-card': '💳',
   'sbti': '🧠',
@@ -3038,6 +3109,18 @@ const GAME_ICON_MAP = {
   minesweeper: '💣',
   fortune: '🧧',
   muyu: '🪵'
+};
+const GAME_ACTION_TEXT_MAP = {
+  'predict-master': '进入预测',
+  'u-card-query': '开始查询',
+  nchat: '进入聊天',
+  sbti: '开始测试',
+  'nexa-escrow': '进入担保',
+  'tigang-master': '开始打卡',
+  'p-mining': '开始挖矿',
+  piano: '开始演奏',
+  xiangqi: '进入房间',
+  'beauty-light': '打开工具'
 };
 
 const skillsCatalogCountStmt = db.prepare('SELECT COUNT(*) as c FROM skills_catalog');
@@ -4474,6 +4557,7 @@ function formatGameRow(row = {}) {
     sort_order: Number(row.sort_order || 0) || 0,
     route: GAME_ROUTE_MAP[slug] || `/games/${encodeURIComponent(slug)}`,
     icon: GAME_ICON_MAP[slug] || '🎮',
+    actionText: GAME_ACTION_TEXT_MAP[slug] || '开始游戏',
     created_at: String(row.created_at || ''),
     updated_at: String(row.updated_at || '')
   };
@@ -6426,6 +6510,176 @@ app.get('/api/games/:slug/bootstrap', (req, res) => {
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
   res.json({ ok: true, item: formatGameBootstrapRow(nextRow) });
+});
+
+app.post('/api/predict-master/login-url', async (req, res) => {
+  try {
+    const config = getPredictMasterConfig();
+    const openId = String(req.body?.openId || req.body?.open_id || req.body?.openid || '').trim();
+    const sessionKey = String(req.body?.sessionKey || req.body?.session_key || '').trim();
+    const nickname = String(req.body?.nickname || req.body?.username || '').trim();
+    const avatar = String(req.body?.avatar || '').trim();
+    if (!openId || !sessionKey) {
+      return res.status(401).json({ error: '请先完成 Nexa 授权登录' });
+    }
+
+    const item = await applyDetradeLogin({
+      baseUrl: config.baseUrl,
+      apiKey: config.apiKey,
+      privateKey: config.privateKey,
+      payload: normalizeDetradeLoginPayload({
+        userId: openId,
+        username: nickname || config.username || openId,
+        avatar: avatar || config.avatar,
+        currency: config.currency,
+        exchangeRate: config.exchangeRate,
+        balanceType: config.balanceType
+      })
+    });
+    res.json({ ok: true, url: item.url, accessCode: item.accessCode });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 502) || 502;
+    res.status(statusCode >= 400 && statusCode < 600 ? statusCode : 502).json({
+      error: String(error?.message || '获取预测大师登录链接失败')
+    });
+  }
+});
+
+app.get('/wallet/balance', (req, res) => {
+  const externalUserId = String(req.query.userId ?? req.query.user_id ?? '').trim();
+  const currency = normalizeDetradeCurrency(req.query.currency);
+  if (!externalUserId) {
+    return res.json(detradeResponse(30001, 'Platform param invalid'));
+  }
+  const ensured = ensureDetradeUserWallet(externalUserId);
+  if (!ensured?.wallet) {
+    return res.json(detradeResponse(30005, 'Platform account not found'));
+  }
+  if (currency !== 'USDT') {
+    return res.json(detradeResponse(30009, 'Not support currency'));
+  }
+  return res.json(
+    detradeResponse(200, 'Success', {
+      currency,
+      balance: String(ensured.wallet.available_balance || '0.00')
+    })
+  );
+});
+
+app.post('/wallet/amount/deduction', (req, res) => {
+  try {
+    const result = applyDetradeDeduction(req.body || {});
+    if (result.kind === 'param_invalid') return res.json(detradeResponse(30001, 'Platform param invalid'));
+    if (result.kind === 'account_not_found') return res.json(detradeResponse(30005, 'Platform account not found'));
+    if (result.kind === 'balance_not_enough') return res.json(detradeResponse(30002, 'Balance not enough'));
+    if (result.kind !== 'ok') return res.json(detradeResponse(30004, 'Bet amount failed'));
+    return res.json(
+      detradeResponse(200, 'Success', {
+        usdAmount: String(result.transaction?.usd_amount || result.transaction?.amount || '0.00')
+      })
+    );
+  } catch (error) {
+    if (String(error?.message || '') === 'INVALID_AMOUNT') {
+      return res.json(detradeResponse(30001, 'Platform param invalid'));
+    }
+    return res.json(detradeResponse(30000, 'Platform system error'));
+  }
+});
+
+app.post('/wallet/amount/add', (req, res) => {
+  try {
+    const result = applyDetradeAdd(req.body || {});
+    if (result.kind === 'param_invalid') return res.json(detradeResponse(30001, 'Platform param invalid'));
+    if (result.kind === 'account_not_found') return res.json(detradeResponse(30005, 'Platform account not found'));
+    if (result.kind === 'missing_deduction') return res.json(detradeResponse(30015, 'Add amount fail not found bet'));
+    if (result.kind !== 'ok') return res.json(detradeResponse(30003, 'Add amount failed'));
+    return res.json(
+      detradeResponse(200, 'Success', {
+        usdAmount: String(result.transaction?.usd_amount || result.transaction?.amount || '0.00')
+      })
+    );
+  } catch (error) {
+    if (String(error?.message || '') === 'INVALID_AMOUNT') {
+      return res.json(detradeResponse(30001, 'Platform param invalid'));
+    }
+    return res.json(detradeResponse(30000, 'Platform system error'));
+  }
+});
+
+app.post('/order/push', (req, res) => {
+  const payload = req.body || {};
+  const orderId = String(payload.id ?? payload.orderId ?? payload.order_id ?? '').trim();
+  if (!orderId) return res.json(detradeResponse(30001, 'Platform param invalid'));
+  try {
+    upsertDetradeOrderPushStmt.run(
+      orderId,
+      String(payload.userId ?? payload.user_id ?? '').trim(),
+      normalizeDetradeCurrency(payload.currency || ''),
+      String(payload.amount ?? ''),
+      String(payload.profit ?? ''),
+      String(payload.bizType ?? payload.biz_type ?? ''),
+      String(payload.status ?? ''),
+      String(payload.symbol ?? ''),
+      serializeNotifyPayload(payload)
+    );
+    return res.json(detradeResponse(200, 'Success'));
+  } catch {
+    return res.json(detradeResponse(30000, 'Platform system error'));
+  }
+});
+
+app.post('/wallet/risk/report', (req, res) => {
+  const payload = req.body || {};
+  const externalUserId = String(payload.userId ?? payload.user_id ?? '').trim();
+  if (!externalUserId) return res.json(detradeResponse(30001, 'Platform param invalid'));
+  try {
+    insertDetradeRiskReportStmt.run(
+      externalUserId,
+      String(payload.riskStatus ?? payload.risk_status ?? '').trim(),
+      String(payload.desc ?? payload.description ?? '').trim(),
+      serializeNotifyPayload(payload)
+    );
+    return res.json(detradeResponse(200, 'Success'));
+  } catch {
+    return res.json(detradeResponse(30000, 'Platform system error'));
+  }
+});
+
+app.post('/wallet/notify', (_req, res) => {
+  res.json(detradeResponse(200, 'Success'));
+});
+
+app.post('/wallet/predict/shares/add', (req, res) => {
+  const payload = req.body || {};
+  const externalUserId = String(payload.userId ?? payload.user_id ?? '').trim();
+  const bizId = String(payload.bizId ?? payload.biz_id ?? '').trim();
+  const bizSubId = String(payload.bizSubId ?? payload.biz_sub_id ?? '').trim();
+  if (!externalUserId || !bizId || !bizSubId) return res.json(detradeResponse(30001, 'Platform param invalid'));
+  try {
+    upsertDetradePredictSharesStmt.run(
+      externalUserId,
+      String(payload.bizId ?? payload.biz_id ?? '').trim(),
+      String(payload.sharesQty ?? payload.shares_qty ?? '').trim(),
+      String(payload.orderId ?? payload.order_id ?? '').trim(),
+      bizId,
+      bizSubId,
+      serializeNotifyPayload(payload)
+    );
+    return res.json(detradeResponse(200, 'Success'));
+  } catch {
+    return res.json(detradeResponse(30000, 'Platform system error'));
+  }
+});
+
+app.post('/wallet/predict/shares/over', (req, res) => {
+  const sharesId = String(req.body?.sharesId ?? req.body?.shares_id ?? '').trim();
+  if (!sharesId) return res.json(detradeResponse(30001, 'Platform param invalid'));
+  try {
+    markDetradePredictSharesOverStmt.run(sharesId);
+    return res.json(detradeResponse(200, 'Success'));
+  } catch {
+    return res.json(detradeResponse(30000, 'Platform system error'));
+  }
 });
 
 app.get('/api/partners', (_req, res) => {
@@ -8641,6 +8895,63 @@ const insertXiangqiLedgerStmt = db.prepare(`
   INSERT INTO game_wallet_ledger (user_id, type, amount, balance_after, related_type, related_id, remark)
   VALUES (?, ?, ?, ?, ?, ?, ?)
 `);
+const selectDetradeWalletTransactionStmt = db.prepare(`
+  SELECT *
+  FROM detrade_wallet_transactions
+  WHERE direction = ? AND source = ? AND biz_id = ? AND biz_sub_id = ?
+  LIMIT 1
+`);
+const selectDetradeMatchingDeductionStmt = db.prepare(`
+  SELECT *
+  FROM detrade_wallet_transactions
+  WHERE direction = 'deduction'
+    AND biz_id = ?
+    AND source = ?
+  ORDER BY id ASC
+  LIMIT 1
+`);
+const insertDetradeWalletTransactionStmt = db.prepare(`
+  INSERT INTO detrade_wallet_transactions (
+    user_id, external_user_id, currency, direction, amount, usd_amount, biz_id, biz_type,
+    source, biz_sub_id, balance_type, balance_after, raw_json
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`);
+const upsertDetradeOrderPushStmt = db.prepare(`
+  INSERT INTO detrade_order_pushes (
+    order_id, external_user_id, currency, amount, profit, biz_type, status, symbol, raw_json, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+  ON CONFLICT(order_id) DO UPDATE SET
+    external_user_id = excluded.external_user_id,
+    currency = excluded.currency,
+    amount = excluded.amount,
+    profit = excluded.profit,
+    biz_type = excluded.biz_type,
+    status = excluded.status,
+    symbol = excluded.symbol,
+    raw_json = excluded.raw_json,
+    updated_at = datetime('now')
+`);
+const insertDetradeRiskReportStmt = db.prepare(`
+  INSERT INTO detrade_risk_reports (external_user_id, risk_status, description, raw_json)
+  VALUES (?, ?, ?, ?)
+`);
+const upsertDetradePredictSharesStmt = db.prepare(`
+  INSERT INTO detrade_predict_shares (
+    external_user_id, shares_id, shares_qty, order_id, biz_id, biz_sub_id, status, raw_json, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, 'active', ?, datetime('now'))
+  ON CONFLICT(biz_id, biz_sub_id) DO UPDATE SET
+    external_user_id = excluded.external_user_id,
+    shares_id = excluded.shares_id,
+    shares_qty = excluded.shares_qty,
+    order_id = excluded.order_id,
+    raw_json = excluded.raw_json,
+    updated_at = datetime('now')
+`);
+const markDetradePredictSharesOverStmt = db.prepare(`
+  UPDATE detrade_predict_shares
+  SET status = 'over', updated_at = datetime('now')
+  WHERE shares_id = ?
+`);
 const insertNexaEscrowWalletLedgerStmt = db.prepare(`
   INSERT INTO nexa_escrow_wallet_ledger (user_id, type, amount, balance_after, related_type, related_id, remark)
   VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -9046,6 +9357,170 @@ function serializeNotifyPayload(payload) {
   } catch {
     return '';
   }
+}
+
+function detradeResponse(code = 200, msg = 'Success', data = {}) {
+  return { code, msg, data };
+}
+
+function normalizeDetradeCurrency(value) {
+  return String(value || 'USDT').trim().toUpperCase() || 'USDT';
+}
+
+function getDetradeTransactionKey(payload = {}) {
+  return {
+    bizId: String(payload.bizId ?? payload.biz_id ?? '').trim(),
+    bizType: String(payload.bizType ?? payload.biz_type ?? '').trim(),
+    source: String(payload.source || '').trim(),
+    bizSubId: String(payload.bizSubId ?? payload.biz_sub_id ?? '').trim()
+  };
+}
+
+function detradeRelatedId({ bizId, bizSubId, source }) {
+  return `${String(bizId || '').trim()}:${String(bizSubId || '').trim()}:${String(source || '').trim()}`;
+}
+
+function ensureDetradeUserWallet(externalUserId, { nickname = 'Detrade User', avatar = '' } = {}) {
+  const openId = String(externalUserId || '').trim();
+  if (!openId) return null;
+
+  return db.transaction(() => {
+    let user = selectXiangqiUserByOpenIdStmt.get(openId);
+    if (!user) {
+      const result = insertXiangqiUserStmt.run(
+        openId,
+        String(nickname || 'Detrade User').trim() || 'Detrade User',
+        String(avatar || '').trim(),
+        createNexaEscrowAccountCode()
+      );
+      insertXiangqiWalletStmt.run(Number(result.lastInsertRowid));
+      user = selectXiangqiUserByOpenIdStmt.get(openId);
+    }
+    let wallet = selectXiangqiWalletStmt.get(Number(user.id));
+    if (!wallet) {
+      insertXiangqiWalletStmt.run(Number(user.id));
+      wallet = selectXiangqiWalletStmt.get(Number(user.id));
+    }
+    return { user, wallet };
+  })();
+}
+
+const DETRADE_ADD_SOURCE_TO_DEDUCTION_SOURCE = {
+  BINARY_ORDER_SETTLE: 'PLACE_BINARY_ORDER',
+  BINARY_SPREAD_ORDER_SETTLE: 'PLACE_BINARY_SPREAD_ORDER',
+  CONTRACT_ORDER_SETTLE: 'PLACE_CONTRACT_ORDER',
+  CONTRACT_ENTRUST_ORDER_SETTLE: 'PLACE_CONTRACT_ENTRUST_ORDER',
+  CONTEST_ORDER_SETTLE: 'PLACE_CONTEST_ORDER',
+  UPDOWN_ORDER_REFUND: 'PLACE_CONTEST_ORDER',
+  TAP_ORDER_SETTLE: 'PLACE_TAP_ORDER',
+  PREDICT_ORDER_SETTLE: 'PLACE_PREDICT_ORDER',
+  PREDICT_ORDER_SELL: 'PLACE_PREDICT_ORDER',
+  PREDICT_ORDER_REFUND: 'PLACE_PREDICT_ORDER'
+};
+
+function findMatchingDetradeDeduction({ bizId, source }) {
+  const deductionSource = DETRADE_ADD_SOURCE_TO_DEDUCTION_SOURCE[String(source || '').trim()];
+  if (!deductionSource) return null;
+  return selectDetradeMatchingDeductionStmt.get(String(bizId || '').trim(), deductionSource);
+}
+
+function applyDetradeDeduction(payload = {}) {
+  const externalUserId = String(payload.userId ?? payload.user_id ?? '').trim();
+  const amount = String(payload.amount || '').trim();
+  const amountCents = parseMoneyToCents(amount);
+  const currency = normalizeDetradeCurrency(payload.currency);
+  const { bizId, bizType, source, bizSubId } = getDetradeTransactionKey(payload);
+  if (!externalUserId || !bizId || !source) return { kind: 'param_invalid' };
+  const existing = selectDetradeWalletTransactionStmt.get('deduction', source, bizId, bizSubId);
+  if (existing) return { kind: 'ok', transaction: existing, idempotent: true };
+  const ensured = ensureDetradeUserWallet(externalUserId);
+  if (!ensured?.wallet) return { kind: 'account_not_found' };
+
+  return db.transaction(() => {
+    const wallet = selectXiangqiWalletStmt.get(Number(ensured.user.id));
+    const currentCents = parseMoneyToCents(wallet.available_balance);
+    if (currentCents < amountCents) return { kind: 'balance_not_enough' };
+    const nextBalance = centsToMoneyString(currentCents - amountCents);
+    updateXiangqiWalletBalanceStmt.run(nextBalance, Number(ensured.user.id));
+    insertXiangqiLedgerStmt.run(
+      Number(ensured.user.id),
+      'detrade_deduction',
+      centsToMoneyString(-amountCents),
+      nextBalance,
+      'detrade',
+      detradeRelatedId({ bizId, bizSubId, source }),
+      `Detrade ${source}`
+    );
+    insertDetradeWalletTransactionStmt.run(
+      Number(ensured.user.id),
+      externalUserId,
+      currency,
+      'deduction',
+      centsToMoneyString(amountCents),
+      centsToMoneyString(amountCents),
+      bizId,
+      bizType,
+      source,
+      bizSubId,
+      String(payload.balanceType ?? payload.balance_type ?? ''),
+      nextBalance,
+      serializeNotifyPayload(payload)
+    );
+    return {
+      kind: 'ok',
+      transaction: selectDetradeWalletTransactionStmt.get('deduction', source, bizId, bizSubId)
+    };
+  })();
+}
+
+function applyDetradeAdd(payload = {}) {
+  const externalUserId = String(payload.userId ?? payload.user_id ?? '').trim();
+  const amount = String(payload.amount || '').trim();
+  const amountCents = parseMoneyToCents(amount);
+  const currency = normalizeDetradeCurrency(payload.currency);
+  const { bizId, bizType, source, bizSubId } = getDetradeTransactionKey(payload);
+  if (!externalUserId || !bizId || !source) return { kind: 'param_invalid' };
+  const existing = selectDetradeWalletTransactionStmt.get('add', source, bizId, bizSubId);
+  if (existing) return { kind: 'ok', transaction: existing, idempotent: true };
+  if (DETRADE_ADD_SOURCE_TO_DEDUCTION_SOURCE[source] && !findMatchingDetradeDeduction({ bizId, source })) {
+    return { kind: 'missing_deduction' };
+  }
+  const ensured = ensureDetradeUserWallet(externalUserId);
+  if (!ensured?.wallet) return { kind: 'account_not_found' };
+
+  return db.transaction(() => {
+    const wallet = selectXiangqiWalletStmt.get(Number(ensured.user.id));
+    const nextBalance = centsToMoneyString(parseMoneyToCents(wallet.available_balance) + amountCents);
+    updateXiangqiWalletBalanceStmt.run(nextBalance, Number(ensured.user.id));
+    insertXiangqiLedgerStmt.run(
+      Number(ensured.user.id),
+      'detrade_add',
+      centsToMoneyString(amountCents),
+      nextBalance,
+      'detrade',
+      detradeRelatedId({ bizId, bizSubId, source }),
+      `Detrade ${source}`
+    );
+    insertDetradeWalletTransactionStmt.run(
+      Number(ensured.user.id),
+      externalUserId,
+      currency,
+      'add',
+      centsToMoneyString(amountCents),
+      centsToMoneyString(amountCents),
+      bizId,
+      bizType,
+      source,
+      bizSubId,
+      String(payload.balanceType ?? payload.balance_type ?? ''),
+      nextBalance,
+      serializeNotifyPayload(payload)
+    );
+    return {
+      kind: 'ok',
+      transaction: selectDetradeWalletTransactionStmt.get('add', source, bizId, bizSubId)
+    };
+  })();
 }
 
 function parseSerializedPayload(raw) {
@@ -11623,6 +12098,67 @@ app.put('/api/admin/partners/:id', requireAdmin, (req, res) => {
       return res.status(409).json({ error: '这个合作伙伴链接已经存在' });
     }
     return res.status(500).json({ error: '保存合作伙伴失败' });
+  }
+});
+
+app.get('/api/admin/predict-master-config', requireAdmin, (_req, res) => {
+  res.json(formatAdminPredictMasterConfig());
+});
+
+app.put('/api/admin/predict-master-config', requireAdmin, (req, res) => {
+  const baseUrl = normalizeDetradeBaseUrl(req.body?.baseUrl ?? req.body?.predictMasterBaseUrl ?? '');
+  const apiKey = String(req.body?.apiKey ?? req.body?.predictMasterApiKey ?? '').trim();
+  const privateKey = normalizeDetradePrivateKey(req.body?.privateKey ?? req.body?.predictMasterPrivateKey ?? '');
+  const userId = String(req.body?.userId ?? req.body?.predictMasterUserId ?? '').trim();
+  const username = String(req.body?.username ?? req.body?.predictMasterUsername ?? '').trim();
+  const avatar = String(req.body?.avatar ?? req.body?.predictMasterAvatar ?? '').trim();
+  const currency = String(req.body?.currency ?? req.body?.predictMasterCurrency ?? 'USDT').trim().toUpperCase() || 'USDT';
+  const exchangeRate = normalizePredictMasterExchangeRate(
+    req.body?.exchangeRate ?? req.body?.predictMasterExchangeRate ?? '1',
+    '1'
+  );
+  const balanceType = normalizePredictMasterBalanceType(req.body?.balanceType ?? req.body?.predictMasterBalanceType ?? '');
+  const keepPrivateKey =
+    req.body?.keepPrivateKey === true ||
+    req.body?.keepPredictMasterPrivateKey === true ||
+    String(req.body?.keepPrivateKey ?? req.body?.keepPredictMasterPrivateKey ?? '').trim() === 'true';
+  const shouldUpdatePrivateKey = Boolean(privateKey && !keepPrivateKey && !privateKey.includes('已保存'));
+
+  if (!baseUrl) return res.status(400).json({ error: 'Detrade Base URL 必填，且必须是 http(s) 链接' });
+  if (!apiKey) return res.status(400).json({ error: 'Detrade API Key 必填' });
+  if (!userId) return res.status(400).json({ error: '用户 ID 必填' });
+  if (Buffer.byteLength(baseUrl, 'utf8') > 1000) return res.status(413).json({ error: 'Detrade Base URL 太长' });
+  if (Buffer.byteLength(apiKey, 'utf8') > 2000) return res.status(413).json({ error: 'Detrade API Key 太长' });
+  if (Buffer.byteLength(privateKey, 'utf8') > 20000) return res.status(413).json({ error: 'Detrade Private Key 太长' });
+  if (Buffer.byteLength(userId, 'utf8') > 200) return res.status(413).json({ error: '用户 ID 太长' });
+  if (Buffer.byteLength(username, 'utf8') > 200) return res.status(413).json({ error: '用户名太长' });
+  if (Buffer.byteLength(avatar, 'utf8') > 1000) return res.status(413).json({ error: '头像链接太长' });
+  if (Buffer.byteLength(currency, 'utf8') > 20) return res.status(413).json({ error: '币种太长' });
+  if (avatar && !isProbablyAbsoluteUrl(avatar)) return res.status(400).json({ error: '头像必须是 http(s) 链接' });
+
+  if (shouldUpdatePrivateKey) {
+    try {
+      crypto.createPrivateKey(privateKey);
+    } catch {
+      return res.status(400).json({ error: 'Detrade Private Key 格式无效，请使用 BEGIN PRIVATE KEY 的 RSA 私钥' });
+    }
+  }
+
+  try {
+    upsertSettingStmt.run('predict_master_base_url', baseUrl);
+    upsertSettingStmt.run('predict_master_api_key', apiKey);
+    upsertSettingStmt.run('predict_master_user_id', userId);
+    upsertSettingStmt.run('predict_master_username', username);
+    upsertSettingStmt.run('predict_master_avatar', avatar);
+    upsertSettingStmt.run('predict_master_currency', currency);
+    upsertSettingStmt.run('predict_master_exchange_rate', exchangeRate);
+    upsertSettingStmt.run('predict_master_balance_type', balanceType);
+    if (shouldUpdatePrivateKey) {
+      upsertSettingStmt.run('predict_master_private_key', privateKey);
+    }
+    res.json(formatAdminPredictMasterConfig());
+  } catch {
+    res.status(500).json({ error: '保存预测大师配置失败' });
   }
 });
 

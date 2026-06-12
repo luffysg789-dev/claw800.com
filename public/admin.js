@@ -60,6 +60,9 @@ const adminSkillsFetchSection = document.getElementById('adminSkillsFetchSection
 const adminSkillsSection = document.getElementById('adminSkillsSection');
 const adminGamesSection = document.getElementById('adminGamesSection');
 const adminPartnersSection = document.getElementById('adminPartnersSection');
+const predictMasterConfigSection = document.getElementById('predictMasterConfigSection');
+const predictMasterConfigForm = document.getElementById('predictMasterConfigForm');
+const predictMasterConfigMessage = document.getElementById('predictMasterConfigMessage');
 const adminUCardSection = document.getElementById('adminUCardSection');
 const adminOrdersSection = document.getElementById('adminOrdersSection');
 const adminPMiningOrdersSection = document.getElementById('adminPMiningOrdersSection');
@@ -191,6 +194,7 @@ const TUTORIAL_UPLOAD_CHUNK_SIZE = 100000;
 const SAVED_NEXA_SECRET_MASK = '••••••••已保存';
 const SAVED_U_CARD_UPAL_PRIVATE_KEY_MASK = '••••••••私钥已保存';
 const SAVED_U_CARD_UPAL_API_KEY_MASK = '••••••••API Key 已保存';
+const SAVED_PREDICT_MASTER_PRIVATE_KEY_MASK = '••••••••私钥已保存';
 const DEFAULT_SITE_CONFIG = {
   title: 'claw800.com',
   subtitleZh: '龙虾学习导航网，为你的龙虾赋能。',
@@ -255,6 +259,7 @@ const texts = {
     navSkills: '技能列表',
     navGames: '游戏与工具列表',
     navPartners: '合作伙伴',
+    navPredictMasterConfig: '预测大师设置',
     navUCard: 'U卡场景',
     navUCardUpstreamConfig: 'U 卡上游配置',
     navUCardProducts: 'U 卡卡种配置',
@@ -427,6 +432,19 @@ const texts = {
     uCardUpstreamConfigSaveBtn: '保存上游配置',
     uCardTestUpstreamProductsBtn: '测试产品接口',
     uCardUpstreamConfigSaved: 'U 卡上游配置已保存。',
+    predictMasterConfigTitle: '预测大师设置',
+    predictMasterBaseUrlLabel: 'Detrade Base URL',
+    predictMasterApiKeyLabel: 'API Key',
+    predictMasterPrivateKeyLabel: 'Private Key（BEGIN PRIVATE KEY，保存后不回显，留空则保留已保存私钥）',
+    predictMasterUserIdLabel: '用户 ID',
+    predictMasterUsernameLabel: '用户名',
+    predictMasterAvatarLabel: '头像链接',
+    predictMasterCurrencyLabel: '币种',
+    predictMasterExchangeRateLabel: '汇率',
+    predictMasterBalanceTypeLabel: '资金类型（可选）',
+    predictMasterConfigSaveBtn: '保存预测大师设置',
+    predictMasterConfigSaved: '预测大师设置已保存。',
+    predictMasterConfigLoadFailed: '预测大师设置加载失败。',
     uCardUpstreamProductsTestDone: (count) =>
       count > 0
         ? `上游产品接口已打通：抓到 ${count} 个产品。`
@@ -617,6 +635,7 @@ const texts = {
     navSkills: 'Skills',
     navGames: 'Games & Tools',
     navPartners: 'Partners',
+    navPredictMasterConfig: 'Predict Master Settings',
     navUCard: 'U Card Scenes',
     navUCardUpstreamConfig: 'U Card Upstream Config',
     navUCardProducts: 'U Card Product Config',
@@ -789,6 +808,19 @@ const texts = {
     uCardUpstreamConfigSaveBtn: 'Save Upstream Config',
     uCardTestUpstreamProductsBtn: 'Test Product API',
     uCardUpstreamConfigSaved: 'U card upstream config saved.',
+    predictMasterConfigTitle: 'Predict Master Settings',
+    predictMasterBaseUrlLabel: 'Detrade Base URL',
+    predictMasterApiKeyLabel: 'API Key',
+    predictMasterPrivateKeyLabel: 'Private Key (BEGIN PRIVATE KEY; saved value is hidden, leave blank to keep it)',
+    predictMasterUserIdLabel: 'User ID',
+    predictMasterUsernameLabel: 'Username',
+    predictMasterAvatarLabel: 'Avatar URL',
+    predictMasterCurrencyLabel: 'Currency',
+    predictMasterExchangeRateLabel: 'Exchange Rate',
+    predictMasterBalanceTypeLabel: 'Balance Type (optional)',
+    predictMasterConfigSaveBtn: 'Save Predict Master Settings',
+    predictMasterConfigSaved: 'Predict Master settings saved.',
+    predictMasterConfigLoadFailed: 'Failed to load Predict Master settings.',
     uCardUpstreamProductsTestDone: (count) =>
       count > 0
         ? `Upstream product API connected: ${count} products found.`
@@ -1293,6 +1325,7 @@ function applyLanguage() {
   document.getElementById('navSkills').textContent = dict.navSkills;
   document.getElementById('navGames').textContent = dict.navGames;
   document.getElementById('navPartners').textContent = dict.navPartners;
+  document.getElementById('navPredictMasterConfig').textContent = dict.navPredictMasterConfig;
   document.getElementById('navUCard').textContent = dict.navUCard;
   document.getElementById('navUCardUpstreamConfig').textContent = dict.navUCardUpstreamConfig;
   document.getElementById('navUCardProducts').textContent = dict.navUCardProducts;
@@ -1413,6 +1446,17 @@ function applyLanguage() {
   document.getElementById('uCardPlatformTitle').textContent = dict.uCardPlatformTitle;
   document.getElementById('uCardPlatformListTitle').textContent = dict.uCardPlatformListTitle;
   document.getElementById('uCardUpstreamConfigTitle').textContent = dict.uCardUpstreamConfigTitle;
+  document.getElementById('predictMasterConfigTitle').textContent = dict.predictMasterConfigTitle;
+  document.getElementById('predictMasterBaseUrlLabel').childNodes[0].textContent = dict.predictMasterBaseUrlLabel;
+  document.getElementById('predictMasterApiKeyLabel').childNodes[0].textContent = dict.predictMasterApiKeyLabel;
+  document.getElementById('predictMasterPrivateKeyLabel').childNodes[0].textContent = dict.predictMasterPrivateKeyLabel;
+  document.getElementById('predictMasterUserIdLabel').childNodes[0].textContent = dict.predictMasterUserIdLabel;
+  document.getElementById('predictMasterUsernameLabel').childNodes[0].textContent = dict.predictMasterUsernameLabel;
+  document.getElementById('predictMasterAvatarLabel').childNodes[0].textContent = dict.predictMasterAvatarLabel;
+  document.getElementById('predictMasterCurrencyLabel').childNodes[0].textContent = dict.predictMasterCurrencyLabel;
+  document.getElementById('predictMasterExchangeRateLabel').childNodes[0].textContent = dict.predictMasterExchangeRateLabel;
+  document.getElementById('predictMasterBalanceTypeLabel').childNodes[0].textContent = dict.predictMasterBalanceTypeLabel;
+  document.getElementById('predictMasterConfigSaveBtn').textContent = dict.predictMasterConfigSaveBtn;
   document.getElementById('uCardProductsTitle').textContent = dict.uCardProductsTitle;
   document.getElementById('uCardApplicationsTitle').textContent = dict.uCardApplicationsTitle;
   document.getElementById('uCardProductsRefreshBtn').textContent = dict.uCardProductsRefreshBtn;
@@ -1496,6 +1540,7 @@ function setView(view) {
   adminSkillsSection.classList.toggle('hidden', view !== 'skills');
   adminGamesSection.classList.toggle('hidden', view !== 'games');
   adminPartnersSection.classList.toggle('hidden', view !== 'partners');
+  predictMasterConfigSection.classList.toggle('hidden', view !== 'predict-master-config');
   adminUCardSection.classList.toggle('hidden', view !== 'u-card');
   adminUCardUpstreamConfigSection.classList.toggle('hidden', view !== 'u-card-upstream-config');
   adminUCardProductsSection.classList.toggle('hidden', view !== 'u-card-products');
@@ -1519,6 +1564,9 @@ function setView(view) {
   }
   if (view === 'site-config') {
     loadSiteConfig();
+  }
+  if (view === 'predict-master-config') {
+    loadPredictMasterConfig();
   }
   if (view === 'visit-stats') {
     loadVisitStats();
@@ -2817,6 +2865,42 @@ function setUCardUpstreamConfigMessage(text = '', className = 'message') {
   }
 }
 
+function setPredictMasterConfigMessage(text = '', className = 'message') {
+  if (predictMasterConfigMessage) {
+    predictMasterConfigMessage.textContent = text;
+    predictMasterConfigMessage.className = className;
+  }
+}
+
+function fillPredictMasterConfigForm(config = {}) {
+  if (!predictMasterConfigForm || !predictMasterConfigForm.elements) return;
+  const elements = predictMasterConfigForm.elements;
+  elements.predictMasterBaseUrl.value = String(config.baseUrl || '');
+  elements.predictMasterApiKey.value = String(config.apiKey || '');
+  elements.predictMasterPrivateKey.value = config.hasPrivateKey ? SAVED_PREDICT_MASTER_PRIVATE_KEY_MASK : '';
+  elements.predictMasterUserId.value = String(config.userId || '1727404213474304');
+  elements.predictMasterUsername.value = String(config.username || 'Yxxvz');
+  elements.predictMasterAvatar.value = String(config.avatar || '');
+  elements.predictMasterCurrency.value = String(config.currency || 'USDT');
+  elements.predictMasterExchangeRate.value = String(config.exchangeRate || '1');
+  elements.predictMasterBalanceType.value = String(config.balanceType || '');
+}
+
+async function loadPredictMasterConfig() {
+  if (!predictMasterConfigForm) return;
+  setPredictMasterConfigMessage();
+  const result = await requestTutorialJson(['/api/admin/predict-master-config'], { method: 'GET' });
+  if (result.res?.status === 401) {
+    showLogin();
+    return;
+  }
+  if (!result.res || !result.res.ok) {
+    setPredictMasterConfigMessage(localizeApiError(result.data?.error || t('predictMasterConfigLoadFailed')), 'message error');
+    return;
+  }
+  fillPredictMasterConfigForm(result.data || {});
+}
+
 async function loadUCardUpstreamConfig() {
   if (!uCardUpstreamConfigForm) return;
   const result = await requestTutorialJson(['/api/admin/u-card/upstream-config'], { method: 'GET' });
@@ -3277,6 +3361,41 @@ if (uCardUpstreamConfigForm) {
     }
     fillUCardUpstreamConfigForm(result.data || {});
     setUCardUpstreamConfigMessage(t('uCardUpstreamConfigSaved'), 'message success');
+  });
+}
+
+if (predictMasterConfigForm) {
+  predictMasterConfigForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const payload = Object.fromEntries(new FormData(predictMasterConfigForm).entries());
+    const privateKey = String(payload.predictMasterPrivateKey || '').trim();
+    setPredictMasterConfigMessage();
+    const result = await requestTutorialJson(['/api/admin/predict-master-config'], {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        baseUrl: String(payload.predictMasterBaseUrl || '').trim(),
+        apiKey: String(payload.predictMasterApiKey || '').trim(),
+        privateKey,
+        userId: String(payload.predictMasterUserId || '').trim(),
+        username: String(payload.predictMasterUsername || '').trim(),
+        avatar: String(payload.predictMasterAvatar || '').trim(),
+        currency: String(payload.predictMasterCurrency || 'USDT').trim(),
+        exchangeRate: String(payload.predictMasterExchangeRate || '1').trim(),
+        balanceType: String(payload.predictMasterBalanceType || '').trim(),
+        keepPrivateKey: privateKey === SAVED_PREDICT_MASTER_PRIVATE_KEY_MASK
+      })
+    });
+    if (result.res?.status === 401) {
+      showLogin();
+      return;
+    }
+    if (!result.res || !result.res.ok) {
+      setPredictMasterConfigMessage(localizeApiError(result.data?.error || t('operationFailed')), 'message error');
+      return;
+    }
+    fillPredictMasterConfigForm(result.data || {});
+    setPredictMasterConfigMessage(t('predictMasterConfigSaved'), 'message success');
   });
 }
 
@@ -5150,6 +5269,7 @@ document.getElementById('navSkillsFetch').addEventListener('click', () => setVie
 document.getElementById('navSkills').addEventListener('click', () => setView('skills'));
 document.getElementById('navGames').addEventListener('click', () => setView('games'));
 document.getElementById('navPartners').addEventListener('click', () => setView('partners'));
+document.getElementById('navPredictMasterConfig').addEventListener('click', () => setView('predict-master-config'));
 document.getElementById('navUCard').addEventListener('click', () => setView('u-card'));
 document.getElementById('navUCardUpstreamConfig').addEventListener('click', () => setView('u-card-upstream-config'));
 document.getElementById('navUCardProducts').addEventListener('click', () => setView('u-card-products'));

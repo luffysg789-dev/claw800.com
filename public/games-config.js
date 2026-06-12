@@ -1,5 +1,20 @@
 const DEFAULT_GAMES = [
   {
+    slug: 'predict-master',
+    name: '预测大师',
+    description: '进入 Detrade 预测市场，授权后打开预测交易页面。',
+    cover_image: '',
+    secondary_image: '',
+    sound_file: '',
+    background_music_file: '',
+    is_enabled: 1,
+    showInGamesHub: 1,
+    sort_order: 60,
+    route: '/predict-master/',
+    icon: 'UPAL',
+    actionText: '进入预测'
+  },
+  {
     slug: 'lucky-star',
     name: 'LUCKY STAR INVESTMENT',
     description: '迪拜注册投资公司官网，展示公司简介、投资领域、注册资质与办公室环境。',
@@ -232,6 +247,7 @@ const DEFAULT_GAMES = [
 ];
 
 const GAME_ACTION_TEXT = {
+  'predict-master': '进入预测',
   'u-card-query': '开始查询',
   nchat: '进入聊天',
   sbti: '开始测试',
@@ -249,6 +265,11 @@ const GAME_ACTION_TEXT = {
   muyu: '开始游戏'
 };
 const GAME_I18N = {
+  'predict-master': {
+    name: 'Predict Master',
+    description: 'Open the Detrade prediction market after authorization.',
+    actionText: 'Enter Prediction'
+  },
   'u-card-query': {
     name: 'U Card Scenario Lookup',
     description: 'Select a platform to find U cards and BINs that support that payment scenario.',
@@ -408,9 +429,14 @@ async function fetchJson(path) {
 
 function gameCardMarkup(item) {
   const displayItem = localizeGame(item);
+  const isPredictMaster = String(item?.slug || '') === 'predict-master';
+  const brandBadge = isPredictMaster
+    ? '<span class="game-card__brand-badge" aria-label="UPAL">UPAL</span>'
+    : '';
 
   return `
     <article class="game-card">
+      ${brandBadge}
       <div class="game-card__body">
         <h3>${escapeHtml(displayItem.name)}</h3>
         <p>${escapeHtml(displayItem.description)}</p>

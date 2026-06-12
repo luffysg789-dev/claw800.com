@@ -1,0 +1,181 @@
+(function initPredictMaster() {
+  const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth://oauth/authorize';
+  const NEXA_PUBLIC_CONFIG_ENDPOINT = '/api/nexa/public-config';
+  const NEXA_SESSION_ENDPOINT = '/api/nexa/tip/session';
+  const PREDICT_MASTER_SESSION_STORAGE_KEY = 'claw800:predict-master:nexa-session';
+  const MAX_SESSION_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+
+  const frame = document.getElementById('predictMasterFrame');
+  const loading = document.getElementById('predictMasterLoading');
+  const status = document.getElementById('predictMasterStatus');
+  const errorPanel = document.getElementById('predictMasterError');
+  const errorText = document.getElementById('predictMasterErrorText');
+  const reloadBtn = document.getElementById('predictMasterReloadBtn');
+
+  function setLoading(text) {
+    if (status) status.textContent = text;
+    if (loading) {
+      loading.textContent = text;
+      loading.classList.remove('hidden');
+    }
+    if (errorPanel) errorPanel.classList.add('hidden');
+  }
+
+  function setError(message) {
+    if (status) status.textContent = '入口获取失败';
+    if (loading) loading.classList.add('hidden');
+    if (errorText) errorText.textContent = message || '请稍后重试。';
+    if (errorPanel) errorPanel.classList.remove('hidden');
+  }
+
+  function storage() {
+    try {
+      return window.sessionStorage;
+    } catch {
+      return null;
+    }
+  }
+
+  function normalizeSession(input) {
+    const savedAt = Number(input?.savedAt || 0) || Date.now();
+    const expiresAt = Number(input?.expiresAt || 0) || savedAt + MAX_SESSION_RETENTION_MS;
+    const session = {
+      openId: String(input?.openId || input?.open_id || input?.openid || '').trim(),
+      sessionKey: String(input?.sessionKey || input?.session_key || '').trim(),
+      nickname: String(input?.nickname || input?.username || '').trim(),
+      avatar: String(input?.avatar || '').trim(),
+      savedAt,
+      expiresAt
+    };
+    if (!session.openId || !session.sessionKey || Date.now() > session.expiresAt) return null;
+    return session;
+  }
+
+  function loadCachedSession() {
+    try {
+      const parsed = JSON.parse(storage()?.getItem(PREDICT_MASTER_SESSION_STORAGE_KEY) || 'null');
+      return normalizeSession(parsed);
+    } catch {
+      return null;
+    }
+  }
+
+  function saveCachedSession(session) {
+    const normalized = normalizeSession({ ...session, savedAt: Date.now() });
+    if (!normalized) return null;
+    storage()?.setItem(PREDICT_MASTER_SESSION_STORAGE_KEY, JSON.stringify(normalized));
+    return normalized;
+  }
+
+  function clearCachedSession() {
+    storage()?.removeItem(PREDICT_MASTER_SESSION_STORAGE_KEY);
+  }
+
+  async function requestJson(url, options = {}) {
+    const method = String(options.method || 'GET').toUpperCase();
+    const requestUrl = method === 'GET' ? `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}` : url;
+    const response = await fetch(requestUrl, {
+      cache: method === 'GET' ? 'no-store' : 'default',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
+      },
+      ...options
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data?.ok === false) {
+      throw new Error(data?.error || data?.message || '请求失败');
+    }
+    return data;
+  }
+
+  function extractAuthCodeFromUrl() {
+    try {
+      const params = new URL(window.location.href).searchParams;
+      return String(params.get('code') || params.get('authCode') || params.get('auth_code') || '').trim();
+    } catch {
+      return '';
+    }
+  }
+
+  function clearAuthCodeFromUrl() {
+    try {
+      const url = new URL(window.location.href);
+      ['code', 'authCode', 'auth_code', 'state'].forEach((key) => url.searchParams.delete(key));
+      window.history.replaceState({}, '', url.toString());
+    } catch {}
+  }
+
+  async function beginNexaLoginFlow() {
+    setLoading('正在打开 Nexa 授权登录...');
+    const config = await requestJson(NEXA_PUBLIC_CONFIG_ENDPOINT);
+    if (!config?.apiKey) throw new Error('Nexa 授权配置未完成');
+    const redirectUri = window.location.href.split('#')[0];
+    window.location.href = `${NEXA_PROTOCOL_AUTH_BASE}?apikey=${encodeURIComponent(config.apiKey)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+  }
+
+  async function exchangeSessionFromAuthCode() {
+    const authCode = extractAuthCodeFromUrl();
+    if (!authCode) return null;
+    setLoading('正在完成 Nexa 授权...');
+    try {
+      const response = await requestJson(NEXA_SESSION_ENDPOINT, {
+        method: 'POST',
+        body: JSON.stringify({ authCode, gameSlug: 'predict-master' })
+      });
+      const session = saveCachedSession(response.session || {});
+      if (!session) throw new Error('Nexa 会话创建失败，请重新授权。');
+      return session;
+    } finally {
+      clearAuthCodeFromUrl();
+    }
+  }
+
+  async function getNexaSession() {
+    const exchangedSession = await exchangeSessionFromAuthCode();
+    if (exchangedSession) return exchangedSession;
+    const cachedSession = loadCachedSession();
+    if (cachedSession) return cachedSession;
+    await beginNexaLoginFlow();
+    return null;
+  }
+
+  async function requestLoginUrl() {
+    setLoading('正在获取预测市场入口...');
+    if (frame) frame.removeAttribute('src');
+
+    try {
+      const session = await getNexaSession();
+      if (!session) return;
+      const data = await requestJson('/api/predict-master/login-url', {
+        method: 'POST',
+        body: JSON.stringify({
+          openId: session.openId,
+          sessionKey: session.sessionKey,
+          nickname: session.nickname,
+          avatar: session.avatar
+        })
+      });
+      if (!data?.url) throw new Error('获取预测大师入口失败');
+      if (status) status.textContent = '预测市场已连接';
+      if (frame) frame.src = data.url;
+    } catch (error) {
+      clearCachedSession();
+      setError(error?.message || '获取预测大师入口失败');
+    }
+  }
+
+  if (frame) {
+    frame.addEventListener('load', () => {
+      if (loading) loading.classList.add('hidden');
+    });
+  }
+  if (reloadBtn) {
+    reloadBtn.addEventListener('click', () => {
+      clearCachedSession();
+      requestLoginUrl();
+    });
+  }
+  requestLoginUrl();
+})();

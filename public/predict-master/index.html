@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>预测大师</title>
+    <meta name="description" content="预测大师 Detrade 预测市场入口。" />
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="stylesheet" href="/predict-master/style.css?v=20260612-03" />
+  </head>
+  <body>
+    <main class="predict-master-app">
+      <header class="predict-master-header">
+        <a class="back-link" href="/games.html" aria-label="返回游戏与工具大全" title="返回游戏与工具大全">←</a>
+        <div class="predict-master-brand">
+          <span class="predict-master-logo" aria-label="UPAL">UPAL</span>
+          <h1>预测大师</h1>
+          <p id="predictMasterStatus">正在获取预测市场入口...</p>
+        </div>
+        <button id="predictMasterReloadBtn" type="button">刷新</button>
+      </header>
+
+      <section id="predictMasterError" class="predict-master-error hidden">
+        <h2>暂时无法进入</h2>
+        <p id="predictMasterErrorText"></p>
+      </section>
+
+      <section id="predictMasterFrameShell" class="predict-master-frame-shell">
+        <div id="predictMasterLoading" class="predict-master-loading">加载中...</div>
+        <div class="predict-master-iframe-brand-mask" aria-hidden="true">
+          <span>UPAL</span>
+        </div>
+        <iframe
+          id="predictMasterFrame"
+          title="预测大师"
+          allow="clipboard-read; clipboard-write; fullscreen; payment"
+          referrerpolicy="no-referrer-when-downgrade"
+        ></iframe>
+      </section>
+    </main>
+    <script src="/predict-master/script.js?v=20260612-04"></script>
+  </body>
+</html>

@@ -17,9 +17,15 @@ test('games page uses unified start button text for all game cards', () => {
 });
 
 test('games page loads the latest game config bundle and keeps piano cards on /piano/', () => {
-  assert.match(gamesHtml, /<script src="\/games-config\.js\?v=20260507-01"><\/script>/);
+  assert.match(gamesHtml, /<script src="\/games-config\.js\?v=20260612-02"><\/script>/);
   assert.match(config, /slug:\s*'piano'[\s\S]*route:\s*'\/piano\/'/);
   assert.match(config, /if \(fallback\.route\) \{[\s\S]*const legacyRoute = `\/games\/\$\{encodeURIComponent\(slug\)\}`;[\s\S]*if \(!route \|\| route === legacyRoute\) route = fallback\.route;/);
+});
+
+test('predict-master card renders UPAL brand badge', () => {
+  assert.match(config, /slug:\s*'predict-master'[\s\S]*icon:\s*'UPAL'/);
+  assert.match(config, /game-card__brand-badge/);
+  assert.match(css, /\.game-card__brand-badge/);
 });
 
 test('games page keeps the Lucky Star corporate site out of the public games hub', () => {

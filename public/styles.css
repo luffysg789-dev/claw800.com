@@ -1224,6 +1224,7 @@ button.danger { background: var(--danger); }
 }
 
 .game-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -1233,6 +1234,23 @@ button.danger { background: var(--danger); }
   border-radius: 24px;
   padding: 20px;
   box-shadow: 0 16px 40px rgba(31, 42, 32, 0.08);
+}
+
+.game-card__brand-badge {
+  align-self: flex-start;
+  min-width: 56px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #111816;
+  color: #25e58d;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1;
 }
 
 .game-card__body {
