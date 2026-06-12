@@ -63,6 +63,10 @@ const adminPartnersSection = document.getElementById('adminPartnersSection');
 const predictMasterConfigSection = document.getElementById('predictMasterConfigSection');
 const predictMasterConfigForm = document.getElementById('predictMasterConfigForm');
 const predictMasterConfigMessage = document.getElementById('predictMasterConfigMessage');
+const predictMasterLoginLogsSection = document.getElementById('predictMasterLoginLogsSection');
+const predictMasterLoginLogsRefreshBtn = document.getElementById('predictMasterLoginLogsRefreshBtn');
+const predictMasterLoginLogsMessage = document.getElementById('predictMasterLoginLogsMessage');
+const predictMasterLoginLogsList = document.getElementById('predictMasterLoginLogsList');
 const predictMasterCallbackLogsSection = document.getElementById('predictMasterCallbackLogsSection');
 const predictMasterCallbackLogsRefreshBtn = document.getElementById('predictMasterCallbackLogsRefreshBtn');
 const predictMasterCallbackLogsMessage = document.getElementById('predictMasterCallbackLogsMessage');
@@ -264,6 +268,7 @@ const texts = {
     navGames: '游戏与工具列表',
     navPartners: '合作伙伴',
     navPredictMasterConfig: '预测大师设置',
+    navPredictMasterLoginLogs: '预测登录日志',
     navPredictMasterCallbackLogs: '预测上游回调日志',
     navUCard: 'U卡场景',
     navUCardUpstreamConfig: 'U 卡上游配置',
@@ -450,6 +455,10 @@ const texts = {
     predictMasterConfigSaveBtn: '保存预测大师设置',
     predictMasterConfigSaved: '预测大师设置已保存。',
     predictMasterConfigLoadFailed: '预测大师设置加载失败。',
+    predictMasterLoginLogsTitle: '预测登录日志',
+    predictMasterLoginLogsRefreshBtn: '刷新',
+    predictMasterLoginLogsEmpty: '暂无预测登录日志。',
+    predictMasterLoginLogsLoadFailed: '预测登录日志加载失败。',
     predictMasterCallbackLogsTitle: '预测上游回调日志',
     predictMasterCallbackLogsRefreshBtn: '刷新',
     predictMasterCallbackLogsEmpty: '暂无回调日志。',
@@ -645,6 +654,7 @@ const texts = {
     navGames: 'Games & Tools',
     navPartners: 'Partners',
     navPredictMasterConfig: 'Predict Master Settings',
+    navPredictMasterLoginLogs: 'Predict Login Logs',
     navPredictMasterCallbackLogs: 'Predict Callback Logs',
     navUCard: 'U Card Scenes',
     navUCardUpstreamConfig: 'U Card Upstream Config',
@@ -831,6 +841,10 @@ const texts = {
     predictMasterConfigSaveBtn: 'Save Predict Master Settings',
     predictMasterConfigSaved: 'Predict Master settings saved.',
     predictMasterConfigLoadFailed: 'Failed to load Predict Master settings.',
+    predictMasterLoginLogsTitle: 'Predict Login Logs',
+    predictMasterLoginLogsRefreshBtn: 'Refresh',
+    predictMasterLoginLogsEmpty: 'No predict login logs yet.',
+    predictMasterLoginLogsLoadFailed: 'Failed to load predict login logs.',
     predictMasterCallbackLogsTitle: 'Predict Callback Logs',
     predictMasterCallbackLogsRefreshBtn: 'Refresh',
     predictMasterCallbackLogsEmpty: 'No callback logs yet.',
@@ -1340,6 +1354,7 @@ function applyLanguage() {
   document.getElementById('navGames').textContent = dict.navGames;
   document.getElementById('navPartners').textContent = dict.navPartners;
   document.getElementById('navPredictMasterConfig').textContent = dict.navPredictMasterConfig;
+  document.getElementById('navPredictMasterLoginLogs').textContent = dict.navPredictMasterLoginLogs;
   document.getElementById('navPredictMasterCallbackLogs').textContent = dict.navPredictMasterCallbackLogs;
   document.getElementById('navUCard').textContent = dict.navUCard;
   document.getElementById('navUCardUpstreamConfig').textContent = dict.navUCardUpstreamConfig;
@@ -1472,6 +1487,8 @@ function applyLanguage() {
   document.getElementById('predictMasterExchangeRateLabel').childNodes[0].textContent = dict.predictMasterExchangeRateLabel;
   document.getElementById('predictMasterBalanceTypeLabel').childNodes[0].textContent = dict.predictMasterBalanceTypeLabel;
   document.getElementById('predictMasterConfigSaveBtn').textContent = dict.predictMasterConfigSaveBtn;
+  document.getElementById('predictMasterLoginLogsTitle').textContent = dict.predictMasterLoginLogsTitle;
+  document.getElementById('predictMasterLoginLogsRefreshBtn').textContent = dict.predictMasterLoginLogsRefreshBtn;
   document.getElementById('predictMasterCallbackLogsTitle').textContent = dict.predictMasterCallbackLogsTitle;
   document.getElementById('predictMasterCallbackLogsRefreshBtn').textContent = dict.predictMasterCallbackLogsRefreshBtn;
   document.getElementById('uCardProductsTitle').textContent = dict.uCardProductsTitle;
@@ -1558,6 +1575,7 @@ function setView(view) {
   adminGamesSection.classList.toggle('hidden', view !== 'games');
   adminPartnersSection.classList.toggle('hidden', view !== 'partners');
   predictMasterConfigSection.classList.toggle('hidden', view !== 'predict-master-config');
+  predictMasterLoginLogsSection.classList.toggle('hidden', view !== 'predict-master-login-logs');
   predictMasterCallbackLogsSection.classList.toggle('hidden', view !== 'predict-master-callback-logs');
   adminUCardSection.classList.toggle('hidden', view !== 'u-card');
   adminUCardUpstreamConfigSection.classList.toggle('hidden', view !== 'u-card-upstream-config');
@@ -1585,6 +1603,9 @@ function setView(view) {
   }
   if (view === 'predict-master-config') {
     loadPredictMasterConfig();
+  }
+  if (view === 'predict-master-login-logs') {
+    loadPredictMasterLoginLogs();
   }
   if (view === 'predict-master-callback-logs') {
     loadPredictMasterCallbackLogs();
@@ -2920,6 +2941,60 @@ async function loadPredictMasterConfig() {
     return;
   }
   fillPredictMasterConfigForm(result.data || {});
+}
+
+function renderPredictMasterLoginLogs(items = []) {
+  if (!predictMasterLoginLogsList) return;
+  if (!Array.isArray(items) || !items.length) {
+    predictMasterLoginLogsList.innerHTML = `<p class="empty">${escapeHtml(t('predictMasterLoginLogsEmpty'))}</p>`;
+    return;
+  }
+
+  predictMasterLoginLogsList.innerHTML = items
+    .map((item) => {
+      const success = Boolean(item.success);
+      const statusText = success ? '成功' : '失败';
+      const statusClass = success ? 'message success' : 'message error';
+      const errorMessage = String(item.errorMessage || '').trim();
+      const requestPayloadJson = JSON.stringify(item.requestPayload || {}, null, 2);
+      return `
+        <article class="review-card">
+          <h3>${escapeHtml(item.nickname || item.externalUserId || 'Nexa 用户')}</h3>
+          <p class="${statusClass}">${escapeHtml(statusText)}${errorMessage ? ` · ${escapeHtml(errorMessage)}` : ''}</p>
+          <p class="small">用户 ID: ${escapeHtml(item.externalUserId || '-')}</p>
+          <p class="small">Detrade Base URL: ${escapeHtml(item.requestBaseUrl || '-')}</p>
+          <p class="small">返回 URL: ${item.responseUrl ? `<a href="${escapeHtml(item.responseUrl)}" target="_blank" rel="noopener">${escapeHtml(item.responseUrl)}</a>` : '-'}</p>
+          <p class="small">accessCode: ${escapeHtml(item.accessCode || '-')}</p>
+          <p class="small">时间: ${escapeHtml(formatAdminLocalDateTime(item.createdAt))}</p>
+          <details>
+            <summary>请求参数</summary>
+            <pre class="small">${escapeHtml(requestPayloadJson)}</pre>
+          </details>
+        </article>
+      `;
+    })
+    .join('');
+}
+
+async function loadPredictMasterLoginLogs() {
+  if (!predictMasterLoginLogsList) return;
+  if (predictMasterLoginLogsMessage) {
+    predictMasterLoginLogsMessage.textContent = '';
+    predictMasterLoginLogsMessage.className = 'message';
+  }
+  const result = await requestTutorialJson(['/api/admin/predict-master-login-logs'], { method: 'GET' });
+  if (result.res?.status === 401) {
+    showLogin();
+    return;
+  }
+  if (!result.res || !result.res.ok) {
+    if (predictMasterLoginLogsMessage) {
+      predictMasterLoginLogsMessage.textContent = localizeApiError(result.data?.error || t('predictMasterLoginLogsLoadFailed'));
+      predictMasterLoginLogsMessage.className = 'message error';
+    }
+    return;
+  }
+  renderPredictMasterLoginLogs(result.data?.items || []);
 }
 
 function renderPredictMasterCallbackLogs(items = []) {
@@ -5350,6 +5425,7 @@ document.getElementById('navSkills').addEventListener('click', () => setView('sk
 document.getElementById('navGames').addEventListener('click', () => setView('games'));
 document.getElementById('navPartners').addEventListener('click', () => setView('partners'));
 document.getElementById('navPredictMasterConfig').addEventListener('click', () => setView('predict-master-config'));
+document.getElementById('navPredictMasterLoginLogs').addEventListener('click', () => setView('predict-master-login-logs'));
 document.getElementById('navPredictMasterCallbackLogs').addEventListener('click', () => setView('predict-master-callback-logs'));
 document.getElementById('navUCard').addEventListener('click', () => setView('u-card'));
 document.getElementById('navUCardUpstreamConfig').addEventListener('click', () => setView('u-card-upstream-config'));
@@ -5371,6 +5447,9 @@ document.getElementById('navPending').addEventListener('click', () => setView('p
 document.getElementById('navApproved').addEventListener('click', () => setView('approved'));
 if (visitStatsRefreshBtn) {
   visitStatsRefreshBtn.addEventListener('click', () => loadVisitStats());
+}
+if (predictMasterLoginLogsRefreshBtn) {
+  predictMasterLoginLogsRefreshBtn.addEventListener('click', () => loadPredictMasterLoginLogs());
 }
 if (predictMasterCallbackLogsRefreshBtn) {
   predictMasterCallbackLogsRefreshBtn.addEventListener('click', () => loadPredictMasterCallbackLogs());

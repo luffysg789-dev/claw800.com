@@ -379,6 +379,28 @@ db.exec(`
 `);
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS detrade_login_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    external_user_id TEXT NOT NULL DEFAULT '',
+    session_key_hash TEXT NOT NULL DEFAULT '',
+    nickname TEXT NOT NULL DEFAULT '',
+    avatar TEXT NOT NULL DEFAULT '',
+    request_base_url TEXT NOT NULL DEFAULT '',
+    request_payload_json TEXT NOT NULL DEFAULT '',
+    response_url TEXT NOT NULL DEFAULT '',
+    access_code TEXT NOT NULL DEFAULT '',
+    success INTEGER NOT NULL DEFAULT 0,
+    error_message TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_detrade_login_logs_created
+  ON detrade_login_logs(created_at DESC, id DESC);
+`);
+
+db.exec(`
   CREATE TABLE IF NOT EXISTS nchat_users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     openid TEXT NOT NULL UNIQUE,

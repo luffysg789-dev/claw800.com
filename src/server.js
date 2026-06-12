@@ -6513,6 +6513,7 @@ app.get('/api/games/:slug/bootstrap', (req, res) => {
 });
 
 app.post('/api/predict-master/login-url', async (req, res) => {
+  let loginLogContext = null;
   try {
     const config = getPredictMasterConfig();
     const openId = String(req.body?.openId || req.body?.open_id || req.body?.openid || '').trim();
@@ -6523,21 +6524,43 @@ app.post('/api/predict-master/login-url', async (req, res) => {
       return res.status(401).json({ error: '请先完成 Nexa 授权登录' });
     }
 
+    const loginPayload = normalizeDetradeLoginPayload({
+      userId: openId,
+      username: nickname || config.username || openId,
+      avatar: avatar || config.avatar,
+      currency: config.currency,
+      exchangeRate: config.exchangeRate,
+      balanceType: config.balanceType
+    });
+    loginLogContext = {
+      externalUserId: openId,
+      sessionKey,
+      nickname: nickname || config.username || openId,
+      avatar: avatar || config.avatar,
+      requestBaseUrl: config.baseUrl,
+      requestPayload: loginPayload
+    };
     const item = await applyDetradeLogin({
       baseUrl: config.baseUrl,
       apiKey: config.apiKey,
       privateKey: config.privateKey,
-      payload: normalizeDetradeLoginPayload({
-        userId: openId,
-        username: nickname || config.username || openId,
-        avatar: avatar || config.avatar,
-        currency: config.currency,
-        exchangeRate: config.exchangeRate,
-        balanceType: config.balanceType
-      })
+      payload: loginPayload
+    });
+    recordDetradeLoginLog({
+      ...loginLogContext,
+      responseUrl: item.url,
+      accessCode: item.accessCode,
+      success: true
     });
     res.json({ ok: true, url: item.url, accessCode: item.accessCode });
   } catch (error) {
+    if (loginLogContext) {
+      recordDetradeLoginLog({
+        ...loginLogContext,
+        success: false,
+        errorMessage: String(error?.message || '获取预测大师登录链接失败')
+      });
+    }
     const statusCode = Number(error?.statusCode || 502) || 502;
     res.status(statusCode >= 400 && statusCode < 600 ? statusCode : 502).json({
       error: String(error?.message || '获取预测大师登录链接失败')
@@ -8983,6 +9006,19 @@ const listDetradeCallbackLogsStmt = db.prepare(`
   ORDER BY id DESC
   LIMIT ?
 `);
+const insertDetradeLoginLogStmt = db.prepare(`
+  INSERT INTO detrade_login_logs (
+    external_user_id, session_key_hash, nickname, avatar, request_base_url, request_payload_json,
+    response_url, access_code, success, error_message
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`);
+const listDetradeLoginLogsStmt = db.prepare(`
+  SELECT id, external_user_id, session_key_hash, nickname, avatar, request_base_url, request_payload_json,
+         response_url, access_code, success, error_message, created_at
+  FROM detrade_login_logs
+  ORDER BY id DESC
+  LIMIT ?
+`);
 const insertNexaEscrowWalletLedgerStmt = db.prepare(`
   INSERT INTO nexa_escrow_wallet_ledger (user_id, type, amount, balance_after, related_type, related_id, remark)
   VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -9448,6 +9484,59 @@ function formatDetradeCallbackLog(row = {}) {
     responseCode: Number(row.response_code || 0) || 0,
     responseMsg: String(row.response_msg || ''),
     httpStatus: Number(row.http_status || 0) || 0,
+    success: Boolean(Number(row.success || 0)),
+    errorMessage: String(row.error_message || ''),
+    createdAt: String(row.created_at || '')
+  };
+}
+
+function hashPredictMasterSessionKey(sessionKey = '') {
+  const value = String(sessionKey || '').trim();
+  if (!value) return '';
+  return crypto.createHash('sha256').update(value).digest('hex');
+}
+
+function recordDetradeLoginLog({
+  externalUserId = '',
+  sessionKey = '',
+  nickname = '',
+  avatar = '',
+  requestBaseUrl = '',
+  requestPayload = {},
+  responseUrl = '',
+  accessCode = '',
+  success = false,
+  errorMessage = ''
+} = {}) {
+  try {
+    insertDetradeLoginLogStmt.run(
+      String(externalUserId || '').trim(),
+      hashPredictMasterSessionKey(sessionKey),
+      String(nickname || '').trim(),
+      String(avatar || '').trim(),
+      normalizeDetradeBaseUrl(requestBaseUrl),
+      serializeNotifyPayload(requestPayload),
+      String(responseUrl || '').trim(),
+      String(accessCode || '').trim(),
+      success ? 1 : 0,
+      String(errorMessage || '').trim()
+    );
+  } catch {
+    // Login logging is diagnostic only; never block users from entering Predict Master.
+  }
+}
+
+function formatDetradeLoginLog(row = {}) {
+  return {
+    id: Number(row.id || 0) || 0,
+    externalUserId: String(row.external_user_id || ''),
+    sessionKeyHash: String(row.session_key_hash || ''),
+    nickname: String(row.nickname || ''),
+    avatar: String(row.avatar || ''),
+    requestBaseUrl: String(row.request_base_url || ''),
+    requestPayload: safeJsonParse(row.request_payload_json, {}),
+    responseUrl: String(row.response_url || ''),
+    accessCode: String(row.access_code || ''),
     success: Boolean(Number(row.success || 0)),
     errorMessage: String(row.error_message || ''),
     createdAt: String(row.created_at || '')
@@ -12200,6 +12289,13 @@ app.get('/api/admin/predict-master-callback-logs', requireAdmin, (req, res) => {
   const limitRaw = Number(req.query?.limit || 100);
   const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
   const items = listDetradeCallbackLogsStmt.all(limit).map(formatDetradeCallbackLog);
+  res.json({ ok: true, items });
+});
+
+app.get('/api/admin/predict-master-login-logs', requireAdmin, (req, res) => {
+  const limitRaw = Number(req.query?.limit || 100);
+  const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
+  const items = listDetradeLoginLogsStmt.all(limit).map(formatDetradeLoginLog);
   res.json({ ok: true, items });
 });
 

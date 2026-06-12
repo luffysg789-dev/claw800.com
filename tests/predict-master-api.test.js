@@ -256,6 +256,46 @@ test('admin can view recent predict-master upstream callback logs', async () => 
   }
 });
 
+test('admin can view recent predict-master login logs', async () => {
+  const harness = createHarness();
+
+  try {
+    const cookies = await harness.adminCookies();
+    harness.db
+      .prepare(
+        `INSERT INTO detrade_login_logs (
+          external_user_id, session_key_hash, nickname, avatar, request_base_url, request_payload_json,
+          response_url, access_code, success, error_message
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        'nexa-open-id-123',
+        'hash',
+        'Nexa User',
+        'https://example.com/avatar.png',
+        'https://detrade.example',
+        JSON.stringify({ userId: 'nexa-open-id-123' }),
+        'https://detrade.example/embed',
+        'abc',
+        1,
+        ''
+      );
+
+    const response = await harness.request('GET', '/api/admin/predict-master-login-logs', null, { cookies });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.ok, true);
+    assert.equal(response.body.items.length, 1);
+    assert.equal(response.body.items[0].externalUserId, 'nexa-open-id-123');
+    assert.equal(response.body.items[0].nickname, 'Nexa User');
+    assert.equal(response.body.items[0].responseUrl, 'https://detrade.example/embed');
+    assert.equal(response.body.items[0].accessCode, 'abc');
+    assert.equal(response.body.items[0].success, true);
+  } finally {
+    harness.cleanup();
+  }
+});
+
 test('predict-master login url requires Nexa session identity', async () => {
   const harness = createHarness();
 
@@ -355,6 +395,89 @@ test('predict-master login url posts signed Detrade login request with Nexa open
       Buffer.from(encodedSignature, 'base64url')
     );
     assert.equal(valid, true);
+
+    const log = harness.db
+      .prepare(
+        `SELECT external_user_id, nickname, request_base_url, response_url, access_code, success, error_message
+         FROM detrade_login_logs
+         ORDER BY id DESC
+         LIMIT 1`
+      )
+      .get();
+    assert.deepEqual(log, {
+      external_user_id: 'nexa-open-id-123',
+      nickname: 'Nexa User',
+      request_base_url: 'https://detrade.example',
+      response_url: 'https://detrade.example/embed?accessCode=abc',
+      access_code: 'abc',
+      success: 1,
+      error_message: ''
+    });
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('predict-master login logs Detrade apply failures for admin diagnosis', async () => {
+  const harness = createHarness();
+  const { privateKey } = crypto.generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    publicKeyEncoding: { type: 'spki', format: 'pem' }
+  });
+
+  try {
+    const cookies = await harness.adminCookies();
+    await harness.request(
+      'PUT',
+      '/api/admin/predict-master-config',
+      {
+        baseUrl: 'https://detrade.example/',
+        apiKey: 'predict-api-key',
+        privateKey,
+        userId: '1727404213474304',
+        username: 'Yxxvz',
+        currency: 'USDT',
+        exchangeRate: '1'
+      },
+      { cookies }
+    );
+
+    harness.setFetch(async () => ({
+      ok: true,
+      status: 200,
+      async json() {
+        return { code: 30001, msg: 'Signature invalid', data: {} };
+      },
+      async text() {
+        return JSON.stringify({ code: 30001, msg: 'Signature invalid', data: {} });
+      }
+    }));
+
+    const response = await harness.request('POST', '/api/predict-master/login-url', {
+      openId: 'nexa-open-id-fail',
+      sessionKey: 'nexa-session-key-123',
+      nickname: 'Fail User'
+    });
+    assert.equal(response.statusCode, 502);
+    assert.equal(response.body.error, 'Signature invalid');
+
+    const log = harness.db
+      .prepare(
+        `SELECT external_user_id, nickname, response_url, access_code, success, error_message
+         FROM detrade_login_logs
+         ORDER BY id DESC
+         LIMIT 1`
+      )
+      .get();
+    assert.deepEqual(log, {
+      external_user_id: 'nexa-open-id-fail',
+      nickname: 'Fail User',
+      response_url: '',
+      access_code: '',
+      success: 0,
+      error_message: 'Signature invalid'
+    });
   } finally {
     harness.cleanup();
   }

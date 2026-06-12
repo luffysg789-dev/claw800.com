@@ -37,12 +37,15 @@ test('predict-master page shell loads its assets and calls backend login url API
 
 test('admin exposes Predict Master settings without echoing the private key', () => {
   assert.match(adminHtml, /id="navPredictMasterConfig"/);
+  assert.match(adminHtml, /id="navPredictMasterLoginLogs"/);
   assert.match(adminHtml, /id="navPredictMasterCallbackLogs"/);
   assert.match(adminHtml, /id="predictMasterConfigSection"/);
+  assert.match(adminHtml, /id="predictMasterLoginLogsSection"/);
   assert.match(adminHtml, /id="predictMasterCallbackLogsSection"/);
   assert.match(adminHtml, /name="predictMasterPrivateKey"/);
   assert.match(adminJs, /SAVED_PREDICT_MASTER_PRIVATE_KEY_MASK/);
   assert.match(adminJs, /\/api\/admin\/predict-master-config/);
+  assert.match(adminJs, /\/api\/admin\/predict-master-login-logs/);
   assert.match(adminJs, /\/api\/admin\/predict-master-callback-logs/);
   assert.match(adminJs, /keepPrivateKey/);
   assert.doesNotMatch(adminJs, /console\.log\(.*predictMasterPrivateKey/);
