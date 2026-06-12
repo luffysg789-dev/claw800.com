@@ -348,6 +348,12 @@ function getCurrentMenuLang() {
   }
 }
 
+function isNexaAppEnvironment() {
+  const userAgent = String(window.navigator?.userAgent || '').trim();
+  const referrer = String(document.referrer || '').trim();
+  return /nexa/i.test(userAgent) || /nexa/i.test(referrer);
+}
+
 function localizeGame(item) {
   if (getCurrentMenuLang() !== 'en') return item;
   const translation = GAME_I18N[item.slug];
@@ -429,8 +435,8 @@ async function fetchJson(path) {
 
 function gameCardMarkup(item) {
   const displayItem = localizeGame(item);
-  const isPredictMaster = String(item?.slug || '') === 'predict-master';
-  const brandBadge = isPredictMaster
+  const showBrandBadge = String(item?.slug || '') === 'predict-master' && isNexaAppEnvironment();
+  const brandBadge = showBrandBadge
     ? '<span class="game-card__brand-badge" aria-label="UPAL">UPAL</span>'
     : '';
 
