@@ -455,7 +455,11 @@ function gameCardMarkup(item) {
 }
 
 function getVisibleGames(items) {
-  return items.filter((item) => item.is_enabled && item.slug !== 'xiangqi' && item.slug !== 'u-card' && item.showInGamesHub !== 0);
+  return items.filter((item) => {
+    const slug = String(item?.slug || '').trim();
+    if (slug === 'predict-master' && !isNexaAppEnvironment()) return false;
+    return item.is_enabled && slug !== 'xiangqi' && slug !== 'u-card' && item.showInGamesHub !== 0;
+  });
 }
 
 function renderGamesGrid(items) {
