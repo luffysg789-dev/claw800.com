@@ -246,6 +246,7 @@ const DEFAULT_SITE_CONFIG = {
   footerLinksRaw: '',
   footerContactZh: '',
   footerContactEn: '',
+  nexaApiBaseUrl: 'https://merchantapi.nexaexworth.com',
   nexaApiKey: '',
   nexaAppSecret: '',
   hasNexaAppSecret: false,
@@ -4393,6 +4394,7 @@ function mergeSiteConfigWithDefaults(raw) {
     footerLinksRaw: String(input.footerLinksRaw || '').trim(),
     footerContactZh: String(input.footerContactZh || '').trim(),
     footerContactEn: String(input.footerContactEn || '').trim(),
+    nexaApiBaseUrl: String(input.nexaApiBaseUrl || '').trim() || DEFAULT_SITE_CONFIG.nexaApiBaseUrl,
     nexaApiKey: String(input.nexaApiKey || '').trim(),
     nexaEscrowMinAmount: String(input.nexaEscrowMinAmount || '').trim() || DEFAULT_SITE_CONFIG.nexaEscrowMinAmount,
     nexaEscrowMaxAmount: String(input.nexaEscrowMaxAmount || '').trim() || DEFAULT_SITE_CONFIG.nexaEscrowMaxAmount,
@@ -4446,6 +4448,7 @@ async function loadSiteConfig() {
       const linksEl = getSiteConfigControl('footerLinksRaw');
       const contactZhEl = getSiteConfigControl('footerContactZh');
       const contactEnEl = getSiteConfigControl('footerContactEn');
+      const nexaApiBaseUrlEl = getSiteConfigControl('nexaApiBaseUrl');
       const nexaApiKeyEl = getSiteConfigControl('nexaApiKey');
       const nexaEscrowMinAmountEl = getSiteConfigControl('nexaEscrowMinAmount');
       const nexaEscrowMaxAmountEl = getSiteConfigControl('nexaEscrowMaxAmount');
@@ -4475,6 +4478,7 @@ async function loadSiteConfig() {
       if (linksEl) linksEl.value = String(siteConfigCache.footerLinksRaw || '');
       if (contactZhEl) contactZhEl.value = String(siteConfigCache.footerContactZh || '');
       if (contactEnEl) contactEnEl.value = String(siteConfigCache.footerContactEn || '');
+      if (nexaApiBaseUrlEl) nexaApiBaseUrlEl.value = String(siteConfigCache.nexaApiBaseUrl || '');
       if (nexaApiKeyEl) nexaApiKeyEl.value = String(siteConfigCache.nexaApiKey || '');
       if (nexaEscrowMinAmountEl) nexaEscrowMinAmountEl.value = String(siteConfigCache.nexaEscrowMinAmount || '');
       if (nexaEscrowMaxAmountEl) nexaEscrowMaxAmountEl.value = String(siteConfigCache.nexaEscrowMaxAmount || '');
@@ -5610,6 +5614,7 @@ if (siteConfigForm) {
       footerLinksRaw: String(payload.footerLinksRaw || '').trim(),
       footerContactZh: String(payload.footerContactZh || '').trim(),
       footerContactEn: String(payload.footerContactEn || '').trim(),
+      nexaApiBaseUrl: String(payload.nexaApiBaseUrl || '').trim(),
       nexaApiKey: String(payload.nexaApiKey || '').trim(),
       nexaEscrowMinAmount: String(payload.nexaEscrowMinAmount || '').trim(),
       nexaEscrowMaxAmount: String(payload.nexaEscrowMaxAmount || '').trim(),

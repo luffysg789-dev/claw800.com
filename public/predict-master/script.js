@@ -5,6 +5,7 @@
   const NEXA_SESSION_ENDPOINT = '/api/nexa/tip/session';
   const PREDICT_MASTER_SESSION_STORAGE_KEY = 'claw800:predict-master:nexa-session';
   const PREDICT_MASTER_PENDING_PAYMENT_STORAGE_KEY = 'claw800:predict-master:pending-payment';
+  const PREDICT_MASTER_ALLOWED_TYPES = ['trading', 'contract', 'up-down', 'spread', 'tap-trading'];
   const MAX_SESSION_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
   const MAX_PENDING_PAYMENT_RETENTION_MS = 2 * 60 * 60 * 1000;
 
@@ -140,6 +141,16 @@
     }
   }
 
+  function getPredictMasterRenderType() {
+    try {
+      const params = new URL(window.location.href).searchParams;
+      const type = String(params.get('type') || '').trim();
+      return PREDICT_MASTER_ALLOWED_TYPES.includes(type) ? type : 'trading';
+    } catch {
+      return 'trading';
+    }
+  }
+
   function unloadTradingApp() {
     if (tradingApp && typeof tradingApp.unmount === 'function') {
       try {
@@ -188,7 +199,7 @@
     tradingApp = new Trading({ container: sdkApp });
     tradingApp.render({
       accessCode: data.accessCode,
-      type: 'trading',
+      type: getPredictMasterRenderType(),
       theme: 'darken',
       sound: false,
       fontWeight: 'bold',

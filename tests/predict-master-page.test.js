@@ -9,10 +9,23 @@ const adminHtml = fs.readFileSync(path.join(rootDir, 'public', 'admin.html'), 'u
 const adminJs = fs.readFileSync(path.join(rootDir, 'public', 'admin.js'), 'utf8');
 
 test('games config includes Predict Master card defaults', () => {
-  assert.match(gamesConfig, /slug:\s*'predict-master'/);
-  assert.match(gamesConfig, /name:\s*'预测大师'/);
-  assert.match(gamesConfig, /route:\s*'\/predict-master\/'/);
-  assert.match(gamesConfig, /'predict-master':\s*'进入预测'/);
+  const entries = [
+    ['predict-master', '预测', '/predict-master/?type=trading', 'trading'],
+    ['predict-master-contract', '合约', '/predict-master/?type=contract', 'contract'],
+    ['predict-master-up-down', '涨跌', '/predict-master/?type=up-down', 'up-down'],
+    ['predict-master-spread', '点差', '/predict-master/?type=spread', 'spread'],
+    ['predict-master-tap-trading', 'Tap Trading', '/predict-master/?type=tap-trading', 'tap-trading'],
+    ['predict-master-football-worldcup', '足球/世界杯预测', '/predict-master/?type=trading&activity=football-worldcup', 'trading']
+  ];
+  for (const [slug, name, route, type] of entries) {
+    const block = gamesConfig.match(new RegExp(`\\{\\s*slug:\\s*'${slug}'[\\s\\S]*?\\n\\s*\\},`));
+    assert.ok(block, `${slug} default card exists`);
+    assert.match(block[0], new RegExp(`name:\\s*'${name.replace('/', '\\/')}'`));
+    assert.match(block[0], new RegExp(`route:\\s*'${route.replaceAll('?', '\\?').replaceAll('/', '\\/')}'`));
+    assert.match(block[0], new RegExp(`predictType:\\s*'${type}'`));
+    assert.match(block[0], /icon:\s*'UPAL'/);
+  }
+  assert.match(gamesConfig, /'predict-master-tap-trading':\s*'进入预测'/);
 });
 
 test('predict-master page shell loads its assets and calls backend login url API', () => {
@@ -48,7 +61,9 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(script, /\/trading\.js/);
   assert.match(script, /new Trading/);
   assert.match(script, /accessCode:\s*data\.accessCode/);
-  assert.match(script, /type:\s*'trading'/);
+  assert.match(script, /const PREDICT_MASTER_ALLOWED_TYPES = /);
+  assert.match(script, /function getPredictMasterRenderType\(\)/);
+  assert.match(script, /type:\s*getPredictMasterRenderType\(\)/);
   assert.doesNotMatch(script, /frame\.src\s*=/);
 });
 

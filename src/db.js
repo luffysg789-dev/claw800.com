@@ -953,8 +953,63 @@ db.exec(`
 const DEFAULT_GAMES_CATALOG = [
   {
     slug: 'predict-master',
-    name: '预测大师',
-    description: 'Detrade 预测市场入口，授权后进入预测交易页面。',
+    name: '预测',
+    description: 'Detrade 综合预测市场入口，授权后进入预测交易页面。',
+    cover_image: '',
+    secondary_image: '',
+    sound_file: '',
+    background_music_file: '',
+    is_enabled: 1,
+    sort_order: 65
+  },
+  {
+    slug: 'predict-master-contract',
+    name: '合约',
+    description: 'Detrade 合约预测玩法入口。',
+    cover_image: '',
+    secondary_image: '',
+    sound_file: '',
+    background_music_file: '',
+    is_enabled: 1,
+    sort_order: 64
+  },
+  {
+    slug: 'predict-master-up-down',
+    name: '涨跌',
+    description: 'Detrade 涨跌预测玩法入口。',
+    cover_image: '',
+    secondary_image: '',
+    sound_file: '',
+    background_music_file: '',
+    is_enabled: 1,
+    sort_order: 63
+  },
+  {
+    slug: 'predict-master-spread',
+    name: '点差',
+    description: 'Detrade 点差预测玩法入口。',
+    cover_image: '',
+    secondary_image: '',
+    sound_file: '',
+    background_music_file: '',
+    is_enabled: 1,
+    sort_order: 62
+  },
+  {
+    slug: 'predict-master-tap-trading',
+    name: 'Tap Trading',
+    description: 'Detrade Tap Trading 快速预测玩法入口。',
+    cover_image: '',
+    secondary_image: '',
+    sound_file: '',
+    background_music_file: '',
+    is_enabled: 1,
+    sort_order: 61
+  },
+  {
+    slug: 'predict-master-football-worldcup',
+    name: '足球/世界杯预测',
+    description: 'Detrade 足球与世界杯活动预测入口。',
     cover_image: '',
     secondary_image: '',
     sound_file: '',
@@ -1369,6 +1424,20 @@ db.prepare(`
   SET description = '开始提肛、松开记录，每天 5 次圆圈变绿。', updated_at = datetime('now')
   WHERE slug = 'tigang-master'
     AND description = '健康习惯打卡工具，按下开始提肛、松开自动记录，每天完成 5 次圆圈变绿。'
+`).run();
+
+db.prepare(`
+  UPDATE games_catalog
+  SET name = '预测',
+      description = 'Detrade 综合预测市场入口，授权后进入预测交易页面。',
+      sort_order = 65,
+      updated_at = datetime('now')
+  WHERE slug = 'predict-master'
+    AND name = '预测大师'
+    AND description IN (
+      'Detrade 预测市场入口，授权后进入预测交易页面。',
+      '进入 Detrade 预测市场，授权后打开预测交易页面。'
+    )
 `).run();
 
 const hasSkillsCatalogSortOrder = db.prepare("SELECT 1 FROM pragma_table_info('skills_catalog') WHERE name = 'sort_order'").get();

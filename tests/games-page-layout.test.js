@@ -17,16 +17,22 @@ test('games page uses unified start button text for all game cards', () => {
 });
 
 test('games page loads the latest game config bundle and keeps piano cards on /piano/', () => {
-  assert.match(gamesHtml, /<script src="\/games-config\.js\?v=20260612-04"><\/script>/);
+  assert.match(gamesHtml, /<script src="\/games-config\.js\?v=20260613-05"><\/script>/);
   assert.match(config, /slug:\s*'piano'[\s\S]*route:\s*'\/piano\/'/);
   assert.match(config, /if \(fallback\.route\) \{[\s\S]*const legacyRoute = `\/games\/\$\{encodeURIComponent\(slug\)\}`;[\s\S]*if \(!route \|\| route === legacyRoute\) route = fallback\.route;/);
 });
 
 test('predict-master card is only visible inside Nexa', () => {
   assert.match(config, /slug:\s*'predict-master'[\s\S]*icon:\s*'UPAL'/);
+  assert.match(config, /slug:\s*'predict-master-contract'[\s\S]*icon:\s*'UPAL'/);
+  assert.match(config, /slug:\s*'predict-master-up-down'[\s\S]*icon:\s*'UPAL'/);
+  assert.match(config, /slug:\s*'predict-master-spread'[\s\S]*icon:\s*'UPAL'/);
+  assert.match(config, /slug:\s*'predict-master-tap-trading'[\s\S]*icon:\s*'UPAL'/);
+  assert.match(config, /slug:\s*'predict-master-football-worldcup'[\s\S]*icon:\s*'UPAL'/);
   assert.match(config, /function isNexaAppEnvironment\(\)/);
-  assert.match(config, /if \(slug === 'predict-master' && !isNexaAppEnvironment\(\)\) return false;/);
-  assert.match(config, /const showBrandBadge = String\(item\?\.slug \|\| ''\) === 'predict-master' && isNexaAppEnvironment\(\);/);
+  assert.match(config, /function isPredictMasterGame\(slug\)/);
+  assert.match(config, /if \(isPredictMasterGame\(slug\) && !isNexaAppEnvironment\(\)\) return false;/);
+  assert.match(config, /const showBrandBadge = isPredictMasterGame\(item\?\.slug\) && isNexaAppEnvironment\(\);/);
   assert.match(css, /\.game-card__brand-badge/);
 });
 

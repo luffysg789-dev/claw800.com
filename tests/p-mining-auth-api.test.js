@@ -259,6 +259,7 @@ test('admin site config can store Nexa credentials and public config only return
         footerLinksRaw: '',
         footerContactZh: '',
         footerContactEn: '',
+        nexaApiBaseUrl: 'https://merchantapi.nexaexworth.com',
         nexaApiKey: 'admin-runtime-api-key',
         nexaAppSecret: 'admin-runtime-app-secret'
       },
@@ -274,6 +275,7 @@ test('admin site config can store Nexa credentials and public config only return
 
     const adminConfig = await harness.request('GET', '/api/admin/site-config', null, { cookies });
     assert.equal(adminConfig.statusCode, 200);
+    assert.equal(adminConfig.body.nexaApiBaseUrl, 'https://merchantapi.nexaexworth.com');
     assert.equal(adminConfig.body.nexaApiKey, 'admin-runtime-api-key');
     assert.equal(adminConfig.body.hasNexaAppSecret, true);
     assert.equal(adminConfig.body.nexaAppSecret, '');

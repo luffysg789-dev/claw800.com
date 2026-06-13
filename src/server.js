@@ -8,8 +8,10 @@ const cookieParser = require('cookie-parser');
 const db = require('./db');
 const { saveUploadedGameAsset, saveDataUrlGameAsset } = require('./game-asset-storage');
 const {
+  DEFAULT_NEXA_API_BASE_URL,
   DEFAULT_NEXA_API_KEY,
   DEFAULT_NEXA_APP_SECRET,
+  normalizeNexaBaseUrl,
   buildNexaAccessTokenPayload,
   buildNexaUserInfoPayload,
   buildNexaLegacyPaymentCreatePayload,
@@ -315,12 +317,22 @@ function getGameNameBySlug(slug) {
 }
 
 function getNexaCredentials() {
+  const apiBaseUrlFromSettings = String(getSetting('nexa_api_base_url', '') || '').trim();
   const apiKeyFromSettings = String(getSetting('nexa_api_key', '') || '').trim();
   const appSecretFromSettings = String(getSetting('nexa_app_secret', '') || '').trim();
   return {
+    apiBaseUrl: normalizeNexaBaseUrl(apiBaseUrlFromSettings || DEFAULT_NEXA_API_BASE_URL),
     apiKey: String(DEFAULT_NEXA_API_KEY || '').trim() || apiKeyFromSettings,
     appSecret: String(DEFAULT_NEXA_APP_SECRET || '').trim() || appSecretFromSettings
   };
+}
+
+function postConfiguredNexaJson(endpointPath, payload, options = {}) {
+  const credentials = getNexaCredentials();
+  return postNexaJson(endpointPath, payload, {
+    ...options,
+    baseUrl: credentials.apiBaseUrl
+  });
 }
 
 function ensureNexaCredentialsConfigured() {
@@ -590,7 +602,7 @@ async function exchangeNexaSessionFromAuthCode(authCode) {
     code: String(authCode || '').trim()
   });
 
-  const accessResponse = await postNexaJson('/partner/api/openapi/access_token/auth', accessPayload);
+  const accessResponse = await postConfiguredNexaJson('/partner/api/openapi/access_token/auth', accessPayload);
   const accessData = unwrapNexaResult(accessResponse, 'Nexa 授权失败');
   const sessionKey = extractSessionKey(accessData);
   if (!sessionKey) {
@@ -604,7 +616,7 @@ async function exchangeNexaSessionFromAuthCode(authCode) {
       appSecret,
       sessionKey
     });
-    const userInfoResponse = await postNexaJson('/partner/api/openapi/user/info', userInfoPayload);
+    const userInfoResponse = await postConfiguredNexaJson('/partner/api/openapi/user/info', userInfoPayload);
     const userInfoData = unwrapNexaResult(userInfoResponse, 'Nexa 用户信息获取失败');
     openId = extractOpenId(userInfoData);
   }
@@ -671,7 +683,7 @@ async function createNexaTipOrder({ req, gameSlug, openId, sessionKey, amount = 
   let response = null;
   let lastSignatureResponse = null;
   try {
-    response = await postNexaJson('/partner/api/openapi/payment/create', legacyPayload);
+    response = await postConfiguredNexaJson('/partner/api/openapi/payment/create', legacyPayload);
   } catch (error) {
     if (isNexaRateLimitError(error)) {
       const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
@@ -702,7 +714,7 @@ async function createNexaTipOrder({ req, gameSlug, openId, sessionKey, amount = 
   if (!response) {
     for (const variant of fallbackVariants) {
       try {
-        response = await postNexaJson('/partner/api/openapi/payment/create', variant.payload);
+        response = await postConfiguredNexaJson('/partner/api/openapi/payment/create', variant.payload);
       } catch (error) {
         if (isNexaRateLimitError(error)) {
           const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
@@ -801,7 +813,7 @@ async function queryNexaTipOrder(orderNo) {
     appSecret,
     orderNo: String(orderNo || '').trim()
   });
-  const response = await postNexaJson('/partner/api/openapi/payment/query', payload);
+  const response = await postConfiguredNexaJson('/partner/api/openapi/payment/query', payload);
   const data = unwrapNexaResult(response, 'Nexa 查询订单失败');
   const normalizedOrderNo = String(data.orderNo || orderNo || '').trim();
   const normalizedStatus = String(data.status || 'PENDING').trim().toUpperCase();
@@ -884,7 +896,7 @@ async function createPredictMasterRechargeOrder({ req, openId, sessionKey, amoun
   let response = null;
   let lastSignatureResponse = null;
   try {
-    response = await postNexaJson('/partner/api/openapi/payment/create', legacyPayload);
+    response = await postConfiguredNexaJson('/partner/api/openapi/payment/create', legacyPayload);
   } catch (error) {
     if (isNexaRateLimitError(error)) {
       const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
@@ -907,7 +919,7 @@ async function createPredictMasterRechargeOrder({ req, openId, sessionKey, amoun
 
   for (const variant of response ? [] : paymentVariants) {
     try {
-      response = await postNexaJson('/partner/api/openapi/payment/create', variant.payload);
+      response = await postConfiguredNexaJson('/partner/api/openapi/payment/create', variant.payload);
     } catch (error) {
       if (isNexaRateLimitError(error)) {
         const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
@@ -1029,7 +1041,7 @@ async function queryPredictMasterRechargeOrder(orderNo) {
     appSecret,
     orderNo: normalizedOrderNo
   });
-  const response = await postNexaJson('/partner/api/openapi/payment/query', payload);
+  const response = await postConfiguredNexaJson('/partner/api/openapi/payment/query', payload);
   const data = unwrapNexaResult(response, 'Nexa 查询订单失败');
   const status = String(data.status || 'PENDING').trim().toUpperCase();
   const paidTime = String(data.paidTime || '').trim();
@@ -1108,7 +1120,7 @@ async function createPMiningPaymentOrder({ req, openId, sessionKey, tier }) {
   let lastSignatureResponse = null;
 
   try {
-    response = await postNexaJson('/partner/api/openapi/payment/create', legacyPayload);
+    response = await postConfiguredNexaJson('/partner/api/openapi/payment/create', legacyPayload);
   } catch (error) {
     if (isNexaRateLimitError(error)) {
       const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
@@ -1131,7 +1143,7 @@ async function createPMiningPaymentOrder({ req, openId, sessionKey, tier }) {
 
   for (const variant of response ? [] : paymentVariants) {
     try {
-      response = await postNexaJson('/partner/api/openapi/payment/create', variant.payload);
+      response = await postConfiguredNexaJson('/partner/api/openapi/payment/create', variant.payload);
     } catch (error) {
       if (isNexaRateLimitError(error)) {
         const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
@@ -1218,7 +1230,7 @@ async function queryPMiningPaymentOrder(orderNo) {
     appSecret,
     orderNo: String(orderNo || '').trim()
   });
-  const response = await postNexaJson('/partner/api/openapi/payment/query', payload);
+  const response = await postConfiguredNexaJson('/partner/api/openapi/payment/query', payload);
   const data = unwrapNexaResult(response, 'Nexa 查询订单失败');
   const normalizedOrderNo = String(data.orderNo || orderNo || '').trim();
   const normalizedStatus = String(data.status || 'PENDING').trim().toUpperCase();
@@ -2018,7 +2030,7 @@ async function createNexaEscrowPaymentOrder({ req, session, tradeCode }) {
   let response = null;
   let lastSignatureResponse = null;
   try {
-    response = await postNexaJson('/partner/api/openapi/payment/create', legacyPayload);
+    response = await postConfiguredNexaJson('/partner/api/openapi/payment/create', legacyPayload);
   } catch (error) {
     if (isNexaRateLimitError(error)) {
       const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
@@ -2038,7 +2050,7 @@ async function createNexaEscrowPaymentOrder({ req, session, tradeCode }) {
   }
   for (const variant of response ? [] : paymentVariants) {
     try {
-      response = await postNexaJson('/partner/api/openapi/payment/create', variant.payload);
+      response = await postConfiguredNexaJson('/partner/api/openapi/payment/create', variant.payload);
     } catch (error) {
       if (isNexaRateLimitError(error)) {
         const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
@@ -2496,7 +2508,7 @@ async function queryNexaEscrowPaymentOrder(orderNo) {
     appSecret,
     orderNo: String(orderNo || '').trim()
   });
-  const response = await postNexaJson('/partner/api/openapi/payment/query', payload);
+  const response = await postConfiguredNexaJson('/partner/api/openapi/payment/query', payload);
   const data = unwrapNexaResult(response, 'Nexa 查询订单失败');
   const normalizedOrderNo = String(data.orderNo || orderNo || '').trim();
   const normalizedStatus = String(data.status || 'PENDING').trim().toUpperCase();
@@ -3072,7 +3084,7 @@ async function requestNexaWithdrawal({ req, withdrawal, reviewNote = '', notifyP
     notifyUrl: `${baseUrl}${String(notifyPath || '/api/xiangqi/withdraw/notify').trim()}`,
     remark: String(reviewNote || '').trim() || `${String(remarkPrefix || '象棋提现').trim()} ${String(withdrawal.amount || '').trim()} USDT`
   });
-  const response = await postNexaJson('/partner/api/openapi/account/withdraw', payload);
+  const response = await postConfiguredNexaJson('/partner/api/openapi/account/withdraw', payload);
   const data = unwrapNexaResult(response, 'Nexa 提现申请失败');
   return {
     orderNo: String(data.orderNo || withdrawal.partner_order_no || '').trim(),
@@ -3088,7 +3100,7 @@ async function queryNexaWithdrawalOrder(orderNo) {
     appSecret,
     orderNo: String(orderNo || '').trim()
   });
-  const response = await postNexaJson('/partner/api/openapi/account/withdrawal/query', payload);
+  const response = await postConfiguredNexaJson('/partner/api/openapi/account/withdrawal/query', payload);
   const data = unwrapNexaResult(response, 'Nexa 查询提现失败');
   return {
     orderNo: String(data.orderNo || orderNo || '').trim(),
@@ -3317,7 +3329,12 @@ const DEFAULT_SKILLS_PAGE_BOT_PROMPT_EN = 'claw800.com is a curated OpenClaw ski
 const DEFAULT_SKILLS_PAGE_INSTALL_PROMPT_ZH = '你是 OpenClaw 用户的技能安装助手。现在请帮我安装技能「{{name}}」。\n技能简介：{{description}}\n技能分类：{{category}}\n详情链接：{{url}}\n请按这个流程执行：\n1. 先打开详情链接，阅读 README、SKILL.md 或安装说明。\n2. 用中文告诉我这个技能做什么、是否安全、安装后会影响什么。\n3. 如果需要环境变量、依赖或权限，先明确列出来，再征求我确认。\n4. 只有在我确认后，才开始安装。\n5. 安装完成后，告诉我验证方法、使用方法，以及如何卸载或回滚。\n不要跳过确认步骤，也不要一次性安装无关技能。';
 const DEFAULT_SKILLS_PAGE_INSTALL_PROMPT_EN = 'You are an OpenClaw skill installation assistant. Help me install the skill "{{name}}".\nSkill summary: {{description}}\nSkill category: {{category}}\nDetail URL: {{url}}\nFollow this process:\n1. Open the detail page and read the README, SKILL.md, or install docs.\n2. Explain what the skill does, whether it looks safe, and what it may change.\n3. List any dependencies, env vars, permissions, or prerequisites before installing.\n4. Wait for my confirmation before you run or install anything.\n5. After installation, tell me how to verify it, use it, and uninstall or roll it back.\nDo not skip confirmation and do not install unrelated skills.';
 const GAME_ROUTE_MAP = {
-  'predict-master': '/predict-master/',
+  'predict-master': '/predict-master/?type=trading',
+  'predict-master-contract': '/predict-master/?type=contract',
+  'predict-master-up-down': '/predict-master/?type=up-down',
+  'predict-master-spread': '/predict-master/?type=spread',
+  'predict-master-tap-trading': '/predict-master/?type=tap-trading',
+  'predict-master-football-worldcup': '/predict-master/?type=trading&activity=football-worldcup',
   'u-card-query': '/u-card-query/',
   'u-card': '/u',
   'nchat': '/nchat/',
@@ -3335,7 +3352,12 @@ const GAME_ROUTE_MAP = {
   muyu: '/muyu.html'
 };
 const GAME_ICON_MAP = {
-  'predict-master': '📈',
+  'predict-master': 'UPAL',
+  'predict-master-contract': 'UPAL',
+  'predict-master-up-down': 'UPAL',
+  'predict-master-spread': 'UPAL',
+  'predict-master-tap-trading': 'UPAL',
+  'predict-master-football-worldcup': 'UPAL',
   'u-card-query': '💳',
   'u-card': '💳',
   'sbti': '🧠',
@@ -3353,6 +3375,11 @@ const GAME_ICON_MAP = {
 };
 const GAME_ACTION_TEXT_MAP = {
   'predict-master': '进入预测',
+  'predict-master-contract': '进入预测',
+  'predict-master-up-down': '进入预测',
+  'predict-master-spread': '进入预测',
+  'predict-master-tap-trading': '进入预测',
+  'predict-master-football-worldcup': '进入预测',
   'u-card-query': '开始查询',
   nchat: '进入聊天',
   sbti: '开始测试',
@@ -3912,6 +3939,7 @@ app.get('/api/admin/site-config', requireAdmin, (_req, res) => {
   const footerContactZh = getSetting('site_footer_contact_zh', '');
   const footerContactEn = getSetting('site_footer_contact_en', '');
   const footerLinksRaw = getSetting('site_footer_links', '');
+  const nexaApiBaseUrl = normalizeNexaBaseUrl(getSetting('nexa_api_base_url', '') || DEFAULT_NEXA_API_BASE_URL);
   const nexaApiKey = getSetting('nexa_api_key', '');
   const hasNexaAppSecret = Boolean(String(getSetting('nexa_app_secret', '') || '').trim());
   const footerLinks = parseFooterLinks(footerLinksRaw);
@@ -3939,6 +3967,7 @@ app.get('/api/admin/site-config', requireAdmin, (_req, res) => {
     footerCopyrightEn,
     footerContactZh,
     footerContactEn,
+    nexaApiBaseUrl,
     nexaApiKey,
     nexaAppSecret: '',
     hasNexaAppSecret,
@@ -3973,6 +4002,7 @@ app.put('/api/admin/site-config', requireAdmin, (req, res) => {
   const footerContactZh = String(req.body.footerContactZh || '').trim();
   const footerContactEn = String(req.body.footerContactEn || '').trim();
   const footerLinksRaw = String(req.body.footerLinksRaw || req.body.footerLinks || '').trim();
+  const nexaApiBaseUrl = String(req.body.nexaApiBaseUrl || '').trim();
   const nexaApiKey = String(req.body.nexaApiKey || '').trim();
   const nexaEscrowMinAmount = String(req.body.nexaEscrowMinAmount || '').trim();
   const nexaEscrowMaxAmount = String(req.body.nexaEscrowMaxAmount || '').trim();
@@ -4003,6 +4033,7 @@ app.put('/api/admin/site-config', requireAdmin, (req, res) => {
   if (Buffer.byteLength(footerContactZh, 'utf8') > 2000) return res.status(413).json({ error: '联系客服(中文)太长' });
   if (Buffer.byteLength(footerContactEn, 'utf8') > 2000) return res.status(413).json({ error: '联系客服(英文)太长' });
   if (Buffer.byteLength(footerLinksRaw, 'utf8') > 50000) return res.status(413).json({ error: '友情链接太长' });
+  if (Buffer.byteLength(nexaApiBaseUrl, 'utf8') > 500) return res.status(413).json({ error: 'Nexa API Base URL 太长' });
   if (Buffer.byteLength(nexaApiKey, 'utf8') > 500) return res.status(413).json({ error: 'Nexa API Key 太长' });
   if (Buffer.byteLength(nexaEscrowMinAmount, 'utf8') > 50) return res.status(413).json({ error: '担保最低金额太长' });
   if (Buffer.byteLength(nexaEscrowMaxAmount, 'utf8') > 50) return res.status(413).json({ error: '担保最高金额太长' });
@@ -4015,8 +4046,12 @@ app.put('/api/admin/site-config', requireAdmin, (req, res) => {
   if (logo && !isProbablyDataUrl(logo) && !isProbablyAbsoluteUrl(logo)) {
     return res.status(400).json({ error: 'logo 必须是图片 dataURL 或 http(s) 链接' });
   }
+  if (nexaApiBaseUrl && !isProbablyAbsoluteUrl(nexaApiBaseUrl)) {
+    return res.status(400).json({ error: 'Nexa API Base URL 必须是 http(s) 链接' });
+  }
 
   try {
+    const normalizedNexaApiBaseUrl = normalizeNexaBaseUrl(nexaApiBaseUrl || DEFAULT_NEXA_API_BASE_URL);
     const normalizedMinAmount = normalizeEscrowConfigMoney(nexaEscrowMinAmount, NEXA_ESCROW_DEFAULT_MIN_AMOUNT);
     const normalizedMaxAmount = normalizeEscrowConfigMoney(nexaEscrowMaxAmount, NEXA_ESCROW_DEFAULT_MAX_AMOUNT);
     const normalizedFeePermille = normalizeEscrowFeePermille(nexaEscrowFeePermille, NEXA_ESCROW_DEFAULT_FEE_PERMILLE);
@@ -4057,6 +4092,7 @@ app.put('/api/admin/site-config', requireAdmin, (req, res) => {
     upsertSettingStmt.run('site_footer_contact_zh', footerContactZh);
     upsertSettingStmt.run('site_footer_contact_en', footerContactEn);
     upsertSettingStmt.run('site_footer_links', stringifyFooterLinks(footerLinks));
+    upsertSettingStmt.run('nexa_api_base_url', normalizedNexaApiBaseUrl);
     upsertSettingStmt.run('nexa_api_key', nexaApiKey);
     upsertSettingStmt.run('nexa_escrow_min_amount', normalizedMinAmount);
     upsertSettingStmt.run('nexa_escrow_max_amount', normalizedMaxAmount);

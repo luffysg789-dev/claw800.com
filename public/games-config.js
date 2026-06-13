@@ -1,8 +1,88 @@
 const DEFAULT_GAMES = [
   {
     slug: 'predict-master',
-    name: '预测大师',
-    description: '进入 Detrade 预测市场，授权后打开预测交易页面。',
+    name: '预测',
+    description: '进入 Detrade 综合预测市场，授权后打开预测交易页面。',
+    cover_image: '',
+    secondary_image: '',
+    sound_file: '',
+    background_music_file: '',
+    is_enabled: 1,
+    showInGamesHub: 1,
+    sort_order: 65,
+    route: '/predict-master/?type=trading',
+    predictType: 'trading',
+    icon: 'UPAL',
+    actionText: '进入预测'
+  },
+  {
+    slug: 'predict-master-contract',
+    name: '合约',
+    description: '进入 Detrade 合约预测玩法。',
+    cover_image: '',
+    secondary_image: '',
+    sound_file: '',
+    background_music_file: '',
+    is_enabled: 1,
+    showInGamesHub: 1,
+    sort_order: 64,
+    route: '/predict-master/?type=contract',
+    predictType: 'contract',
+    icon: 'UPAL',
+    actionText: '进入预测'
+  },
+  {
+    slug: 'predict-master-up-down',
+    name: '涨跌',
+    description: '进入 Detrade 涨跌预测玩法。',
+    cover_image: '',
+    secondary_image: '',
+    sound_file: '',
+    background_music_file: '',
+    is_enabled: 1,
+    showInGamesHub: 1,
+    sort_order: 63,
+    route: '/predict-master/?type=up-down',
+    predictType: 'up-down',
+    icon: 'UPAL',
+    actionText: '进入预测'
+  },
+  {
+    slug: 'predict-master-spread',
+    name: '点差',
+    description: '进入 Detrade 点差预测玩法。',
+    cover_image: '',
+    secondary_image: '',
+    sound_file: '',
+    background_music_file: '',
+    is_enabled: 1,
+    showInGamesHub: 1,
+    sort_order: 62,
+    route: '/predict-master/?type=spread',
+    predictType: 'spread',
+    icon: 'UPAL',
+    actionText: '进入预测'
+  },
+  {
+    slug: 'predict-master-tap-trading',
+    name: 'Tap Trading',
+    description: '进入 Detrade Tap Trading 快速预测玩法。',
+    cover_image: '',
+    secondary_image: '',
+    sound_file: '',
+    background_music_file: '',
+    is_enabled: 1,
+    showInGamesHub: 1,
+    sort_order: 61,
+    route: '/predict-master/?type=tap-trading',
+    predictType: 'tap-trading',
+    icon: 'UPAL',
+    actionText: '进入预测'
+  },
+  {
+    slug: 'predict-master-football-worldcup',
+    name: '足球/世界杯预测',
+    description: '进入 Detrade 足球与世界杯活动预测入口。',
     cover_image: '',
     secondary_image: '',
     sound_file: '',
@@ -10,7 +90,8 @@ const DEFAULT_GAMES = [
     is_enabled: 1,
     showInGamesHub: 1,
     sort_order: 60,
-    route: '/predict-master/',
+    route: '/predict-master/?type=trading&activity=football-worldcup',
+    predictType: 'trading',
     icon: 'UPAL',
     actionText: '进入预测'
   },
@@ -248,6 +329,11 @@ const DEFAULT_GAMES = [
 
 const GAME_ACTION_TEXT = {
   'predict-master': '进入预测',
+  'predict-master-contract': '进入预测',
+  'predict-master-up-down': '进入预测',
+  'predict-master-spread': '进入预测',
+  'predict-master-tap-trading': '进入预测',
+  'predict-master-football-worldcup': '进入预测',
   'u-card-query': '开始查询',
   nchat: '进入聊天',
   sbti: '开始测试',
@@ -266,8 +352,33 @@ const GAME_ACTION_TEXT = {
 };
 const GAME_I18N = {
   'predict-master': {
-    name: 'Predict Master',
+    name: 'Prediction',
     description: 'Open the Detrade prediction market after authorization.',
+    actionText: 'Enter Prediction'
+  },
+  'predict-master-contract': {
+    name: 'Contract',
+    description: 'Open the Detrade contract prediction mode.',
+    actionText: 'Enter Prediction'
+  },
+  'predict-master-up-down': {
+    name: 'Up/Down',
+    description: 'Open the Detrade up/down prediction mode.',
+    actionText: 'Enter Prediction'
+  },
+  'predict-master-spread': {
+    name: 'Spread',
+    description: 'Open the Detrade spread prediction mode.',
+    actionText: 'Enter Prediction'
+  },
+  'predict-master-tap-trading': {
+    name: 'Tap Trading',
+    description: 'Open the Detrade Tap Trading prediction mode.',
+    actionText: 'Enter Prediction'
+  },
+  'predict-master-football-worldcup': {
+    name: 'Football / World Cup Prediction',
+    description: 'Open the Detrade football and World Cup prediction activity.',
     actionText: 'Enter Prediction'
   },
   'u-card-query': {
@@ -354,6 +465,10 @@ function isNexaAppEnvironment() {
   return /nexa/i.test(userAgent) || /nexa/i.test(referrer);
 }
 
+function isPredictMasterGame(slug) {
+  return String(slug || '').trim().startsWith('predict-master');
+}
+
 function localizeGame(item) {
   if (getCurrentMenuLang() !== 'en') return item;
   const translation = GAME_I18N[item.slug];
@@ -418,6 +533,7 @@ function normalizeGame(item, fallback = {}) {
     showInGamesHub: Number(item?.showInGamesHub ?? fallback.showInGamesHub ?? 1) ? 1 : 0,
     sort_order: Number(item?.sort_order ?? fallback.sort_order ?? 0) || 0,
     route,
+    predictType: String(item?.predictType || fallback.predictType || '').trim(),
     icon: String(item?.icon || fallback.icon || '🎮').trim(),
     actionText: String(item?.actionText || fallback.actionText || GAME_ACTION_TEXT[slug] || '开始')
   };
@@ -435,7 +551,7 @@ async function fetchJson(path) {
 
 function gameCardMarkup(item) {
   const displayItem = localizeGame(item);
-  const showBrandBadge = String(item?.slug || '') === 'predict-master' && isNexaAppEnvironment();
+  const showBrandBadge = isPredictMasterGame(item?.slug) && isNexaAppEnvironment();
   const brandBadge = showBrandBadge
     ? '<span class="game-card__brand-badge" aria-label="UPAL">UPAL</span>'
     : '';
@@ -457,7 +573,7 @@ function gameCardMarkup(item) {
 function getVisibleGames(items) {
   return items.filter((item) => {
     const slug = String(item?.slug || '').trim();
-    if (slug === 'predict-master' && !isNexaAppEnvironment()) return false;
+    if (isPredictMasterGame(slug) && !isNexaAppEnvironment()) return false;
     return item.is_enabled && slug !== 'xiangqi' && slug !== 'u-card' && item.showInGamesHub !== 0;
   });
 }
