@@ -71,6 +71,7 @@ test('admin exposes Predict Master settings without echoing the private key', ()
   assert.match(adminHtml, /id="navPredictMasterConfig"/);
   assert.match(adminHtml, /id="navPredictMasterLoginLogs"/);
   assert.match(adminHtml, /id="navPredictMasterCallbackLogs"/);
+  assert.match(adminHtml, /id="navNexaPaymentUpstreamLogs"/);
   assert.match(adminHtml, /id="navPredictMasterOrders"/);
   assert.match(adminHtml, /id="navPredictMasterWalletTransactions"/);
   assert.match(adminHtml, /id="navPredictMasterShares"/);
@@ -78,6 +79,7 @@ test('admin exposes Predict Master settings without echoing the private key', ()
   assert.match(adminHtml, /id="predictMasterConfigSection"/);
   assert.match(adminHtml, /id="predictMasterLoginLogsSection"/);
   assert.match(adminHtml, /id="predictMasterCallbackLogsSection"/);
+  assert.match(adminHtml, /id="nexaPaymentUpstreamLogsSection"/);
   assert.match(adminHtml, /id="predictMasterOrdersSection"/);
   assert.match(adminHtml, /id="predictMasterWalletTransactionsSection"/);
   assert.match(adminHtml, /id="predictMasterSharesSection"/);
@@ -87,6 +89,8 @@ test('admin exposes Predict Master settings without echoing the private key', ()
   assert.match(adminJs, /\/api\/admin\/predict-master-config/);
   assert.match(adminJs, /\/api\/admin\/predict-master-login-logs/);
   assert.match(adminJs, /\/api\/admin\/predict-master-callback-logs/);
+  assert.match(adminJs, /\/api\/admin\/nexa-payment-upstream-logs/);
+  assert.match(adminJs, /renderNexaPaymentUpstreamLogs/);
   assert.match(adminJs, /\/api\/admin\/predict-master-orders/);
   assert.match(adminJs, /\/api\/admin\/predict-master-wallet-transactions/);
   assert.match(adminJs, /\/api\/admin\/predict-master-shares/);

@@ -71,6 +71,10 @@ const predictMasterCallbackLogsSection = document.getElementById('predictMasterC
 const predictMasterCallbackLogsRefreshBtn = document.getElementById('predictMasterCallbackLogsRefreshBtn');
 const predictMasterCallbackLogsMessage = document.getElementById('predictMasterCallbackLogsMessage');
 const predictMasterCallbackLogsList = document.getElementById('predictMasterCallbackLogsList');
+const nexaPaymentUpstreamLogsSection = document.getElementById('nexaPaymentUpstreamLogsSection');
+const nexaPaymentUpstreamLogsRefreshBtn = document.getElementById('nexaPaymentUpstreamLogsRefreshBtn');
+const nexaPaymentUpstreamLogsMessage = document.getElementById('nexaPaymentUpstreamLogsMessage');
+const nexaPaymentUpstreamLogsList = document.getElementById('nexaPaymentUpstreamLogsList');
 const predictMasterOrdersSection = document.getElementById('predictMasterOrdersSection');
 const predictMasterOrdersRefreshBtn = document.getElementById('predictMasterOrdersRefreshBtn');
 const predictMasterOrdersMessage = document.getElementById('predictMasterOrdersMessage');
@@ -287,6 +291,7 @@ const texts = {
     navPredictMasterConfig: '预测大师设置',
     navPredictMasterLoginLogs: '预测登录日志',
     navPredictMasterCallbackLogs: '预测上游回调日志',
+    navNexaPaymentUpstreamLogs: 'Nexa 支付上游日志',
     navPredictMasterOrders: '预测订单',
     navPredictMasterWalletTransactions: '预测资金流水',
     navPredictMasterShares: '预测仓位记录',
@@ -484,6 +489,10 @@ const texts = {
     predictMasterCallbackLogsRefreshBtn: '刷新',
     predictMasterCallbackLogsEmpty: '暂无回调日志。',
     predictMasterCallbackLogsLoadFailed: '预测上游回调日志加载失败。',
+    nexaPaymentUpstreamLogsTitle: 'Nexa 支付上游日志',
+    nexaPaymentUpstreamLogsRefreshBtn: '刷新',
+    nexaPaymentUpstreamLogsEmpty: '暂无 Nexa 支付上游日志。',
+    nexaPaymentUpstreamLogsLoadFailed: 'Nexa 支付上游日志加载失败。',
     predictMasterOrdersTitle: '预测订单',
     predictMasterOrdersRefreshBtn: '刷新',
     predictMasterOrdersEmpty: '暂无预测订单。',
@@ -693,6 +702,7 @@ const texts = {
     navPredictMasterConfig: 'Predict Master Settings',
     navPredictMasterLoginLogs: 'Predict Login Logs',
     navPredictMasterCallbackLogs: 'Predict Callback Logs',
+    navNexaPaymentUpstreamLogs: 'Nexa Payment Upstream Logs',
     navPredictMasterOrders: 'Predict Orders',
     navPredictMasterWalletTransactions: 'Predict Wallet Ledger',
     navPredictMasterShares: 'Predict Positions',
@@ -890,6 +900,10 @@ const texts = {
     predictMasterCallbackLogsRefreshBtn: 'Refresh',
     predictMasterCallbackLogsEmpty: 'No callback logs yet.',
     predictMasterCallbackLogsLoadFailed: 'Failed to load predict callback logs.',
+    nexaPaymentUpstreamLogsTitle: 'Nexa Payment Upstream Logs',
+    nexaPaymentUpstreamLogsRefreshBtn: 'Refresh',
+    nexaPaymentUpstreamLogsEmpty: 'No Nexa payment upstream logs yet.',
+    nexaPaymentUpstreamLogsLoadFailed: 'Failed to load Nexa payment upstream logs.',
     predictMasterOrdersTitle: 'Predict Orders',
     predictMasterOrdersRefreshBtn: 'Refresh',
     predictMasterOrdersEmpty: 'No predict orders yet.',
@@ -1413,6 +1427,7 @@ function applyLanguage() {
   document.getElementById('navPredictMasterConfig').textContent = dict.navPredictMasterConfig;
   document.getElementById('navPredictMasterLoginLogs').textContent = dict.navPredictMasterLoginLogs;
   document.getElementById('navPredictMasterCallbackLogs').textContent = dict.navPredictMasterCallbackLogs;
+  document.getElementById('navNexaPaymentUpstreamLogs').textContent = dict.navNexaPaymentUpstreamLogs;
   document.getElementById('navPredictMasterOrders').textContent = dict.navPredictMasterOrders;
   document.getElementById('navPredictMasterWalletTransactions').textContent = dict.navPredictMasterWalletTransactions;
   document.getElementById('navPredictMasterShares').textContent = dict.navPredictMasterShares;
@@ -1552,6 +1567,8 @@ function applyLanguage() {
   document.getElementById('predictMasterLoginLogsRefreshBtn').textContent = dict.predictMasterLoginLogsRefreshBtn;
   document.getElementById('predictMasterCallbackLogsTitle').textContent = dict.predictMasterCallbackLogsTitle;
   document.getElementById('predictMasterCallbackLogsRefreshBtn').textContent = dict.predictMasterCallbackLogsRefreshBtn;
+  document.getElementById('nexaPaymentUpstreamLogsTitle').textContent = dict.nexaPaymentUpstreamLogsTitle;
+  document.getElementById('nexaPaymentUpstreamLogsRefreshBtn').textContent = dict.nexaPaymentUpstreamLogsRefreshBtn;
   document.getElementById('predictMasterOrdersTitle').textContent = dict.predictMasterOrdersTitle;
   document.getElementById('predictMasterOrdersRefreshBtn').textContent = dict.predictMasterOrdersRefreshBtn;
   document.getElementById('predictMasterWalletTransactionsTitle').textContent = dict.predictMasterWalletTransactionsTitle;
@@ -1646,6 +1663,7 @@ function setView(view) {
   predictMasterConfigSection.classList.toggle('hidden', view !== 'predict-master-config');
   predictMasterLoginLogsSection.classList.toggle('hidden', view !== 'predict-master-login-logs');
   predictMasterCallbackLogsSection.classList.toggle('hidden', view !== 'predict-master-callback-logs');
+  nexaPaymentUpstreamLogsSection.classList.toggle('hidden', view !== 'nexa-payment-upstream-logs');
   predictMasterOrdersSection.classList.toggle('hidden', view !== 'predict-master-orders');
   predictMasterWalletTransactionsSection.classList.toggle('hidden', view !== 'predict-master-wallet-transactions');
   predictMasterSharesSection.classList.toggle('hidden', view !== 'predict-master-shares');
@@ -1682,6 +1700,9 @@ function setView(view) {
   }
   if (view === 'predict-master-callback-logs') {
     loadPredictMasterCallbackLogs();
+  }
+  if (view === 'nexa-payment-upstream-logs') {
+    loadNexaPaymentUpstreamLogs();
   }
   if (view === 'predict-master-orders') {
     loadPredictMasterOrders();
@@ -3139,6 +3160,64 @@ async function loadPredictMasterCallbackLogs() {
     return;
   }
   renderPredictMasterCallbackLogs(result.data?.items || []);
+}
+
+function renderNexaPaymentUpstreamLogs(items = []) {
+  if (!nexaPaymentUpstreamLogsList) return;
+  if (!Array.isArray(items) || !items.length) {
+    nexaPaymentUpstreamLogsList.innerHTML = `<p class="empty">${escapeHtml(t('nexaPaymentUpstreamLogsEmpty'))}</p>`;
+    return;
+  }
+
+  nexaPaymentUpstreamLogsList.innerHTML = items
+    .map((item) => {
+      const success = Boolean(item.success);
+      const statusText = success ? '成功' : '失败';
+      const statusClass = success ? 'message success' : 'message error';
+      const requestBodyJson = JSON.stringify(item.requestBody || {}, null, 2);
+      const responseJson = JSON.stringify(item.response || {}, null, 2);
+      const responseText = String(item.responseText || '').trim();
+      const errorMessage = String(item.errorMessage || '').trim();
+      return `
+        <article class="review-card">
+          <h3>${escapeHtml(item.requestMethod || 'POST')} ${escapeHtml(item.endpointPath || '-')}</h3>
+          <p class="${statusClass}">${escapeHtml(statusText)} · HTTP ${escapeHtml(String(item.httpStatus || '-'))} · ${escapeHtml(String(item.durationMs || 0))}ms</p>
+          <p class="small">请求 URL: ${escapeHtml(item.requestUrl || '-')}</p>
+          <p class="small">source: ${escapeHtml(item.source || '-')} · 时间: ${escapeHtml(formatAdminLocalDateTime(item.createdAt))}</p>
+          ${errorMessage ? `<p class="small">错误原因: ${escapeHtml(errorMessage)}</p>` : ''}
+          <details>
+            <summary>请求参数</summary>
+            <pre class="small">${escapeHtml(requestBodyJson)}</pre>
+          </details>
+          <details>
+            <summary>上游返回</summary>
+            <pre class="small">${escapeHtml(responseText || responseJson)}</pre>
+          </details>
+        </article>
+      `;
+    })
+    .join('');
+}
+
+async function loadNexaPaymentUpstreamLogs() {
+  if (!nexaPaymentUpstreamLogsList) return;
+  if (nexaPaymentUpstreamLogsMessage) {
+    nexaPaymentUpstreamLogsMessage.textContent = '';
+    nexaPaymentUpstreamLogsMessage.className = 'message';
+  }
+  const result = await requestTutorialJson(['/api/admin/nexa-payment-upstream-logs'], { method: 'GET' });
+  if (result.res?.status === 401) {
+    showLogin();
+    return;
+  }
+  if (!result.res || !result.res.ok) {
+    if (nexaPaymentUpstreamLogsMessage) {
+      nexaPaymentUpstreamLogsMessage.textContent = localizeApiError(result.data?.error || t('nexaPaymentUpstreamLogsLoadFailed'));
+      nexaPaymentUpstreamLogsMessage.className = 'message error';
+    }
+    return;
+  }
+  renderNexaPaymentUpstreamLogs(result.data?.items || []);
 }
 
 function renderPredictMasterRawDetails(raw = {}) {
@@ -5678,6 +5757,7 @@ document.getElementById('navPartners').addEventListener('click', () => setView('
 document.getElementById('navPredictMasterConfig').addEventListener('click', () => setView('predict-master-config'));
 document.getElementById('navPredictMasterLoginLogs').addEventListener('click', () => setView('predict-master-login-logs'));
 document.getElementById('navPredictMasterCallbackLogs').addEventListener('click', () => setView('predict-master-callback-logs'));
+document.getElementById('navNexaPaymentUpstreamLogs').addEventListener('click', () => setView('nexa-payment-upstream-logs'));
 document.getElementById('navPredictMasterOrders').addEventListener('click', () => setView('predict-master-orders'));
 document
   .getElementById('navPredictMasterWalletTransactions')
@@ -5710,6 +5790,9 @@ if (predictMasterLoginLogsRefreshBtn) {
 }
 if (predictMasterCallbackLogsRefreshBtn) {
   predictMasterCallbackLogsRefreshBtn.addEventListener('click', () => loadPredictMasterCallbackLogs());
+}
+if (nexaPaymentUpstreamLogsRefreshBtn) {
+  nexaPaymentUpstreamLogsRefreshBtn.addEventListener('click', () => loadNexaPaymentUpstreamLogs());
 }
 if (predictMasterOrdersRefreshBtn) {
   predictMasterOrdersRefreshBtn.addEventListener('click', () => loadPredictMasterOrders());

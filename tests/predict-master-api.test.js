@@ -322,6 +322,84 @@ test('admin can view recent predict-master login logs', async () => {
   }
 });
 
+test('admin can view Nexa payment upstream logs after a 405 failure', async () => {
+  const harness = createHarness();
+
+  try {
+    const cookies = await harness.adminCookies();
+    harness.setFetch(async (url) => ({
+      ok: false,
+      status: 405,
+      async text() {
+        return JSON.stringify({ message: 'Method Not Allowed', path: String(url) });
+      }
+    }));
+
+    const create = await harness.request('POST', '/api/predict-master/payment/create', {
+      openId: 'nexa-open-id-405',
+      sessionKey: 'nexa-session-key-405',
+      amount: '10'
+    });
+    assert.equal(create.statusCode, 405);
+    assert.match(create.body.error, /Nexa 请求失败/);
+
+    const logs = await harness.request('GET', '/api/admin/nexa-payment-upstream-logs', null, { cookies });
+    assert.equal(logs.statusCode, 200);
+    assert.equal(logs.body.ok, true);
+    assert.equal(logs.body.items.length, 1);
+    assert.equal(logs.body.items[0].endpointPath, '/partner/api/openapi/payment/create');
+    assert.equal(logs.body.items[0].requestMethod, 'POST');
+    assert.equal(logs.body.items[0].requestUrl, 'https://merchantapi.nexaexworth.com/partner/api/openapi/payment/create');
+    assert.equal(logs.body.items[0].httpStatus, 405);
+    assert.equal(logs.body.items[0].success, false);
+    assert.match(logs.body.items[0].responseText, /Method Not Allowed/);
+    assert.doesNotMatch(JSON.stringify(logs.body.items[0]), /nexa-session-key-405/);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('admin can view stored Nexa payment upstream logs directly', async () => {
+  const harness = createHarness();
+
+  try {
+    const cookies = await harness.adminCookies();
+    harness.db
+      .prepare(
+        `INSERT INTO nexa_payment_upstream_logs (
+          source, request_method, request_url, endpoint_path, request_body_json,
+          http_status, success, response_text, response_json, error_message, duration_ms
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        'predict-master-payment-create',
+        'POST',
+        'https://merchantapi.nexaexworth.com/partner/api/openapi/payment/create',
+        '/partner/api/openapi/payment/create',
+        JSON.stringify({ apiKey: 'test-nexa-api-key', sessionKey: '[redacted]' }),
+        405,
+        0,
+        '{"message":"Method Not Allowed"}',
+        JSON.stringify({ message: 'Method Not Allowed' }),
+        'Nexa 请求失败：Method Not Allowed',
+        123
+      );
+
+    const response = await harness.request('GET', '/api/admin/nexa-payment-upstream-logs', null, { cookies });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.ok, true);
+    assert.equal(response.body.items.length, 1);
+    assert.equal(response.body.items[0].source, 'predict-master-payment-create');
+    assert.equal(response.body.items[0].httpStatus, 405);
+    assert.equal(response.body.items[0].success, false);
+    assert.deepEqual(response.body.items[0].response, { message: 'Method Not Allowed' });
+    assert.deepEqual(response.body.items[0].requestBody, { apiKey: 'test-nexa-api-key', sessionKey: '[redacted]' });
+  } finally {
+    harness.cleanup();
+  }
+});
+
 test('admin can view recent predict-master operational records', async () => {
   const harness = createHarness();
 

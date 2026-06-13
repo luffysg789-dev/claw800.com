@@ -327,12 +327,145 @@ function getNexaCredentials() {
   };
 }
 
-function postConfiguredNexaJson(endpointPath, payload, options = {}) {
+function safeParseJsonObject(value, fallback = {}) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+  if (typeof value !== 'string' || !value.trim()) return fallback;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function truncateLogText(value, maxLength = 20000) {
+  const text = typeof value === 'string' ? value : JSON.stringify(value ?? '');
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength)}... [truncated ${text.length - maxLength} chars]`;
+}
+
+function sanitizeNexaPaymentLogValue(value) {
+  if (Array.isArray(value)) return value.map((item) => sanitizeNexaPaymentLogValue(item));
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entryValue]) => {
+      const normalizedKey = String(key || '').toLowerCase();
+      const shouldRedact =
+        normalizedKey.includes('secret') ||
+        normalizedKey.includes('sessionkey') ||
+        normalizedKey.includes('session_key') ||
+        normalizedKey.includes('paysign') ||
+        normalizedKey.includes('pay_sign') ||
+        normalizedKey.includes('signature') ||
+        normalizedKey.includes('privatekey') ||
+        normalizedKey.includes('private_key') ||
+        normalizedKey.includes('token') ||
+        normalizedKey.includes('password');
+      return [key, shouldRedact ? '[redacted]' : sanitizeNexaPaymentLogValue(entryValue)];
+    })
+  );
+}
+
+function shouldLogNexaPaymentUpstream(endpointPath) {
+  const normalized = String(endpointPath || '').toLowerCase();
+  return normalized.includes('/payment/') || normalized.includes('/account/withdraw');
+}
+
+function getNexaPaymentLogSource(endpointPath, fallback = '') {
+  const normalized = String(endpointPath || '').toLowerCase();
+  if (fallback) return String(fallback).trim();
+  if (normalized.includes('/payment/create')) return 'nexa-payment-create';
+  if (normalized.includes('/payment/query')) return 'nexa-payment-query';
+  if (normalized.includes('/account/withdrawal/query')) return 'nexa-withdrawal-query';
+  if (normalized.includes('/account/withdraw')) return 'nexa-withdraw';
+  return 'nexa-payment-upstream';
+}
+
+function recordNexaPaymentUpstreamLog({
+  source,
+  requestMethod = 'POST',
+  requestUrl,
+  endpointPath,
+  requestBody,
+  httpStatus = 0,
+  success = false,
+  responseText = '',
+  responseJson = {},
+  errorMessage = '',
+  durationMs = 0
+}) {
+  try {
+    insertNexaPaymentUpstreamLogStmt.run(
+      String(source || '').trim(),
+      String(requestMethod || 'POST').trim().toUpperCase(),
+      truncateLogText(String(requestUrl || '').trim(), 2000),
+      String(endpointPath || '').trim(),
+      truncateLogText(JSON.stringify(sanitizeNexaPaymentLogValue(requestBody || {})), 20000),
+      Number.isFinite(Number(httpStatus)) ? Number(httpStatus) : 0,
+      success ? 1 : 0,
+      truncateLogText(responseText || '', 20000),
+      truncateLogText(JSON.stringify(sanitizeNexaPaymentLogValue(responseJson || {})), 20000),
+      truncateLogText(String(errorMessage || ''), 2000),
+      Number.isFinite(Number(durationMs)) ? Number(durationMs) : 0
+    );
+  } catch (error) {
+    console.warn('Failed to write Nexa payment upstream log:', error?.message || error);
+  }
+}
+
+async function postConfiguredNexaJson(endpointPath, payload, options = {}) {
   const credentials = getNexaCredentials();
-  return postNexaJson(endpointPath, payload, {
-    ...options,
-    baseUrl: credentials.apiBaseUrl
-  });
+  const baseUrl = normalizeNexaBaseUrl(options.baseUrl || credentials.apiBaseUrl);
+  const normalizedEndpointPath = String(endpointPath || '').startsWith('/')
+    ? String(endpointPath || '')
+    : `/${String(endpointPath || '')}`;
+  const requestUrl = `${baseUrl}${normalizedEndpointPath}`;
+  const shouldLog = shouldLogNexaPaymentUpstream(normalizedEndpointPath);
+  const startedAt = Date.now();
+  try {
+    const response = await postNexaJson(normalizedEndpointPath, payload, {
+      ...options,
+      baseUrl
+    });
+    if (shouldLog) {
+      recordNexaPaymentUpstreamLog({
+        source: getNexaPaymentLogSource(normalizedEndpointPath, options.source),
+        requestUrl,
+        endpointPath: normalizedEndpointPath,
+        requestBody: payload,
+        httpStatus: 200,
+        success: true,
+        responseText: JSON.stringify(response || {}),
+        responseJson: response || {},
+        durationMs: Date.now() - startedAt
+      });
+    }
+    return response;
+  } catch (error) {
+    if (shouldLog) {
+      const details = error?.details;
+      const responseJson = details && typeof details === 'object' ? details : safeParseJsonObject(details, {});
+      const responseText =
+        typeof details === 'string'
+          ? details
+          : details
+            ? JSON.stringify(details)
+            : String(error?.message || '');
+      recordNexaPaymentUpstreamLog({
+        source: getNexaPaymentLogSource(normalizedEndpointPath, options.source),
+        requestUrl,
+        endpointPath: normalizedEndpointPath,
+        requestBody: payload,
+        httpStatus: Number(error?.statusCode || 0),
+        success: false,
+        responseText,
+        responseJson,
+        errorMessage: error?.message || '',
+        durationMs: Date.now() - startedAt
+      });
+    }
+    throw error;
+  }
 }
 
 function ensureNexaCredentialsConfigured() {
@@ -9359,6 +9492,19 @@ const listDetradeLoginLogsStmt = db.prepare(`
   ORDER BY id DESC
   LIMIT ?
 `);
+const insertNexaPaymentUpstreamLogStmt = db.prepare(`
+  INSERT INTO nexa_payment_upstream_logs (
+    source, request_method, request_url, endpoint_path, request_body_json,
+    http_status, success, response_text, response_json, error_message, duration_ms
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`);
+const listNexaPaymentUpstreamLogsStmt = db.prepare(`
+  SELECT id, source, request_method, request_url, endpoint_path, request_body_json,
+         http_status, success, response_text, response_json, error_message, duration_ms, created_at
+  FROM nexa_payment_upstream_logs
+  ORDER BY id DESC
+  LIMIT ?
+`);
 const insertDetradeRechargeOrderStmt = db.prepare(`
   INSERT INTO detrade_recharge_orders (
     order_no, partner_order_no, user_id, external_user_id, amount, currency, status
@@ -9931,6 +10077,24 @@ function formatDetradeLoginLog(row = {}) {
     accessCode: String(row.access_code || ''),
     success: Boolean(Number(row.success || 0)),
     errorMessage: String(row.error_message || ''),
+    createdAt: String(row.created_at || '')
+  };
+}
+
+function formatNexaPaymentUpstreamLog(row = {}) {
+  return {
+    id: Number(row.id || 0) || 0,
+    source: String(row.source || ''),
+    requestMethod: String(row.request_method || ''),
+    requestUrl: String(row.request_url || ''),
+    endpointPath: String(row.endpoint_path || ''),
+    requestBody: safeJsonParse(row.request_body_json, {}),
+    httpStatus: Number(row.http_status || 0) || 0,
+    success: Boolean(Number(row.success || 0)),
+    responseText: String(row.response_text || ''),
+    response: safeJsonParse(row.response_json, {}),
+    errorMessage: String(row.error_message || ''),
+    durationMs: Number(row.duration_ms || 0) || 0,
     createdAt: String(row.created_at || '')
   };
 }
@@ -12751,6 +12915,13 @@ app.get('/api/admin/predict-master-login-logs', requireAdmin, (req, res) => {
   const limitRaw = Number(req.query?.limit || 100);
   const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
   const items = listDetradeLoginLogsStmt.all(limit).map(formatDetradeLoginLog);
+  res.json({ ok: true, items });
+});
+
+app.get('/api/admin/nexa-payment-upstream-logs', requireAdmin, (req, res) => {
+  const limitRaw = Number(req.query?.limit || 100);
+  const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
+  const items = listNexaPaymentUpstreamLogsStmt.all(limit).map(formatNexaPaymentUpstreamLog);
   res.json({ ok: true, items });
 });
 

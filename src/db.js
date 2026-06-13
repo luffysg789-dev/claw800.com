@@ -419,6 +419,29 @@ db.exec(`
 `);
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS nexa_payment_upstream_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL DEFAULT '',
+    request_method TEXT NOT NULL DEFAULT 'POST',
+    request_url TEXT NOT NULL DEFAULT '',
+    endpoint_path TEXT NOT NULL DEFAULT '',
+    request_body_json TEXT NOT NULL DEFAULT '{}',
+    http_status INTEGER NOT NULL DEFAULT 0,
+    success INTEGER NOT NULL DEFAULT 0,
+    response_text TEXT NOT NULL DEFAULT '',
+    response_json TEXT NOT NULL DEFAULT '',
+    error_message TEXT NOT NULL DEFAULT '',
+    duration_ms INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_nexa_payment_upstream_logs_created
+  ON nexa_payment_upstream_logs(created_at DESC, id DESC);
+`);
+
+db.exec(`
   CREATE TABLE IF NOT EXISTS nchat_users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     openid TEXT NOT NULL UNIQUE,
