@@ -10,7 +10,7 @@ const adminJs = fs.readFileSync(path.join(rootDir, 'public', 'admin.js'), 'utf8'
 
 test('games config includes Predict Master card defaults', () => {
   const entries = [
-    ['predict-master', '预测', '/predict-master/?type=trading', 'trading'],
+    ['predict-master', '高低期权', '/predict-master/?type=trading', 'trading'],
     ['predict-master-contract', '合约', '/predict-master/?type=contract', 'contract'],
     ['predict-master-up-down', '涨跌', '/predict-master/?type=up-down', 'up-down'],
     ['predict-master-spread', '点差', '/predict-master/?type=spread', 'spread'],
@@ -25,7 +25,8 @@ test('games config includes Predict Master card defaults', () => {
     assert.match(block[0], new RegExp(`predictType:\\s*'${type}'`));
     assert.match(block[0], /icon:\s*'UPAL'/);
   }
-  assert.match(gamesConfig, /'predict-master-tap-trading':\s*'进入预测'/);
+  assert.match(gamesConfig, /'predict-master':\s*'进入高低期权'/);
+  assert.match(gamesConfig, /'predict-master-tap-trading':\s*'进入 Tap Trading'/);
 });
 
 test('predict-master page shell loads its assets and calls backend login url API', () => {
@@ -33,7 +34,7 @@ test('predict-master page shell loads its assets and calls backend login url API
   const script = fs.readFileSync(path.join(rootDir, 'public', 'predict-master', 'script.js'), 'utf8');
   const css = fs.readFileSync(path.join(rootDir, 'public', 'predict-master', 'style.css'), 'utf8');
 
-  assert.match(html, /<title>预测大师<\/title>/);
+  assert.match(html, /<title>高低期权<\/title>/);
   assert.match(html, /<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" \/>/);
   assert.match(html, /href="\/games\.html"/);
   assert.match(html, /\/predict-master\/style\.css/);
@@ -50,6 +51,10 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.doesNotMatch(html, /<iframe/);
   assert.match(css, /\.predict-master-sdk-shell/);
   assert.match(css, /\.predict-master-sdk-app/);
+  assert.match(css, /height:\s*100dvh;/);
+  assert.match(css, /grid-template-rows:\s*auto minmax\(0,\s*1fr\);/);
+  assert.match(css, /\.predict-master-sdk-app\s*\{[\s\S]*height:\s*100%;/);
+  assert.doesNotMatch(css, /height:\s*calc\(100vh - 70px\);/);
   assert.match(css, /\.predict-master-wallet/);
   assert.match(css, /\.predict-master-modal/);
   assert.match(css, /\.predict-master-sdk-shell\s+:is\(input,\s*textarea,\s*select\)/);
@@ -79,8 +84,13 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(script, /new Trading/);
   assert.match(script, /accessCode:\s*data\.accessCode/);
   assert.match(script, /const PREDICT_MASTER_ALLOWED_TYPES = /);
+  assert.match(script, /const PREDICT_MASTER_PRODUCT_NAMES = /);
+  assert.match(script, /function getPredictMasterActivity\(\)/);
+  assert.match(script, /function getPredictMasterProductName\(\)/);
+  assert.match(script, /function applyPredictMasterProductTitle\(\)/);
   assert.match(script, /function getPredictMasterRenderType\(\)/);
   assert.match(script, /type:\s*getPredictMasterRenderType\(\)/);
+  assert.match(script, /activity:\s*getPredictMasterActivity\(\) \|\| undefined/);
   assert.doesNotMatch(script, /frame\.src\s*=/);
 });
 

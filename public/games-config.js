@@ -1,8 +1,8 @@
 const DEFAULT_GAMES = [
   {
     slug: 'predict-master',
-    name: '预测',
-    description: '进入 Detrade 综合预测市场，授权后打开预测交易页面。',
+    name: '高低期权',
+    description: '进入 Detrade 高低期权交易页，授权后直接下单交易。',
     cover_image: '',
     secondary_image: '',
     sound_file: '',
@@ -13,7 +13,7 @@ const DEFAULT_GAMES = [
     route: '/predict-master/?type=trading',
     predictType: 'trading',
     icon: 'UPAL',
-    actionText: '进入预测'
+    actionText: '进入高低期权'
   },
   {
     slug: 'predict-master-contract',
@@ -29,7 +29,7 @@ const DEFAULT_GAMES = [
     route: '/predict-master/?type=contract',
     predictType: 'contract',
     icon: 'UPAL',
-    actionText: '进入预测'
+    actionText: '进入合约'
   },
   {
     slug: 'predict-master-up-down',
@@ -45,7 +45,7 @@ const DEFAULT_GAMES = [
     route: '/predict-master/?type=up-down',
     predictType: 'up-down',
     icon: 'UPAL',
-    actionText: '进入预测'
+    actionText: '进入涨跌'
   },
   {
     slug: 'predict-master-spread',
@@ -61,7 +61,7 @@ const DEFAULT_GAMES = [
     route: '/predict-master/?type=spread',
     predictType: 'spread',
     icon: 'UPAL',
-    actionText: '进入预测'
+    actionText: '进入点差'
   },
   {
     slug: 'predict-master-tap-trading',
@@ -77,7 +77,7 @@ const DEFAULT_GAMES = [
     route: '/predict-master/?type=tap-trading',
     predictType: 'tap-trading',
     icon: 'UPAL',
-    actionText: '进入预测'
+    actionText: '进入 Tap Trading'
   },
   {
     slug: 'predict-master-football-worldcup',
@@ -93,7 +93,7 @@ const DEFAULT_GAMES = [
     route: '/predict-master/?type=trading&activity=football-worldcup',
     predictType: 'trading',
     icon: 'UPAL',
-    actionText: '进入预测'
+    actionText: '进入足球/世界杯预测'
   },
   {
     slug: 'lucky-star',
@@ -328,12 +328,12 @@ const DEFAULT_GAMES = [
 ];
 
 const GAME_ACTION_TEXT = {
-  'predict-master': '进入预测',
-  'predict-master-contract': '进入预测',
-  'predict-master-up-down': '进入预测',
-  'predict-master-spread': '进入预测',
-  'predict-master-tap-trading': '进入预测',
-  'predict-master-football-worldcup': '进入预测',
+  'predict-master': '进入高低期权',
+  'predict-master-contract': '进入合约',
+  'predict-master-up-down': '进入涨跌',
+  'predict-master-spread': '进入点差',
+  'predict-master-tap-trading': '进入 Tap Trading',
+  'predict-master-football-worldcup': '进入足球/世界杯预测',
   'u-card-query': '开始查询',
   nchat: '进入聊天',
   sbti: '开始测试',
@@ -352,34 +352,34 @@ const GAME_ACTION_TEXT = {
 };
 const GAME_I18N = {
   'predict-master': {
-    name: 'Prediction',
-    description: 'Open the Detrade prediction market after authorization.',
-    actionText: 'Enter Prediction'
+    name: 'High/Low Options',
+    description: 'Open the Detrade high/low options trading page after authorization.',
+    actionText: 'Enter High/Low Options'
   },
   'predict-master-contract': {
     name: 'Contract',
     description: 'Open the Detrade contract prediction mode.',
-    actionText: 'Enter Prediction'
+    actionText: 'Enter Contract'
   },
   'predict-master-up-down': {
     name: 'Up/Down',
     description: 'Open the Detrade up/down prediction mode.',
-    actionText: 'Enter Prediction'
+    actionText: 'Enter Up/Down'
   },
   'predict-master-spread': {
     name: 'Spread',
     description: 'Open the Detrade spread prediction mode.',
-    actionText: 'Enter Prediction'
+    actionText: 'Enter Spread'
   },
   'predict-master-tap-trading': {
     name: 'Tap Trading',
     description: 'Open the Detrade Tap Trading prediction mode.',
-    actionText: 'Enter Prediction'
+    actionText: 'Enter Tap Trading'
   },
   'predict-master-football-worldcup': {
     name: 'Football / World Cup Prediction',
     description: 'Open the Detrade football and World Cup prediction activity.',
-    actionText: 'Enter Prediction'
+    actionText: 'Enter Football / World Cup'
   },
   'u-card-query': {
     name: 'U Card Scenario Lookup',

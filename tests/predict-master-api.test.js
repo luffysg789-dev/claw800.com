@@ -121,19 +121,27 @@ test('predict-master is seeded in the games catalog and routes to its page', asy
     const games = await harness.request('GET', '/api/games');
     assert.equal(games.statusCode, 200);
     const expectedRoutes = new Map([
-      ['predict-master', ['/predict-master/?type=trading', '预测']],
+      ['predict-master', ['/predict-master/?type=trading', '高低期权']],
       ['predict-master-contract', ['/predict-master/?type=contract', '合约']],
       ['predict-master-up-down', ['/predict-master/?type=up-down', '涨跌']],
       ['predict-master-spread', ['/predict-master/?type=spread', '点差']],
       ['predict-master-tap-trading', ['/predict-master/?type=tap-trading', 'Tap Trading']],
       ['predict-master-football-worldcup', ['/predict-master/?type=trading&activity=football-worldcup', '足球/世界杯预测']]
     ]);
+    const expectedActionText = new Map([
+      ['predict-master', '进入高低期权'],
+      ['predict-master-contract', '进入合约'],
+      ['predict-master-up-down', '进入涨跌'],
+      ['predict-master-spread', '进入点差'],
+      ['predict-master-tap-trading', '进入 Tap Trading'],
+      ['predict-master-football-worldcup', '进入足球/世界杯预测']
+    ]);
     for (const [slug, [route, name]] of expectedRoutes) {
       const item = games.body.items.find((game) => game.slug === slug);
       assert.ok(item, `${slug} is listed`);
       assert.equal(item.name, name);
       assert.equal(item.route, route);
-      assert.equal(item.actionText, '进入预测');
+      assert.equal(item.actionText, expectedActionText.get(slug));
       assert.equal(item.icon, 'UPAL');
     }
 

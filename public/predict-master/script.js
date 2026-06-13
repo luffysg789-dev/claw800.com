@@ -6,6 +6,16 @@
   const PREDICT_MASTER_SESSION_STORAGE_KEY = 'claw800:predict-master:nexa-session';
   const PREDICT_MASTER_PENDING_PAYMENT_STORAGE_KEY = 'claw800:predict-master:pending-payment';
   const PREDICT_MASTER_ALLOWED_TYPES = ['trading', 'contract', 'up-down', 'spread', 'tap-trading'];
+  const PREDICT_MASTER_PRODUCT_NAMES = {
+    trading: '高低期权',
+    contract: '合约',
+    'up-down': '涨跌',
+    spread: '点差',
+    'tap-trading': 'Tap Trading'
+  };
+  const PREDICT_MASTER_ACTIVITY_NAMES = {
+    'football-worldcup': '足球/世界杯预测'
+  };
   const DEFAULT_NEXA_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
   const SESSION_EXPIRY_GRACE_MS = 60 * 1000;
   const MAX_PENDING_PAYMENT_RETENTION_MS = 2 * 60 * 60 * 1000;
@@ -15,6 +25,8 @@
   const status = document.getElementById('predictMasterStatus');
   const errorPanel = document.getElementById('predictMasterError');
   const errorText = document.getElementById('predictMasterErrorText');
+  const pageTitle = document.getElementById('predictMasterTitle');
+  const rechargeTitle = document.getElementById('predictMasterRechargeTitle');
   const reloadBtn = document.getElementById('predictMasterReloadBtn');
   const rechargeBtn = document.getElementById('predictMasterRechargeBtn');
   const rechargeModal = document.getElementById('predictMasterRechargeModal');
@@ -187,6 +199,29 @@
     }
   }
 
+  function getPredictMasterActivity() {
+    try {
+      return String(new URL(window.location.href).searchParams.get('activity') || '').trim();
+    } catch {
+      return '';
+    }
+  }
+
+  function getPredictMasterProductName() {
+    const activity = getPredictMasterActivity();
+    if (activity && PREDICT_MASTER_ACTIVITY_NAMES[activity]) return PREDICT_MASTER_ACTIVITY_NAMES[activity];
+    return PREDICT_MASTER_PRODUCT_NAMES[getPredictMasterRenderType()] || '高低期权';
+  }
+
+  function applyPredictMasterProductTitle() {
+    const productName = getPredictMasterProductName();
+    document.title = productName;
+    if (pageTitle) pageTitle.textContent = productName;
+    if (status) status.textContent = `正在获取${productName}入口...`;
+    if (rechargeTitle) rechargeTitle.textContent = `充值${productName}余额`;
+    return productName;
+  }
+
   function unloadTradingApp() {
     if (tradingApp && typeof tradingApp.unmount === 'function') {
       try {
@@ -236,13 +271,14 @@
     tradingApp.render({
       accessCode: data.accessCode,
       type: getPredictMasterRenderType(),
+      activity: getPredictMasterActivity() || undefined,
       theme: 'darken',
       sound: false,
       fontWeight: 'bold',
       lang: 'zh-CN',
       onLoad: () => {
         if (loading) loading.classList.add('hidden');
-        if (status) status.textContent = '预测市场已连接';
+        if (status) status.textContent = `${getPredictMasterProductName()}已连接`;
       },
       onLogin: () => {
         clearCachedSession();
@@ -392,7 +428,8 @@
   }
 
   async function requestLoginUrl() {
-    setLoading('正在获取预测市场入口...');
+    const productName = getPredictMasterProductName();
+    setLoading(`正在获取${productName}入口...`);
     unloadTradingApp();
 
     try {
@@ -412,7 +449,7 @@
       await renderTradingSdk(data);
     } catch (error) {
       clearCachedSession();
-      setError(error?.message || '获取预测大师入口失败');
+      setError(error?.message || `获取${productName}入口失败`);
     }
   }
 
@@ -442,5 +479,6 @@
       if (event.key === 'Escape') closeRechargeModal();
     });
   }
+  applyPredictMasterProductTitle();
   requestLoginUrl();
 })();

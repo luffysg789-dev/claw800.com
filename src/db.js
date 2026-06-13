@@ -1002,8 +1002,8 @@ db.exec(`
 const DEFAULT_GAMES_CATALOG = [
   {
     slug: 'predict-master',
-    name: '预测',
-    description: 'Detrade 综合预测市场入口，授权后进入预测交易页面。',
+    name: '高低期权',
+    description: 'Detrade 高低期权交易页，授权后直接下单交易。',
     cover_image: '',
     secondary_image: '',
     sound_file: '',
@@ -1477,15 +1477,17 @@ db.prepare(`
 
 db.prepare(`
   UPDATE games_catalog
-  SET name = '预测',
-      description = 'Detrade 综合预测市场入口，授权后进入预测交易页面。',
+  SET name = '高低期权',
+      description = 'Detrade 高低期权交易页，授权后直接下单交易。',
       sort_order = 65,
       updated_at = datetime('now')
   WHERE slug = 'predict-master'
-    AND name = '预测大师'
+    AND name IN ('预测大师', '预测')
     AND description IN (
       'Detrade 预测市场入口，授权后进入预测交易页面。',
-      '进入 Detrade 预测市场，授权后打开预测交易页面。'
+      '进入 Detrade 预测市场，授权后打开预测交易页面。',
+      'Detrade 综合预测市场入口，授权后进入预测交易页面。',
+      '进入 Detrade 综合预测市场，授权后打开预测交易页面。'
     )
 `).run();
 
