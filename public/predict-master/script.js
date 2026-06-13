@@ -5,12 +5,14 @@
   const PREDICT_MASTER_SESSION_STORAGE_KEY = 'claw800:predict-master:nexa-session';
   const MAX_SESSION_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
-  const frame = document.getElementById('predictMasterFrame');
+  const sdkApp = document.getElementById('predictMasterSdkApp');
   const loading = document.getElementById('predictMasterLoading');
   const status = document.getElementById('predictMasterStatus');
   const errorPanel = document.getElementById('predictMasterError');
   const errorText = document.getElementById('predictMasterErrorText');
   const reloadBtn = document.getElementById('predictMasterReloadBtn');
+  let tradingApp = null;
+  let tradingScriptUrl = '';
 
   function setLoading(text) {
     if (status) status.textContent = text;
@@ -69,6 +71,90 @@
 
   function clearCachedSession() {
     storage()?.removeItem(PREDICT_MASTER_SESSION_STORAGE_KEY);
+  }
+
+  function normalizeSdkEntry(url) {
+    try {
+      const parsed = new URL(String(url || '').trim());
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return '';
+      return parsed.origin;
+    } catch {
+      return '';
+    }
+  }
+
+  function unloadTradingApp() {
+    if (tradingApp && typeof tradingApp.unmount === 'function') {
+      try {
+        tradingApp.unmount();
+      } catch {}
+    }
+    tradingApp = null;
+    if (sdkApp) sdkApp.innerHTML = '';
+  }
+
+  function loadTradingScript(entry) {
+    const scriptUrl = `${entry.replace(/\/+$/, '')}/trading.js`;
+    if (window.Trading && tradingScriptUrl === scriptUrl) return Promise.resolve();
+    const existingScript = document.querySelector(`script[data-predict-master-sdk="true"][src="${scriptUrl}"]`);
+    if (existingScript && window.Trading) return Promise.resolve();
+
+    return new Promise((resolve, reject) => {
+      const script = existingScript || document.createElement('script');
+      script.type = 'module';
+      script.async = true;
+      script.src = scriptUrl;
+      script.dataset.predictMasterSdk = 'true';
+      script.onload = () => {
+        tradingScriptUrl = scriptUrl;
+        if (!window.Trading) {
+          reject(new Error('预测大师 SDK 已加载，但 Trading 未初始化'));
+          return;
+        }
+        resolve();
+      };
+      script.onerror = () => reject(new Error('预测大师 SDK 加载失败'));
+      if (!existingScript) document.body.appendChild(script);
+    });
+  }
+
+  async function renderTradingSdk(data) {
+    const accessCode = String(data?.accessCode || '').trim();
+    const entry = normalizeSdkEntry(data?.url);
+    if (!accessCode) throw new Error('预测大师登录接口未返回 accessCode');
+    if (!entry) throw new Error('预测大师登录接口未返回有效 SDK 地址');
+    if (!sdkApp) throw new Error('预测大师容器不存在');
+
+    setLoading('正在加载预测市场 SDK...');
+    await loadTradingScript(entry);
+    unloadTradingApp();
+    tradingApp = new Trading({ container: sdkApp });
+    tradingApp.render({
+      accessCode: data.accessCode,
+      type: 'trading',
+      theme: 'darken',
+      sound: false,
+      fontWeight: 'bold',
+      lang: 'zh-CN',
+      onLoad: () => {
+        if (loading) loading.classList.add('hidden');
+        if (status) status.textContent = '预测市场已连接';
+      },
+      onLogin: () => {
+        clearCachedSession();
+        requestLoginUrl();
+      },
+      onRegister: () => {
+        clearCachedSession();
+        requestLoginUrl();
+      },
+      onRecharge: () => {
+        if (status) status.textContent = '充值请在 Nexa 平台完成';
+      },
+      onError: (message) => {
+        setError(String(message || '预测大师 SDK 渲染失败'));
+      }
+    });
   }
 
   async function requestJson(url, options = {}) {
@@ -143,7 +229,7 @@
 
   async function requestLoginUrl() {
     setLoading('正在获取预测市场入口...');
-    if (frame) frame.removeAttribute('src');
+    unloadTradingApp();
 
     try {
       const session = await getNexaSession();
@@ -157,20 +243,13 @@
           avatar: session.avatar
         })
       });
-      if (!data?.url) throw new Error('获取预测大师入口失败');
-      if (status) status.textContent = '预测市场已连接';
-      if (frame) frame.src = data.url;
+      await renderTradingSdk(data);
     } catch (error) {
       clearCachedSession();
       setError(error?.message || '获取预测大师入口失败');
     }
   }
 
-  if (frame) {
-    frame.addEventListener('load', () => {
-      if (loading) loading.classList.add('hidden');
-    });
-  }
   if (reloadBtn) {
     reloadBtn.addEventListener('click', () => {
       clearCachedSession();

@@ -24,15 +24,20 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(html, /href="\/games\.html"/);
   assert.match(html, /\/predict-master\/style\.css/);
   assert.match(html, /\/predict-master\/script\.js/);
-  assert.match(html, /<iframe/);
-  assert.match(html, /predict-master-iframe-brand-mask/);
-  assert.match(css, /\.predict-master-iframe-brand-mask/);
-  assert.match(css, /pointer-events:\s*none/);
+  assert.match(html, /id="predictMasterSdkApp"/);
+  assert.doesNotMatch(html, /<iframe/);
+  assert.match(css, /\.predict-master-sdk-shell/);
+  assert.match(css, /\.predict-master-sdk-app/);
   assert.match(script, /NEXA_PROTOCOL_AUTH_BASE/);
   assert.match(script, /nexaauth:\/\/oauth\/authorize/);
   assert.match(script, /\/api\/nexa\/public-config/);
   assert.match(script, /\/api\/nexa\/tip\/session/);
   assert.match(script, /\/api\/predict-master\/login-url/);
+  assert.match(script, /\/trading\.js/);
+  assert.match(script, /new Trading/);
+  assert.match(script, /accessCode:\s*data\.accessCode/);
+  assert.match(script, /type:\s*'trading'/);
+  assert.doesNotMatch(script, /frame\.src\s*=/);
 });
 
 test('admin exposes Predict Master settings without echoing the private key', () => {
