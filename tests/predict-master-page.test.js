@@ -69,6 +69,12 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(script, /launchNexaUrl\(buildNexaPaymentUrl\(response\.payment\)\)/);
   assert.match(script, /PREDICT_MASTER_PENDING_PAYMENT_STORAGE_KEY/);
   assert.match(script, /checkPendingRechargePayment/);
+  assert.match(script, /DEFAULT_NEXA_SESSION_TTL_MS = 2 \* 60 \* 60 \* 1000/);
+  assert.match(script, /SESSION_EXPIRY_GRACE_MS = 60 \* 1000/);
+  assert.match(script, /function getSessionExpiryTimestamp\(input\)/);
+  assert.match(script, /Number\(input\?\.expiresIn \|\| input\?\.expires_in \|\| 0\)/);
+  assert.match(script, /Date\.now\(\) \+ SESSION_EXPIRY_GRACE_MS >= session\.expiresAt/);
+  assert.doesNotMatch(script, /MAX_SESSION_RETENTION_MS = 30 \* 24 \* 60 \* 60 \* 1000/);
   assert.match(script, /\/trading\.js/);
   assert.match(script, /new Trading/);
   assert.match(script, /accessCode:\s*data\.accessCode/);

@@ -6,7 +6,8 @@
   const PREDICT_MASTER_SESSION_STORAGE_KEY = 'claw800:predict-master:nexa-session';
   const PREDICT_MASTER_PENDING_PAYMENT_STORAGE_KEY = 'claw800:predict-master:pending-payment';
   const PREDICT_MASTER_ALLOWED_TYPES = ['trading', 'contract', 'up-down', 'spread', 'tap-trading'];
-  const MAX_SESSION_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+  const DEFAULT_NEXA_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
+  const SESSION_EXPIRY_GRACE_MS = 60 * 1000;
   const MAX_PENDING_PAYMENT_RETENTION_MS = 2 * 60 * 60 * 1000;
 
   const sdkApp = document.getElementById('predictMasterSdkApp');
@@ -49,9 +50,18 @@
     }
   }
 
+  function getSessionExpiryTimestamp(input) {
+    const savedAt = Number(input?.savedAt || 0) || Date.now();
+    const explicitExpiresAt = Number(input?.expiresAt || 0) || 0;
+    if (explicitExpiresAt > 0) return explicitExpiresAt;
+    const expiresInSeconds = Number(input?.expiresIn || input?.expires_in || 0) || 0;
+    if (expiresInSeconds > 0) return savedAt + expiresInSeconds * 1000;
+    return savedAt + DEFAULT_NEXA_SESSION_TTL_MS;
+  }
+
   function normalizeSession(input) {
     const savedAt = Number(input?.savedAt || 0) || Date.now();
-    const expiresAt = Number(input?.expiresAt || 0) || savedAt + MAX_SESSION_RETENTION_MS;
+    const expiresAt = getSessionExpiryTimestamp({ ...input, savedAt });
     const session = {
       openId: String(input?.openId || input?.open_id || input?.openid || '').trim(),
       sessionKey: String(input?.sessionKey || input?.session_key || '').trim(),
@@ -60,7 +70,7 @@
       savedAt,
       expiresAt
     };
-    if (!session.openId || !session.sessionKey || Date.now() > session.expiresAt) return null;
+    if (!session.openId || !session.sessionKey || Date.now() + SESSION_EXPIRY_GRACE_MS >= session.expiresAt) return null;
     return session;
   }
 
@@ -360,7 +370,7 @@
 
   async function beginRechargePayment() {
     try {
-      const session = currentSession || (await getNexaSession());
+      const session = normalizeSession(currentSession) || (await getNexaSession());
       if (!session) return;
       const amount = String(rechargeAmount?.value || '').trim();
       if (!amount || Number(amount) <= 0) throw new Error('请输入充值金额');
