@@ -322,8 +322,8 @@ function getNexaCredentials() {
   const appSecretFromSettings = String(getSetting('nexa_app_secret', '') || '').trim();
   return {
     apiBaseUrl: normalizeNexaBaseUrl(apiBaseUrlFromSettings || DEFAULT_NEXA_API_BASE_URL),
-    apiKey: String(DEFAULT_NEXA_API_KEY || '').trim() || apiKeyFromSettings,
-    appSecret: String(DEFAULT_NEXA_APP_SECRET || '').trim() || appSecretFromSettings
+    apiKey: apiKeyFromSettings || String(DEFAULT_NEXA_API_KEY || '').trim(),
+    appSecret: appSecretFromSettings || String(DEFAULT_NEXA_APP_SECRET || '').trim()
   };
 }
 

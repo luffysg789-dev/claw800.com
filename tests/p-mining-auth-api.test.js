@@ -310,6 +310,72 @@ test('admin site config can store Nexa credentials and public config only return
   }
 });
 
+test('admin Nexa credentials override server environment defaults', async () => {
+  const previousNexaApiKey = process.env.NEXA_API_KEY;
+  const previousNexaAppSecret = process.env.NEXA_APP_SECRET;
+  process.env.NEXA_API_KEY = 'env-runtime-api-key';
+  process.env.NEXA_APP_SECRET = 'env-runtime-app-secret';
+  const harness = createHarness({ seedNexaEnv: false });
+
+  try {
+    const login = await harness.request('POST', '/api/admin/login', { password: '123456' });
+    assert.equal(login.statusCode, 200);
+    const serialized = JSON.parse(login.headers['set-cookie'][0]);
+    const cookies = {
+      [serialized.name]: serialized.value
+    };
+    const save = await harness.request(
+      'PUT',
+      '/api/admin/site-config',
+      {
+        title: 'claw800.com',
+        subtitleZh: '',
+        subtitleEn: '',
+        htmlTitleZh: '',
+        htmlTitleEn: '',
+        icon: '',
+        logo: '',
+        skillsPageTitleZh: '',
+        skillsPageTitleEn: '',
+        skillsPageSubtitleZh: '',
+        skillsPageSubtitleEn: '',
+        skillsPageBotLabelZh: '',
+        skillsPageBotLabelEn: '',
+        skillsPageBotPromptZh: '',
+        skillsPageBotPromptEn: '',
+        skillsPageInstallPromptZh: '',
+        skillsPageInstallPromptEn: '',
+        footerCopyrightZh: '',
+        footerCopyrightEn: '',
+        footerLinksRaw: '',
+        footerContactZh: '',
+        footerContactEn: '',
+        nexaApiBaseUrl: 'https://merchantapi.nexaexworth.com',
+        nexaApiKey: 'admin-preferred-api-key',
+        nexaAppSecret: 'admin-preferred-app-secret'
+      },
+      { cookies }
+    );
+    assert.equal(save.statusCode, 200);
+
+    const config = await harness.request('GET', '/api/nexa/public-config');
+    assert.equal(config.statusCode, 200);
+    assert.equal(config.body.apiKey, 'admin-preferred-api-key');
+  } finally {
+    harness.cleanup();
+    if (previousNexaApiKey === undefined) {
+      delete process.env.NEXA_API_KEY;
+    } else {
+      process.env.NEXA_API_KEY = previousNexaApiKey;
+    }
+    if (previousNexaAppSecret === undefined) {
+      delete process.env.NEXA_APP_SECRET;
+    } else {
+      process.env.NEXA_APP_SECRET = previousNexaAppSecret;
+    }
+  }
+});
+
 test('p-mining bootstrap network stats add 1-3 synthetic users on random 3-10 minute intervals and advance power only', async () => {
   const baseNow = 1_710_000_000_000;
   const originalNow = Date.now;
