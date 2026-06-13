@@ -1012,6 +1012,7 @@ async function createPredictMasterRechargeOrder({ req, openId, sessionKey, amoun
   const paymentCompatMode = Boolean(getPredictMasterConfig().paymentCompatMode);
   const paymentSubject = paymentCompatMode ? 'Claw800 打赏' : '预测大师充值';
   const paymentBody = paymentCompatMode ? 'Predict Master' : '预测大师 USDT 余额充值';
+  const paymentNotifyUrl = paymentCompatMode ? `${baseUrl}/api/nexa/tip/notify` : `${baseUrl}/api/predict-master/payment/notify`;
   const nexaPaymentAmount = paymentCompatMode ? formatPredictMasterNexaCompatAmount(normalizedAmount) : normalizedAmount;
   const legacyPayload = buildNexaLegacyPaymentCreatePayload({
     apiKey,
@@ -1020,7 +1021,7 @@ async function createPredictMasterRechargeOrder({ req, openId, sessionKey, amoun
     currency: PREDICT_MASTER_RECHARGE_CURRENCY,
     subject: paymentSubject,
     body: paymentBody,
-    notifyUrl: `${baseUrl}/api/predict-master/payment/notify`,
+    notifyUrl: paymentNotifyUrl,
     returnUrl: `${baseUrl}/predict-master/`,
     openId: normalizedOpenId,
     sessionKey: normalizedSessionKey
@@ -1035,7 +1036,7 @@ async function createPredictMasterRechargeOrder({ req, openId, sessionKey, amoun
       callbackUrl: `${baseUrl}/predict-master/`,
       subject: paymentSubject,
       body: paymentBody,
-      notifyUrl: `${baseUrl}/api/predict-master/payment/notify`,
+      notifyUrl: paymentNotifyUrl,
       returnUrl: `${baseUrl}/predict-master/`,
       openId: normalizedOpenId,
       sessionKey: normalizedSessionKey
@@ -1155,7 +1156,7 @@ function settlePredictMasterRechargeSuccess(orderNo, paymentData = {}) {
 
   return db.transaction(() => {
     const settled = markDetradeRechargeOrderSettledStmt.run(order.order_no);
-    const wallet = selectXiangqiWalletStmt.get(Number(order.user_id));
+    const wallet = selectDetradeWalletStmt.get(Number(order.user_id));
     if (!wallet) throw new Error('预测钱包不存在');
     if (settled.changes <= 0) {
       return {
@@ -1165,8 +1166,8 @@ function settlePredictMasterRechargeSuccess(orderNo, paymentData = {}) {
     }
     const amountCents = parseMoneyToCents(order.amount);
     const nextBalance = centsToMoneyString(parseMoneyToCents(wallet.available_balance) + amountCents);
-    updateXiangqiWalletBalanceStmt.run(nextBalance, Number(order.user_id));
-    insertXiangqiLedgerStmt.run(
+    updateDetradeWalletBalanceStmt.run(nextBalance, Number(order.user_id));
+    insertDetradeWalletLedgerStmt.run(
       Number(order.user_id),
       'detrade_recharge',
       centsToMoneyString(amountCents),
@@ -1228,7 +1229,7 @@ async function queryPredictMasterRechargeOrder(orderNo) {
     currency: String(updated.currency || data.currency || PREDICT_MASTER_RECHARGE_CURRENCY),
     paidTime,
     settled: settlement.settled,
-    walletBalance: settlement.walletBalance || String(selectXiangqiWalletStmt.get(Number(updated.user_id))?.available_balance || '0.00')
+    walletBalance: settlement.walletBalance || String(selectDetradeWalletStmt.get(Number(updated.user_id))?.available_balance || '0.00')
   };
 }
 
@@ -8612,6 +8613,17 @@ app.post('/api/nexa/tip/notify', (req, res) => {
       paidTime,
       orderNo
     );
+    const predictRechargeOrder = selectDetradeRechargeOrderStmt.get(orderNo);
+    if (predictRechargeOrder) {
+      updateDetradeRechargeOrderStatusStmt.run(status || 'PENDING', JSON.stringify(req.body || {}), paidTime, paidTime, orderNo);
+      if (status === 'SUCCESS') {
+        try {
+          settlePredictMasterRechargeSuccess(orderNo, req.body || {});
+        } catch (error) {
+          console.error('[nexa-tip-notify] predict master settle failed', error);
+        }
+      }
+    }
   }
   res.type('text/plain; charset=utf-8').send('success');
 });
@@ -8637,6 +8649,9 @@ const XIANGQI_LEGACY_TEST_OPEN_IDS = new Set(['xiangqi-demo-local', 'xiangqi-bro
 
 const selectXiangqiWalletStmt = db.prepare(
   'SELECT user_id, available_balance, frozen_balance FROM game_wallets WHERE user_id = ?'
+);
+const selectDetradeWalletStmt = db.prepare(
+  'SELECT user_id, available_balance, frozen_balance FROM detrade_wallets WHERE user_id = ?'
 );
 const selectNexaEscrowWalletStmt = db.prepare(
   'SELECT user_id, available_balance, frozen_balance FROM nexa_escrow_wallets WHERE user_id = ?'
@@ -9422,6 +9437,9 @@ const insertNexaEscrowEventStmt = db.prepare(`
 const insertXiangqiWalletStmt = db.prepare(
   "INSERT INTO game_wallets (user_id, currency, available_balance, frozen_balance) VALUES (?, 'USDT', '0.00', '0.00')"
 );
+const insertDetradeWalletStmt = db.prepare(
+  "INSERT INTO detrade_wallets (user_id, currency, available_balance, frozen_balance) VALUES (?, 'USDT', '0.00', '0.00')"
+);
 const insertNexaEscrowWalletStmt = db.prepare(
   "INSERT INTO nexa_escrow_wallets (user_id, currency, available_balance, frozen_balance) VALUES (?, 'USDT', '0.00', '0.00')"
 );
@@ -9450,6 +9468,9 @@ const selectRecentXiangqiLedgerStmt = db.prepare(`
 const updateXiangqiWalletBalanceStmt = db.prepare(
   "UPDATE game_wallets SET available_balance = ?, updated_at = datetime('now') WHERE user_id = ?"
 );
+const updateDetradeWalletBalanceStmt = db.prepare(
+  "UPDATE detrade_wallets SET available_balance = ?, updated_at = datetime('now') WHERE user_id = ?"
+);
 const updateNexaEscrowWalletBalanceStmt = db.prepare(
   "UPDATE nexa_escrow_wallets SET available_balance = ?, updated_at = datetime('now') WHERE user_id = ?"
 );
@@ -9458,6 +9479,10 @@ const updateXiangqiWalletBalancesStmt = db.prepare(
 );
 const insertXiangqiLedgerStmt = db.prepare(`
   INSERT INTO game_wallet_ledger (user_id, type, amount, balance_after, related_type, related_id, remark)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
+`);
+const insertDetradeWalletLedgerStmt = db.prepare(`
+  INSERT INTO detrade_wallet_ledger (user_id, type, amount, balance_after, related_type, related_id, remark)
   VALUES (?, ?, ?, ?, ?, ?, ?)
 `);
 const selectDetradeWalletTransactionStmt = db.prepare(`
@@ -10243,13 +10268,13 @@ function ensureDetradeUserWallet(externalUserId, { nickname = 'Detrade User', av
         String(avatar || '').trim(),
         createNexaEscrowAccountCode()
       );
-      insertXiangqiWalletStmt.run(Number(result.lastInsertRowid));
+      insertDetradeWalletStmt.run(Number(result.lastInsertRowid));
       user = selectXiangqiUserByOpenIdStmt.get(openId);
     }
-    let wallet = selectXiangqiWalletStmt.get(Number(user.id));
+    let wallet = selectDetradeWalletStmt.get(Number(user.id));
     if (!wallet) {
-      insertXiangqiWalletStmt.run(Number(user.id));
-      wallet = selectXiangqiWalletStmt.get(Number(user.id));
+      insertDetradeWalletStmt.run(Number(user.id));
+      wallet = selectDetradeWalletStmt.get(Number(user.id));
     }
     return { user, wallet };
   })();
@@ -10287,12 +10312,12 @@ function applyDetradeDeduction(payload = {}) {
   if (!ensured?.wallet) return { kind: 'account_not_found' };
 
   return db.transaction(() => {
-    const wallet = selectXiangqiWalletStmt.get(Number(ensured.user.id));
+    const wallet = selectDetradeWalletStmt.get(Number(ensured.user.id));
     const currentCents = parseMoneyToCents(wallet.available_balance);
     if (currentCents < amountCents) return { kind: 'balance_not_enough' };
     const nextBalance = centsToMoneyString(currentCents - amountCents);
-    updateXiangqiWalletBalanceStmt.run(nextBalance, Number(ensured.user.id));
-    insertXiangqiLedgerStmt.run(
+    updateDetradeWalletBalanceStmt.run(nextBalance, Number(ensured.user.id));
+    insertDetradeWalletLedgerStmt.run(
       Number(ensured.user.id),
       'detrade_deduction',
       centsToMoneyString(-amountCents),
@@ -10339,10 +10364,10 @@ function applyDetradeAdd(payload = {}) {
   if (!ensured?.wallet) return { kind: 'account_not_found' };
 
   return db.transaction(() => {
-    const wallet = selectXiangqiWalletStmt.get(Number(ensured.user.id));
+    const wallet = selectDetradeWalletStmt.get(Number(ensured.user.id));
     const nextBalance = centsToMoneyString(parseMoneyToCents(wallet.available_balance) + amountCents);
-    updateXiangqiWalletBalanceStmt.run(nextBalance, Number(ensured.user.id));
-    insertXiangqiLedgerStmt.run(
+    updateDetradeWalletBalanceStmt.run(nextBalance, Number(ensured.user.id));
+    insertDetradeWalletLedgerStmt.run(
       Number(ensured.user.id),
       'detrade_add',
       centsToMoneyString(amountCents),

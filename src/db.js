@@ -279,6 +279,32 @@ db.exec(`
 `);
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS detrade_wallets (
+    user_id INTEGER PRIMARY KEY,
+    currency TEXT NOT NULL DEFAULT 'USDT',
+    available_balance TEXT NOT NULL DEFAULT '0',
+    frozen_balance TEXT NOT NULL DEFAULT '0',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY(user_id) REFERENCES game_users(id)
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS detrade_wallet_ledger (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    amount TEXT NOT NULL,
+    balance_after TEXT NOT NULL,
+    related_type TEXT NOT NULL DEFAULT '',
+    related_id TEXT NOT NULL DEFAULT '',
+    remark TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY(user_id) REFERENCES game_users(id)
+  );
+`);
+
+db.exec(`
   CREATE TABLE IF NOT EXISTS detrade_wallet_transactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,

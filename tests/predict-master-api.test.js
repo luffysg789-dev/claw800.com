@@ -811,15 +811,25 @@ test('predict-master recharge payment creates Nexa order and settles to Detrade 
     const wallet = harness.db
       .prepare(
         `SELECT w.available_balance
-         FROM game_wallets w
+         FROM detrade_wallets w
          JOIN game_users u ON u.id = w.user_id
          WHERE u.openid = ?`
       )
       .get('nexa-open-id-1');
     assert.equal(wallet.available_balance, '20.00');
 
+    const xiangqiWallet = harness.db
+      .prepare(
+        `SELECT w.available_balance
+         FROM game_wallets w
+         JOIN game_users u ON u.id = w.user_id
+         WHERE u.openid = ?`
+      )
+      .get('nexa-open-id-1');
+    assert.equal(xiangqiWallet, undefined);
+
     const ledgerRows = harness.db
-      .prepare("SELECT type, amount, balance_after, related_type, related_id FROM game_wallet_ledger ORDER BY id ASC")
+      .prepare("SELECT type, amount, balance_after, related_type, related_id FROM detrade_wallet_ledger ORDER BY id ASC")
       .all();
     assert.deepEqual(ledgerRows, [
       {
@@ -851,9 +861,21 @@ test('predict-master wallet endpoint returns the local Detrade wallet balance fo
     assert.equal(walletBefore.body.walletBalance, '0.00');
     assert.equal(walletBefore.body.currency, 'USDT');
 
+    const userId = harness.db.prepare('SELECT id FROM game_users WHERE openid = ?').get('nexa-open-id-wallet').id;
+    harness.db
+      .prepare("INSERT INTO game_wallets (user_id, currency, available_balance, frozen_balance) VALUES (?, 'USDT', '99.00', '0.00')")
+      .run(userId);
+
+    const walletStillSeparate = await harness.request('POST', '/api/predict-master/wallet', {
+      openId: 'nexa-open-id-wallet',
+      sessionKey: 'nexa-session-key-wallet'
+    });
+    assert.equal(walletStillSeparate.statusCode, 200);
+    assert.equal(walletStillSeparate.body.walletBalance, '0.00');
+
     harness.db
       .prepare(
-        `UPDATE game_wallets
+        `UPDATE detrade_wallets
          SET available_balance = '12.34'
          WHERE user_id = (SELECT id FROM game_users WHERE openid = ?)`
       )
@@ -994,7 +1016,7 @@ test('predict-master compatibility mode creates recharge with game-tip style Nex
     assert.equal(calls[0].body.amount, '1');
     assert.equal(calls[0].body.subject, 'Claw800 打赏');
     assert.equal(calls[0].body.body, 'Predict Master');
-    assert.equal(calls[0].body.notifyUrl, 'http://127.0.0.1:3000/api/predict-master/payment/notify');
+    assert.equal(calls[0].body.notifyUrl, 'http://127.0.0.1:3000/api/nexa/tip/notify');
     assert.equal(calls[0].body.returnUrl, 'http://127.0.0.1:3000/predict-master/');
     assert.equal(Object.prototype.hasOwnProperty.call(calls[0].body, 'orderNo'), false);
   } finally {
