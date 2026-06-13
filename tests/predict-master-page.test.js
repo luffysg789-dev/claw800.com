@@ -21,6 +21,7 @@ test('predict-master page shell loads its assets and calls backend login url API
   const css = fs.readFileSync(path.join(rootDir, 'public', 'predict-master', 'style.css'), 'utf8');
 
   assert.match(html, /<title>预测大师<\/title>/);
+  assert.match(html, /<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" \/>/);
   assert.match(html, /href="\/games\.html"/);
   assert.match(html, /\/predict-master\/style\.css/);
   assert.match(html, /\/predict-master\/script\.js/);
@@ -28,6 +29,9 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.doesNotMatch(html, /<iframe/);
   assert.match(css, /\.predict-master-sdk-shell/);
   assert.match(css, /\.predict-master-sdk-app/);
+  assert.match(css, /\.predict-master-sdk-shell\s+:is\(input,\s*textarea,\s*select\)/);
+  assert.match(css, /font-size:\s*16px\s*!important;/);
+  assert.match(css, /touch-action:\s*manipulation;/);
   assert.match(script, /NEXA_PROTOCOL_AUTH_BASE/);
   assert.match(script, /nexaauth:\/\/oauth\/authorize/);
   assert.match(script, /\/api\/nexa\/public-config/);

@@ -38,6 +38,12 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
+input,
+textarea,
+select {
+  font-size: 16px;
+}
+
 .predict-master-app {
   min-height: 100vh;
   display: grid;
@@ -125,6 +131,7 @@ a {
   min-height: 0;
   background: #0d1210;
   overflow: hidden;
+  touch-action: manipulation;
 }
 
 .predict-master-sdk-app {
@@ -132,6 +139,10 @@ a {
   height: calc(100vh - 76px);
   display: block;
   background: #0d1210;
+}
+
+.predict-master-sdk-shell :is(input, textarea, select) {
+  font-size: 16px !important;
 }
 
 .predict-master-loading {
