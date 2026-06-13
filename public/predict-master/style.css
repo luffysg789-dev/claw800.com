@@ -64,26 +64,7 @@ select {
 .predict-master-brand {
   min-width: 0;
   display: grid;
-  grid-template-columns: auto 1fr;
   align-items: center;
-  column-gap: 10px;
-}
-
-.predict-master-logo {
-  width: 58px;
-  height: 34px;
-  border-radius: 8px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: #08100c;
-  color: var(--accent);
-  border: 1px solid rgba(37, 229, 141, 0.35);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
-  font-size: 13px;
-  font-weight: 900;
-  letter-spacing: 0;
-  line-height: 1;
 }
 
 .back-link,
@@ -109,32 +90,29 @@ select {
   gap: 8px;
 }
 
-.predict-master-recharge-field {
+.predict-master-wallet {
   height: 42px;
-  width: 136px;
   border: 1px solid var(--line);
   border-radius: 8px;
   display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 6px;
-  padding: 0 10px;
+  align-content: center;
+  gap: 2px;
+  padding: 0 12px;
   background: var(--panel-strong);
   color: var(--muted);
   font-size: 12px;
   font-weight: 800;
+  white-space: nowrap;
 }
 
-.predict-master-recharge-field input {
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
+.predict-master-wallet strong {
   color: var(--text);
-  font: inherit;
-  font-size: 16px;
   font-weight: 900;
+  line-height: 1;
+}
+
+.predict-master-wallet b {
+  font: inherit;
 }
 
 #predictMasterReloadBtn,
@@ -161,7 +139,6 @@ select {
 }
 
 .predict-master-header p {
-  grid-column: 2;
   margin: 5px 0 0;
   color: var(--muted);
   font-size: 13px;
@@ -223,6 +200,88 @@ select {
   word-break: break-word;
 }
 
+.predict-master-modal[hidden] {
+  display: none;
+}
+
+.predict-master-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  align-items: end;
+}
+
+.predict-master-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.58);
+}
+
+.predict-master-modal__sheet {
+  position: relative;
+  width: min(100%, 420px);
+  margin: 0 auto;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px 14px 0 0;
+  background: var(--panel);
+  box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.38);
+}
+
+.predict-master-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.predict-master-modal__head strong {
+  font-size: 18px;
+}
+
+.predict-master-modal__head button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.predict-master-amount-field {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.predict-master-amount-field input {
+  width: 100%;
+  height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  outline: 0;
+  padding: 0 14px;
+  background: var(--panel-strong);
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.predict-master-modal__confirm {
+  width: 100%;
+  height: 48px;
+  margin-top: 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #05120d;
+  font-size: 16px;
+  font-weight: 900;
+}
+
 @media (max-width: 640px) {
   .predict-master-header {
     grid-template-columns: 40px 1fr;
@@ -242,10 +301,10 @@ select {
     justify-content: stretch;
   }
 
-  .predict-master-recharge-field {
+  .predict-master-wallet {
     flex: 1;
     height: 38px;
-    width: auto;
+    min-width: 0;
   }
 
   #predictMasterReloadBtn,
@@ -259,12 +318,6 @@ select {
 
   .predict-master-header p {
     font-size: 12px;
-  }
-
-  .predict-master-logo {
-    width: 48px;
-    height: 30px;
-    font-size: 11px;
   }
 
   .predict-master-sdk-app {

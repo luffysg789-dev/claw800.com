@@ -16,7 +16,11 @@
   const errorText = document.getElementById('predictMasterErrorText');
   const reloadBtn = document.getElementById('predictMasterReloadBtn');
   const rechargeBtn = document.getElementById('predictMasterRechargeBtn');
+  const rechargeModal = document.getElementById('predictMasterRechargeModal');
+  const rechargeCancelBtn = document.getElementById('predictMasterRechargeCancelBtn');
+  const rechargeConfirmBtn = document.getElementById('predictMasterRechargeConfirmBtn');
   const rechargeAmount = document.getElementById('predictMasterRechargeAmount');
+  const walletBalance = document.getElementById('predictMasterWalletBalance');
   let tradingApp = null;
   let tradingScriptUrl = '';
   let currentSession = null;
@@ -103,6 +107,28 @@
     const targetUrl = String(url || '').trim();
     if (!targetUrl) return;
     window.location.href = targetUrl;
+  }
+
+  function setWalletBalance(value) {
+    if (!walletBalance) return;
+    const normalized = String(value || '0.00').trim() || '0.00';
+    walletBalance.textContent = normalized;
+  }
+
+  function openRechargeModal() {
+    if (!rechargeModal) {
+      beginRechargePayment();
+      return;
+    }
+    rechargeModal.hidden = false;
+    window.setTimeout(() => {
+      rechargeAmount?.focus();
+      rechargeAmount?.select();
+    }, 0);
+  }
+
+  function closeRechargeModal() {
+    if (rechargeModal) rechargeModal.hidden = true;
   }
 
   function savePendingRechargePayment(payment) {
@@ -217,7 +243,7 @@
         requestLoginUrl();
       },
       onRecharge: () => {
-        if (status) status.textContent = '充值请在 Nexa 平台完成';
+        openRechargeModal();
       },
       onError: (message) => {
         setError(String(message || '预测大师 SDK 渲染失败'));
@@ -311,10 +337,24 @@
     });
     if (String(response.status || '').toUpperCase() === 'SUCCESS') {
       clearPendingRechargePayment();
+      setWalletBalance(response.walletBalance || '0.00');
       if (status) status.textContent = `充值成功，余额 ${response.walletBalance || ''} USDT`;
       return response;
     }
     if (status) status.textContent = `充值状态：${response.status || '处理中'}`;
+    return response;
+  }
+
+  async function refreshWalletBalance(session = currentSession) {
+    if (!session?.openId || !session?.sessionKey) return null;
+    const response = await requestJson('/api/predict-master/wallet', {
+      method: 'POST',
+      body: JSON.stringify({
+        openId: session.openId,
+        sessionKey: session.sessionKey
+      })
+    });
+    setWalletBalance(response.walletBalance || '0.00');
     return response;
   }
 
@@ -324,6 +364,7 @@
       if (!session) return;
       const amount = String(rechargeAmount?.value || '').trim();
       if (!amount || Number(amount) <= 0) throw new Error('请输入充值金额');
+      closeRechargeModal();
       setLoading('正在创建 Nexa 支付...');
       const response = await requestJson('/api/predict-master/payment/create', {
         method: 'POST',
@@ -348,6 +389,7 @@
       const session = await getNexaSession();
       if (!session) return;
       await checkPendingRechargePayment();
+      await refreshWalletBalance(session);
       const data = await requestJson('/api/predict-master/login-url', {
         method: 'POST',
         body: JSON.stringify({
@@ -371,7 +413,24 @@
     });
   }
   if (rechargeBtn) {
-    rechargeBtn.addEventListener('click', beginRechargePayment);
+    rechargeBtn.addEventListener('click', openRechargeModal);
+  }
+  if (rechargeCancelBtn) {
+    rechargeCancelBtn.addEventListener('click', closeRechargeModal);
+  }
+  if (rechargeConfirmBtn) {
+    rechargeConfirmBtn.addEventListener('click', beginRechargePayment);
+  }
+  if (rechargeModal) {
+    rechargeModal.addEventListener('click', (event) => {
+      if (event.target?.dataset?.rechargeClose === 'true') closeRechargeModal();
+    });
+  }
+  if (rechargeAmount) {
+    rechargeAmount.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') beginRechargePayment();
+      if (event.key === 'Escape') closeRechargeModal();
+    });
   }
   requestLoginUrl();
 })();

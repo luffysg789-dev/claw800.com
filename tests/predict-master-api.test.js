@@ -838,6 +838,38 @@ test('predict-master recharge payment creates Nexa order and settles to Detrade 
   }
 });
 
+test('predict-master wallet endpoint returns the local Detrade wallet balance for a Nexa user', async () => {
+  const harness = createHarness();
+
+  try {
+    const walletBefore = await harness.request('POST', '/api/predict-master/wallet', {
+      openId: 'nexa-open-id-wallet',
+      sessionKey: 'nexa-session-key-wallet'
+    });
+    assert.equal(walletBefore.statusCode, 200);
+    assert.equal(walletBefore.body.ok, true);
+    assert.equal(walletBefore.body.walletBalance, '0.00');
+    assert.equal(walletBefore.body.currency, 'USDT');
+
+    harness.db
+      .prepare(
+        `UPDATE game_wallets
+         SET available_balance = '12.34'
+         WHERE user_id = (SELECT id FROM game_users WHERE openid = ?)`
+      )
+      .run('nexa-open-id-wallet');
+
+    const walletAfter = await harness.request('POST', '/api/predict-master/wallet', {
+      openId: 'nexa-open-id-wallet',
+      sessionKey: 'nexa-session-key-wallet'
+    });
+    assert.equal(walletAfter.statusCode, 200);
+    assert.equal(walletAfter.body.walletBalance, '12.34');
+  } finally {
+    harness.cleanup();
+  }
+});
+
 test('predict-master recharge retries with documented Nexa payment payload after legacy HTTP 405', async () => {
   const harness = createHarness();
   const calls = [];
@@ -959,11 +991,55 @@ test('predict-master compatibility mode creates recharge with game-tip style Nex
     assert.equal(create.statusCode, 200);
     assert.equal(create.body.orderNo, 'nexa-predict-recharge-compat-1');
     assert.equal(calls.length, 1);
+    assert.equal(calls[0].body.amount, '1');
     assert.equal(calls[0].body.subject, 'Claw800 打赏');
     assert.equal(calls[0].body.body, 'Predict Master');
     assert.equal(calls[0].body.notifyUrl, 'http://127.0.0.1:3000/api/predict-master/payment/notify');
     assert.equal(calls[0].body.returnUrl, 'http://127.0.0.1:3000/predict-master/');
     assert.equal(Object.prototype.hasOwnProperty.call(calls[0].body, 'orderNo'), false);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('predict-master compatibility mode does not fall back to documented Nexa payment payload after HTTP 405', async () => {
+  const harness = createHarness();
+  const calls = [];
+
+  try {
+    harness.db
+      .prepare(
+        "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('predict_master_payment_compat_mode', '1', datetime('now'))"
+      )
+      .run();
+
+    harness.setFetch(async (url, options) => {
+      const body = JSON.parse(options.body || '{}');
+      calls.push({ url, body });
+      return {
+        ok: false,
+        status: 405,
+        async json() {
+          return {};
+        },
+        async text() {
+          return '{}';
+        }
+      };
+    });
+
+    const create = await harness.request('POST', '/api/predict-master/payment/create', {
+      openId: 'nexa-open-id-compat-405',
+      sessionKey: 'nexa-session-key-compat-405',
+      amount: '1'
+    });
+
+    assert.equal(create.statusCode, 405);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].body.subject, 'Claw800 打赏');
+    assert.equal(calls[0].body.body, 'Predict Master');
+    assert.equal(Object.prototype.hasOwnProperty.call(calls[0].body, 'orderNo'), false);
+    assert.equal(Object.prototype.hasOwnProperty.call(calls[0].body, 'callbackUrl'), false);
   } finally {
     harness.cleanup();
   }

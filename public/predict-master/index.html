@@ -6,22 +6,21 @@
     <title>预测大师</title>
     <meta name="description" content="预测大师 Detrade 预测市场入口。" />
     <link rel="icon" href="/favicon.ico" />
-    <link rel="stylesheet" href="/predict-master/style.css?v=20260613-02" />
+    <link rel="stylesheet" href="/predict-master/style.css?v=20260613-04" />
   </head>
   <body>
     <main class="predict-master-app">
       <header class="predict-master-header">
         <a class="back-link" href="/games.html" aria-label="返回游戏与工具大全" title="返回游戏与工具大全">←</a>
         <div class="predict-master-brand">
-          <span class="predict-master-logo" aria-label="UPAL">UPAL</span>
           <h1>预测大师</h1>
           <p id="predictMasterStatus">正在获取预测市场入口...</p>
         </div>
         <div class="predict-master-actions">
-          <label class="predict-master-recharge-field" aria-label="预测钱包充值金额">
-            <input id="predictMasterRechargeAmount" type="number" inputmode="decimal" min="1" step="1" value="20" />
-            <span>USDT</span>
-          </label>
+          <div class="predict-master-wallet" aria-label="预测账户余额">
+            <span>余额</span>
+            <strong><b id="predictMasterWalletBalance">0.00</b> USDT</strong>
+          </div>
           <button id="predictMasterRechargeBtn" type="button">充值</button>
           <button id="predictMasterReloadBtn" type="button">刷新</button>
         </div>
@@ -36,7 +35,33 @@
         <div id="predictMasterLoading" class="predict-master-loading">加载中...</div>
         <div id="predictMasterSdkApp" class="predict-master-sdk-app"></div>
       </section>
+
+      <div id="predictMasterRechargeModal" class="predict-master-modal" hidden>
+        <div class="predict-master-modal__backdrop" data-recharge-close="true"></div>
+        <section class="predict-master-modal__sheet" role="dialog" aria-modal="true" aria-labelledby="predictMasterRechargeTitle">
+          <div class="predict-master-modal__head">
+            <strong id="predictMasterRechargeTitle">充值预测余额</strong>
+            <button id="predictMasterRechargeCancelBtn" type="button" aria-label="关闭">取消</button>
+          </div>
+          <label class="predict-master-amount-field" for="predictMasterRechargeAmount">
+            <span>USDT 金额</span>
+            <input
+              id="predictMasterRechargeAmount"
+              type="text"
+              inputmode="decimal"
+              enterkeyhint="done"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+              pattern="[0-9]*[.,]?[0-9]*"
+              placeholder="请输入充值金额"
+              value="20"
+            />
+          </label>
+          <button id="predictMasterRechargeConfirmBtn" class="predict-master-modal__confirm" type="button">确认充值</button>
+        </section>
+      </div>
     </main>
-    <script src="/predict-master/script.js?v=20260613-03"></script>
+    <script src="/predict-master/script.js?v=20260613-04"></script>
   </body>
 </html>

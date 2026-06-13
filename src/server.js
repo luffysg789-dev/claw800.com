@@ -991,6 +991,10 @@ function normalizePredictMasterRechargeAmount(value) {
   return centsToMoneyString(amountCents);
 }
 
+function formatPredictMasterNexaCompatAmount(value) {
+  return String(value || '').trim().replace(/\.00$/, '').replace(/(\.\d*[1-9])0+$/, '$1');
+}
+
 async function createPredictMasterRechargeOrder({ req, openId, sessionKey, amount }) {
   const { apiKey, appSecret } = ensureNexaCredentialsConfigured();
   const normalizedOpenId = String(openId || '').trim();
@@ -1008,10 +1012,11 @@ async function createPredictMasterRechargeOrder({ req, openId, sessionKey, amoun
   const paymentCompatMode = Boolean(getPredictMasterConfig().paymentCompatMode);
   const paymentSubject = paymentCompatMode ? 'Claw800 打赏' : '预测大师充值';
   const paymentBody = paymentCompatMode ? 'Predict Master' : '预测大师 USDT 余额充值';
+  const nexaPaymentAmount = paymentCompatMode ? formatPredictMasterNexaCompatAmount(normalizedAmount) : normalizedAmount;
   const legacyPayload = buildNexaLegacyPaymentCreatePayload({
     apiKey,
     appSecret,
-    amount: normalizedAmount,
+    amount: nexaPaymentAmount,
     currency: PREDICT_MASTER_RECHARGE_CURRENCY,
     subject: paymentSubject,
     body: paymentBody,
@@ -1025,7 +1030,7 @@ async function createPredictMasterRechargeOrder({ req, openId, sessionKey, amoun
       apiKey,
       appSecret,
       orderNo: partnerOrderNo,
-      amount: normalizedAmount,
+      amount: nexaPaymentAmount,
       currency: PREDICT_MASTER_RECHARGE_CURRENCY,
       callbackUrl: `${baseUrl}/predict-master/`,
       subject: paymentSubject,
@@ -1049,6 +1054,7 @@ async function createPredictMasterRechargeOrder({ req, openId, sessionKey, amoun
       throw rateLimitError;
     }
     if (shouldRetryNexaDocumentedPaymentPayload(error)) {
+      if (paymentCompatMode) throw error;
       response = null;
     } else {
       throw error;
@@ -1066,7 +1072,8 @@ async function createPredictMasterRechargeOrder({ req, openId, sessionKey, amoun
     response = null;
   }
 
-  for (const variant of response ? [] : paymentVariants) {
+  const fallbackPaymentVariants = response || paymentCompatMode ? [] : paymentVariants;
+  for (const variant of fallbackPaymentVariants) {
     try {
       response = await postConfiguredNexaJson('/partner/api/openapi/payment/create', variant.payload);
     } catch (error) {
@@ -7025,6 +7032,25 @@ app.post('/api/predict-master/payment/create', async (req, res) => {
   } catch (error) {
     const statusCode = Number(error?.statusCode || 502) || 502;
     return res.status(statusCode).json({ error: String(error?.message || 'Nexa 下单失败') });
+  }
+});
+
+app.post('/api/predict-master/wallet', async (req, res) => {
+  try {
+    const openId = String(req.body?.openId || req.body?.openid || req.body?.open_id || '').trim();
+    const sessionKey = String(req.body?.sessionKey || req.body?.session_key || '').trim();
+    if (!openId || !sessionKey) return res.status(400).json({ error: 'openId 和 sessionKey 必填' });
+    const ensured = ensureDetradeUserWallet(openId);
+    if (!ensured?.wallet) return res.status(500).json({ error: '预测钱包读取失败' });
+    return res.json({
+      ok: true,
+      walletBalance: String(ensured.wallet.available_balance || '0.00'),
+      frozenBalance: String(ensured.wallet.frozen_balance || '0.00'),
+      currency: 'USDT'
+    });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 500) || 500;
+    return res.status(statusCode).json({ error: String(error?.message || '读取预测钱包失败') });
   }
 });
 
