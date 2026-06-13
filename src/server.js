@@ -64,6 +64,7 @@ const TRUST_PROXY = String(process.env.TRUST_PROXY || 'loopback, linklocal, uniq
 const NEXA_TIP_AMOUNT = '0.10';
 const NEXA_TIP_CURRENCY = 'USDT';
 const PREDICT_MASTER_RECHARGE_CURRENCY = 'USDT';
+const PREDICT_MASTER_NEXA_COMPAT_RETURN_PATH = '/xiangqi/';
 const PREDICT_MASTER_RECHARGE_MIN_CENTS = 100n;
 const PREDICT_MASTER_RECHARGE_MAX_CENTS = 10000000n;
 const U_CARD_REVIEW_POLL_INTERVAL_MS = 5 * 60 * 1000;
@@ -1019,6 +1020,9 @@ async function createPredictMasterRechargeOrder({ req, openId, sessionKey, amoun
   const paymentSubject = paymentCompatMode ? 'Claw800 打赏' : '预测大师充值';
   const paymentBody = paymentCompatMode ? '预测大师' : '预测大师 USDT 余额充值';
   const paymentNotifyUrl = paymentCompatMode ? `${baseUrl}/api/nexa/tip/notify` : `${baseUrl}/api/predict-master/payment/notify`;
+  const paymentReturnUrl = paymentCompatMode
+    ? `${baseUrl}${PREDICT_MASTER_NEXA_COMPAT_RETURN_PATH}`
+    : `${baseUrl}/predict-master/`;
   const legacyNexaPaymentAmount = paymentCompatMode ? formatPredictMasterNexaCompatAmount(normalizedAmount) : normalizedAmount;
   const documentedNexaPaymentAmount = normalizedAmount;
   const legacyPayload = buildNexaLegacyPaymentCreatePayload({
@@ -1029,7 +1033,7 @@ async function createPredictMasterRechargeOrder({ req, openId, sessionKey, amoun
     subject: paymentSubject,
     body: paymentBody,
     notifyUrl: paymentNotifyUrl,
-    returnUrl: `${baseUrl}/predict-master/`,
+    returnUrl: paymentReturnUrl,
     openId: normalizedOpenId,
     sessionKey: normalizedSessionKey
   });
@@ -1040,11 +1044,11 @@ async function createPredictMasterRechargeOrder({ req, openId, sessionKey, amoun
       orderNo: partnerOrderNo,
       amount: documentedNexaPaymentAmount,
       currency: PREDICT_MASTER_RECHARGE_CURRENCY,
-      callbackUrl: `${baseUrl}/predict-master/`,
+      callbackUrl: paymentReturnUrl,
       subject: paymentSubject,
       body: paymentBody,
       notifyUrl: paymentNotifyUrl,
-      returnUrl: `${baseUrl}/predict-master/`,
+      returnUrl: paymentReturnUrl,
       openId: normalizedOpenId,
       sessionKey: normalizedSessionKey
     }),

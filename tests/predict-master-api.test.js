@@ -1021,7 +1021,7 @@ test('predict-master compatibility mode creates recharge with game-tip style Nex
     assert.equal(calls[0].body.subject, 'Claw800 打赏');
     assert.equal(calls[0].body.body, '预测大师');
     assert.equal(calls[0].body.notifyUrl, 'http://127.0.0.1:3000/api/nexa/tip/notify');
-    assert.equal(calls[0].body.returnUrl, 'http://127.0.0.1:3000/predict-master/');
+    assert.equal(calls[0].body.returnUrl, 'http://127.0.0.1:3000/xiangqi/');
     assert.equal(Object.prototype.hasOwnProperty.call(calls[0].body, 'orderNo'), false);
   } finally {
     harness.cleanup();
@@ -1094,8 +1094,8 @@ test('predict-master compatibility mode falls back to documented Nexa payment pa
     assert.equal(calls[1].body.amount, '1.00');
     assert.equal(calls[1].body.body, '预测大师');
     assert.equal(calls[1].body.notifyUrl, 'http://127.0.0.1:3000/api/nexa/tip/notify');
-    assert.equal(calls[1].body.returnUrl, 'http://127.0.0.1:3000/predict-master/');
-    assert.equal(calls[1].body.callbackUrl, 'http://127.0.0.1:3000/predict-master/');
+    assert.equal(calls[1].body.returnUrl, 'http://127.0.0.1:3000/xiangqi/');
+    assert.equal(calls[1].body.callbackUrl, 'http://127.0.0.1:3000/xiangqi/');
     assert.equal(Object.prototype.hasOwnProperty.call(calls[1].body, 'orderNo'), true);
     assert.match(calls[1].body.orderNo, /^pm\d+[a-f0-9]{6}$/);
   } finally {
