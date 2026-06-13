@@ -1,9 +1,12 @@
 (function initPredictMaster() {
   const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth://oauth/authorize';
+  const NEXA_PROTOCOL_ORDER_BASE = 'nexaauth://order';
   const NEXA_PUBLIC_CONFIG_ENDPOINT = '/api/nexa/public-config';
   const NEXA_SESSION_ENDPOINT = '/api/nexa/tip/session';
   const PREDICT_MASTER_SESSION_STORAGE_KEY = 'claw800:predict-master:nexa-session';
+  const PREDICT_MASTER_PENDING_PAYMENT_STORAGE_KEY = 'claw800:predict-master:pending-payment';
   const MAX_SESSION_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+  const MAX_PENDING_PAYMENT_RETENTION_MS = 2 * 60 * 60 * 1000;
 
   const sdkApp = document.getElementById('predictMasterSdkApp');
   const loading = document.getElementById('predictMasterLoading');
@@ -11,8 +14,11 @@
   const errorPanel = document.getElementById('predictMasterError');
   const errorText = document.getElementById('predictMasterErrorText');
   const reloadBtn = document.getElementById('predictMasterReloadBtn');
+  const rechargeBtn = document.getElementById('predictMasterRechargeBtn');
+  const rechargeAmount = document.getElementById('predictMasterRechargeAmount');
   let tradingApp = null;
   let tradingScriptUrl = '';
+  let currentSession = null;
 
   function setLoading(text) {
     if (status) status.textContent = text;
@@ -71,6 +77,57 @@
 
   function clearCachedSession() {
     storage()?.removeItem(PREDICT_MASTER_SESSION_STORAGE_KEY);
+  }
+
+  function buildCleanReturnUrl() {
+    const url = new URL(window.location.href);
+    ['code', 'authCode', 'auth_code', 'state'].forEach((key) => url.searchParams.delete(key));
+    return url.toString();
+  }
+
+  function buildNexaPaymentUrl(payment) {
+    const params = new URLSearchParams({
+      orderNo: String(payment?.orderNo || '').trim(),
+      paySign: String(payment?.paySign || '').trim(),
+      signType: String(payment?.signType || 'MD5').trim(),
+      apiKey: String(payment?.apiKey || '').trim(),
+      nonce: String(payment?.nonce || '').trim(),
+      timestamp: String(payment?.timestamp || '').trim(),
+      redirectUrl: buildCleanReturnUrl()
+    });
+    return `${NEXA_PROTOCOL_ORDER_BASE}?${params.toString()}`;
+  }
+
+  function launchNexaUrl(url) {
+    const targetUrl = String(url || '').trim();
+    if (!targetUrl) return;
+    window.location.href = targetUrl;
+  }
+
+  function savePendingRechargePayment(payment) {
+    storage()?.setItem(
+      PREDICT_MASTER_PENDING_PAYMENT_STORAGE_KEY,
+      JSON.stringify({
+        orderNo: String(payment?.orderNo || '').trim(),
+        amount: String(payment?.amount || '').trim(),
+        savedAt: Date.now(),
+        expiresAt: Date.now() + MAX_PENDING_PAYMENT_RETENTION_MS
+      })
+    );
+  }
+
+  function loadPendingRechargePayment() {
+    try {
+      const parsed = JSON.parse(storage()?.getItem(PREDICT_MASTER_PENDING_PAYMENT_STORAGE_KEY) || 'null');
+      if (!parsed?.orderNo || Number(parsed.expiresAt || 0) <= Date.now()) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  function clearPendingRechargePayment() {
+    storage()?.removeItem(PREDICT_MASTER_PENDING_PAYMENT_STORAGE_KEY);
   }
 
   function normalizeSdkEntry(url) {
@@ -220,11 +277,56 @@
 
   async function getNexaSession() {
     const exchangedSession = await exchangeSessionFromAuthCode();
-    if (exchangedSession) return exchangedSession;
+    if (exchangedSession) {
+      currentSession = exchangedSession;
+      return exchangedSession;
+    }
     const cachedSession = loadCachedSession();
-    if (cachedSession) return cachedSession;
+    if (cachedSession) {
+      currentSession = cachedSession;
+      return cachedSession;
+    }
     await beginNexaLoginFlow();
     return null;
+  }
+
+  async function checkPendingRechargePayment() {
+    const pending = loadPendingRechargePayment();
+    if (!pending) return null;
+    setLoading('正在确认预测充值...');
+    const response = await requestJson('/api/predict-master/payment/query', {
+      method: 'POST',
+      body: JSON.stringify({ orderNo: pending.orderNo })
+    });
+    if (String(response.status || '').toUpperCase() === 'SUCCESS') {
+      clearPendingRechargePayment();
+      if (status) status.textContent = `充值成功，余额 ${response.walletBalance || ''} USDT`;
+      return response;
+    }
+    if (status) status.textContent = `充值状态：${response.status || '处理中'}`;
+    return response;
+  }
+
+  async function beginRechargePayment() {
+    try {
+      const session = currentSession || (await getNexaSession());
+      if (!session) return;
+      const amount = String(rechargeAmount?.value || '').trim();
+      if (!amount || Number(amount) <= 0) throw new Error('请输入充值金额');
+      setLoading('正在创建 Nexa 支付...');
+      const response = await requestJson('/api/predict-master/payment/create', {
+        method: 'POST',
+        body: JSON.stringify({
+          openId: session.openId,
+          sessionKey: session.sessionKey,
+          amount
+        })
+      });
+      savePendingRechargePayment(response);
+      launchNexaUrl(buildNexaPaymentUrl(response.payment));
+    } catch (error) {
+      setError(error?.message || '创建充值订单失败');
+    }
   }
 
   async function requestLoginUrl() {
@@ -234,6 +336,7 @@
     try {
       const session = await getNexaSession();
       if (!session) return;
+      await checkPendingRechargePayment();
       const data = await requestJson('/api/predict-master/login-url', {
         method: 'POST',
         body: JSON.stringify({
@@ -255,6 +358,9 @@
       clearCachedSession();
       requestLoginUrl();
     });
+  }
+  if (rechargeBtn) {
+    rechargeBtn.addEventListener('click', beginRechargePayment);
   }
   requestLoginUrl();
 })();

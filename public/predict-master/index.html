@@ -17,7 +17,14 @@
           <h1>预测大师</h1>
           <p id="predictMasterStatus">正在获取预测市场入口...</p>
         </div>
-        <button id="predictMasterReloadBtn" type="button">刷新</button>
+        <div class="predict-master-actions">
+          <label class="predict-master-recharge-field" aria-label="预测钱包充值金额">
+            <input id="predictMasterRechargeAmount" type="number" inputmode="decimal" min="1" step="1" value="20" />
+            <span>USDT</span>
+          </label>
+          <button id="predictMasterRechargeBtn" type="button">充值</button>
+          <button id="predictMasterReloadBtn" type="button">刷新</button>
+        </div>
       </header>
 
       <section id="predictMasterError" class="predict-master-error hidden">
@@ -30,6 +37,6 @@
         <div id="predictMasterSdkApp" class="predict-master-sdk-app"></div>
       </section>
     </main>
-    <script src="/predict-master/script.js?v=20260613-01"></script>
+    <script src="/predict-master/script.js?v=20260613-02"></script>
   </body>
 </html>

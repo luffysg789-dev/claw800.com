@@ -26,6 +26,8 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(html, /\/predict-master\/style\.css/);
   assert.match(html, /\/predict-master\/script\.js/);
   assert.match(html, /id="predictMasterSdkApp"/);
+  assert.match(html, /id="predictMasterRechargeBtn"/);
+  assert.match(html, /id="predictMasterRechargeAmount"/);
   assert.doesNotMatch(html, /<iframe/);
   assert.match(css, /\.predict-master-sdk-shell/);
   assert.match(css, /\.predict-master-sdk-app/);
@@ -37,6 +39,12 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(script, /\/api\/nexa\/public-config/);
   assert.match(script, /\/api\/nexa\/tip\/session/);
   assert.match(script, /\/api\/predict-master\/login-url/);
+  assert.match(script, /\/api\/predict-master\/payment\/create/);
+  assert.match(script, /\/api\/predict-master\/payment\/query/);
+  assert.match(script, /function buildNexaPaymentUrl\(/);
+  assert.match(script, /launchNexaUrl\(buildNexaPaymentUrl\(response\.payment\)\)/);
+  assert.match(script, /PREDICT_MASTER_PENDING_PAYMENT_STORAGE_KEY/);
+  assert.match(script, /checkPendingRechargePayment/);
   assert.match(script, /\/trading\.js/);
   assert.match(script, /new Trading/);
   assert.match(script, /accessCode:\s*data\.accessCode/);

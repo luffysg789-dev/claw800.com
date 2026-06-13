@@ -305,6 +305,24 @@ db.exec(`
 `);
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS detrade_recharge_orders (
+    order_no TEXT PRIMARY KEY,
+    partner_order_no TEXT NOT NULL UNIQUE,
+    user_id INTEGER NOT NULL,
+    external_user_id TEXT NOT NULL DEFAULT '',
+    amount TEXT NOT NULL DEFAULT '0.00',
+    currency TEXT NOT NULL DEFAULT 'USDT',
+    status TEXT NOT NULL DEFAULT 'PENDING',
+    notify_payload TEXT NOT NULL DEFAULT '',
+    paid_at TEXT NOT NULL DEFAULT '',
+    settled_at TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY(user_id) REFERENCES game_users(id)
+  );
+`);
+
+db.exec(`
   CREATE TABLE IF NOT EXISTS detrade_order_pushes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     order_id TEXT NOT NULL UNIQUE,

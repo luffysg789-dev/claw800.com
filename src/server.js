@@ -61,6 +61,9 @@ const COOKIE_SECURE = String(process.env.COOKIE_SECURE || '') === 'true';
 const TRUST_PROXY = String(process.env.TRUST_PROXY || 'loopback, linklocal, uniquelocal').trim();
 const NEXA_TIP_AMOUNT = '0.10';
 const NEXA_TIP_CURRENCY = 'USDT';
+const PREDICT_MASTER_RECHARGE_CURRENCY = 'USDT';
+const PREDICT_MASTER_RECHARGE_MIN_CENTS = 100n;
+const PREDICT_MASTER_RECHARGE_MAX_CENTS = 10000000n;
 const U_CARD_REVIEW_POLL_INTERVAL_MS = 5 * 60 * 1000;
 const U_CARD_RECHARGE_DEFAULT_FEE_RATE = '0.02';
 const NEXA_ESCROW_CURRENCY = 'USDT';
@@ -86,6 +89,7 @@ const PMINING_SYNTHETIC_POWER_PER_USER = 10;
 const PMINING_SYNTHETIC_GROWTH_MIN_MINUTES = 3;
 const PMINING_SYNTHETIC_GROWTH_MAX_MINUTES = 10;
 const nexaTipOrders = new Map();
+const predictMasterRechargeOrders = new Map();
 const PMINING_PAYMENT_CURRENCY = 'USDT';
 const PMINING_POWER_PAYMENT_OPTIONS = {
   starter: {
@@ -821,6 +825,243 @@ async function queryNexaTipOrder(orderNo) {
     normalizedOrderNo
   );
   return next;
+}
+
+function normalizePredictMasterRechargeAmount(value) {
+  const amountCents = parseMoneyToCents(String(value || '').trim());
+  if (amountCents < PREDICT_MASTER_RECHARGE_MIN_CENTS || amountCents > PREDICT_MASTER_RECHARGE_MAX_CENTS) {
+    const error = new Error('充值金额需在 1 到 100000 USDT 之间');
+    error.statusCode = 400;
+    throw error;
+  }
+  return centsToMoneyString(amountCents);
+}
+
+async function createPredictMasterRechargeOrder({ req, openId, sessionKey, amount }) {
+  const { apiKey, appSecret } = ensureNexaCredentialsConfigured();
+  const normalizedOpenId = String(openId || '').trim();
+  const normalizedSessionKey = String(sessionKey || '').trim();
+  const normalizedAmount = normalizePredictMasterRechargeAmount(amount);
+  const ensured = ensureDetradeUserWallet(normalizedOpenId);
+  if (!ensured?.user || !ensured?.wallet) {
+    const error = new Error('预测钱包创建失败');
+    error.statusCode = 500;
+    throw error;
+  }
+
+  const baseUrl = getPublicBaseUrl(req);
+  const partnerOrderNo = `claw800_predict_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+  const legacyPayload = buildNexaLegacyPaymentCreatePayload({
+    apiKey,
+    appSecret,
+    amount: normalizedAmount,
+    currency: PREDICT_MASTER_RECHARGE_CURRENCY,
+    subject: '预测大师充值',
+    body: '预测大师 USDT 余额充值',
+    notifyUrl: `${baseUrl}/api/predict-master/payment/notify`,
+    returnUrl: `${baseUrl}/predict-master/`,
+    openId: normalizedOpenId,
+    sessionKey: normalizedSessionKey
+  });
+  const paymentVariants = prioritizeNexaPaymentCreateVariants(
+    buildNexaPaymentCreatePayloadVariants({
+      apiKey,
+      appSecret,
+      orderNo: partnerOrderNo,
+      amount: normalizedAmount,
+      currency: PREDICT_MASTER_RECHARGE_CURRENCY,
+      callbackUrl: `${baseUrl}/predict-master/`,
+      subject: '预测大师充值',
+      body: '预测大师 USDT 余额充值',
+      notifyUrl: `${baseUrl}/api/predict-master/payment/notify`,
+      returnUrl: `${baseUrl}/predict-master/`,
+      openId: normalizedOpenId,
+      sessionKey: normalizedSessionKey
+    }),
+    preferredNexaPaymentVariantName
+  );
+
+  let response = null;
+  let lastSignatureResponse = null;
+  try {
+    response = await postNexaJson('/partner/api/openapi/payment/create', legacyPayload);
+  } catch (error) {
+    if (isNexaRateLimitError(error)) {
+      const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
+      rateLimitError.statusCode = 429;
+      throw rateLimitError;
+    }
+    throw error;
+  }
+
+  if (isNexaRateLimitError(response)) {
+    const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
+    rateLimitError.statusCode = 429;
+    throw rateLimitError;
+  }
+
+  if (isNexaSignatureError(response)) {
+    lastSignatureResponse = response;
+    response = null;
+  }
+
+  for (const variant of response ? [] : paymentVariants) {
+    try {
+      response = await postNexaJson('/partner/api/openapi/payment/create', variant.payload);
+    } catch (error) {
+      if (isNexaRateLimitError(error)) {
+        const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
+        rateLimitError.statusCode = 429;
+        throw rateLimitError;
+      }
+      throw error;
+    }
+
+    if (isNexaRateLimitError(response)) {
+      const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
+      rateLimitError.statusCode = 429;
+      throw rateLimitError;
+    }
+
+    if (isNexaSignatureError(response)) {
+      lastSignatureResponse = response;
+      response = null;
+      continue;
+    }
+
+    preferredNexaPaymentVariantName = variant.name;
+    break;
+  }
+
+  if (!response) {
+    if (lastSignatureResponse) throw new Error(String(lastSignatureResponse?.message || 'Nexa 下单失败'));
+    throw new Error('Nexa 下单失败');
+  }
+
+  const data = unwrapNexaResult(response, 'Nexa 下单失败');
+  const orderNo = String(data.orderNo || '').trim();
+  if (!orderNo) throw new Error('Nexa 没有返回订单号');
+
+  insertDetradeRechargeOrderStmt.run(
+    orderNo,
+    partnerOrderNo,
+    Number(ensured.user.id),
+    normalizedOpenId,
+    normalizedAmount,
+    PREDICT_MASTER_RECHARGE_CURRENCY
+  );
+  predictMasterRechargeOrders.set(orderNo, {
+    orderNo,
+    partnerOrderNo,
+    userId: Number(ensured.user.id),
+    externalUserId: normalizedOpenId,
+    amount: normalizedAmount,
+    currency: PREDICT_MASTER_RECHARGE_CURRENCY,
+    status: 'PENDING',
+    createdAt: Date.now()
+  });
+
+  return {
+    orderNo,
+    amount: normalizedAmount,
+    currency: PREDICT_MASTER_RECHARGE_CURRENCY,
+    payment: {
+      timestamp: String(data.timestamp || '').trim(),
+      nonce: String(data.nonce || '').trim(),
+      signType: String(data.signType || 'MD5').trim(),
+      paySign: String(data.paySign || '').trim(),
+      apiKey: String(data.apiKey || apiKey).trim(),
+      orderNo
+    }
+  };
+}
+
+function settlePredictMasterRechargeSuccess(orderNo, paymentData = {}) {
+  const order = selectDetradeRechargeOrderStmt.get(String(orderNo || '').trim());
+  if (!order || String(order.settled_at || '').trim()) {
+    return {
+      settled: Boolean(order?.settled_at),
+      walletBalance: ''
+    };
+  }
+
+  return db.transaction(() => {
+    const settled = markDetradeRechargeOrderSettledStmt.run(order.order_no);
+    const wallet = selectXiangqiWalletStmt.get(Number(order.user_id));
+    if (!wallet) throw new Error('预测钱包不存在');
+    if (settled.changes <= 0) {
+      return {
+        settled: true,
+        walletBalance: String(wallet.available_balance || '0.00')
+      };
+    }
+    const amountCents = parseMoneyToCents(order.amount);
+    const nextBalance = centsToMoneyString(parseMoneyToCents(wallet.available_balance) + amountCents);
+    updateXiangqiWalletBalanceStmt.run(nextBalance, Number(order.user_id));
+    insertXiangqiLedgerStmt.run(
+      Number(order.user_id),
+      'detrade_recharge',
+      centsToMoneyString(amountCents),
+      nextBalance,
+      'detrade_recharge',
+      order.order_no,
+      `Predict Master recharge ${String(paymentData?.status || 'SUCCESS')}`
+    );
+    return {
+      settled: true,
+      walletBalance: nextBalance
+    };
+  })();
+}
+
+async function queryPredictMasterRechargeOrder(orderNo) {
+  const normalizedOrderNo = String(orderNo || '').trim();
+  const localOrder = selectDetradeRechargeOrderStmt.get(normalizedOrderNo);
+  if (!localOrder) {
+    const error = new Error('预测充值订单不存在');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const { apiKey, appSecret } = ensureNexaCredentialsConfigured();
+  const payload = buildNexaPaymentQueryPayload({
+    apiKey,
+    appSecret,
+    orderNo: normalizedOrderNo
+  });
+  const response = await postNexaJson('/partner/api/openapi/payment/query', payload);
+  const data = unwrapNexaResult(response, 'Nexa 查询订单失败');
+  const status = String(data.status || 'PENDING').trim().toUpperCase();
+  const paidTime = String(data.paidTime || '').trim();
+  updateDetradeRechargeOrderStatusStmt.run(status, JSON.stringify(data || {}), paidTime, paidTime, normalizedOrderNo);
+
+  let settlement = {
+    settled: Boolean(String(localOrder.settled_at || '').trim()),
+    walletBalance: ''
+  };
+  if (status === 'SUCCESS') {
+    settlement = settlePredictMasterRechargeSuccess(normalizedOrderNo, data);
+  }
+  const updated = selectDetradeRechargeOrderStmt.get(normalizedOrderNo) || localOrder;
+  predictMasterRechargeOrders.set(normalizedOrderNo, {
+    ...predictMasterRechargeOrders.get(normalizedOrderNo),
+    orderNo: normalizedOrderNo,
+    status,
+    amount: String(updated.amount || data.amount || localOrder.amount || '0.00'),
+    currency: String(updated.currency || data.currency || PREDICT_MASTER_RECHARGE_CURRENCY),
+    paidTime,
+    settledAt: String(updated.settled_at || '')
+  });
+
+  return {
+    orderNo: normalizedOrderNo,
+    status,
+    amount: String(updated.amount || data.amount || localOrder.amount || '0.00'),
+    currency: String(updated.currency || data.currency || PREDICT_MASTER_RECHARGE_CURRENCY),
+    paidTime,
+    settled: settlement.settled,
+    walletBalance: settlement.walletBalance || String(selectXiangqiWalletStmt.get(Number(updated.user_id))?.available_balance || '0.00')
+  };
 }
 
 async function createPMiningPaymentOrder({ req, openId, sessionKey, tier }) {
@@ -6568,6 +6809,69 @@ app.post('/api/predict-master/login-url', async (req, res) => {
   }
 });
 
+app.post('/api/predict-master/payment/create', async (req, res) => {
+  try {
+    const openId = String(req.body?.openId || '').trim();
+    const sessionKey = String(req.body?.sessionKey || '').trim();
+    const amount = String(req.body?.amount || '').trim();
+    if (!openId || !sessionKey) return res.status(400).json({ error: 'openId 和 sessionKey 必填' });
+    const order = await createPredictMasterRechargeOrder({
+      req,
+      openId,
+      sessionKey,
+      amount
+    });
+    return res.json({
+      ok: true,
+      orderNo: order.orderNo,
+      amount: order.amount,
+      currency: order.currency,
+      payment: order.payment
+    });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 502) || 502;
+    return res.status(statusCode).json({ error: String(error?.message || 'Nexa 下单失败') });
+  }
+});
+
+app.post('/api/predict-master/payment/query', async (req, res) => {
+  try {
+    const orderNo = String(req.body?.orderNo || '').trim();
+    if (!orderNo) return res.status(400).json({ error: 'orderNo 必填' });
+    const order = await queryPredictMasterRechargeOrder(orderNo);
+    return res.json({
+      ok: true,
+      orderNo: order.orderNo,
+      status: order.status,
+      amount: order.amount,
+      currency: order.currency,
+      paidTime: order.paidTime,
+      settled: order.settled,
+      walletBalance: order.walletBalance
+    });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 502) || 502;
+    return res.status(statusCode).json({ error: String(error?.message || 'Nexa 查询失败') });
+  }
+});
+
+app.post('/api/predict-master/payment/notify', (req, res) => {
+  const orderNo = String(req.body?.orderNo || req.body?.data?.orderNo || '').trim();
+  const status = String(req.body?.status || req.body?.data?.status || '').trim().toUpperCase();
+  const paidTime = String(req.body?.paidTime || req.body?.data?.paidTime || '').trim();
+  if (orderNo) {
+    updateDetradeRechargeOrderStatusStmt.run(status || 'PENDING', JSON.stringify(req.body || {}), paidTime, paidTime, orderNo);
+    if (status === 'SUCCESS') {
+      try {
+        settlePredictMasterRechargeSuccess(orderNo, req.body || {});
+      } catch (error) {
+        console.error('[predict-master-payment-notify] settle failed', error);
+      }
+    }
+  }
+  return res.json({ ok: true });
+});
+
 app.get('/wallet/balance', (req, res) => {
   const externalUserId = String(req.query.userId ?? req.query.user_id ?? '').trim();
   const currency = normalizeDetradeCurrency(req.query.currency);
@@ -9018,6 +9322,31 @@ const listDetradeLoginLogsStmt = db.prepare(`
   FROM detrade_login_logs
   ORDER BY id DESC
   LIMIT ?
+`);
+const insertDetradeRechargeOrderStmt = db.prepare(`
+  INSERT INTO detrade_recharge_orders (
+    order_no, partner_order_no, user_id, external_user_id, amount, currency, status
+  ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING')
+`);
+const selectDetradeRechargeOrderStmt = db.prepare(`
+  SELECT *
+  FROM detrade_recharge_orders
+  WHERE order_no = ?
+  LIMIT 1
+`);
+const updateDetradeRechargeOrderStatusStmt = db.prepare(`
+  UPDATE detrade_recharge_orders
+  SET status = ?,
+      notify_payload = ?,
+      paid_at = CASE WHEN ? <> '' THEN ? ELSE paid_at END,
+      updated_at = datetime('now')
+  WHERE order_no = ?
+`);
+const markDetradeRechargeOrderSettledStmt = db.prepare(`
+  UPDATE detrade_recharge_orders
+  SET settled_at = datetime('now'),
+      updated_at = datetime('now')
+  WHERE order_no = ? AND settled_at = ''
 `);
 const listDetradeOrderPushesStmt = db.prepare(`
   SELECT id, order_id, external_user_id, currency, amount, profit, biz_type, status, symbol, raw_json,

@@ -13,9 +13,13 @@ function createHarness() {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claw800-predict-master-api-'));
   const dbPath = path.join(tmpDir, 'claw800.db');
   const previousDbPath = process.env.CLAW800_DB_PATH;
+  const previousNexaApiKey = process.env.NEXA_API_KEY;
+  const previousNexaAppSecret = process.env.NEXA_APP_SECRET;
   const previousFetch = global.fetch;
 
   process.env.CLAW800_DB_PATH = dbPath;
+  process.env.NEXA_API_KEY = process.env.NEXA_API_KEY || 'test-nexa-api-key';
+  process.env.NEXA_APP_SECRET = process.env.NEXA_APP_SECRET || 'test-nexa-app-secret';
   delete require.cache[require.resolve(dbModulePath)];
   delete require.cache[require.resolve(serverModulePath)];
 
@@ -95,6 +99,16 @@ function createHarness() {
         delete process.env.CLAW800_DB_PATH;
       } else {
         process.env.CLAW800_DB_PATH = previousDbPath;
+      }
+      if (previousNexaApiKey === undefined) {
+        delete process.env.NEXA_API_KEY;
+      } else {
+        process.env.NEXA_API_KEY = previousNexaApiKey;
+      }
+      if (previousNexaAppSecret === undefined) {
+        delete process.env.NEXA_APP_SECRET;
+      } else {
+        process.env.NEXA_APP_SECRET = previousNexaAppSecret;
       }
     }
   };
@@ -582,6 +596,117 @@ test('predict-master login logs Detrade apply failures for admin diagnosis', asy
       success: 0,
       error_message: 'Signature invalid'
     });
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('predict-master recharge payment creates Nexa order and settles to Detrade wallet once', async () => {
+  const harness = createHarness();
+  const calls = [];
+
+  try {
+    harness.setFetch(async (url, options) => {
+      const body = JSON.parse(options.body || '{}');
+      calls.push({ url, body });
+      if (String(url).includes('/partner/api/openapi/payment/create')) {
+        const responseBody = {
+          code: 0,
+          data: {
+            orderNo: 'nexa-predict-recharge-1',
+            timestamp: '20260613120000',
+            nonce: 'nonce-1',
+            signType: 'MD5',
+            paySign: 'pay-sign-1',
+            apiKey: 'test-nexa-api-key'
+          }
+        };
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return responseBody;
+          },
+          async text() {
+            return JSON.stringify(responseBody);
+          }
+        };
+      }
+      if (String(url).includes('/partner/api/openapi/payment/query')) {
+        const responseBody = {
+          code: 0,
+          data: {
+            orderNo: 'nexa-predict-recharge-1',
+            status: 'SUCCESS',
+            amount: '20.00',
+            currency: 'USDT',
+            paidTime: '2026-06-13 12:00:00'
+          }
+        };
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return responseBody;
+          },
+          async text() {
+            return JSON.stringify(responseBody);
+          }
+        };
+      }
+      throw new Error(`Unexpected Nexa endpoint: ${url}`);
+    });
+
+    const create = await harness.request('POST', '/api/predict-master/payment/create', {
+      openId: 'nexa-open-id-1',
+      sessionKey: 'nexa-session-key-1',
+      amount: '20'
+    });
+    assert.equal(create.statusCode, 200);
+    assert.equal(create.body.ok, true);
+    assert.equal(create.body.orderNo, 'nexa-predict-recharge-1');
+    assert.equal(create.body.amount, '20.00');
+    assert.equal(create.body.currency, 'USDT');
+    assert.equal(create.body.payment.orderNo, 'nexa-predict-recharge-1');
+
+    const query = await harness.request('POST', '/api/predict-master/payment/query', {
+      orderNo: 'nexa-predict-recharge-1'
+    });
+    const queryAgain = await harness.request('POST', '/api/predict-master/payment/query', {
+      orderNo: 'nexa-predict-recharge-1'
+    });
+    assert.equal(query.statusCode, 200);
+    assert.equal(query.body.ok, true);
+    assert.equal(query.body.status, 'SUCCESS');
+    assert.equal(query.body.settled, true);
+    assert.equal(query.body.walletBalance, '20.00');
+    assert.equal(queryAgain.body.walletBalance, '20.00');
+
+    const wallet = harness.db
+      .prepare(
+        `SELECT w.available_balance
+         FROM game_wallets w
+         JOIN game_users u ON u.id = w.user_id
+         WHERE u.openid = ?`
+      )
+      .get('nexa-open-id-1');
+    assert.equal(wallet.available_balance, '20.00');
+
+    const ledgerRows = harness.db
+      .prepare("SELECT type, amount, balance_after, related_type, related_id FROM game_wallet_ledger ORDER BY id ASC")
+      .all();
+    assert.deepEqual(ledgerRows, [
+      {
+        type: 'detrade_recharge',
+        amount: '20.00',
+        balance_after: '20.00',
+        related_type: 'detrade_recharge',
+        related_id: 'nexa-predict-recharge-1'
+      }
+    ]);
+
+    assert.equal(calls.filter((call) => String(call.url).includes('/payment/create')).length, 1);
+    assert.equal(calls.filter((call) => String(call.url).includes('/payment/query')).length, 2);
   } finally {
     harness.cleanup();
   }
