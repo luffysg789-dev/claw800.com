@@ -1005,13 +1005,16 @@ async function createPredictMasterRechargeOrder({ req, openId, sessionKey, amoun
 
   const baseUrl = getPublicBaseUrl(req);
   const partnerOrderNo = `claw800_predict_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+  const paymentCompatMode = Boolean(getPredictMasterConfig().paymentCompatMode);
+  const paymentSubject = paymentCompatMode ? 'Claw800 打赏' : '预测大师充值';
+  const paymentBody = paymentCompatMode ? 'Predict Master' : '预测大师 USDT 余额充值';
   const legacyPayload = buildNexaLegacyPaymentCreatePayload({
     apiKey,
     appSecret,
     amount: normalizedAmount,
     currency: PREDICT_MASTER_RECHARGE_CURRENCY,
-    subject: '预测大师充值',
-    body: '预测大师 USDT 余额充值',
+    subject: paymentSubject,
+    body: paymentBody,
     notifyUrl: `${baseUrl}/api/predict-master/payment/notify`,
     returnUrl: `${baseUrl}/predict-master/`,
     openId: normalizedOpenId,
@@ -1025,8 +1028,8 @@ async function createPredictMasterRechargeOrder({ req, openId, sessionKey, amoun
       amount: normalizedAmount,
       currency: PREDICT_MASTER_RECHARGE_CURRENCY,
       callbackUrl: `${baseUrl}/predict-master/`,
-      subject: '预测大师充值',
-      body: '预测大师 USDT 余额充值',
+      subject: paymentSubject,
+      body: paymentBody,
       notifyUrl: `${baseUrl}/api/predict-master/payment/notify`,
       returnUrl: `${baseUrl}/predict-master/`,
       openId: normalizedOpenId,
@@ -3343,6 +3346,12 @@ function normalizePredictMasterBalanceType(value) {
   return String(numericValue);
 }
 
+function normalizeBooleanSetting(value) {
+  if (value === true || value === 1) return true;
+  const raw = String(value ?? '').trim().toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
+}
+
 function getPredictMasterConfig() {
   const baseUrl = normalizeDetradeBaseUrl(getSetting('predict_master_base_url', DEFAULT_DETRADE_BASE_URL));
   const apiKey = getSetting('predict_master_api_key', DEFAULT_DETRADE_API_KEY);
@@ -3353,6 +3362,7 @@ function getPredictMasterConfig() {
   const currency = getSetting('predict_master_currency', 'USDT').toUpperCase();
   const exchangeRate = normalizePredictMasterExchangeRate(getSetting('predict_master_exchange_rate', '1'), '1');
   const balanceType = normalizePredictMasterBalanceType(getSetting('predict_master_balance_type', ''));
+  const paymentCompatMode = normalizeBooleanSetting(getSetting('predict_master_payment_compat_mode', '0'));
   return {
     baseUrl,
     apiKey,
@@ -3363,6 +3373,7 @@ function getPredictMasterConfig() {
     currency,
     exchangeRate,
     balanceType,
+    paymentCompatMode,
     hasPrivateKey: Boolean(privateKey)
   };
 }
@@ -3379,7 +3390,8 @@ function formatAdminPredictMasterConfig(config = getPredictMasterConfig()) {
     avatar: String(config.avatar || ''),
     currency: String(config.currency || 'USDT'),
     exchangeRate: String(config.exchangeRate || '1'),
-    balanceType: String(config.balanceType || '')
+    balanceType: String(config.balanceType || ''),
+    paymentCompatMode: Boolean(config.paymentCompatMode)
   };
 }
 
@@ -12979,6 +12991,9 @@ app.put('/api/admin/predict-master-config', requireAdmin, (req, res) => {
     '1'
   );
   const balanceType = normalizePredictMasterBalanceType(req.body?.balanceType ?? req.body?.predictMasterBalanceType ?? '');
+  const paymentCompatMode = normalizeBooleanSetting(
+    req.body?.paymentCompatMode ?? req.body?.predictMasterPaymentCompatMode ?? '0'
+  );
   const keepPrivateKey =
     req.body?.keepPrivateKey === true ||
     req.body?.keepPredictMasterPrivateKey === true ||
@@ -13014,6 +13029,7 @@ app.put('/api/admin/predict-master-config', requireAdmin, (req, res) => {
     upsertSettingStmt.run('predict_master_currency', currency);
     upsertSettingStmt.run('predict_master_exchange_rate', exchangeRate);
     upsertSettingStmt.run('predict_master_balance_type', balanceType);
+    upsertSettingStmt.run('predict_master_payment_compat_mode', paymentCompatMode ? '1' : '0');
     if (shouldUpdatePrivateKey) {
       upsertSettingStmt.run('predict_master_private_key', privateKey);
     }

@@ -338,6 +338,12 @@
                   <label id="predictMasterCurrencyLabel">币种<input name="predictMasterCurrency" value="USDT" autocomplete="off" spellcheck="false" /></label>
                   <label id="predictMasterExchangeRateLabel">汇率<input name="predictMasterExchangeRate" type="number" min="0.0000000001" step="0.0000000001" value="1" inputmode="decimal" /></label>
                   <label id="predictMasterBalanceTypeLabel">资金类型（可选）<input name="predictMasterBalanceType" type="number" min="0" step="1" inputmode="numeric" /></label>
+                  <label id="predictMasterPaymentCompatModeLabel">Nexa 支付兼容模式（测试）
+                    <select name="predictMasterPaymentCompatMode">
+                      <option value="0">关闭</option>
+                      <option value="1">开启</option>
+                    </select>
+                  </label>
                   <p id="predictMasterConfigMessage" class="message"></p>
                   <button id="predictMasterConfigSaveBtn" type="submit">保存预测大师设置</button>
                 </form>

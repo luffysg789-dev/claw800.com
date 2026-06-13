@@ -478,6 +478,7 @@ const texts = {
     predictMasterCurrencyLabel: '币种',
     predictMasterExchangeRateLabel: '汇率',
     predictMasterBalanceTypeLabel: '资金类型（可选）',
+    predictMasterPaymentCompatModeLabel: 'Nexa 支付兼容模式（测试）',
     predictMasterConfigSaveBtn: '保存预测大师设置',
     predictMasterConfigSaved: '预测大师设置已保存。',
     predictMasterConfigLoadFailed: '预测大师设置加载失败。',
@@ -889,6 +890,7 @@ const texts = {
     predictMasterCurrencyLabel: 'Currency',
     predictMasterExchangeRateLabel: 'Exchange Rate',
     predictMasterBalanceTypeLabel: 'Balance Type (optional)',
+    predictMasterPaymentCompatModeLabel: 'Nexa Payment Compatibility Mode (test)',
     predictMasterConfigSaveBtn: 'Save Predict Master Settings',
     predictMasterConfigSaved: 'Predict Master settings saved.',
     predictMasterConfigLoadFailed: 'Failed to load Predict Master settings.',
@@ -1562,6 +1564,7 @@ function applyLanguage() {
   document.getElementById('predictMasterCurrencyLabel').childNodes[0].textContent = dict.predictMasterCurrencyLabel;
   document.getElementById('predictMasterExchangeRateLabel').childNodes[0].textContent = dict.predictMasterExchangeRateLabel;
   document.getElementById('predictMasterBalanceTypeLabel').childNodes[0].textContent = dict.predictMasterBalanceTypeLabel;
+  document.getElementById('predictMasterPaymentCompatModeLabel').childNodes[0].textContent = dict.predictMasterPaymentCompatModeLabel;
   document.getElementById('predictMasterConfigSaveBtn').textContent = dict.predictMasterConfigSaveBtn;
   document.getElementById('predictMasterLoginLogsTitle').textContent = dict.predictMasterLoginLogsTitle;
   document.getElementById('predictMasterLoginLogsRefreshBtn').textContent = dict.predictMasterLoginLogsRefreshBtn;
@@ -3032,6 +3035,7 @@ function fillPredictMasterConfigForm(config = {}) {
   elements.predictMasterCurrency.value = String(config.currency || 'USDT');
   elements.predictMasterExchangeRate.value = String(config.exchangeRate || '1');
   elements.predictMasterBalanceType.value = String(config.balanceType || '');
+  elements.predictMasterPaymentCompatMode.value = config.paymentCompatMode ? '1' : '0';
 }
 
 async function loadPredictMasterConfig() {
@@ -3864,6 +3868,7 @@ if (predictMasterConfigForm) {
         currency: String(payload.predictMasterCurrency || 'USDT').trim(),
         exchangeRate: String(payload.predictMasterExchangeRate || '1').trim(),
         balanceType: String(payload.predictMasterBalanceType || '').trim(),
+        paymentCompatMode: String(payload.predictMasterPaymentCompatMode || '').trim() === '1',
         keepPrivateKey: privateKey === SAVED_PREDICT_MASTER_PRIVATE_KEY_MASK
       })
     });

@@ -182,6 +182,7 @@ test('admin can save predict-master config without private key echo', async () =
     assert.equal(config.body.apiKey, 'predict-api-key');
     assert.equal(config.body.hasPrivateKey, true);
     assert.equal(config.body.privateKey, '');
+    assert.equal(config.body.paymentCompatMode, false);
 
     const keepSave = await harness.request(
       'PUT',
@@ -196,6 +197,41 @@ test('admin can save predict-master config without private key echo', async () =
     assert.equal(keepSave.statusCode, 200);
     const storedPrivateKey = harness.db.prepare(`SELECT value FROM settings WHERE key = 'predict_master_private_key'`).get();
     assert.equal(storedPrivateKey.value, privateKey.trim());
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('admin can enable predict-master Nexa payment compatibility mode', async () => {
+  const harness = createHarness();
+
+  try {
+    const cookies = await harness.adminCookies();
+    const save = await harness.request(
+      'PUT',
+      '/api/admin/predict-master-config',
+      {
+        baseUrl: 'https://detrade.example',
+        apiKey: 'predict-api-key',
+        privateKey: '',
+        userId: '1727404213474304',
+        username: 'Yxxvz',
+        currency: 'USDT',
+        exchangeRate: '1',
+        paymentCompatMode: true
+      },
+      { cookies }
+    );
+
+    assert.equal(save.statusCode, 200);
+    assert.equal(save.body.ok, true);
+    assert.equal(save.body.paymentCompatMode, true);
+
+    const storedMode = harness.db.prepare(`SELECT value FROM settings WHERE key = 'predict_master_payment_compat_mode'`).get();
+    assert.equal(storedMode.value, '1');
+
+    const config = await harness.request('GET', '/api/admin/predict-master-config', null, { cookies });
+    assert.equal(config.body.paymentCompatMode, true);
   } finally {
     harness.cleanup();
   }
@@ -872,6 +908,62 @@ test('predict-master recharge retries with documented Nexa payment payload after
     assert.equal(logs[1].http_status, 200);
     assert.equal(logs[1].success, 1);
     assert.equal(Object.prototype.hasOwnProperty.call(JSON.parse(logs[1].request_body_json), 'orderNo'), true);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('predict-master compatibility mode creates recharge with game-tip style Nexa payload first', async () => {
+  const harness = createHarness();
+  const calls = [];
+
+  try {
+    harness.db
+      .prepare(
+        "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('predict_master_payment_compat_mode', '1', datetime('now'))"
+      )
+      .run();
+
+    harness.setFetch(async (url, options) => {
+      const body = JSON.parse(options.body || '{}');
+      calls.push({ url, body });
+      const responseBody = {
+        code: 0,
+        data: {
+          orderNo: 'nexa-predict-recharge-compat-1',
+          timestamp: '20260613140000',
+          nonce: 'nonce-compat-1',
+          signType: 'MD5',
+          paySign: 'pay-sign-compat-1',
+          apiKey: 'test-nexa-api-key'
+        }
+      };
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return responseBody;
+        },
+        async text() {
+          return JSON.stringify(responseBody);
+        }
+      };
+    });
+
+    const create = await harness.request('POST', '/api/predict-master/payment/create', {
+      openId: 'nexa-open-id-compat',
+      sessionKey: 'nexa-session-key-compat',
+      amount: '1'
+    });
+
+    assert.equal(create.statusCode, 200);
+    assert.equal(create.body.orderNo, 'nexa-predict-recharge-compat-1');
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].body.subject, 'Claw800 打赏');
+    assert.equal(calls[0].body.body, 'Predict Master');
+    assert.equal(calls[0].body.notifyUrl, 'http://127.0.0.1:3000/api/predict-master/payment/notify');
+    assert.equal(calls[0].body.returnUrl, 'http://127.0.0.1:3000/predict-master/');
+    assert.equal(Object.prototype.hasOwnProperty.call(calls[0].body, 'orderNo'), false);
   } finally {
     harness.cleanup();
   }

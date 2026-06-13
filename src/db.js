@@ -1694,6 +1694,9 @@ db.prepare(
 db.prepare(
   "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('predict_master_balance_type', '', datetime('now'))"
 ).run();
+db.prepare(
+  "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('predict_master_payment_compat_mode', '0', datetime('now'))"
+).run();
 
 function migrateUniqueUrlToUrlCategory() {
   const tableSqlRow = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'sites'").get();
