@@ -381,6 +381,11 @@ function getNexaPaymentLogSource(endpointPath, fallback = '') {
   return 'nexa-payment-upstream';
 }
 
+function shouldRetryNexaDocumentedPaymentPayload(error) {
+  const statusCode = Number(error?.statusCode || 0) || 0;
+  return statusCode === 400 || statusCode === 404 || statusCode === 405;
+}
+
 function recordNexaPaymentUpstreamLog({
   source,
   requestMethod = 'POST',
@@ -823,7 +828,11 @@ async function createNexaTipOrder({ req, gameSlug, openId, sessionKey, amount = 
       rateLimitError.statusCode = 429;
       throw rateLimitError;
     }
-    throw error;
+    if (shouldRetryNexaDocumentedPaymentPayload(error)) {
+      response = null;
+    } else {
+      throw error;
+    }
   }
 
   if (isNexaRateLimitError(response)) {
@@ -1036,7 +1045,11 @@ async function createPredictMasterRechargeOrder({ req, openId, sessionKey, amoun
       rateLimitError.statusCode = 429;
       throw rateLimitError;
     }
-    throw error;
+    if (shouldRetryNexaDocumentedPaymentPayload(error)) {
+      response = null;
+    } else {
+      throw error;
+    }
   }
 
   if (isNexaRateLimitError(response)) {

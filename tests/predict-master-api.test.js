@@ -346,7 +346,7 @@ test('admin can view Nexa payment upstream logs after a 405 failure', async () =
     const logs = await harness.request('GET', '/api/admin/nexa-payment-upstream-logs', null, { cookies });
     assert.equal(logs.statusCode, 200);
     assert.equal(logs.body.ok, true);
-    assert.equal(logs.body.items.length, 1);
+    assert.equal(logs.body.items.length, 2);
     assert.equal(logs.body.items[0].endpointPath, '/partner/api/openapi/payment/create');
     assert.equal(logs.body.items[0].requestMethod, 'POST');
     assert.equal(logs.body.items[0].requestUrl, 'https://merchantapi.nexaexworth.com/partner/api/openapi/payment/create');
@@ -797,6 +797,81 @@ test('predict-master recharge payment creates Nexa order and settles to Detrade 
 
     assert.equal(calls.filter((call) => String(call.url).includes('/payment/create')).length, 1);
     assert.equal(calls.filter((call) => String(call.url).includes('/payment/query')).length, 2);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('predict-master recharge retries with documented Nexa payment payload after legacy HTTP 405', async () => {
+  const harness = createHarness();
+  const calls = [];
+
+  try {
+    harness.setFetch(async (url, options) => {
+      const body = JSON.parse(options.body || '{}');
+      calls.push({ url, body });
+      if (!Object.prototype.hasOwnProperty.call(body, 'orderNo')) {
+        return {
+          ok: false,
+          status: 405,
+          async text() {
+            return '';
+          }
+        };
+      }
+      const responseBody = {
+        code: 0,
+        data: {
+          orderNo: 'nexa-predict-recharge-doc-1',
+          timestamp: '20260613130000',
+          nonce: 'nonce-doc-1',
+          signType: 'MD5',
+          paySign: 'pay-sign-doc-1',
+          apiKey: 'test-nexa-api-key'
+        }
+      };
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return responseBody;
+        },
+        async text() {
+          return JSON.stringify(responseBody);
+        }
+      };
+    });
+
+    const create = await harness.request('POST', '/api/predict-master/payment/create', {
+      openId: 'nexa-open-id-doc-retry',
+      sessionKey: 'nexa-session-key-doc-retry',
+      amount: '2'
+    });
+
+    assert.equal(create.statusCode, 200);
+    assert.equal(create.body.ok, true);
+    assert.equal(create.body.orderNo, 'nexa-predict-recharge-doc-1');
+    assert.equal(calls.filter((call) => String(call.url).includes('/payment/create')).length, 2);
+    assert.equal(Object.prototype.hasOwnProperty.call(calls[0].body, 'orderNo'), false);
+    assert.equal(Object.prototype.hasOwnProperty.call(calls[1].body, 'orderNo'), true);
+    assert.equal(calls[1].body.callbackUrl, 'http://127.0.0.1:3000/predict-master/');
+    assert.equal(calls[1].body.notifyUrl, 'http://127.0.0.1:3000/api/predict-master/payment/notify');
+    assert.equal(calls[1].body.returnUrl, 'http://127.0.0.1:3000/predict-master/');
+    assert.match(calls[1].body.orderNo, /^claw800_predict_/);
+
+    const logs = harness.db
+      .prepare(
+        `SELECT http_status, success, request_body_json
+         FROM nexa_payment_upstream_logs
+         ORDER BY id ASC`
+      )
+      .all();
+    assert.equal(logs.length, 2);
+    assert.equal(logs[0].http_status, 405);
+    assert.equal(logs[0].success, 0);
+    assert.equal(logs[1].http_status, 200);
+    assert.equal(logs[1].success, 1);
+    assert.equal(Object.prototype.hasOwnProperty.call(JSON.parse(logs[1].request_body_json), 'orderNo'), true);
   } finally {
     harness.cleanup();
   }
