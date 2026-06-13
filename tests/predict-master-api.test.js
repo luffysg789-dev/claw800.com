@@ -1024,7 +1024,7 @@ test('predict-master compatibility mode creates recharge with game-tip style Nex
   }
 });
 
-test('predict-master compatibility mode does not fall back to documented Nexa payment payload after HTTP 405', async () => {
+test('predict-master compatibility mode falls back to documented Nexa payment payload after HTTP 405', async () => {
   const harness = createHarness();
   const calls = [];
 
@@ -1038,6 +1038,29 @@ test('predict-master compatibility mode does not fall back to documented Nexa pa
     harness.setFetch(async (url, options) => {
       const body = JSON.parse(options.body || '{}');
       calls.push({ url, body });
+      if (calls.length === 2) {
+        const responseBody = {
+          code: 0,
+          data: {
+            orderNo: 'nexa-predict-recharge-compat-fallback-1',
+            timestamp: '20260613143000',
+            nonce: 'nonce-compat-fallback-1',
+            signType: 'MD5',
+            paySign: 'pay-sign-compat-fallback-1',
+            apiKey: 'test-nexa-api-key'
+          }
+        };
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return responseBody;
+          },
+          async text() {
+            return JSON.stringify(responseBody);
+          }
+        };
+      }
       return {
         ok: false,
         status: 405,
@@ -1056,12 +1079,19 @@ test('predict-master compatibility mode does not fall back to documented Nexa pa
       amount: '1'
     });
 
-    assert.equal(create.statusCode, 405);
-    assert.equal(calls.length, 1);
+    assert.equal(create.statusCode, 200);
+    assert.equal(create.body.orderNo, 'nexa-predict-recharge-compat-fallback-1');
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0].body.amount, '1');
     assert.equal(calls[0].body.subject, 'Claw800 打赏');
     assert.equal(calls[0].body.body, 'Predict Master');
     assert.equal(Object.prototype.hasOwnProperty.call(calls[0].body, 'orderNo'), false);
     assert.equal(Object.prototype.hasOwnProperty.call(calls[0].body, 'callbackUrl'), false);
+    assert.equal(calls[1].body.amount, '1.00');
+    assert.equal(calls[1].body.notifyUrl, 'http://127.0.0.1:3000/api/nexa/tip/notify');
+    assert.equal(calls[1].body.returnUrl, 'http://127.0.0.1:3000/predict-master/');
+    assert.equal(calls[1].body.callbackUrl, 'http://127.0.0.1:3000/predict-master/');
+    assert.equal(Object.prototype.hasOwnProperty.call(calls[1].body, 'orderNo'), true);
   } finally {
     harness.cleanup();
   }

@@ -1013,11 +1013,12 @@ async function createPredictMasterRechargeOrder({ req, openId, sessionKey, amoun
   const paymentSubject = paymentCompatMode ? 'Claw800 打赏' : '预测大师充值';
   const paymentBody = paymentCompatMode ? 'Predict Master' : '预测大师 USDT 余额充值';
   const paymentNotifyUrl = paymentCompatMode ? `${baseUrl}/api/nexa/tip/notify` : `${baseUrl}/api/predict-master/payment/notify`;
-  const nexaPaymentAmount = paymentCompatMode ? formatPredictMasterNexaCompatAmount(normalizedAmount) : normalizedAmount;
+  const legacyNexaPaymentAmount = paymentCompatMode ? formatPredictMasterNexaCompatAmount(normalizedAmount) : normalizedAmount;
+  const documentedNexaPaymentAmount = normalizedAmount;
   const legacyPayload = buildNexaLegacyPaymentCreatePayload({
     apiKey,
     appSecret,
-    amount: nexaPaymentAmount,
+    amount: legacyNexaPaymentAmount,
     currency: PREDICT_MASTER_RECHARGE_CURRENCY,
     subject: paymentSubject,
     body: paymentBody,
@@ -1031,7 +1032,7 @@ async function createPredictMasterRechargeOrder({ req, openId, sessionKey, amoun
       apiKey,
       appSecret,
       orderNo: partnerOrderNo,
-      amount: nexaPaymentAmount,
+      amount: documentedNexaPaymentAmount,
       currency: PREDICT_MASTER_RECHARGE_CURRENCY,
       callbackUrl: `${baseUrl}/predict-master/`,
       subject: paymentSubject,
@@ -1055,7 +1056,6 @@ async function createPredictMasterRechargeOrder({ req, openId, sessionKey, amoun
       throw rateLimitError;
     }
     if (shouldRetryNexaDocumentedPaymentPayload(error)) {
-      if (paymentCompatMode) throw error;
       response = null;
     } else {
       throw error;
@@ -1073,7 +1073,7 @@ async function createPredictMasterRechargeOrder({ req, openId, sessionKey, amoun
     response = null;
   }
 
-  const fallbackPaymentVariants = response || paymentCompatMode ? [] : paymentVariants;
+  const fallbackPaymentVariants = response ? [] : paymentVariants;
   for (const variant of fallbackPaymentVariants) {
     try {
       response = await postConfiguredNexaJson('/partner/api/openapi/payment/create', variant.payload);
