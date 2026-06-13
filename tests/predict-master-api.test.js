@@ -383,6 +383,10 @@ test('admin can view Nexa payment upstream logs after a 405 failure', async () =
     assert.equal(logs.statusCode, 200);
     assert.equal(logs.body.ok, true);
     assert.equal(logs.body.items.length, 2);
+    assert.deepEqual(
+      logs.body.items.map((item) => item.source).sort(),
+      ['predict-payment-create-github-doc-strict', 'predict-payment-create-legacy'].sort()
+    );
     assert.equal(logs.body.items[0].endpointPath, '/partner/api/openapi/payment/create');
     assert.equal(logs.body.items[0].requestMethod, 'POST');
     assert.equal(logs.body.items[0].requestUrl, 'https://merchantapi.nexaexworth.com/partner/api/openapi/payment/create');

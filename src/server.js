@@ -821,7 +821,9 @@ async function createNexaTipOrder({ req, gameSlug, openId, sessionKey, amount = 
   let response = null;
   let lastSignatureResponse = null;
   try {
-    response = await postConfiguredNexaJson('/partner/api/openapi/payment/create', legacyPayload);
+    response = await postConfiguredNexaJson('/partner/api/openapi/payment/create', legacyPayload, {
+      source: 'nexa-tip-payment-create-legacy'
+    });
   } catch (error) {
     if (isNexaRateLimitError(error)) {
       const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
@@ -856,7 +858,9 @@ async function createNexaTipOrder({ req, gameSlug, openId, sessionKey, amount = 
   if (!response) {
     for (const variant of fallbackVariants) {
       try {
-        response = await postConfiguredNexaJson('/partner/api/openapi/payment/create', variant.payload);
+        response = await postConfiguredNexaJson('/partner/api/openapi/payment/create', variant.payload, {
+          source: `nexa-tip-payment-create-${variant.name}`
+        });
       } catch (error) {
         if (isNexaRateLimitError(error)) {
           const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
@@ -1050,7 +1054,9 @@ async function createPredictMasterRechargeOrder({ req, openId, sessionKey, amoun
   let response = null;
   let lastSignatureResponse = null;
   try {
-    response = await postConfiguredNexaJson('/partner/api/openapi/payment/create', legacyPayload);
+    response = await postConfiguredNexaJson('/partner/api/openapi/payment/create', legacyPayload, {
+      source: 'predict-payment-create-legacy'
+    });
   } catch (error) {
     if (isNexaRateLimitError(error)) {
       const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
@@ -1078,7 +1084,9 @@ async function createPredictMasterRechargeOrder({ req, openId, sessionKey, amoun
   const fallbackPaymentVariants = response ? [] : paymentVariants;
   for (const variant of fallbackPaymentVariants) {
     try {
-      response = await postConfiguredNexaJson('/partner/api/openapi/payment/create', variant.payload);
+      response = await postConfiguredNexaJson('/partner/api/openapi/payment/create', variant.payload, {
+        source: `predict-payment-create-${variant.name}`
+      });
     } catch (error) {
       if (isNexaRateLimitError(error)) {
         const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
