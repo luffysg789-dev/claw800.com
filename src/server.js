@@ -1008,10 +1008,12 @@ async function createPredictMasterRechargeOrder({ req, openId, sessionKey, amoun
   }
 
   const baseUrl = getPublicBaseUrl(req);
-  const partnerOrderNo = `claw800_predict_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
   const paymentCompatMode = Boolean(getPredictMasterConfig().paymentCompatMode);
+  const partnerOrderNo = paymentCompatMode
+    ? `pm${Date.now()}${crypto.randomBytes(3).toString('hex')}`
+    : `claw800_predict_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
   const paymentSubject = paymentCompatMode ? 'Claw800 打赏' : '预测大师充值';
-  const paymentBody = paymentCompatMode ? 'Predict Master' : '预测大师 USDT 余额充值';
+  const paymentBody = paymentCompatMode ? '预测大师' : '预测大师 USDT 余额充值';
   const paymentNotifyUrl = paymentCompatMode ? `${baseUrl}/api/nexa/tip/notify` : `${baseUrl}/api/predict-master/payment/notify`;
   const legacyNexaPaymentAmount = paymentCompatMode ? formatPredictMasterNexaCompatAmount(normalizedAmount) : normalizedAmount;
   const documentedNexaPaymentAmount = normalizedAmount;
