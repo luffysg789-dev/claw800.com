@@ -47,6 +47,8 @@
   let currentRenderContext = {};
   let lastPaymentLaunchAt = 0;
   let paymentReturnCheckPromise = null;
+  let walletRefreshTimers = [];
+  let lastWalletRefreshScheduleAt = 0;
   const reportedClientErrors = new Set();
   const upstreamToastErrorMessages = ['Binary order odds error', 'Platform key not found'];
   let sdkToastObserver = null;
@@ -646,6 +648,29 @@
     return response;
   }
 
+  function clearScheduledWalletBalanceRefreshes() {
+    walletRefreshTimers.forEach((timer) => window.clearTimeout(timer));
+    walletRefreshTimers = [];
+  }
+
+  function scheduleWalletBalanceRefresh(reason = 'sdk-activity') {
+    const session = normalizeSession(currentSession) || loadCachedSession();
+    if (!session) return;
+    currentSession = session;
+    const now = Date.now();
+    if (now - lastWalletRefreshScheduleAt < 1200) return;
+    lastWalletRefreshScheduleAt = now;
+    clearScheduledWalletBalanceRefreshes();
+    [800, 3000, 8000, 18000, 35000, 70000, 130000].forEach((delay) => {
+      const timer = window.setTimeout(() => {
+        refreshWalletBalance(session).catch((error) => {
+          logPredictMasterClientError('wallet-refresh-after-order', error, { reason, delay });
+        });
+      }, delay);
+      walletRefreshTimers.push(timer);
+    });
+  }
+
   async function beginRechargePayment() {
     try {
       const session = normalizeSession(currentSession) || (await getNexaSession());
@@ -728,6 +753,10 @@
       if (event.key === 'Escape') closeRechargeModal();
     });
   }
+  if (sdkApp) {
+    sdkApp.addEventListener('click', () => scheduleWalletBalanceRefresh('sdk-click'), true);
+    sdkApp.addEventListener('touchend', () => scheduleWalletBalanceRefresh('sdk-touchend'), true);
+  }
   window.addEventListener('error', (event) => {
     logPredictMasterClientError('window-error', event.error || event.message, {
       filename: event.filename || '',
@@ -739,9 +768,15 @@
     logPredictMasterClientError('unhandled-rejection', event.reason || 'Unhandled promise rejection');
   });
   window.addEventListener('pageshow', schedulePaymentReturnCheck);
-  window.addEventListener('focus', schedulePaymentReturnCheck);
+  window.addEventListener('focus', () => {
+    schedulePaymentReturnCheck();
+    refreshWalletBalance().catch(() => {});
+  });
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) schedulePaymentReturnCheck();
+    if (!document.hidden) {
+      schedulePaymentReturnCheck();
+      refreshWalletBalance().catch(() => {});
+    }
   });
   applyPredictMasterProductTitle();
   startSdkToastErrorObserver();

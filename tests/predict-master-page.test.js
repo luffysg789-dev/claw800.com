@@ -43,8 +43,8 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(html, /<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" \/>/);
   assert.match(html, /\/predict-master\/style\.css/);
   assert.match(html, /\/predict-master\/script\.js/);
-  assert.match(html, /\/predict-master\/style\.css\?v=20260614-14/);
-  assert.match(html, /\/predict-master\/script\.js\?v=20260614-14/);
+  assert.match(html, /\/predict-master\/style\.css\?v=20260614-15/);
+  assert.match(html, /\/predict-master\/script\.js\?v=20260614-15/);
   assert.doesNotMatch(html, /class="back-link"/);
   assert.doesNotMatch(html, /id="predictMasterTitle"/);
   assert.doesNotMatch(html, /id="predictMasterStatus"/);
@@ -84,6 +84,11 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(script, /\/api\/nexa\/tip\/session/);
   assert.match(script, /\/api\/predict-master\/login-url/);
   assert.match(script, /\/api\/predict-master\/wallet/);
+  assert.match(script, /function scheduleWalletBalanceRefresh/);
+  assert.match(script, /wallet-refresh-after-order/);
+  assert.match(script, /sdkApp\.addEventListener\('click', \(\) => scheduleWalletBalanceRefresh\('sdk-click'\), true\)/);
+  assert.match(script, /sdkApp\.addEventListener\('touchend', \(\) => scheduleWalletBalanceRefresh\('sdk-touchend'\), true\)/);
+  assert.match(script, /\[800, 3000, 8000, 18000, 35000, 70000, 130000\]/);
   assert.match(script, /\/api\/predict-master\/payment\/create/);
   assert.match(script, /\/api\/predict-master\/payment\/query/);
   assert.match(script, /\/api\/predict-master\/client-error/);
@@ -106,7 +111,8 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(script, /function schedulePaymentReturnCheck\(\)/);
   assert.match(script, /支付未完成，已恢复产品页面/);
   assert.match(script, /window\.addEventListener\('pageshow', schedulePaymentReturnCheck\)/);
-  assert.match(script, /window\.addEventListener\('focus', schedulePaymentReturnCheck\)/);
+  assert.match(script, /window\.addEventListener\('focus', \(\) => \{/);
+  assert.match(script, /refreshWalletBalance\(\)\.catch\(\(\) => \{\}\)/);
   assert.match(script, /document\.addEventListener\('visibilitychange'/);
   assert.match(script, /const pendingRecharge = devAuth \? null : await checkPendingRechargePayment\(\);/);
   assert.match(script, /const session = devAuth \? null : await getNexaSession\(\);/);
