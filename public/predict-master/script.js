@@ -48,6 +48,8 @@
   let lastPaymentLaunchAt = 0;
   let paymentReturnCheckPromise = null;
   const reportedClientErrors = new Set();
+  const upstreamToastErrorMessages = ['Binary order odds error', 'Platform key not found'];
+  let sdkToastObserver = null;
 
   function setLoading(text) {
     if (status) status.textContent = text;
@@ -479,6 +481,49 @@
     }).catch(() => {});
   }
 
+  function normalizeVisibleText(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function getUpstreamToastError(text) {
+    const normalized = normalizeVisibleText(text);
+    if (!normalized) return '';
+    const lowerText = normalized.toLowerCase();
+    return upstreamToastErrorMessages.find((message) => lowerText.includes(message.toLowerCase())) || '';
+  }
+
+  function inspectSdkToastErrorNode(node) {
+    if (!node) return;
+    const rawText = node.nodeType === Node.TEXT_NODE ? node.nodeValue : node.textContent;
+    const matchedMessage = getUpstreamToastError(rawText);
+    if (!matchedMessage) return;
+    const element = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+    logPredictMasterClientError('sdk-toast-error', matchedMessage, {
+      rawText: normalizeVisibleText(rawText).slice(0, 500),
+      tagName: element?.tagName || '',
+      className: String(element?.className || '').slice(0, 200),
+      elementId: element?.id || ''
+    });
+  }
+
+  function startSdkToastErrorObserver() {
+    if (sdkToastObserver || !window.MutationObserver || !document.body) return;
+    sdkToastObserver = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'characterData') {
+          inspectSdkToastErrorNode(mutation.target);
+          return;
+        }
+        mutation.addedNodes.forEach(inspectSdkToastErrorNode);
+      });
+    });
+    sdkToastObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true
+    });
+  }
+
   function extractAuthCodeFromUrl() {
     try {
       const params = new URL(window.location.href).searchParams;
@@ -699,5 +744,6 @@
     if (!document.hidden) schedulePaymentReturnCheck();
   });
   applyPredictMasterProductTitle();
+  startSdkToastErrorObserver();
   requestLoginUrl();
 })();

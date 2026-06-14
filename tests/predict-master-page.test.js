@@ -43,8 +43,8 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(html, /<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" \/>/);
   assert.match(html, /\/predict-master\/style\.css/);
   assert.match(html, /\/predict-master\/script\.js/);
-  assert.match(html, /\/predict-master\/style\.css\?v=20260614-13/);
-  assert.match(html, /\/predict-master\/script\.js\?v=20260614-13/);
+  assert.match(html, /\/predict-master\/style\.css\?v=20260614-14/);
+  assert.match(html, /\/predict-master\/script\.js\?v=20260614-14/);
   assert.doesNotMatch(html, /class="back-link"/);
   assert.doesNotMatch(html, /id="predictMasterTitle"/);
   assert.doesNotMatch(html, /id="predictMasterStatus"/);
@@ -89,6 +89,12 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(script, /\/api\/predict-master\/client-error/);
   assert.match(script, /function logPredictMasterClientError/);
   assert.match(script, /logPredictMasterClientError\('sdk-on-error'/);
+  assert.match(script, /upstreamToastErrorMessages/);
+  assert.match(script, /Binary order odds error/);
+  assert.match(script, /Platform key not found/);
+  assert.match(script, /sdk-toast-error/);
+  assert.match(script, /new MutationObserver/);
+  assert.match(script, /function startSdkToastErrorObserver/);
   assert.match(script, /window\.addEventListener\('unhandledrejection'/);
   assert.match(script, /function openRechargeModal/);
   assert.match(script, /function closeRechargeModal/);
