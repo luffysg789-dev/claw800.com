@@ -117,7 +117,8 @@ select {
 
 #predictMasterReloadBtn,
 #predictMasterRechargeBtn,
-#predictMasterWithdrawBtn {
+#predictMasterWithdrawBtn,
+#predictMasterRecordsBtn {
   padding: 0 16px;
   color: #05120d;
   background: var(--accent);
@@ -126,7 +127,8 @@ select {
   cursor: pointer;
 }
 
-#predictMasterWithdrawBtn {
+#predictMasterWithdrawBtn,
+#predictMasterRecordsBtn {
   background: #2f453d;
   color: var(--text);
   border-color: var(--line);
@@ -290,6 +292,72 @@ body.predict-master-product-spread .predict-master-header {
   display: none;
 }
 
+.predict-master-records-sheet {
+  max-height: min(72dvh, 560px);
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.predict-master-records-loading {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.predict-master-records-loading[hidden] {
+  display: none;
+}
+
+.predict-master-records-list {
+  min-height: 120px;
+  margin-top: 14px;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.predict-master-record-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--panel-strong);
+}
+
+.predict-master-record-item__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.predict-master-record-item__status {
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.predict-master-record-item__status--pending {
+  color: #ffd36a;
+}
+
+.predict-master-record-item__status--rejected {
+  color: #ff9f9f;
+}
+
+.predict-master-record-item__meta {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
 .predict-master-modal__confirm {
   width: 100%;
   height: 48px;
@@ -327,7 +395,8 @@ body.predict-master-product-spread .predict-master-header {
 
   #predictMasterReloadBtn,
   #predictMasterRechargeBtn,
-  #predictMasterWithdrawBtn {
+  #predictMasterWithdrawBtn,
+  #predictMasterRecordsBtn {
     padding: 0 10px;
   }
 }

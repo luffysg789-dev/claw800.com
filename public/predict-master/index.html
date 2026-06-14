@@ -6,7 +6,7 @@
     <title>高低期权</title>
     <meta name="description" content="Detrade 高低期权与预测产品入口。" />
     <link rel="icon" href="/favicon.ico" />
-    <link rel="stylesheet" href="/predict-master/style.css?v=20260615-02" />
+    <link rel="stylesheet" href="/predict-master/style.css?v=20260615-03" />
   </head>
   <body>
     <main class="predict-master-app">
@@ -18,6 +18,7 @@
           </div>
           <button id="predictMasterRechargeBtn" type="button">充值</button>
           <button id="predictMasterWithdrawBtn" type="button">提现</button>
+          <button id="predictMasterRecordsBtn" type="button">记录</button>
           <button id="predictMasterReloadBtn" type="button">刷新</button>
         </div>
       </header>
@@ -85,7 +86,19 @@
           <button id="predictMasterWithdrawConfirmBtn" class="predict-master-modal__confirm" type="button">提交提现审核</button>
         </section>
       </div>
+
+      <div id="predictMasterRecordsModal" class="predict-master-modal" hidden>
+        <div class="predict-master-modal__backdrop" data-records-close="true"></div>
+        <section class="predict-master-modal__sheet predict-master-records-sheet" role="dialog" aria-modal="true" aria-labelledby="predictMasterRecordsTitle">
+          <div class="predict-master-modal__head">
+            <strong id="predictMasterRecordsTitle">资金记录</strong>
+            <button id="predictMasterRecordsCancelBtn" type="button" aria-label="关闭">关闭</button>
+          </div>
+          <p id="predictMasterRecordsLoading" class="predict-master-records-loading" hidden>正在加载记录...</p>
+          <div id="predictMasterRecordsList" class="predict-master-records-list"></div>
+        </section>
+      </div>
     </main>
-    <script src="/predict-master/script.js?v=20260615-02"></script>
+    <script src="/predict-master/script.js?v=20260615-03"></script>
   </body>
 </html>

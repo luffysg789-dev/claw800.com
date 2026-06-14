@@ -7130,6 +7130,37 @@ app.post('/api/predict-master/withdraw/create', (req, res) => {
   }
 });
 
+app.post('/api/predict-master/records', (req, res) => {
+  try {
+    const openId = String(req.body?.openId || req.body?.openid || req.body?.open_id || '').trim();
+    const sessionKey = String(req.body?.sessionKey || req.body?.session_key || '').trim();
+    if (!openId || !sessionKey) return res.status(400).json({ error: 'openId 和 sessionKey 必填' });
+    const ensured = ensureDetradeUserWallet(openId);
+    if (!ensured?.user) return res.status(500).json({ error: '预测钱包读取失败' });
+    const limitRaw = Number(req.body?.limit || 50);
+    const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(100, Math.floor(limitRaw))) : 50;
+    const rechargeItems = listDetradeRechargeRecordsByUserStmt
+      .all(Number(ensured.user.id), limit)
+      .map(formatPredictMasterRechargeRecord);
+    const withdrawalItems = listDetradeWithdrawalRecordsByUserStmt
+      .all(Number(ensured.user.id), limit)
+      .map(formatPredictMasterWithdrawalRecord);
+    const items = [...rechargeItems, ...withdrawalItems]
+      .sort(
+        (a, b) =>
+          String(b.sortKey || '').localeCompare(String(a.sortKey || '')) ||
+          Number(b.sortRank || 0) - Number(a.sortRank || 0) ||
+          String(b.id || '').localeCompare(String(a.id || ''))
+      )
+      .slice(0, limit)
+      .map(({ sortKey, sortRank, ...item }) => item);
+    return res.json({ ok: true, items });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 500) || 500;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || '读取预测记录失败') });
+  }
+});
+
 app.post('/api/predict-master/payment/query', async (req, res) => {
   try {
     const orderNo = String(req.body?.orderNo || '').trim();
@@ -9693,6 +9724,24 @@ const markDetradeRechargeOrderSettledStmt = db.prepare(`
       updated_at = datetime('now')
   WHERE order_no = ? AND settled_at = ''
 `);
+const listDetradeRechargeRecordsByUserStmt = db.prepare(`
+  SELECT
+    order_no,
+    partner_order_no,
+    user_id,
+    external_user_id,
+    amount,
+    currency,
+    status,
+    paid_at,
+    settled_at,
+    created_at,
+    updated_at
+  FROM detrade_recharge_orders
+  WHERE user_id = ?
+  ORDER BY created_at DESC, order_no DESC
+  LIMIT ?
+`);
 const insertDetradeWithdrawalStmt = db.prepare(`
   INSERT INTO detrade_withdrawals (
     withdraw_no, user_id, external_user_id, amount, currency, status
@@ -9745,6 +9794,24 @@ const listDetradeWithdrawalsStmt = db.prepare(`
   LEFT JOIN game_users u ON u.id = w.user_id
   WHERE (? = '' OR lower(w.status) = ?)
   ORDER BY w.created_at DESC, w.withdraw_no DESC
+  LIMIT ?
+`);
+const listDetradeWithdrawalRecordsByUserStmt = db.prepare(`
+  SELECT
+    withdraw_no,
+    user_id,
+    external_user_id,
+    amount,
+    currency,
+    status,
+    review_note,
+    reviewed_by,
+    reviewed_at,
+    created_at,
+    finished_at
+  FROM detrade_withdrawals
+  WHERE user_id = ?
+  ORDER BY created_at DESC, withdraw_no DESC
   LIMIT ?
 `);
 const updateDetradeWithdrawalReviewStmt = db.prepare(`
@@ -10441,6 +10508,54 @@ function formatDetradeWithdrawal(row = {}) {
     reviewedAt: String(row.reviewed_at || ''),
     createdAt: String(row.created_at || ''),
     finishedAt: String(row.finished_at || '')
+  };
+}
+
+function getPredictMasterRechargeDisplayStatus(status = '') {
+  return String(status || '').trim().toUpperCase() === 'SUCCESS' ? '完成' : '充值中';
+}
+
+function getPredictMasterWithdrawalDisplayStatus(status = '') {
+  const normalized = String(status || '').trim().toLowerCase();
+  if (normalized === 'success') return '完成';
+  if (normalized === 'rejected') return '已拒绝';
+  return '提现中';
+}
+
+function formatPredictMasterRechargeRecord(row = {}) {
+  const status = String(row.status || 'PENDING').trim() || 'PENDING';
+  return {
+    type: 'recharge',
+    id: String(row.order_no || row.partner_order_no || ''),
+    orderNo: String(row.order_no || ''),
+    partnerOrderNo: String(row.partner_order_no || ''),
+    amount: String(row.amount || '0.00'),
+    currency: String(row.currency || 'USDT'),
+    status,
+    displayStatus: getPredictMasterRechargeDisplayStatus(status),
+    createdAt: String(row.created_at || ''),
+    updatedAt: String(row.updated_at || ''),
+    sortKey: String(row.created_at || ''),
+    sortRank: 1
+  };
+}
+
+function formatPredictMasterWithdrawalRecord(row = {}) {
+  const status = String(row.status || 'review_pending').trim() || 'review_pending';
+  return {
+    type: 'withdraw',
+    id: String(row.withdraw_no || ''),
+    withdrawNo: String(row.withdraw_no || ''),
+    amount: String(row.amount || '0.00'),
+    currency: String(row.currency || 'USDT'),
+    status,
+    displayStatus: getPredictMasterWithdrawalDisplayStatus(status),
+    reviewNote: String(row.review_note || ''),
+    reviewedAt: String(row.reviewed_at || ''),
+    createdAt: String(row.created_at || ''),
+    finishedAt: String(row.finished_at || ''),
+    sortKey: String(row.created_at || ''),
+    sortRank: 2
   };
 }
 

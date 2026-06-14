@@ -37,6 +37,7 @@
   const reloadBtn = document.getElementById('predictMasterReloadBtn');
   const rechargeBtn = document.getElementById('predictMasterRechargeBtn');
   const withdrawBtn = document.getElementById('predictMasterWithdrawBtn');
+  const recordsBtn = document.getElementById('predictMasterRecordsBtn');
   const rechargeModal = document.getElementById('predictMasterRechargeModal');
   const rechargeCancelBtn = document.getElementById('predictMasterRechargeCancelBtn');
   const rechargeConfirmBtn = document.getElementById('predictMasterRechargeConfirmBtn');
@@ -47,6 +48,10 @@
   const withdrawConfirmBtn = document.getElementById('predictMasterWithdrawConfirmBtn');
   const withdrawAmount = document.getElementById('predictMasterWithdrawAmount');
   const withdrawError = document.getElementById('predictMasterWithdrawError');
+  const recordsModal = document.getElementById('predictMasterRecordsModal');
+  const recordsCancelBtn = document.getElementById('predictMasterRecordsCancelBtn');
+  const recordsList = document.getElementById('predictMasterRecordsList');
+  const recordsLoading = document.getElementById('predictMasterRecordsLoading');
   const walletBalance = document.getElementById('predictMasterWalletBalance');
   let tradingApp = null;
   let tradingScriptUrl = '';
@@ -246,6 +251,109 @@
     const text = String(message || '').trim();
     withdrawError.textContent = text;
     withdrawError.hidden = !text;
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (character) => {
+      const replacements = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      };
+      return replacements[character] || character;
+    });
+  }
+
+  function formatPredictMasterRecordTime(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    const normalized = raw.includes('T') ? raw : raw.replace(' ', 'T');
+    const date = new Date(normalized);
+    if (Number.isNaN(date.getTime())) return raw;
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  function closeRecordsModal() {
+    if (recordsModal) recordsModal.hidden = true;
+  }
+
+  function setRecordsLoading(isLoading, message = '正在加载记录...') {
+    if (!recordsLoading) return;
+    recordsLoading.textContent = message;
+    recordsLoading.hidden = !isLoading;
+  }
+
+  function getPredictMasterRecordStatusClass(record) {
+    const status = String(record?.status || '').toLowerCase();
+    if (status === 'rejected') return 'predict-master-record-item__status--rejected';
+    if (record?.displayStatus === '提现中' || status.includes('pending')) return 'predict-master-record-item__status--pending';
+    return '';
+  }
+
+  function renderPredictMasterRecords(items = []) {
+    if (!recordsList) return;
+    if (!items.length) {
+      recordsList.innerHTML = '<div class="predict-master-record-item"><p class="predict-master-record-item__meta">暂无资金记录</p></div>';
+      return;
+    }
+    recordsList.innerHTML = items
+      .map((item) => {
+        const typeLabel = item.type === 'withdraw' ? '提现' : '充值';
+        const time = formatPredictMasterRecordTime(item.createdAt || item.finishedAt || item.updatedAt);
+        const statusClass = getPredictMasterRecordStatusClass(item);
+        const orderText = item.withdrawNo || item.orderNo || item.partnerOrderNo || item.id || '';
+        return `
+          <article class="predict-master-record-item">
+            <div class="predict-master-record-item__top">
+              <span>${escapeHtml(typeLabel)} ${escapeHtml(item.amount)} ${escapeHtml(item.currency || 'USDT')}</span>
+              <span class="predict-master-record-item__status ${escapeHtml(statusClass)}">${escapeHtml(item.displayStatus || '提现中')}</span>
+            </div>
+            <p class="predict-master-record-item__meta">${escapeHtml(time)}${orderText ? ` · ${escapeHtml(orderText)}` : ''}</p>
+          </article>
+        `;
+      })
+      .join('');
+  }
+
+  async function loadPredictMasterRecords() {
+    if (!recordsList) return;
+    recordsList.innerHTML = '';
+    setRecordsLoading(true);
+    try {
+      const session = normalizeSession(currentSession) || (await getNexaSession());
+      if (!session) return;
+      currentSession = session;
+      const response = await requestJson('/api/predict-master/records', {
+        method: 'POST',
+        body: JSON.stringify({
+          openId: session.openId,
+          sessionKey: session.sessionKey,
+          limit: 50
+        })
+      });
+      renderPredictMasterRecords(response.items || []);
+    } catch (error) {
+      recordsList.innerHTML = `<div class="predict-master-record-item"><p class="predict-master-record-item__meta">${escapeHtml(error?.message || '记录加载失败')}</p></div>`;
+    } finally {
+      setRecordsLoading(false);
+    }
+  }
+
+  function openRecordsModal() {
+    if (!recordsModal) {
+      loadPredictMasterRecords();
+      return;
+    }
+    recordsModal.hidden = false;
+    loadPredictMasterRecords();
   }
 
   function savePendingRechargePayment(payment) {
@@ -815,11 +923,17 @@
   if (withdrawBtn) {
     withdrawBtn.addEventListener('click', openWithdrawModal);
   }
+  if (recordsBtn) {
+    recordsBtn.addEventListener('click', openRecordsModal);
+  }
   if (rechargeCancelBtn) {
     rechargeCancelBtn.addEventListener('click', closeRechargeModal);
   }
   if (withdrawCancelBtn) {
     withdrawCancelBtn.addEventListener('click', closeWithdrawModal);
+  }
+  if (recordsCancelBtn) {
+    recordsCancelBtn.addEventListener('click', closeRecordsModal);
   }
   if (rechargeConfirmBtn) {
     rechargeConfirmBtn.addEventListener('click', beginRechargePayment);
@@ -835,6 +949,11 @@
   if (withdrawModal) {
     withdrawModal.addEventListener('click', (event) => {
       if (event.target?.dataset?.withdrawClose === 'true') closeWithdrawModal();
+    });
+  }
+  if (recordsModal) {
+    recordsModal.addEventListener('click', (event) => {
+      if (event.target?.dataset?.recordsClose === 'true') closeRecordsModal();
     });
   }
   if (rechargeAmount) {

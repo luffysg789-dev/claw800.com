@@ -1195,6 +1195,85 @@ test('predict-master withdrawal rejects insufficient balance', async () => {
   }
 });
 
+test('predict-master records endpoint returns recharge and withdrawal history for the current user', async () => {
+  const harness = createHarness();
+
+  try {
+    await harness.request('POST', '/api/predict-master/wallet', {
+      openId: 'nexa-predict-records',
+      sessionKey: 'session-predict-records'
+    });
+    const userId = harness.db.prepare('SELECT id FROM game_users WHERE openid = ?').get('nexa-predict-records').id;
+    harness.db
+      .prepare("UPDATE detrade_wallets SET available_balance = '30.00' WHERE user_id = ?")
+      .run(userId);
+
+    harness.db
+      .prepare(
+        `INSERT INTO detrade_recharge_orders (
+          order_no, partner_order_no, user_id, external_user_id, amount, currency, status, paid_at, settled_at
+        ) VALUES (?, ?, ?, ?, ?, 'USDT', 'SUCCESS', datetime('now'), datetime('now'))`
+      )
+      .run('T-record-recharge-1', 'pm-record-recharge-1', userId, 'nexa-predict-records', '8.00');
+
+    const pending = await harness.request('POST', '/api/predict-master/withdraw/create', {
+      openId: 'nexa-predict-records',
+      sessionKey: 'session-predict-records',
+      amount: '5.00'
+    });
+    assert.equal(pending.statusCode, 200);
+
+    const approved = await harness.request('POST', '/api/predict-master/withdraw/create', {
+      openId: 'nexa-predict-records',
+      sessionKey: 'session-predict-records',
+      amount: '3.00'
+    });
+    assert.equal(approved.statusCode, 200);
+    const cookies = await harness.adminCookies();
+    const approve = await harness.request(
+      'POST',
+      `/api/admin/predict-master-withdrawals/${approved.body.withdrawNo}/approve`,
+      {},
+      { cookies }
+    );
+    assert.equal(approve.statusCode, 200);
+
+    await harness.request('POST', '/api/predict-master/wallet', {
+      openId: 'nexa-predict-records-other',
+      sessionKey: 'session-predict-records-other'
+    });
+    const otherUserId = harness.db
+      .prepare('SELECT id FROM game_users WHERE openid = ?')
+      .get('nexa-predict-records-other').id;
+    harness.db
+      .prepare(
+        `INSERT INTO detrade_recharge_orders (
+          order_no, partner_order_no, user_id, external_user_id, amount, currency, status
+        ) VALUES (?, ?, ?, ?, ?, 'USDT', 'SUCCESS')`
+      )
+      .run('T-record-other-1', 'pm-record-other-1', otherUserId, 'nexa-predict-records-other', '99.00');
+
+    const records = await harness.request('POST', '/api/predict-master/records', {
+      openId: 'nexa-predict-records',
+      sessionKey: 'session-predict-records'
+    });
+    assert.equal(records.statusCode, 200);
+    assert.equal(records.body.ok, true);
+    assert.equal(records.body.items.length, 3);
+    assert.deepEqual(
+      records.body.items.map((item) => [item.type, item.amount, item.status, item.displayStatus]),
+      [
+        ['withdraw', '3.00', 'success', '完成'],
+        ['withdraw', '5.00', 'review_pending', '提现中'],
+        ['recharge', '8.00', 'SUCCESS', '完成']
+      ]
+    );
+    assert.equal(records.body.items.some((item) => item.amount === '99.00'), false);
+  } finally {
+    harness.cleanup();
+  }
+});
+
 test('predict-master recharge retries with documented Nexa payment payload after legacy HTTP 405', async () => {
   const harness = createHarness();
   const calls = [];

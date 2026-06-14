@@ -43,8 +43,8 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(html, /<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" \/>/);
   assert.match(html, /\/predict-master\/style\.css/);
   assert.match(html, /\/predict-master\/script\.js/);
-  assert.match(html, /\/predict-master\/style\.css\?v=20260615-02/);
-  assert.match(html, /\/predict-master\/script\.js\?v=20260615-02/);
+  assert.match(html, /\/predict-master\/style\.css\?v=20260615-03/);
+  assert.match(html, /\/predict-master\/script\.js\?v=20260615-03/);
   assert.doesNotMatch(html, /class="back-link"/);
   assert.doesNotMatch(html, /id="predictMasterTitle"/);
   assert.doesNotMatch(html, /id="predictMasterStatus"/);
@@ -55,6 +55,7 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(html, /id="predictMasterSdkApp"/);
   assert.match(html, /id="predictMasterRechargeBtn"/);
   assert.match(html, /id="predictMasterWithdrawBtn"/);
+  assert.match(html, /id="predictMasterRecordsBtn"/);
   assert.match(html, /id="predictMasterRechargeModal"/);
   assert.match(html, /id="predictMasterRechargeConfirmBtn"/);
   assert.match(html, /id="predictMasterRechargeCancelBtn"/);
@@ -65,6 +66,10 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(html, /id="predictMasterWithdrawCancelBtn"/);
   assert.match(html, /id="predictMasterWithdrawAmount"/);
   assert.match(html, /id="predictMasterWithdrawError"/);
+  assert.match(html, /id="predictMasterRecordsModal"/);
+  assert.match(html, /id="predictMasterRecordsCancelBtn"/);
+  assert.match(html, /id="predictMasterRecordsList"/);
+  assert.match(html, /id="predictMasterRecordsLoading"/);
   assert.doesNotMatch(html, /<iframe/);
   assert.match(css, /\.predict-master-sdk-shell/);
   assert.match(css, /\.predict-master-sdk-app/);
@@ -83,6 +88,8 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(css, /\.predict-master-wallet/);
   assert.match(css, /\.predict-master-modal/);
   assert.match(css, /\.predict-master-modal__error/);
+  assert.match(css, /\.predict-master-records-list/);
+  assert.match(css, /\.predict-master-record-item/);
   assert.match(css, /\.predict-master-sdk-shell\s+:is\(input,\s*textarea,\s*select\)/);
   assert.match(css, /font-size:\s*16px\s*!important;/);
   assert.match(css, /touch-action:\s*pan-y;/);
@@ -118,6 +125,13 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(script, /function beginWithdrawRequest/);
   assert.match(script, /\/api\/predict-master\/withdraw\/create/);
   assert.match(script, /提现申请已提交，等待后台审核/);
+  assert.match(script, /function openRecordsModal/);
+  assert.match(script, /function closeRecordsModal/);
+  assert.match(script, /function loadPredictMasterRecords/);
+  assert.match(script, /function renderPredictMasterRecords/);
+  assert.match(script, /\/api\/predict-master\/records/);
+  assert.match(script, /提现中/);
+  assert.match(script, /完成/);
   assert.match(script, /setRechargeError\('充值金额必须大于 1 USDT'\)/);
   assert.match(script, /rechargeAmount\.addEventListener\('input'/);
   assert.match(script, /充值金额必须大于 1 USDT/);
