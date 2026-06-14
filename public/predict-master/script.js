@@ -23,7 +23,7 @@
   const PREDICT_MASTER_ACTIVITY_NAMES = {
     'football-worldcup': '预测'
   };
-  const DEFAULT_NEXA_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
+  const DEFAULT_NEXA_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
   const SESSION_EXPIRY_GRACE_MS = 60 * 1000;
   const MAX_PENDING_PAYMENT_RETENTION_MS = 2 * 60 * 60 * 1000;
 
@@ -63,12 +63,46 @@
     if (errorPanel) errorPanel.classList.remove('hidden');
   }
 
-  function storage() {
+  function getPersistentStorage() {
+    try {
+      return window.localStorage;
+    } catch {
+      try {
+        return window.sessionStorage;
+      } catch {
+        return null;
+      }
+    }
+  }
+
+  function getSessionStorage() {
     try {
       return window.sessionStorage;
     } catch {
       return null;
     }
+  }
+
+  function getStoredItem(key) {
+    const persistent = getPersistentStorage();
+    const persistentValue = persistent?.getItem?.(key);
+    if (persistentValue) return persistentValue;
+    const legacyValue = getSessionStorage()?.getItem?.(key);
+    if (legacyValue && persistent?.setItem) {
+      try {
+        persistent.setItem(key, legacyValue);
+      } catch {}
+    }
+    return legacyValue || '';
+  }
+
+  function setStoredItem(key, value) {
+    getPersistentStorage()?.setItem?.(key, value);
+  }
+
+  function removeStoredItem(key) {
+    getPersistentStorage()?.removeItem?.(key);
+    getSessionStorage()?.removeItem?.(key);
   }
 
   function getSessionExpiryTimestamp(input) {
@@ -97,7 +131,7 @@
 
   function loadCachedSession() {
     try {
-      const parsed = JSON.parse(storage()?.getItem(PREDICT_MASTER_SESSION_STORAGE_KEY) || 'null');
+      const parsed = JSON.parse(getStoredItem(PREDICT_MASTER_SESSION_STORAGE_KEY) || 'null');
       return normalizeSession(parsed);
     } catch {
       return null;
@@ -107,12 +141,12 @@
   function saveCachedSession(session) {
     const normalized = normalizeSession({ ...session, savedAt: Date.now() });
     if (!normalized) return null;
-    storage()?.setItem(PREDICT_MASTER_SESSION_STORAGE_KEY, JSON.stringify(normalized));
+    setStoredItem(PREDICT_MASTER_SESSION_STORAGE_KEY, JSON.stringify(normalized));
     return normalized;
   }
 
   function clearCachedSession() {
-    storage()?.removeItem(PREDICT_MASTER_SESSION_STORAGE_KEY);
+    removeStoredItem(PREDICT_MASTER_SESSION_STORAGE_KEY);
   }
 
   function buildCleanReturnUrl() {
@@ -163,7 +197,7 @@
   }
 
   function savePendingRechargePayment(payment) {
-    storage()?.setItem(
+    setStoredItem(
       PREDICT_MASTER_PENDING_PAYMENT_STORAGE_KEY,
       JSON.stringify({
         orderNo: String(payment?.orderNo || '').trim(),
@@ -176,7 +210,7 @@
 
   function loadPendingRechargePayment() {
     try {
-      const parsed = JSON.parse(storage()?.getItem(PREDICT_MASTER_PENDING_PAYMENT_STORAGE_KEY) || 'null');
+      const parsed = JSON.parse(getStoredItem(PREDICT_MASTER_PENDING_PAYMENT_STORAGE_KEY) || 'null');
       if (!parsed?.orderNo || Number(parsed.expiresAt || 0) <= Date.now()) return null;
       return parsed;
     } catch {
@@ -185,7 +219,7 @@
   }
 
   function clearPendingRechargePayment() {
-    storage()?.removeItem(PREDICT_MASTER_PENDING_PAYMENT_STORAGE_KEY);
+    removeStoredItem(PREDICT_MASTER_PENDING_PAYMENT_STORAGE_KEY);
   }
 
   function normalizeSdkEntry(url) {
@@ -363,11 +397,9 @@
         if (status) status.textContent = `${getPredictMasterProductName()}已连接`;
       },
       onLogin: () => {
-        clearCachedSession();
         requestLoginUrl();
       },
       onRegister: () => {
-        clearCachedSession();
         requestLoginUrl();
       },
       onRecharge: () => {
@@ -558,11 +590,13 @@
 
     try {
       const devAuth = isPredictMasterDevAuthEnabled();
+      const pendingRecharge = devAuth ? null : await checkPendingRechargePayment();
       const session = devAuth ? null : await getNexaSession();
       if (!devAuth && !session) return;
       if (!devAuth) {
-        await checkPendingRechargePayment();
-        await refreshWalletBalance(session);
+        if (!pendingRecharge || String(pendingRecharge.status || '').toUpperCase() !== 'SUCCESS') {
+          await refreshWalletBalance(session);
+        }
       } else {
         setWalletBalance('测试');
       }
@@ -578,14 +612,12 @@
       });
       await renderTradingSdk(data);
     } catch (error) {
-      clearCachedSession();
       setError(error?.message || `获取${productName}入口失败`);
     }
   }
 
   if (reloadBtn) {
     reloadBtn.addEventListener('click', () => {
-      clearCachedSession();
       requestLoginUrl();
     });
   }
