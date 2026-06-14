@@ -53,6 +53,8 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(css, /\.predict-master-sdk-app/);
   assert.match(css, /height:\s*100dvh;/);
   assert.match(css, /grid-template-rows:\s*auto minmax\(0,\s*1fr\);/);
+  assert.match(css, /body\.predict-master-product-spread\s+\.predict-master-app\s*\{[\s\S]*grid-template-rows:\s*minmax\(0,\s*1fr\);/);
+  assert.match(css, /body\.predict-master-product-spread\s+\.predict-master-header\s*\{[\s\S]*display:\s*none;/);
   assert.match(css, /\.predict-master-sdk-app\s*\{[\s\S]*height:\s*100%;/);
   assert.doesNotMatch(css, /height:\s*calc\(100vh - 70px\);/);
   assert.match(css, /\.predict-master-wallet/);
@@ -88,6 +90,8 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(script, /function getPredictMasterActivity\(\)/);
   assert.match(script, /function getPredictMasterProductName\(\)/);
   assert.match(script, /function applyPredictMasterProductTitle\(\)/);
+  assert.match(script, /function applyPredictMasterBodyState\(\)/);
+  assert.match(script, /predict-master-product-\$\{type\}/);
   assert.match(script, /function getPredictMasterRenderType\(\)/);
   assert.match(script, /type:\s*getPredictMasterRenderType\(\)/);
   assert.match(script, /activity:\s*getPredictMasterActivity\(\) \|\| undefined/);

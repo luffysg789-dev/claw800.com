@@ -213,7 +213,16 @@
     return PREDICT_MASTER_PRODUCT_NAMES[getPredictMasterRenderType()] || '高低期权';
   }
 
+  function applyPredictMasterBodyState() {
+    const type = getPredictMasterRenderType();
+    document.body.classList.remove(
+      ...PREDICT_MASTER_ALLOWED_TYPES.map((allowedType) => `predict-master-product-${allowedType}`)
+    );
+    document.body.classList.add(`predict-master-product-${type}`);
+  }
+
   function applyPredictMasterProductTitle() {
+    applyPredictMasterBodyState();
     const productName = getPredictMasterProductName();
     document.title = productName;
     if (pageTitle) pageTitle.textContent = productName;
