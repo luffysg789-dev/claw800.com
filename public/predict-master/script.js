@@ -14,7 +14,7 @@
     'tap-trading': 'Tap Trading'
   };
   const PREDICT_MASTER_ACTIVITY_NAMES = {
-    'football-worldcup': '足球/世界杯预测'
+    'football-worldcup': '预测'
   };
   const DEFAULT_NEXA_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
   const SESSION_EXPIRY_GRACE_MS = 60 * 1000;

@@ -81,8 +81,8 @@ const DEFAULT_GAMES = [
   },
   {
     slug: 'predict-master-football-worldcup',
-    name: '足球/世界杯预测',
-    description: '进入 Detrade 足球与世界杯活动预测入口。',
+    name: '预测',
+    description: '进入 Detrade 预测市场，打开体育和世界杯预测页面。',
     cover_image: '',
     secondary_image: '',
     sound_file: '',
@@ -93,7 +93,7 @@ const DEFAULT_GAMES = [
     route: '/predict-master/?type=trading&activity=football-worldcup',
     predictType: 'trading',
     icon: 'UPAL',
-    actionText: '进入足球/世界杯预测'
+    actionText: '进入预测'
   },
   {
     slug: 'lucky-star',
@@ -333,7 +333,7 @@ const GAME_ACTION_TEXT = {
   'predict-master-up-down': '进入涨跌',
   'predict-master-spread': '进入点差',
   'predict-master-tap-trading': '进入 Tap Trading',
-  'predict-master-football-worldcup': '进入足球/世界杯预测',
+  'predict-master-football-worldcup': '进入预测',
   'u-card-query': '开始查询',
   nchat: '进入聊天',
   sbti: '开始测试',
@@ -377,9 +377,9 @@ const GAME_I18N = {
     actionText: 'Enter Tap Trading'
   },
   'predict-master-football-worldcup': {
-    name: 'Football / World Cup Prediction',
-    description: 'Open the Detrade football and World Cup prediction activity.',
-    actionText: 'Enter Football / World Cup'
+    name: 'Prediction',
+    description: 'Open the Detrade prediction market for sports and World Cup pages.',
+    actionText: 'Enter Prediction'
   },
   'u-card-query': {
     name: 'U Card Scenario Lookup',

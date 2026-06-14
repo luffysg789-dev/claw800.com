@@ -3559,7 +3559,7 @@ const GAME_ACTION_TEXT_MAP = {
   'predict-master-up-down': '进入涨跌',
   'predict-master-spread': '进入点差',
   'predict-master-tap-trading': '进入 Tap Trading',
-  'predict-master-football-worldcup': '进入足球/世界杯预测',
+  'predict-master-football-worldcup': '进入预测',
   'u-card-query': '开始查询',
   nchat: '进入聊天',
   sbti: '开始测试',

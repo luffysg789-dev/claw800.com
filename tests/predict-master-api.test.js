@@ -126,7 +126,7 @@ test('predict-master is seeded in the games catalog and routes to its page', asy
       ['predict-master-up-down', ['/predict-master/?type=up-down', '涨跌']],
       ['predict-master-spread', ['/predict-master/?type=spread', '点差']],
       ['predict-master-tap-trading', ['/predict-master/?type=tap-trading', 'Tap Trading']],
-      ['predict-master-football-worldcup', ['/predict-master/?type=trading&activity=football-worldcup', '足球/世界杯预测']]
+      ['predict-master-football-worldcup', ['/predict-master/?type=trading&activity=football-worldcup', '预测']]
     ]);
     const expectedActionText = new Map([
       ['predict-master', '进入高低期权'],
@@ -134,7 +134,7 @@ test('predict-master is seeded in the games catalog and routes to its page', asy
       ['predict-master-up-down', '进入涨跌'],
       ['predict-master-spread', '进入点差'],
       ['predict-master-tap-trading', '进入 Tap Trading'],
-      ['predict-master-football-worldcup', '进入足球/世界杯预测']
+      ['predict-master-football-worldcup', '进入预测']
     ]);
     for (const [slug, [route, name]] of expectedRoutes) {
       const item = games.body.items.find((game) => game.slug === slug);

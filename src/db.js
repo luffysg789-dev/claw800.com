@@ -1057,8 +1057,8 @@ const DEFAULT_GAMES_CATALOG = [
   },
   {
     slug: 'predict-master-football-worldcup',
-    name: '足球/世界杯预测',
-    description: 'Detrade 足球与世界杯活动预测入口。',
+    name: '预测',
+    description: 'Detrade 预测市场，打开体育和世界杯预测页面。',
     cover_image: '',
     secondary_image: '',
     sound_file: '',
@@ -1489,6 +1489,15 @@ db.prepare(`
       'Detrade 综合预测市场入口，授权后进入预测交易页面。',
       '进入 Detrade 综合预测市场，授权后打开预测交易页面。'
     )
+`).run();
+
+db.prepare(`
+  UPDATE games_catalog
+  SET name = '预测',
+      description = 'Detrade 预测市场，打开体育和世界杯预测页面。',
+      updated_at = datetime('now')
+  WHERE slug = 'predict-master-football-worldcup'
+    AND name = '足球/世界杯预测'
 `).run();
 
 const hasSkillsCatalogSortOrder = db.prepare("SELECT 1 FROM pragma_table_info('skills_catalog') WHERE name = 'sort_order'").get();

@@ -15,7 +15,7 @@ test('games config includes Predict Master card defaults', () => {
     ['predict-master-up-down', '涨跌', '/predict-master/?type=up-down', 'up-down'],
     ['predict-master-spread', '点差', '/predict-master/?type=spread', 'spread'],
     ['predict-master-tap-trading', 'Tap Trading', '/predict-master/?type=tap-trading', 'tap-trading'],
-    ['predict-master-football-worldcup', '足球/世界杯预测', '/predict-master/?type=trading&activity=football-worldcup', 'trading']
+    ['predict-master-football-worldcup', '预测', '/predict-master/?type=trading&activity=football-worldcup', 'trading']
   ];
   for (const [slug, name, route, type] of entries) {
     const block = gamesConfig.match(new RegExp(`\\{\\s*slug:\\s*'${slug}'[\\s\\S]*?\\n\\s*\\},`));
