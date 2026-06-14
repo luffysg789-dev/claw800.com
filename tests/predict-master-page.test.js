@@ -14,7 +14,7 @@ test('games config includes Predict Master card defaults', () => {
     ['predict-master-contract', '合约', '/predict-master/?type=contract', 'contract'],
     ['predict-master-up-down', '涨跌', '/predict-master/?type=up-down&productPath=trade-center%2Fup-down', 'up-down'],
     ['predict-master-spread', '点差', '/predict-master/?type=spread', 'spread'],
-    ['predict-master-tap-trading', 'Tap Trading', '/predict-master/?type=tap-trading', 'tap-trading'],
+    ['predict-master-tap-trading', 'Tap Trading', '/predict-master/?type=tap-trading&productPath=trade-center%2Ftap-trading', 'tap-trading'],
     ['predict-master-football-worldcup', '预测', '/predict-master/?type=trading&activity=football-worldcup', 'trading']
   ];
   for (const [slug, name, route, type] of entries) {

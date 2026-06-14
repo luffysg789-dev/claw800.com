@@ -74,7 +74,7 @@ const DEFAULT_GAMES = [
     is_enabled: 1,
     showInGamesHub: 1,
     sort_order: 61,
-    route: '/predict-master/?type=tap-trading',
+    route: '/predict-master/?type=tap-trading&productPath=trade-center%2Ftap-trading',
     predictType: 'tap-trading',
     icon: 'UPAL',
     actionText: '进入 Tap Trading'

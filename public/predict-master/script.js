@@ -14,7 +14,8 @@
     'tap-trading': 'Tap Trading'
   };
   const PREDICT_MASTER_PRODUCT_PATHS = {
-    'up-down': 'trade-center/up-down'
+    'up-down': 'trade-center/up-down',
+    'tap-trading': 'trade-center/tap-trading'
   };
   const PREDICT_MASTER_ACTIVITY_NAMES = {
     'football-worldcup': '预测'
