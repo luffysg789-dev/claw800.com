@@ -55,23 +55,16 @@ select {
 }
 
 .predict-master-header {
-  min-height: 76px;
+  min-height: 66px;
   display: grid;
-  grid-template-columns: 44px 1fr auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   padding: 14px clamp(14px, 3vw, 28px);
   background: var(--panel);
   border-bottom: 1px solid var(--line);
 }
 
-.predict-master-brand {
-  min-width: 0;
-  display: grid;
-  align-items: center;
-}
-
-.back-link,
 .predict-master-actions button {
   height: 42px;
   min-width: 42px;
@@ -90,8 +83,9 @@ select {
 .predict-master-actions {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: stretch;
   gap: 8px;
+  min-width: 0;
 }
 
 .predict-master-wallet {
@@ -107,6 +101,8 @@ select {
   font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .predict-master-wallet strong {
@@ -133,20 +129,6 @@ select {
   background: var(--panel-strong);
   color: var(--text);
   border-color: var(--line);
-}
-
-.predict-master-header h1 {
-  margin: 0;
-  font-size: 22px;
-  line-height: 1.2;
-  min-width: 0;
-}
-
-.predict-master-header p {
-  margin: 5px 0 0;
-  color: var(--muted);
-  font-size: 13px;
-  min-width: 0;
 }
 
 .predict-master-sdk-shell {
@@ -299,20 +281,18 @@ body.predict-master-product-spread .predict-master-header {
 
 @media (max-width: 640px) {
   .predict-master-header {
-    grid-template-columns: 40px 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 10px;
-    min-height: 70px;
+    min-height: 66px;
     padding: 12px;
   }
 
-  .back-link,
   .predict-master-actions button {
     height: 38px;
     min-width: 38px;
   }
 
   .predict-master-actions {
-    grid-column: 1 / -1;
     justify-content: stretch;
   }
 
@@ -325,13 +305,5 @@ body.predict-master-product-spread .predict-master-header {
   #predictMasterReloadBtn,
   #predictMasterRechargeBtn {
     padding: 0 10px;
-  }
-
-  .predict-master-header h1 {
-    font-size: 18px;
-  }
-
-  .predict-master-header p {
-    font-size: 12px;
   }
 }
