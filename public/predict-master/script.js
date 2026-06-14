@@ -40,6 +40,7 @@
   const rechargeCancelBtn = document.getElementById('predictMasterRechargeCancelBtn');
   const rechargeConfirmBtn = document.getElementById('predictMasterRechargeConfirmBtn');
   const rechargeAmount = document.getElementById('predictMasterRechargeAmount');
+  const rechargeError = document.getElementById('predictMasterRechargeError');
   const walletBalance = document.getElementById('predictMasterWalletBalance');
   let tradingApp = null;
   let tradingScriptUrl = '';
@@ -192,6 +193,7 @@
   }
 
   function openRechargeModal() {
+    setRechargeError('');
     if (!rechargeModal) {
       beginRechargePayment();
       return;
@@ -204,7 +206,15 @@
   }
 
   function closeRechargeModal() {
+    setRechargeError('');
     if (rechargeModal) rechargeModal.hidden = true;
+  }
+
+  function setRechargeError(message) {
+    if (!rechargeError) return;
+    const text = String(message || '').trim();
+    rechargeError.textContent = text;
+    rechargeError.hidden = !text;
   }
 
   function savePendingRechargePayment(payment) {
@@ -676,8 +686,15 @@
       const session = normalizeSession(currentSession) || (await getNexaSession());
       if (!session) return;
       const amount = String(rechargeAmount?.value || '').trim();
-      if (!amount || Number(amount) <= 0) throw new Error('请输入充值金额');
-      if (!Number.isFinite(Number(amount)) || Number(amount) < 1) throw new Error('充值金额必须大于 1 USDT');
+      if (!amount || Number(amount) <= 0) {
+        setRechargeError('请输入充值金额');
+        return;
+      }
+      if (!Number.isFinite(Number(amount)) || Number(amount) < 1) {
+        setRechargeError('充值金额必须大于 1 USDT');
+        return;
+      }
+      setRechargeError('');
       closeRechargeModal();
       setLoading('正在创建 Nexa 支付...');
       const response = await requestJson('/api/predict-master/payment/create', {
@@ -749,6 +766,7 @@
     });
   }
   if (rechargeAmount) {
+    rechargeAmount.addEventListener('input', () => setRechargeError(''));
     rechargeAmount.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') beginRechargePayment();
       if (event.key === 'Escape') closeRechargeModal();

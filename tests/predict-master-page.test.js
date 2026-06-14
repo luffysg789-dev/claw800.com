@@ -43,8 +43,8 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(html, /<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" \/>/);
   assert.match(html, /\/predict-master\/style\.css/);
   assert.match(html, /\/predict-master\/script\.js/);
-  assert.match(html, /\/predict-master\/style\.css\?v=20260614-16/);
-  assert.match(html, /\/predict-master\/script\.js\?v=20260614-16/);
+  assert.match(html, /\/predict-master\/style\.css\?v=20260615-01/);
+  assert.match(html, /\/predict-master\/script\.js\?v=20260615-01/);
   assert.doesNotMatch(html, /class="back-link"/);
   assert.doesNotMatch(html, /id="predictMasterTitle"/);
   assert.doesNotMatch(html, /id="predictMasterStatus"/);
@@ -58,6 +58,7 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(html, /id="predictMasterRechargeConfirmBtn"/);
   assert.match(html, /id="predictMasterRechargeCancelBtn"/);
   assert.match(html, /id="predictMasterRechargeAmount"/);
+  assert.match(html, /id="predictMasterRechargeError"/);
   assert.doesNotMatch(html, /<iframe/);
   assert.match(css, /\.predict-master-sdk-shell/);
   assert.match(css, /\.predict-master-sdk-app/);
@@ -75,6 +76,7 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.doesNotMatch(css, /height:\s*calc\(100vh - 70px\);/);
   assert.match(css, /\.predict-master-wallet/);
   assert.match(css, /\.predict-master-modal/);
+  assert.match(css, /\.predict-master-modal__error/);
   assert.match(css, /\.predict-master-sdk-shell\s+:is\(input,\s*textarea,\s*select\)/);
   assert.match(css, /font-size:\s*16px\s*!important;/);
   assert.match(css, /touch-action:\s*pan-y;/);
@@ -103,6 +105,9 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(script, /window\.addEventListener\('unhandledrejection'/);
   assert.match(script, /function openRechargeModal/);
   assert.match(script, /function closeRechargeModal/);
+  assert.match(script, /function setRechargeError/);
+  assert.match(script, /setRechargeError\('充值金额必须大于 1 USDT'\)/);
+  assert.match(script, /rechargeAmount\.addEventListener\('input'/);
   assert.match(script, /充值金额必须大于 1 USDT/);
   assert.match(script, /Number\(amount\) < 1/);
   assert.match(script, /function buildNexaPaymentUrl\(/);
