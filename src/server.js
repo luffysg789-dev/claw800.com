@@ -3511,7 +3511,7 @@ const DEFAULT_SKILLS_PAGE_INSTALL_PROMPT_EN = 'You are an OpenClaw skill install
 const GAME_ROUTE_MAP = {
   'predict-master': '/predict-master/?type=trading',
   'predict-master-contract': '/predict-master/?type=contract',
-  'predict-master-up-down': '/predict-master/?type=up-down',
+  'predict-master-up-down': '/predict-master/?type=up-down&productPath=trade-center%2Fup-down',
   'predict-master-spread': '/predict-master/?type=spread',
   'predict-master-tap-trading': '/predict-master/?type=tap-trading',
   'predict-master-football-worldcup': '/predict-master/?type=trading&activity=football-worldcup',

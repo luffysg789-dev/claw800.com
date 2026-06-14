@@ -42,7 +42,7 @@ const DEFAULT_GAMES = [
     is_enabled: 1,
     showInGamesHub: 1,
     sort_order: 63,
-    route: '/predict-master/?type=up-down',
+    route: '/predict-master/?type=up-down&productPath=trade-center%2Fup-down',
     predictType: 'up-down',
     icon: 'UPAL',
     actionText: '进入涨跌'

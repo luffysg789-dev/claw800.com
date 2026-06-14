@@ -12,7 +12,7 @@ test('games config includes Predict Master card defaults', () => {
   const entries = [
     ['predict-master', '高低期权', '/predict-master/?type=trading', 'trading'],
     ['predict-master-contract', '合约', '/predict-master/?type=contract', 'contract'],
-    ['predict-master-up-down', '涨跌', '/predict-master/?type=up-down', 'up-down'],
+    ['predict-master-up-down', '涨跌', '/predict-master/?type=up-down&productPath=trade-center%2Fup-down', 'up-down'],
     ['predict-master-spread', '点差', '/predict-master/?type=spread', 'spread'],
     ['predict-master-tap-trading', 'Tap Trading', '/predict-master/?type=tap-trading', 'tap-trading'],
     ['predict-master-football-worldcup', '预测', '/predict-master/?type=trading&activity=football-worldcup', 'trading']
@@ -87,13 +87,18 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(script, /accessCode:\s*data\.accessCode/);
   assert.match(script, /const PREDICT_MASTER_ALLOWED_TYPES = /);
   assert.match(script, /const PREDICT_MASTER_PRODUCT_NAMES = /);
+  assert.match(script, /const PREDICT_MASTER_PRODUCT_PATHS = /);
   assert.match(script, /function getPredictMasterActivity\(\)/);
+  assert.match(script, /function getPredictMasterProductPath\(\)/);
+  assert.match(script, /function buildPredictMasterProductUrl\(/);
   assert.match(script, /function getPredictMasterProductName\(\)/);
   assert.match(script, /function applyPredictMasterProductTitle\(\)/);
   assert.match(script, /function applyPredictMasterBodyState\(\)/);
   assert.match(script, /predict-master-product-\$\{type\}/);
   assert.match(script, /function getPredictMasterRenderType\(\)/);
   assert.match(script, /type:\s*getPredictMasterRenderType\(\)/);
+  assert.match(script, /productPath:\s*productPath \|\| undefined/);
+  assert.match(script, /productUrl:\s*productUrl \|\| undefined/);
   assert.match(script, /activity:\s*getPredictMasterActivity\(\) \|\| undefined/);
   assert.doesNotMatch(script, /frame\.src\s*=/);
 });

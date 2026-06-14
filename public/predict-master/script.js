@@ -13,6 +13,9 @@
     spread: '点差',
     'tap-trading': 'Tap Trading'
   };
+  const PREDICT_MASTER_PRODUCT_PATHS = {
+    'up-down': 'trade-center/up-down'
+  };
   const PREDICT_MASTER_ACTIVITY_NAMES = {
     'football-worldcup': '预测'
   };
@@ -207,6 +210,41 @@
     }
   }
 
+  function normalizePredictMasterProductPath(value) {
+    const path = String(value || '').trim().replace(/^\/+/, '');
+    if (!path) return '';
+    if (/^https?:\/\//i.test(path)) {
+      try {
+        return new URL(path).pathname.replace(/^\/+/, '');
+      } catch {
+        return '';
+      }
+    }
+    return path;
+  }
+
+  function getPredictMasterProductPath() {
+    try {
+      const params = new URL(window.location.href).searchParams;
+      return (
+        normalizePredictMasterProductPath(params.get('productPath')) ||
+        PREDICT_MASTER_PRODUCT_PATHS[getPredictMasterRenderType()] ||
+        ''
+      );
+    } catch {
+      return PREDICT_MASTER_PRODUCT_PATHS[getPredictMasterRenderType()] || '';
+    }
+  }
+
+  function buildPredictMasterProductUrl(entry, productPath) {
+    if (!entry || !productPath) return '';
+    try {
+      return new URL(productPath.replace(/^\/+/, ''), `${entry.replace(/\/+$/, '')}/`).href;
+    } catch {
+      return '';
+    }
+  }
+
   function getPredictMasterProductName() {
     const activity = getPredictMasterActivity();
     if (activity && PREDICT_MASTER_ACTIVITY_NAMES[activity]) return PREDICT_MASTER_ACTIVITY_NAMES[activity];
@@ -276,10 +314,14 @@
     setLoading('正在加载预测市场 SDK...');
     await loadTradingScript(entry);
     unloadTradingApp();
+    const productPath = getPredictMasterProductPath();
+    const productUrl = buildPredictMasterProductUrl(entry, productPath);
     tradingApp = new Trading({ container: sdkApp });
     tradingApp.render({
       accessCode: data.accessCode,
       type: getPredictMasterRenderType(),
+      productPath: productPath || undefined,
+      productUrl: productUrl || undefined,
       activity: getPredictMasterActivity() || undefined,
       theme: 'darken',
       sound: false,

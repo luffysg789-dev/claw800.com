@@ -123,7 +123,7 @@ test('predict-master is seeded in the games catalog and routes to its page', asy
     const expectedRoutes = new Map([
       ['predict-master', ['/predict-master/?type=trading', '高低期权']],
       ['predict-master-contract', ['/predict-master/?type=contract', '合约']],
-      ['predict-master-up-down', ['/predict-master/?type=up-down', '涨跌']],
+      ['predict-master-up-down', ['/predict-master/?type=up-down&productPath=trade-center%2Fup-down', '涨跌']],
       ['predict-master-spread', ['/predict-master/?type=spread', '点差']],
       ['predict-master-tap-trading', ['/predict-master/?type=tap-trading', 'Tap Trading']],
       ['predict-master-football-worldcup', ['/predict-master/?type=trading&activity=football-worldcup', '预测']]
