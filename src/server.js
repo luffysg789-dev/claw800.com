@@ -3514,7 +3514,7 @@ const GAME_ROUTE_MAP = {
   'predict-master-up-down': '/predict-master/?type=up-down&productPath=trade-center%2Fup-down',
   'predict-master-spread': '/predict-master/?type=spread',
   'predict-master-tap-trading': '/predict-master/?type=tap-trading&productPath=trade-center%2Ftap-trading',
-  'predict-master-football-worldcup': '/predict-master/?type=trading&activity=football-worldcup',
+  'predict-master-football-worldcup': '/predict-master/?type=trading&activity=football-worldcup&productPath=dashboard%2Fpredict%2Fsports',
   'u-card-query': '/u-card-query/',
   'u-card': '/u',
   'nchat': '/nchat/',

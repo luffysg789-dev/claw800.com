@@ -15,7 +15,8 @@
   };
   const PREDICT_MASTER_PRODUCT_PATHS = {
     'up-down': 'trade-center/up-down',
-    'tap-trading': 'trade-center/tap-trading'
+    'tap-trading': 'trade-center/tap-trading',
+    'football-worldcup': 'dashboard/predict/sports'
   };
   const PREDICT_MASTER_ACTIVITY_NAMES = {
     'football-worldcup': '预测'
@@ -229,11 +230,12 @@
       const params = new URL(window.location.href).searchParams;
       return (
         normalizePredictMasterProductPath(params.get('productPath')) ||
+        PREDICT_MASTER_PRODUCT_PATHS[getPredictMasterActivity()] ||
         PREDICT_MASTER_PRODUCT_PATHS[getPredictMasterRenderType()] ||
         ''
       );
     } catch {
-      return PREDICT_MASTER_PRODUCT_PATHS[getPredictMasterRenderType()] || '';
+      return PREDICT_MASTER_PRODUCT_PATHS[getPredictMasterActivity()] || PREDICT_MASTER_PRODUCT_PATHS[getPredictMasterRenderType()] || '';
     }
   }
 

@@ -126,7 +126,10 @@ test('predict-master is seeded in the games catalog and routes to its page', asy
       ['predict-master-up-down', ['/predict-master/?type=up-down&productPath=trade-center%2Fup-down', '涨跌']],
       ['predict-master-spread', ['/predict-master/?type=spread', '点差']],
       ['predict-master-tap-trading', ['/predict-master/?type=tap-trading&productPath=trade-center%2Ftap-trading', 'Tap Trading']],
-      ['predict-master-football-worldcup', ['/predict-master/?type=trading&activity=football-worldcup', '预测']]
+      [
+        'predict-master-football-worldcup',
+        ['/predict-master/?type=trading&activity=football-worldcup&productPath=dashboard%2Fpredict%2Fsports', '预测']
+      ]
     ]);
     const expectedActionText = new Map([
       ['predict-master', '进入高低期权'],
