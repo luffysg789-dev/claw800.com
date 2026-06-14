@@ -568,7 +568,6 @@ function gameCardMarkup(item) {
 function getVisibleGames(items) {
   return items.filter((item) => {
     const slug = String(item?.slug || '').trim();
-    if (isPredictMasterGame(slug) && !isNexaAppEnvironment()) return false;
     return item.is_enabled && slug !== 'xiangqi' && slug !== 'u-card' && item.showInGamesHub !== 0;
   });
 }
