@@ -83,6 +83,10 @@ const predictMasterOrdersSection = document.getElementById('predictMasterOrdersS
 const predictMasterOrdersRefreshBtn = document.getElementById('predictMasterOrdersRefreshBtn');
 const predictMasterOrdersMessage = document.getElementById('predictMasterOrdersMessage');
 const predictMasterOrdersList = document.getElementById('predictMasterOrdersList');
+const predictMasterRechargeOrdersSection = document.getElementById('predictMasterRechargeOrdersSection');
+const predictMasterRechargeOrdersRefreshBtn = document.getElementById('predictMasterRechargeOrdersRefreshBtn');
+const predictMasterRechargeOrdersMessage = document.getElementById('predictMasterRechargeOrdersMessage');
+const predictMasterRechargeOrdersList = document.getElementById('predictMasterRechargeOrdersList');
 const predictMasterWalletTransactionsSection = document.getElementById('predictMasterWalletTransactionsSection');
 const predictMasterWalletTransactionsRefreshBtn = document.getElementById('predictMasterWalletTransactionsRefreshBtn');
 const predictMasterWalletTransactionsMessage = document.getElementById('predictMasterWalletTransactionsMessage');
@@ -301,6 +305,7 @@ const texts = {
     navPredictMasterCallbackLogs: '预测上游回调日志',
     navNexaPaymentUpstreamLogs: 'Nexa 支付上游日志',
     navPredictMasterOrders: '预测订单',
+    navPredictMasterRechargeOrders: '预测充值订单',
     navPredictMasterWalletTransactions: '预测资金流水',
     navPredictMasterWithdrawals: '预测提现审核',
     navPredictMasterShares: '预测仓位记录',
@@ -511,6 +516,10 @@ const texts = {
     predictMasterOrdersRefreshBtn: '刷新',
     predictMasterOrdersEmpty: '暂无预测订单。',
     predictMasterOrdersLoadFailed: '预测订单加载失败。',
+    predictMasterRechargeOrdersTitle: '预测充值订单',
+    predictMasterRechargeOrdersRefreshBtn: '刷新',
+    predictMasterRechargeOrdersEmpty: '暂无预测充值订单。',
+    predictMasterRechargeOrdersLoadFailed: '预测充值订单加载失败。',
     predictMasterWalletTransactionsTitle: '预测资金流水',
     predictMasterWalletTransactionsRefreshBtn: '刷新',
     predictMasterWalletTransactionsEmpty: '暂无预测资金流水。',
@@ -726,6 +735,7 @@ const texts = {
     navPredictMasterCallbackLogs: 'Predict Callback Logs',
     navNexaPaymentUpstreamLogs: 'Nexa Payment Upstream Logs',
     navPredictMasterOrders: 'Predict Orders',
+    navPredictMasterRechargeOrders: 'Predict Recharge Orders',
     navPredictMasterWalletTransactions: 'Predict Wallet Ledger',
     navPredictMasterWithdrawals: 'Predict Withdrawals',
     navPredictMasterShares: 'Predict Positions',
@@ -936,6 +946,10 @@ const texts = {
     predictMasterOrdersRefreshBtn: 'Refresh',
     predictMasterOrdersEmpty: 'No predict orders yet.',
     predictMasterOrdersLoadFailed: 'Failed to load predict orders.',
+    predictMasterRechargeOrdersTitle: 'Predict Recharge Orders',
+    predictMasterRechargeOrdersRefreshBtn: 'Refresh',
+    predictMasterRechargeOrdersEmpty: 'No predict recharge orders yet.',
+    predictMasterRechargeOrdersLoadFailed: 'Failed to load predict recharge orders.',
     predictMasterWalletTransactionsTitle: 'Predict Wallet Ledger',
     predictMasterWalletTransactionsRefreshBtn: 'Refresh',
     predictMasterWalletTransactionsEmpty: 'No predict wallet ledger yet.',
@@ -1465,6 +1479,7 @@ function applyLanguage() {
   document.getElementById('navPredictMasterCallbackLogs').textContent = dict.navPredictMasterCallbackLogs;
   document.getElementById('navNexaPaymentUpstreamLogs').textContent = dict.navNexaPaymentUpstreamLogs;
   document.getElementById('navPredictMasterOrders').textContent = dict.navPredictMasterOrders;
+  document.getElementById('navPredictMasterRechargeOrders').textContent = dict.navPredictMasterRechargeOrders;
   document.getElementById('navPredictMasterWalletTransactions').textContent = dict.navPredictMasterWalletTransactions;
   document.getElementById('navPredictMasterWithdrawals').textContent = dict.navPredictMasterWithdrawals;
   document.getElementById('navPredictMasterShares').textContent = dict.navPredictMasterShares;
@@ -1612,6 +1627,9 @@ function applyLanguage() {
   document.getElementById('nexaPaymentUpstreamLogsRefreshBtn').textContent = dict.nexaPaymentUpstreamLogsRefreshBtn;
   document.getElementById('predictMasterOrdersTitle').textContent = dict.predictMasterOrdersTitle;
   document.getElementById('predictMasterOrdersRefreshBtn').textContent = dict.predictMasterOrdersRefreshBtn;
+  document.getElementById('predictMasterRechargeOrdersTitle').textContent = dict.predictMasterRechargeOrdersTitle;
+  document.getElementById('predictMasterRechargeOrdersRefreshBtn').textContent =
+    dict.predictMasterRechargeOrdersRefreshBtn;
   document.getElementById('predictMasterWalletTransactionsTitle').textContent = dict.predictMasterWalletTransactionsTitle;
   document.getElementById('predictMasterWalletTransactionsRefreshBtn').textContent = dict.predictMasterWalletTransactionsRefreshBtn;
   document.getElementById('predictMasterWithdrawalsTitle').textContent = dict.predictMasterWithdrawalsTitle;
@@ -1709,6 +1727,7 @@ function setView(view) {
   predictMasterClientErrorLogsSection.classList.toggle('hidden', view !== 'predict-master-client-error-logs');
   nexaPaymentUpstreamLogsSection.classList.toggle('hidden', view !== 'nexa-payment-upstream-logs');
   predictMasterOrdersSection.classList.toggle('hidden', view !== 'predict-master-orders');
+  predictMasterRechargeOrdersSection.classList.toggle('hidden', view !== 'predict-master-recharge-orders');
   predictMasterWalletTransactionsSection.classList.toggle('hidden', view !== 'predict-master-wallet-transactions');
   predictMasterWithdrawalsSection.classList.toggle('hidden', view !== 'predict-master-withdrawals');
   predictMasterSharesSection.classList.toggle('hidden', view !== 'predict-master-shares');
@@ -1754,6 +1773,9 @@ function setView(view) {
   }
   if (view === 'predict-master-orders') {
     loadPredictMasterOrders();
+  }
+  if (view === 'predict-master-recharge-orders') {
+    loadPredictMasterRechargeOrders();
   }
   if (view === 'predict-master-wallet-transactions') {
     loadPredictMasterWalletTransactions();
@@ -3380,6 +3402,28 @@ function renderPredictMasterOrders(items = []) {
     .join('');
 }
 
+function renderPredictMasterRechargeOrders(items = []) {
+  if (!predictMasterRechargeOrdersList) return;
+  if (!Array.isArray(items) || !items.length) {
+    predictMasterRechargeOrdersList.innerHTML = `<p class="empty">${escapeHtml(t('predictMasterRechargeOrdersEmpty'))}</p>`;
+    return;
+  }
+
+  predictMasterRechargeOrdersList.innerHTML = items
+    .map(
+      (item) => `
+        <article class="review-card">
+          <h3>${escapeHtml(item.orderNo || '预测充值订单')} · ${escapeHtml(item.displayStatus || item.status || '-')}</h3>
+          <p class="small">Nexa 订单号: ${escapeHtml(item.orderNo || '-')} · 我方订单号: ${escapeHtml(item.partnerOrderNo || '-')}</p>
+          <p class="small">用户 ID: ${escapeHtml(item.externalUserId || item.openId || '-')} · 用户名: ${escapeHtml(item.nickname || '-')}</p>
+          <p class="small">金额: ${escapeHtml(item.amount || '0.00')} ${escapeHtml(item.currency || 'USDT')} · 状态: ${escapeHtml(item.status || '-')}</p>
+          <p class="small">创建: ${escapeHtml(formatAdminLocalDateTime(item.createdAt))} · 支付: ${escapeHtml(formatAdminLocalDateTime(item.paidAt) || '-')} · 入账: ${escapeHtml(formatAdminLocalDateTime(item.settledAt) || '-')}</p>
+        </article>
+      `
+    )
+    .join('');
+}
+
 function renderPredictMasterWalletTransactions(items = []) {
   if (!predictMasterWalletTransactionsList) return;
   if (!Array.isArray(items) || !items.length) {
@@ -3489,6 +3533,16 @@ function loadPredictMasterOrders() {
     endpoint: '/api/admin/predict-master-orders',
     render: renderPredictMasterOrders,
     loadFailedKey: 'predictMasterOrdersLoadFailed'
+  });
+}
+
+function loadPredictMasterRechargeOrders() {
+  return loadPredictMasterList({
+    list: predictMasterRechargeOrdersList,
+    message: predictMasterRechargeOrdersMessage,
+    endpoint: '/api/admin/predict-master-recharge-orders',
+    render: renderPredictMasterRechargeOrders,
+    loadFailedKey: 'predictMasterRechargeOrdersLoadFailed'
   });
 }
 
@@ -5986,6 +6040,9 @@ document
 document.getElementById('navNexaPaymentUpstreamLogs').addEventListener('click', () => setView('nexa-payment-upstream-logs'));
 document.getElementById('navPredictMasterOrders').addEventListener('click', () => setView('predict-master-orders'));
 document
+  .getElementById('navPredictMasterRechargeOrders')
+  .addEventListener('click', () => setView('predict-master-recharge-orders'));
+document
   .getElementById('navPredictMasterWalletTransactions')
   .addEventListener('click', () => setView('predict-master-wallet-transactions'));
 document.getElementById('navPredictMasterWithdrawals').addEventListener('click', () => setView('predict-master-withdrawals'));
@@ -6026,6 +6083,9 @@ if (nexaPaymentUpstreamLogsRefreshBtn) {
 }
 if (predictMasterOrdersRefreshBtn) {
   predictMasterOrdersRefreshBtn.addEventListener('click', () => loadPredictMasterOrders());
+}
+if (predictMasterRechargeOrdersRefreshBtn) {
+  predictMasterRechargeOrdersRefreshBtn.addEventListener('click', () => loadPredictMasterRechargeOrders());
 }
 if (predictMasterWalletTransactionsRefreshBtn) {
   predictMasterWalletTransactionsRefreshBtn.addEventListener('click', () => loadPredictMasterWalletTransactions());

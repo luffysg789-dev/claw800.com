@@ -594,6 +594,40 @@ test('admin can view recent predict-master operational records', async () => {
   }
 });
 
+test('admin can view predict-master recharge orders', async () => {
+  const harness = createHarness();
+
+  try {
+    const cookies = await harness.adminCookies();
+    const user = harness.db
+      .prepare("INSERT INTO game_users (openid, nickname, avatar) VALUES (?, 'Recharge User', '')")
+      .run('nexa-recharge-admin-user');
+    harness.db
+      .prepare(
+        `INSERT INTO detrade_recharge_orders (
+          order_no, partner_order_no, user_id, external_user_id, amount, currency, status, paid_at, settled_at
+        ) VALUES (?, ?, ?, ?, ?, 'USDT', 'SUCCESS', datetime('now'), datetime('now'))`
+      )
+      .run('T-admin-recharge-1', 'pm-admin-recharge-1', user.lastInsertRowid, 'nexa-recharge-admin-user', '12.50');
+
+    const response = await harness.request('GET', '/api/admin/predict-master-recharge-orders', null, { cookies });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.ok, true);
+    assert.equal(response.body.items.length, 1);
+    assert.equal(response.body.items[0].orderNo, 'T-admin-recharge-1');
+    assert.equal(response.body.items[0].partnerOrderNo, 'pm-admin-recharge-1');
+    assert.equal(response.body.items[0].externalUserId, 'nexa-recharge-admin-user');
+    assert.equal(response.body.items[0].nickname, 'Recharge User');
+    assert.equal(response.body.items[0].amount, '12.50');
+    assert.equal(response.body.items[0].currency, 'USDT');
+    assert.equal(response.body.items[0].status, 'SUCCESS');
+    assert.equal(response.body.items[0].displayStatus, '完成');
+  } finally {
+    harness.cleanup();
+  }
+});
+
 test('predict-master login url requires Nexa session identity', async () => {
   const harness = createHarness();
 

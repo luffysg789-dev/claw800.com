@@ -9742,6 +9742,27 @@ const listDetradeRechargeRecordsByUserStmt = db.prepare(`
   ORDER BY created_at DESC, order_no DESC
   LIMIT ?
 `);
+const listDetradeRechargeOrdersStmt = db.prepare(`
+  SELECT
+    r.order_no,
+    r.partner_order_no,
+    r.user_id,
+    r.external_user_id,
+    r.amount,
+    r.currency,
+    r.status,
+    r.paid_at,
+    r.settled_at,
+    r.created_at,
+    r.updated_at,
+    u.openid,
+    u.nickname,
+    u.avatar
+  FROM detrade_recharge_orders r
+  LEFT JOIN game_users u ON u.id = r.user_id
+  ORDER BY r.created_at DESC, r.order_no DESC
+  LIMIT ?
+`);
 const insertDetradeWithdrawalStmt = db.prepare(`
   INSERT INTO detrade_withdrawals (
     withdraw_no, user_id, external_user_id, amount, currency, status
@@ -10540,8 +10561,30 @@ function formatPredictMasterRechargeRecord(row = {}) {
   };
 }
 
+function formatPredictMasterRechargeOrder(row = {}) {
+  const status = String(row.status || 'PENDING').trim() || 'PENDING';
+  return {
+    orderNo: String(row.order_no || ''),
+    partnerOrderNo: String(row.partner_order_no || ''),
+    userId: Number(row.user_id || 0) || 0,
+    openId: String(row.openid || row.external_user_id || ''),
+    externalUserId: String(row.external_user_id || row.openid || ''),
+    nickname: String(row.nickname || ''),
+    avatar: String(row.avatar || ''),
+    amount: String(row.amount || '0.00'),
+    currency: String(row.currency || 'USDT'),
+    status,
+    displayStatus: getPredictMasterRechargeDisplayStatus(status),
+    paidAt: String(row.paid_at || ''),
+    settledAt: String(row.settled_at || ''),
+    createdAt: String(row.created_at || ''),
+    updatedAt: String(row.updated_at || '')
+  };
+}
+
 function formatPredictMasterWithdrawalRecord(row = {}) {
   const status = String(row.status || 'review_pending').trim() || 'review_pending';
+  const statusRank = status.toLowerCase() === 'success' ? 3 : 2;
   return {
     type: 'withdraw',
     id: String(row.withdraw_no || ''),
@@ -10555,7 +10598,7 @@ function formatPredictMasterWithdrawalRecord(row = {}) {
     createdAt: String(row.created_at || ''),
     finishedAt: String(row.finished_at || ''),
     sortKey: String(row.created_at || ''),
-    sortRank: 2
+    sortRank: statusRank
   };
 }
 
@@ -13430,6 +13473,13 @@ app.get('/api/admin/predict-master-orders', requireAdmin, (req, res) => {
   const limitRaw = Number(req.query?.limit || 100);
   const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
   const items = listDetradeOrderPushesStmt.all(limit).map(formatDetradeOrderPush);
+  res.json({ ok: true, items });
+});
+
+app.get('/api/admin/predict-master-recharge-orders', requireAdmin, (req, res) => {
+  const limitRaw = Number(req.query?.limit || 100);
+  const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
+  const items = listDetradeRechargeOrdersStmt.all(limit).map(formatPredictMasterRechargeOrder);
   res.json({ ok: true, items });
 });
 
