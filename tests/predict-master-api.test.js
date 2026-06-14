@@ -128,7 +128,7 @@ test('predict-master is seeded in the games catalog and routes to its page', asy
       ['predict-master-tap-trading', ['/predict-master/?type=tap-trading&productPath=trade-center%2Ftap-trading', 'Tap Trading']],
       [
         'predict-master-football-worldcup',
-        ['/predict-master/?type=trading&activity=football-worldcup&productPath=dashboard%2Fpredict%2Fsports', '预测']
+        ['/predict-master/?type=predict&activity=football-worldcup&productPath=dashboard%2Fpredict%2Fsports', '预测']
       ]
     ]);
     const expectedActionText = new Map([

@@ -90,8 +90,8 @@ const DEFAULT_GAMES = [
     is_enabled: 1,
     showInGamesHub: 1,
     sort_order: 60,
-    route: '/predict-master/?type=trading&activity=football-worldcup&productPath=dashboard%2Fpredict%2Fsports',
-    predictType: 'trading',
+    route: '/predict-master/?type=predict&activity=football-worldcup&productPath=dashboard%2Fpredict%2Fsports',
+    predictType: 'predict',
     icon: 'UPAL',
     actionText: '进入预测'
   },

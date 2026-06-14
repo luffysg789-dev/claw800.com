@@ -18,8 +18,8 @@ test('games config includes Predict Master card defaults', () => {
     [
       'predict-master-football-worldcup',
       '预测',
-      '/predict-master/?type=trading&activity=football-worldcup&productPath=dashboard%2Fpredict%2Fsports',
-      'trading'
+      '/predict-master/?type=predict&activity=football-worldcup&productPath=dashboard%2Fpredict%2Fsports',
+      'predict'
     ]
   ];
   for (const [slug, name, route, type] of entries) {

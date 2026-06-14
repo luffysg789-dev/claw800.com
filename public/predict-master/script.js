@@ -5,18 +5,20 @@
   const NEXA_SESSION_ENDPOINT = '/api/nexa/tip/session';
   const PREDICT_MASTER_SESSION_STORAGE_KEY = 'claw800:predict-master:nexa-session';
   const PREDICT_MASTER_PENDING_PAYMENT_STORAGE_KEY = 'claw800:predict-master:pending-payment';
-  const PREDICT_MASTER_ALLOWED_TYPES = ['trading', 'contract', 'up-down', 'spread', 'tap-trading'];
+  const PREDICT_MASTER_ALLOWED_TYPES = ['trading', 'contract', 'up-down', 'spread', 'tap-trading', 'predict'];
   const PREDICT_MASTER_PRODUCT_NAMES = {
     trading: '高低期权',
     contract: '合约',
     'up-down': '涨跌',
     spread: '点差',
-    'tap-trading': 'Tap Trading'
+    'tap-trading': 'Tap Trading',
+    predict: '预测'
   };
   const PREDICT_MASTER_PRODUCT_PATHS = {
     'up-down': 'trade-center/up-down',
     'tap-trading': 'trade-center/tap-trading',
-    'football-worldcup': 'dashboard/predict/sports'
+    'football-worldcup': 'dashboard/predict/sports',
+    predict: 'dashboard/predict/sports'
   };
   const PREDICT_MASTER_ACTIVITY_NAMES = {
     'football-worldcup': '预测'
