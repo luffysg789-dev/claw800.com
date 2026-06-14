@@ -214,12 +214,19 @@
     }
   }
 
+  function isNexaAppEnvironment() {
+    const userAgent = String(window.navigator?.userAgent || '').trim();
+    const referrer = String(document.referrer || '').trim();
+    return /nexa/i.test(userAgent) || /nexa/i.test(referrer);
+  }
+
   function isPredictMasterDevAuthEnabled() {
     try {
       const params = new URL(window.location.href).searchParams;
-      return params.get('devAuth') === '1' || params.get('desktopTest') === '1';
+      if (params.get('devAuth') === '0' || params.get('desktopTest') === '0') return false;
+      return !isNexaAppEnvironment() || params.get('devAuth') === '1' || params.get('desktopTest') === '1';
     } catch {
-      return false;
+      return !isNexaAppEnvironment();
     }
   }
 
