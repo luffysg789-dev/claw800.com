@@ -43,8 +43,8 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(html, /<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" \/>/);
   assert.match(html, /\/predict-master\/style\.css/);
   assert.match(html, /\/predict-master\/script\.js/);
-  assert.match(html, /\/predict-master\/style\.css\?v=20260614-15/);
-  assert.match(html, /\/predict-master\/script\.js\?v=20260614-15/);
+  assert.match(html, /\/predict-master\/style\.css\?v=20260614-16/);
+  assert.match(html, /\/predict-master\/script\.js\?v=20260614-16/);
   assert.doesNotMatch(html, /class="back-link"/);
   assert.doesNotMatch(html, /id="predictMasterTitle"/);
   assert.doesNotMatch(html, /id="predictMasterStatus"/);
@@ -103,6 +103,8 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(script, /window\.addEventListener\('unhandledrejection'/);
   assert.match(script, /function openRechargeModal/);
   assert.match(script, /function closeRechargeModal/);
+  assert.match(script, /充值金额必须大于 1 USDT/);
+  assert.match(script, /Number\(amount\) < 1/);
   assert.match(script, /function buildNexaPaymentUrl\(/);
   assert.match(script, /launchNexaUrl\(buildNexaPaymentUrl\(response\.payment\)\)/);
   assert.match(script, /PREDICT_MASTER_PENDING_PAYMENT_STORAGE_KEY/);

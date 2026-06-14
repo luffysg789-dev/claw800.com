@@ -1222,3 +1222,20 @@ test('predict-master compatibility mode falls back to documented Nexa payment pa
     harness.cleanup();
   }
 });
+
+test('predict-master recharge rejects amounts below 1 USDT', async () => {
+  const harness = createHarness();
+
+  try {
+    const create = await harness.request('POST', '/api/predict-master/payment/create', {
+      openId: 'nexa-open-id-small-recharge',
+      sessionKey: 'nexa-session-key-small-recharge',
+      amount: '0.1'
+    });
+
+    assert.equal(create.statusCode, 400);
+    assert.equal(create.body.error, '充值金额必须大于 1 USDT');
+  } finally {
+    harness.cleanup();
+  }
+});

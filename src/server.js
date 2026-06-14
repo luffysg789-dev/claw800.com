@@ -988,8 +988,13 @@ async function queryNexaTipOrder(orderNo) {
 
 function normalizePredictMasterRechargeAmount(value) {
   const amountCents = parseMoneyToCents(String(value || '').trim());
-  if (amountCents < PREDICT_MASTER_RECHARGE_MIN_CENTS || amountCents > PREDICT_MASTER_RECHARGE_MAX_CENTS) {
-    const error = new Error('充值金额需在 1 到 100000 USDT 之间');
+  if (amountCents < PREDICT_MASTER_RECHARGE_MIN_CENTS) {
+    const error = new Error('充值金额必须大于 1 USDT');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (amountCents > PREDICT_MASTER_RECHARGE_MAX_CENTS) {
+    const error = new Error('充值金额不能超过 100000 USDT');
     error.statusCode = 400;
     throw error;
   }

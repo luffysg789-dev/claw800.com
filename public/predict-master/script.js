@@ -677,6 +677,7 @@
       if (!session) return;
       const amount = String(rechargeAmount?.value || '').trim();
       if (!amount || Number(amount) <= 0) throw new Error('请输入充值金额');
+      if (!Number.isFinite(Number(amount)) || Number(amount) < 1) throw new Error('充值金额必须大于 1 USDT');
       closeRechargeModal();
       setLoading('正在创建 Nexa 支付...');
       const response = await requestJson('/api/predict-master/payment/create', {
