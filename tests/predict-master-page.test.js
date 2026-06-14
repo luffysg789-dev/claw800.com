@@ -94,6 +94,7 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(script, /const PREDICT_MASTER_PRODUCT_NAMES = /);
   assert.match(script, /const PREDICT_MASTER_PRODUCT_PATHS = /);
   assert.match(script, /function getPredictMasterActivity\(\)/);
+  assert.match(script, /function isPredictMasterDevAuthEnabled\(\)/);
   assert.match(script, /function getPredictMasterProductPath\(\)/);
   assert.match(script, /function buildPredictMasterProductUrl\(/);
   assert.match(script, /function getPredictMasterProductName\(\)/);
@@ -105,6 +106,7 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(script, /productPath:\s*productPath \|\| undefined/);
   assert.match(script, /productUrl:\s*productUrl \|\| undefined/);
   assert.match(script, /activity:\s*getPredictMasterActivity\(\) \|\| undefined/);
+  assert.match(script, /devAuth:\s*devAuth \|\| undefined/);
   assert.doesNotMatch(script, /frame\.src\s*=/);
 });
 

@@ -212,6 +212,15 @@
     }
   }
 
+  function isPredictMasterDevAuthEnabled() {
+    try {
+      const params = new URL(window.location.href).searchParams;
+      return params.get('devAuth') === '1' || params.get('desktopTest') === '1';
+    } catch {
+      return false;
+    }
+  }
+
   function normalizePredictMasterProductPath(value) {
     const path = String(value || '').trim().replace(/^\/+/, '');
     if (!path) return '';
@@ -487,17 +496,23 @@
     unloadTradingApp();
 
     try {
-      const session = await getNexaSession();
-      if (!session) return;
-      await checkPendingRechargePayment();
-      await refreshWalletBalance(session);
+      const devAuth = isPredictMasterDevAuthEnabled();
+      const session = devAuth ? null : await getNexaSession();
+      if (!devAuth && !session) return;
+      if (!devAuth) {
+        await checkPendingRechargePayment();
+        await refreshWalletBalance(session);
+      } else {
+        setWalletBalance('测试');
+      }
       const data = await requestJson('/api/predict-master/login-url', {
         method: 'POST',
         body: JSON.stringify({
-          openId: session.openId,
-          sessionKey: session.sessionKey,
-          nickname: session.nickname,
-          avatar: session.avatar
+          openId: session?.openId,
+          sessionKey: session?.sessionKey,
+          nickname: session?.nickname,
+          avatar: session?.avatar,
+          devAuth: devAuth || undefined
         })
       });
       await renderTradingSdk(data);

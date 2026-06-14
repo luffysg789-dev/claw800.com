@@ -567,6 +567,76 @@ test('predict-master login url requires Nexa session identity', async () => {
   }
 });
 
+test('predict-master login url allows explicit desktop dev auth with configured test user', async () => {
+  const harness = createHarness();
+  const { privateKey } = crypto.generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    publicKeyEncoding: { type: 'spki', format: 'pem' }
+  });
+  let upstreamRequest;
+
+  try {
+    const cookies = await harness.adminCookies();
+    await harness.request(
+      'PUT',
+      '/api/admin/predict-master-config',
+      {
+        baseUrl: 'https://detrade.example/',
+        apiKey: 'predict-api-key',
+        privateKey,
+        userId: '1727404213474304',
+        username: 'Yxxvz',
+        avatar: 'https://example.com/avatar.png',
+        currency: 'USDT',
+        exchangeRate: '1'
+      },
+      { cookies }
+    );
+
+    harness.setFetch(async (url, options) => {
+      upstreamRequest = { url, options };
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            code: 0,
+            data: {
+              url: 'https://detrade.example/embed?accessCode=dev',
+              accessCode: 'dev'
+            }
+          };
+        },
+        async text() {
+          return JSON.stringify({
+            code: 0,
+            data: { url: 'https://detrade.example/embed?accessCode=dev', accessCode: 'dev' }
+          });
+        }
+      };
+    });
+
+    const response = await harness.request('POST', '/api/predict-master/login-url', {
+      devAuth: true
+    });
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.ok, true);
+    assert.equal(response.body.devAuth, true);
+
+    const payload = JSON.parse(upstreamRequest.options.body);
+    assert.deepEqual(payload, {
+      userId: '1727404213474304',
+      username: 'Yxxvz',
+      avatar: 'https://example.com/avatar.png',
+      currency: 'USDT',
+      exchangeRate: 1
+    });
+  } finally {
+    harness.cleanup();
+  }
+});
+
 test('predict-master login url posts signed Detrade login request with Nexa openId', async () => {
   const harness = createHarness();
   const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {

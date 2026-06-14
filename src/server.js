@@ -6977,22 +6977,28 @@ app.post('/api/predict-master/login-url', async (req, res) => {
     const sessionKey = String(req.body?.sessionKey || req.body?.session_key || '').trim();
     const nickname = String(req.body?.nickname || req.body?.username || '').trim();
     const avatar = String(req.body?.avatar || '').trim();
-    if (!openId || !sessionKey) {
+    const devAuth = req.body?.devAuth === true || String(req.body?.devAuth || '').trim() === '1';
+    if ((!openId || !sessionKey) && !devAuth) {
       return res.status(401).json({ error: '请先完成 Nexa 授权登录' });
+    }
+    const externalUserId = devAuth && !openId ? config.userId : openId;
+    const externalSessionKey = devAuth && !sessionKey ? 'predict-master-desktop-dev-auth' : sessionKey;
+    if (!externalUserId) {
+      return res.status(400).json({ error: '预测大师测试用户 ID 未配置' });
     }
 
     const loginPayload = normalizeDetradeLoginPayload({
-      userId: openId,
-      username: nickname || config.username || openId,
+      userId: externalUserId,
+      username: nickname || config.username || externalUserId,
       avatar: avatar || config.avatar,
       currency: config.currency,
       exchangeRate: config.exchangeRate,
       balanceType: config.balanceType
     });
     loginLogContext = {
-      externalUserId: openId,
-      sessionKey,
-      nickname: nickname || config.username || openId,
+      externalUserId,
+      sessionKey: externalSessionKey,
+      nickname: nickname || config.username || externalUserId,
       avatar: avatar || config.avatar,
       requestBaseUrl: config.baseUrl,
       requestPayload: loginPayload
@@ -7009,7 +7015,7 @@ app.post('/api/predict-master/login-url', async (req, res) => {
       accessCode: item.accessCode,
       success: true
     });
-    res.json({ ok: true, url: item.url, accessCode: item.accessCode });
+    res.json({ ok: true, url: item.url, accessCode: item.accessCode, devAuth: devAuth || undefined });
   } catch (error) {
     if (loginLogContext) {
       recordDetradeLoginLog({
