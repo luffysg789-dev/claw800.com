@@ -87,6 +87,10 @@ const predictMasterWalletTransactionsSection = document.getElementById('predictM
 const predictMasterWalletTransactionsRefreshBtn = document.getElementById('predictMasterWalletTransactionsRefreshBtn');
 const predictMasterWalletTransactionsMessage = document.getElementById('predictMasterWalletTransactionsMessage');
 const predictMasterWalletTransactionsList = document.getElementById('predictMasterWalletTransactionsList');
+const predictMasterWithdrawalsSection = document.getElementById('predictMasterWithdrawalsSection');
+const predictMasterWithdrawalsRefreshBtn = document.getElementById('predictMasterWithdrawalsRefreshBtn');
+const predictMasterWithdrawalsMessage = document.getElementById('predictMasterWithdrawalsMessage');
+const predictMasterWithdrawalsList = document.getElementById('predictMasterWithdrawalsList');
 const predictMasterSharesSection = document.getElementById('predictMasterSharesSection');
 const predictMasterSharesRefreshBtn = document.getElementById('predictMasterSharesRefreshBtn');
 const predictMasterSharesMessage = document.getElementById('predictMasterSharesMessage');
@@ -298,6 +302,7 @@ const texts = {
     navNexaPaymentUpstreamLogs: 'Nexa 支付上游日志',
     navPredictMasterOrders: '预测订单',
     navPredictMasterWalletTransactions: '预测资金流水',
+    navPredictMasterWithdrawals: '预测提现审核',
     navPredictMasterShares: '预测仓位记录',
     navPredictMasterRiskReports: '预测风控报告',
     navUCard: 'U卡场景',
@@ -510,6 +515,14 @@ const texts = {
     predictMasterWalletTransactionsRefreshBtn: '刷新',
     predictMasterWalletTransactionsEmpty: '暂无预测资金流水。',
     predictMasterWalletTransactionsLoadFailed: '预测资金流水加载失败。',
+    predictMasterWithdrawalsTitle: '预测提现审核',
+    predictMasterWithdrawalsRefreshBtn: '刷新',
+    predictMasterWithdrawalsEmpty: '暂无预测提现申请。',
+    predictMasterWithdrawalsLoadFailed: '预测提现审核加载失败。',
+    predictMasterWithdrawalsApprove: '通过',
+    predictMasterWithdrawalsReject: '拒绝',
+    predictMasterWithdrawalsApproved: '预测提现已通过。',
+    predictMasterWithdrawalsRejected: '预测提现已拒绝并退回余额。',
     predictMasterSharesTitle: '预测仓位记录',
     predictMasterSharesRefreshBtn: '刷新',
     predictMasterSharesEmpty: '暂无预测仓位记录。',
@@ -714,6 +727,7 @@ const texts = {
     navNexaPaymentUpstreamLogs: 'Nexa Payment Upstream Logs',
     navPredictMasterOrders: 'Predict Orders',
     navPredictMasterWalletTransactions: 'Predict Wallet Ledger',
+    navPredictMasterWithdrawals: 'Predict Withdrawals',
     navPredictMasterShares: 'Predict Positions',
     navPredictMasterRiskReports: 'Predict Risk Reports',
     navUCard: 'U Card Scenes',
@@ -926,6 +940,14 @@ const texts = {
     predictMasterWalletTransactionsRefreshBtn: 'Refresh',
     predictMasterWalletTransactionsEmpty: 'No predict wallet ledger yet.',
     predictMasterWalletTransactionsLoadFailed: 'Failed to load predict wallet ledger.',
+    predictMasterWithdrawalsTitle: 'Predict Withdrawals',
+    predictMasterWithdrawalsRefreshBtn: 'Refresh',
+    predictMasterWithdrawalsEmpty: 'No predict withdrawals yet.',
+    predictMasterWithdrawalsLoadFailed: 'Failed to load predict withdrawals.',
+    predictMasterWithdrawalsApprove: 'Approve',
+    predictMasterWithdrawalsReject: 'Reject',
+    predictMasterWithdrawalsApproved: 'Predict withdrawal approved.',
+    predictMasterWithdrawalsRejected: 'Predict withdrawal rejected and refunded.',
     predictMasterSharesTitle: 'Predict Positions',
     predictMasterSharesRefreshBtn: 'Refresh',
     predictMasterSharesEmpty: 'No predict positions yet.',
@@ -1444,6 +1466,7 @@ function applyLanguage() {
   document.getElementById('navNexaPaymentUpstreamLogs').textContent = dict.navNexaPaymentUpstreamLogs;
   document.getElementById('navPredictMasterOrders').textContent = dict.navPredictMasterOrders;
   document.getElementById('navPredictMasterWalletTransactions').textContent = dict.navPredictMasterWalletTransactions;
+  document.getElementById('navPredictMasterWithdrawals').textContent = dict.navPredictMasterWithdrawals;
   document.getElementById('navPredictMasterShares').textContent = dict.navPredictMasterShares;
   document.getElementById('navPredictMasterRiskReports').textContent = dict.navPredictMasterRiskReports;
   document.getElementById('navUCard').textContent = dict.navUCard;
@@ -1591,6 +1614,8 @@ function applyLanguage() {
   document.getElementById('predictMasterOrdersRefreshBtn').textContent = dict.predictMasterOrdersRefreshBtn;
   document.getElementById('predictMasterWalletTransactionsTitle').textContent = dict.predictMasterWalletTransactionsTitle;
   document.getElementById('predictMasterWalletTransactionsRefreshBtn').textContent = dict.predictMasterWalletTransactionsRefreshBtn;
+  document.getElementById('predictMasterWithdrawalsTitle').textContent = dict.predictMasterWithdrawalsTitle;
+  document.getElementById('predictMasterWithdrawalsRefreshBtn').textContent = dict.predictMasterWithdrawalsRefreshBtn;
   document.getElementById('predictMasterSharesTitle').textContent = dict.predictMasterSharesTitle;
   document.getElementById('predictMasterSharesRefreshBtn').textContent = dict.predictMasterSharesRefreshBtn;
   document.getElementById('predictMasterRiskReportsTitle').textContent = dict.predictMasterRiskReportsTitle;
@@ -1685,6 +1710,7 @@ function setView(view) {
   nexaPaymentUpstreamLogsSection.classList.toggle('hidden', view !== 'nexa-payment-upstream-logs');
   predictMasterOrdersSection.classList.toggle('hidden', view !== 'predict-master-orders');
   predictMasterWalletTransactionsSection.classList.toggle('hidden', view !== 'predict-master-wallet-transactions');
+  predictMasterWithdrawalsSection.classList.toggle('hidden', view !== 'predict-master-withdrawals');
   predictMasterSharesSection.classList.toggle('hidden', view !== 'predict-master-shares');
   predictMasterRiskReportsSection.classList.toggle('hidden', view !== 'predict-master-risk-reports');
   adminUCardSection.classList.toggle('hidden', view !== 'u-card');
@@ -1731,6 +1757,9 @@ function setView(view) {
   }
   if (view === 'predict-master-wallet-transactions') {
     loadPredictMasterWalletTransactions();
+  }
+  if (view === 'predict-master-withdrawals') {
+    loadPredictMasterWithdrawals();
   }
   if (view === 'predict-master-shares') {
     loadPredictMasterShares();
@@ -3375,6 +3404,40 @@ function renderPredictMasterWalletTransactions(items = []) {
     .join('');
 }
 
+function renderPredictMasterWithdrawals(items = []) {
+  if (!predictMasterWithdrawalsList) return;
+  if (!Array.isArray(items) || !items.length) {
+    predictMasterWithdrawalsList.innerHTML = `<p class="empty">${escapeHtml(t('predictMasterWithdrawalsEmpty'))}</p>`;
+    return;
+  }
+
+  predictMasterWithdrawalsList.innerHTML = items
+    .map((item) => {
+      const withdrawNo = String(item.withdrawNo || '').trim();
+      const status = String(item.status || '').trim().toLowerCase();
+      const actions =
+        status === 'review_pending'
+          ? `
+            <div class="toolbar">
+              <button type="button" onclick="approvePredictMasterWithdrawal('${escapeHtml(withdrawNo)}')">${escapeHtml(t('predictMasterWithdrawalsApprove'))}</button>
+              <button type="button" class="danger" onclick="rejectPredictMasterWithdrawal('${escapeHtml(withdrawNo)}')">${escapeHtml(t('predictMasterWithdrawalsReject'))}</button>
+            </div>
+          `
+          : '';
+      return `
+        <article class="review-card">
+          <h3>${escapeHtml(withdrawNo || '预测提现')} · ${escapeHtml(item.status || '-')}</h3>
+          <p class="small">用户 ID: ${escapeHtml(item.openId || item.externalUserId || '-')}</p>
+          <p class="small">用户名: ${escapeHtml(item.nickname || '-')} · 金额: ${escapeHtml(item.amount || '0.00')} ${escapeHtml(item.currency || 'USDT')}</p>
+          <p class="small">申请: ${escapeHtml(formatAdminLocalDateTime(item.createdAt))} · 审核: ${escapeHtml(formatAdminLocalDateTime(item.reviewedAt) || '-')}</p>
+          <p class="small">审核人: ${escapeHtml(item.reviewedBy || '-')} · 备注: ${escapeHtml(item.reviewNote || '-')}</p>
+          ${actions}
+        </article>
+      `;
+    })
+    .join('');
+}
+
 function renderPredictMasterShares(items = []) {
   if (!predictMasterSharesList) return;
   if (!Array.isArray(items) || !items.length) {
@@ -3439,6 +3502,16 @@ function loadPredictMasterWalletTransactions() {
   });
 }
 
+function loadPredictMasterWithdrawals() {
+  return loadPredictMasterList({
+    list: predictMasterWithdrawalsList,
+    message: predictMasterWithdrawalsMessage,
+    endpoint: '/api/admin/predict-master-withdrawals',
+    render: renderPredictMasterWithdrawals,
+    loadFailedKey: 'predictMasterWithdrawalsLoadFailed'
+  });
+}
+
 function loadPredictMasterShares() {
   return loadPredictMasterList({
     list: predictMasterSharesList,
@@ -3458,6 +3531,78 @@ function loadPredictMasterRiskReports() {
     loadFailedKey: 'predictMasterRiskReportsLoadFailed'
   });
 }
+
+window.approvePredictMasterWithdrawal = async function approvePredictMasterWithdrawal(withdrawNo) {
+  const note = window.prompt('请输入审核备注（可留空）', '') || '';
+  if (predictMasterWithdrawalsMessage) {
+    predictMasterWithdrawalsMessage.textContent = '';
+    predictMasterWithdrawalsMessage.className = 'message';
+  }
+  const result = await requestTutorialJson([`/api/admin/predict-master-withdrawals/${encodeURIComponent(withdrawNo)}/approve`], {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note })
+  });
+  if (!result.res) {
+    if (predictMasterWithdrawalsMessage) {
+      predictMasterWithdrawalsMessage.textContent = t('operationFailed');
+      predictMasterWithdrawalsMessage.className = 'message error';
+    }
+    return;
+  }
+  if (result.res.status === 401) {
+    showLogin();
+    return;
+  }
+  if (!result.res.ok) {
+    if (predictMasterWithdrawalsMessage) {
+      predictMasterWithdrawalsMessage.textContent = localizeApiError(result.data?.error || t('operationFailed'));
+      predictMasterWithdrawalsMessage.className = 'message error';
+    }
+    return;
+  }
+  if (predictMasterWithdrawalsMessage) {
+    predictMasterWithdrawalsMessage.textContent = t('predictMasterWithdrawalsApproved');
+    predictMasterWithdrawalsMessage.className = 'message success';
+  }
+  await loadPredictMasterWithdrawals();
+};
+
+window.rejectPredictMasterWithdrawal = async function rejectPredictMasterWithdrawal(withdrawNo) {
+  const note = window.prompt(t('rejectPrompt'), '') || '';
+  if (predictMasterWithdrawalsMessage) {
+    predictMasterWithdrawalsMessage.textContent = '';
+    predictMasterWithdrawalsMessage.className = 'message';
+  }
+  const result = await requestTutorialJson([`/api/admin/predict-master-withdrawals/${encodeURIComponent(withdrawNo)}/reject`], {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note })
+  });
+  if (!result.res) {
+    if (predictMasterWithdrawalsMessage) {
+      predictMasterWithdrawalsMessage.textContent = t('operationFailed');
+      predictMasterWithdrawalsMessage.className = 'message error';
+    }
+    return;
+  }
+  if (result.res.status === 401) {
+    showLogin();
+    return;
+  }
+  if (!result.res.ok) {
+    if (predictMasterWithdrawalsMessage) {
+      predictMasterWithdrawalsMessage.textContent = localizeApiError(result.data?.error || t('operationFailed'));
+      predictMasterWithdrawalsMessage.className = 'message error';
+    }
+    return;
+  }
+  if (predictMasterWithdrawalsMessage) {
+    predictMasterWithdrawalsMessage.textContent = t('predictMasterWithdrawalsRejected');
+    predictMasterWithdrawalsMessage.className = 'message success';
+  }
+  await loadPredictMasterWithdrawals();
+};
 
 async function loadUCardUpstreamConfig() {
   if (!uCardUpstreamConfigForm) return;
@@ -5843,6 +5988,7 @@ document.getElementById('navPredictMasterOrders').addEventListener('click', () =
 document
   .getElementById('navPredictMasterWalletTransactions')
   .addEventListener('click', () => setView('predict-master-wallet-transactions'));
+document.getElementById('navPredictMasterWithdrawals').addEventListener('click', () => setView('predict-master-withdrawals'));
 document.getElementById('navPredictMasterShares').addEventListener('click', () => setView('predict-master-shares'));
 document.getElementById('navPredictMasterRiskReports').addEventListener('click', () => setView('predict-master-risk-reports'));
 document.getElementById('navUCard').addEventListener('click', () => setView('u-card'));
@@ -5883,6 +6029,9 @@ if (predictMasterOrdersRefreshBtn) {
 }
 if (predictMasterWalletTransactionsRefreshBtn) {
   predictMasterWalletTransactionsRefreshBtn.addEventListener('click', () => loadPredictMasterWalletTransactions());
+}
+if (predictMasterWithdrawalsRefreshBtn) {
+  predictMasterWithdrawalsRefreshBtn.addEventListener('click', () => loadPredictMasterWithdrawals());
 }
 if (predictMasterSharesRefreshBtn) {
   predictMasterSharesRefreshBtn.addEventListener('click', () => loadPredictMasterShares());

@@ -349,6 +349,34 @@ db.exec(`
 `);
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS detrade_withdrawals (
+    withdraw_no TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    external_user_id TEXT NOT NULL DEFAULT '',
+    amount TEXT NOT NULL DEFAULT '0.00',
+    currency TEXT NOT NULL DEFAULT 'USDT',
+    status TEXT NOT NULL DEFAULT 'review_pending',
+    review_note TEXT NOT NULL DEFAULT '',
+    reviewed_by TEXT NOT NULL DEFAULT '',
+    reviewed_at TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    finished_at TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY(user_id) REFERENCES game_users(id)
+  );
+`);
+
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_detrade_withdrawals_status
+  ON detrade_withdrawals(status, created_at DESC);
+`);
+
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_detrade_withdrawals_user
+  ON detrade_withdrawals(user_id, created_at DESC);
+`);
+
+db.exec(`
   CREATE TABLE IF NOT EXISTS detrade_order_pushes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     order_id TEXT NOT NULL UNIQUE,

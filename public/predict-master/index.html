@@ -6,7 +6,7 @@
     <title>高低期权</title>
     <meta name="description" content="Detrade 高低期权与预测产品入口。" />
     <link rel="icon" href="/favicon.ico" />
-    <link rel="stylesheet" href="/predict-master/style.css?v=20260615-01" />
+    <link rel="stylesheet" href="/predict-master/style.css?v=20260615-02" />
   </head>
   <body>
     <main class="predict-master-app">
@@ -17,6 +17,7 @@
             <strong><b id="predictMasterWalletBalance">0.00</b> USDT</strong>
           </div>
           <button id="predictMasterRechargeBtn" type="button">充值</button>
+          <button id="predictMasterWithdrawBtn" type="button">提现</button>
           <button id="predictMasterReloadBtn" type="button">刷新</button>
         </div>
       </header>
@@ -57,7 +58,34 @@
           <button id="predictMasterRechargeConfirmBtn" class="predict-master-modal__confirm" type="button">确认充值</button>
         </section>
       </div>
+
+      <div id="predictMasterWithdrawModal" class="predict-master-modal" hidden>
+        <div class="predict-master-modal__backdrop" data-withdraw-close="true"></div>
+        <section class="predict-master-modal__sheet" role="dialog" aria-modal="true" aria-labelledby="predictMasterWithdrawTitle">
+          <div class="predict-master-modal__head">
+            <strong id="predictMasterWithdrawTitle">申请提现</strong>
+            <button id="predictMasterWithdrawCancelBtn" type="button" aria-label="关闭">取消</button>
+          </div>
+          <label class="predict-master-amount-field" for="predictMasterWithdrawAmount">
+            <span>USDT 金额</span>
+            <input
+              id="predictMasterWithdrawAmount"
+              type="text"
+              inputmode="decimal"
+              enterkeyhint="done"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+              pattern="[0-9]*[.,]?[0-9]*"
+              placeholder="请输入提现金额"
+              value="1"
+            />
+          </label>
+          <p id="predictMasterWithdrawError" class="predict-master-modal__error" hidden></p>
+          <button id="predictMasterWithdrawConfirmBtn" class="predict-master-modal__confirm" type="button">提交提现审核</button>
+        </section>
+      </div>
     </main>
-    <script src="/predict-master/script.js?v=20260615-01"></script>
+    <script src="/predict-master/script.js?v=20260615-02"></script>
   </body>
 </html>

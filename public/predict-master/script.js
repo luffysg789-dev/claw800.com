@@ -36,11 +36,17 @@
   const rechargeTitle = document.getElementById('predictMasterRechargeTitle');
   const reloadBtn = document.getElementById('predictMasterReloadBtn');
   const rechargeBtn = document.getElementById('predictMasterRechargeBtn');
+  const withdrawBtn = document.getElementById('predictMasterWithdrawBtn');
   const rechargeModal = document.getElementById('predictMasterRechargeModal');
   const rechargeCancelBtn = document.getElementById('predictMasterRechargeCancelBtn');
   const rechargeConfirmBtn = document.getElementById('predictMasterRechargeConfirmBtn');
   const rechargeAmount = document.getElementById('predictMasterRechargeAmount');
   const rechargeError = document.getElementById('predictMasterRechargeError');
+  const withdrawModal = document.getElementById('predictMasterWithdrawModal');
+  const withdrawCancelBtn = document.getElementById('predictMasterWithdrawCancelBtn');
+  const withdrawConfirmBtn = document.getElementById('predictMasterWithdrawConfirmBtn');
+  const withdrawAmount = document.getElementById('predictMasterWithdrawAmount');
+  const withdrawError = document.getElementById('predictMasterWithdrawError');
   const walletBalance = document.getElementById('predictMasterWalletBalance');
   let tradingApp = null;
   let tradingScriptUrl = '';
@@ -215,6 +221,31 @@
     const text = String(message || '').trim();
     rechargeError.textContent = text;
     rechargeError.hidden = !text;
+  }
+
+  function openWithdrawModal() {
+    setWithdrawError('');
+    if (!withdrawModal) {
+      beginWithdrawRequest();
+      return;
+    }
+    withdrawModal.hidden = false;
+    window.setTimeout(() => {
+      withdrawAmount?.focus();
+      withdrawAmount?.select();
+    }, 0);
+  }
+
+  function closeWithdrawModal() {
+    setWithdrawError('');
+    if (withdrawModal) withdrawModal.hidden = true;
+  }
+
+  function setWithdrawError(message) {
+    if (!withdrawError) return;
+    const text = String(message || '').trim();
+    withdrawError.textContent = text;
+    withdrawError.hidden = !text;
   }
 
   function savePendingRechargePayment(payment) {
@@ -713,6 +744,33 @@
     }
   }
 
+  async function beginWithdrawRequest() {
+    try {
+      const session = normalizeSession(currentSession) || (await getNexaSession());
+      if (!session) return;
+      const amount = String(withdrawAmount?.value || '').trim();
+      if (!amount || Number(amount) <= 0 || !Number.isFinite(Number(amount))) {
+        setWithdrawError('请输入提现金额');
+        return;
+      }
+      setWithdrawError('');
+      const response = await requestJson('/api/predict-master/withdraw/create', {
+        method: 'POST',
+        body: JSON.stringify({
+          openId: session.openId,
+          sessionKey: session.sessionKey,
+          amount
+        })
+      });
+      if (response.walletBalance) setWalletBalance(response.walletBalance);
+      closeWithdrawModal();
+      window.alert('提现申请已提交，等待后台审核。');
+      refreshWalletBalance(session).catch(() => {});
+    } catch (error) {
+      setWithdrawError(error?.message || '提交提现申请失败');
+    }
+  }
+
   async function requestLoginUrl() {
     const productName = getPredictMasterProductName();
     setLoading(`正在获取${productName}入口...`);
@@ -754,15 +812,29 @@
   if (rechargeBtn) {
     rechargeBtn.addEventListener('click', openRechargeModal);
   }
+  if (withdrawBtn) {
+    withdrawBtn.addEventListener('click', openWithdrawModal);
+  }
   if (rechargeCancelBtn) {
     rechargeCancelBtn.addEventListener('click', closeRechargeModal);
+  }
+  if (withdrawCancelBtn) {
+    withdrawCancelBtn.addEventListener('click', closeWithdrawModal);
   }
   if (rechargeConfirmBtn) {
     rechargeConfirmBtn.addEventListener('click', beginRechargePayment);
   }
+  if (withdrawConfirmBtn) {
+    withdrawConfirmBtn.addEventListener('click', beginWithdrawRequest);
+  }
   if (rechargeModal) {
     rechargeModal.addEventListener('click', (event) => {
       if (event.target?.dataset?.rechargeClose === 'true') closeRechargeModal();
+    });
+  }
+  if (withdrawModal) {
+    withdrawModal.addEventListener('click', (event) => {
+      if (event.target?.dataset?.withdrawClose === 'true') closeWithdrawModal();
     });
   }
   if (rechargeAmount) {
@@ -770,6 +842,13 @@
     rechargeAmount.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') beginRechargePayment();
       if (event.key === 'Escape') closeRechargeModal();
+    });
+  }
+  if (withdrawAmount) {
+    withdrawAmount.addEventListener('input', () => setWithdrawError(''));
+    withdrawAmount.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') beginWithdrawRequest();
+      if (event.key === 'Escape') closeWithdrawModal();
     });
   }
   if (sdkApp) {

@@ -7099,6 +7099,37 @@ app.post('/api/predict-master/wallet', async (req, res) => {
   }
 });
 
+app.post('/api/predict-master/withdraw/create', (req, res) => {
+  try {
+    const openId = String(req.body?.openId || req.body?.openid || req.body?.open_id || '').trim();
+    const sessionKey = String(req.body?.sessionKey || req.body?.session_key || '').trim();
+    const amount = String(req.body?.amount || '').trim();
+    if (!openId || !sessionKey) return res.status(400).json({ error: 'openId 和 sessionKey 必填' });
+
+    const result = createPendingPredictMasterWithdrawal({
+      externalUserId: openId,
+      amount
+    });
+    if (result.kind === 'wallet_not_found') {
+      return res.status(404).json({ ok: false, error: 'WALLET_NOT_FOUND' });
+    }
+    if (result.kind === 'insufficient_balance') {
+      return res.status(409).json({ ok: false, error: 'INSUFFICIENT_BALANCE' });
+    }
+    return res.json({
+      ok: true,
+      status: 'review_pending',
+      withdrawNo: result.withdrawNo,
+      amount: result.amount,
+      currency: 'USDT',
+      walletBalance: result.walletBalance
+    });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 500) || 500;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || '创建提现申请失败') });
+  }
+});
+
 app.post('/api/predict-master/payment/query', async (req, res) => {
   try {
     const orderNo = String(req.body?.orderNo || '').trim();
@@ -9662,6 +9693,70 @@ const markDetradeRechargeOrderSettledStmt = db.prepare(`
       updated_at = datetime('now')
   WHERE order_no = ? AND settled_at = ''
 `);
+const insertDetradeWithdrawalStmt = db.prepare(`
+  INSERT INTO detrade_withdrawals (
+    withdraw_no, user_id, external_user_id, amount, currency, status
+  ) VALUES (?, ?, ?, ?, ?, 'review_pending')
+`);
+const selectDetradeWithdrawalByNoStmt = db.prepare(`
+  SELECT *
+  FROM detrade_withdrawals
+  WHERE withdraw_no = ?
+  LIMIT 1
+`);
+const selectDetradeWithdrawalDetailByNoStmt = db.prepare(`
+  SELECT
+    w.withdraw_no,
+    w.user_id,
+    w.external_user_id,
+    w.amount,
+    w.currency,
+    w.status,
+    w.review_note,
+    w.reviewed_by,
+    w.reviewed_at,
+    w.created_at,
+    w.finished_at,
+    u.openid,
+    u.nickname,
+    u.avatar
+  FROM detrade_withdrawals w
+  LEFT JOIN game_users u ON u.id = w.user_id
+  WHERE w.withdraw_no = ?
+  LIMIT 1
+`);
+const listDetradeWithdrawalsStmt = db.prepare(`
+  SELECT
+    w.withdraw_no,
+    w.user_id,
+    w.external_user_id,
+    w.amount,
+    w.currency,
+    w.status,
+    w.review_note,
+    w.reviewed_by,
+    w.reviewed_at,
+    w.created_at,
+    w.finished_at,
+    u.openid,
+    u.nickname,
+    u.avatar
+  FROM detrade_withdrawals w
+  LEFT JOIN game_users u ON u.id = w.user_id
+  WHERE (? = '' OR lower(w.status) = ?)
+  ORDER BY w.created_at DESC, w.withdraw_no DESC
+  LIMIT ?
+`);
+const updateDetradeWithdrawalReviewStmt = db.prepare(`
+  UPDATE detrade_withdrawals
+  SET status = ?,
+      review_note = ?,
+      reviewed_by = ?,
+      reviewed_at = datetime('now'),
+      finished_at = datetime('now'),
+      updated_at = datetime('now')
+  WHERE withdraw_no = ?
+`);
 const listDetradeOrderPushesStmt = db.prepare(`
   SELECT id, order_id, external_user_id, currency, amount, profit, biz_type, status, symbol, raw_json,
          created_at, updated_at
@@ -10330,6 +10425,25 @@ function formatDetradeRiskReport(row = {}) {
   };
 }
 
+function formatDetradeWithdrawal(row = {}) {
+  return {
+    withdrawNo: String(row.withdraw_no || ''),
+    userId: Number(row.user_id || 0) || 0,
+    openId: String(row.openid || row.external_user_id || ''),
+    externalUserId: String(row.external_user_id || row.openid || ''),
+    nickname: String(row.nickname || ''),
+    avatar: String(row.avatar || ''),
+    amount: String(row.amount || '0.00'),
+    currency: String(row.currency || 'USDT'),
+    status: String(row.status || ''),
+    reviewNote: String(row.review_note || ''),
+    reviewedBy: String(row.reviewed_by || ''),
+    reviewedAt: String(row.reviewed_at || ''),
+    createdAt: String(row.created_at || ''),
+    finishedAt: String(row.finished_at || '')
+  };
+}
+
 function normalizeDetradeCurrency(value) {
   return String(value || 'USDT').trim().toUpperCase() || 'USDT';
 }
@@ -10371,6 +10485,103 @@ function ensureDetradeUserWallet(externalUserId, { nickname = 'Detrade User', av
     return { user, wallet };
   })();
 }
+
+function createPredictMasterWithdrawNo() {
+  return `pmwd${Date.now()}${crypto.randomBytes(3).toString('hex')}`;
+}
+
+function normalizePredictMasterWithdrawalAmount(value) {
+  const amountCents = parseMoneyToCents(String(value || '').trim());
+  if (amountCents <= 0n) {
+    const error = new Error('提现金额必须大于 0 USDT');
+    error.statusCode = 400;
+    throw error;
+  }
+  return centsToMoneyString(amountCents);
+}
+
+const createPendingPredictMasterWithdrawal = db.transaction((payload) => {
+  const externalUserId = String(payload.externalUserId || '').trim();
+  const amount = normalizePredictMasterWithdrawalAmount(payload.amount);
+  const amountCents = parseMoneyToCents(amount);
+  const ensured = ensureDetradeUserWallet(externalUserId);
+  if (!ensured?.user || !ensured?.wallet) return { kind: 'wallet_not_found' };
+
+  const wallet = selectDetradeWalletStmt.get(Number(ensured.user.id));
+  if (!wallet) return { kind: 'wallet_not_found' };
+
+  const availableBalanceCents = parseMoneyToCents(wallet.available_balance);
+  if (availableBalanceCents < amountCents) return { kind: 'insufficient_balance' };
+
+  let withdrawNo = createPredictMasterWithdrawNo();
+  while (selectDetradeWithdrawalByNoStmt.get(withdrawNo)) {
+    withdrawNo = createPredictMasterWithdrawNo();
+  }
+
+  const nextBalance = centsToMoneyString(availableBalanceCents - amountCents);
+  updateDetradeWalletBalanceStmt.run(nextBalance, Number(ensured.user.id));
+  insertDetradeWithdrawalStmt.run(withdrawNo, Number(ensured.user.id), externalUserId, amount, 'USDT');
+  insertDetradeWalletLedgerStmt.run(
+    Number(ensured.user.id),
+    'withdraw_debit',
+    centsToMoneyString(-amountCents),
+    nextBalance,
+    'withdraw',
+    withdrawNo,
+    'predict withdraw review pending'
+  );
+
+  return { kind: 'review_pending', withdrawNo, amount, walletBalance: nextBalance };
+});
+
+const approvePredictMasterWithdrawalReview = db.transaction((payload) => {
+  const withdrawNo = String(payload.withdrawNo || '').trim();
+  const withdrawal = selectDetradeWithdrawalDetailByNoStmt.get(withdrawNo);
+  if (!withdrawal) return { kind: 'not_found' };
+  const currentStatus = String(withdrawal.status || '').toLowerCase();
+  if (currentStatus === 'success') return { kind: 'already_processed', status: 'success' };
+  if (currentStatus !== 'review_pending') return { kind: 'not_review_pending' };
+
+  updateDetradeWithdrawalReviewStmt.run(
+    'success',
+    String(payload.reviewNote || '').trim(),
+    String(payload.reviewedBy || '').trim(),
+    withdrawNo
+  );
+  return { kind: 'success', status: 'success' };
+});
+
+const rejectPredictMasterWithdrawalReview = db.transaction((payload) => {
+  const withdrawNo = String(payload.withdrawNo || '').trim();
+  const withdrawal = selectDetradeWithdrawalDetailByNoStmt.get(withdrawNo);
+  if (!withdrawal) return { kind: 'not_found' };
+  const currentStatus = String(withdrawal.status || '').toLowerCase();
+  if (currentStatus === 'rejected') return { kind: 'already_processed', status: 'rejected' };
+  if (currentStatus !== 'review_pending') return { kind: 'not_review_pending' };
+
+  const wallet = selectDetradeWalletStmt.get(Number(withdrawal.user_id));
+  if (!wallet) return { kind: 'wallet_not_found' };
+  const amountCents = parseMoneyToCents(withdrawal.amount);
+  const nextBalance = centsToMoneyString(parseMoneyToCents(wallet.available_balance) + amountCents);
+
+  updateDetradeWalletBalanceStmt.run(nextBalance, Number(withdrawal.user_id));
+  insertDetradeWalletLedgerStmt.run(
+    Number(withdrawal.user_id),
+    'withdraw_refund',
+    centsToMoneyString(amountCents),
+    nextBalance,
+    'withdraw',
+    withdrawNo,
+    'predict withdraw rejected refund'
+  );
+  updateDetradeWithdrawalReviewStmt.run(
+    'rejected',
+    String(payload.reviewNote || '').trim(),
+    String(payload.reviewedBy || '').trim(),
+    withdrawNo
+  );
+  return { kind: 'rejected', status: 'rejected', walletBalance: nextBalance };
+});
 
 const DETRADE_ADD_SOURCE_TO_DEDUCTION_SOURCE = {
   BINARY_ORDER_SETTLE: 'PLACE_BINARY_ORDER',
@@ -13112,6 +13323,57 @@ app.get('/api/admin/predict-master-wallet-transactions', requireAdmin, (req, res
   const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
   const items = listDetradeWalletTransactionsStmt.all(limit).map(formatDetradeWalletTransaction);
   res.json({ ok: true, items });
+});
+
+app.get('/api/admin/predict-master-withdrawals', requireAdmin, (req, res) => {
+  const status = String(req.query?.status || '').trim().toLowerCase();
+  const limitRaw = Number(req.query?.limit || 100);
+  const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
+  const items = listDetradeWithdrawalsStmt.all(status, status, limit).map(formatDetradeWithdrawal);
+  res.json({ ok: true, items });
+});
+
+app.post('/api/admin/predict-master-withdrawals/:withdrawNo/approve', requireAdmin, (req, res) => {
+  const withdrawNo = String(req.params.withdrawNo || '').trim();
+  const reviewNote = String(req.body?.note || '').trim();
+  if (!withdrawNo) {
+    return res.status(400).json({ ok: false, error: 'INVALID_WITHDRAW_NO' });
+  }
+  const result = approvePredictMasterWithdrawalReview({
+    withdrawNo,
+    reviewNote,
+    reviewedBy: 'admin'
+  });
+  if (result.kind === 'not_found') {
+    return res.status(404).json({ ok: false, error: 'WITHDRAWAL_NOT_FOUND' });
+  }
+  if (result.kind === 'not_review_pending') {
+    return res.status(409).json({ ok: false, error: 'WITHDRAWAL_NOT_REVIEW_PENDING' });
+  }
+  return res.json({ ok: true, status: result.status || 'success' });
+});
+
+app.post('/api/admin/predict-master-withdrawals/:withdrawNo/reject', requireAdmin, (req, res) => {
+  const withdrawNo = String(req.params.withdrawNo || '').trim();
+  const reviewNote = String(req.body?.note || '').trim();
+  if (!withdrawNo) {
+    return res.status(400).json({ ok: false, error: 'INVALID_WITHDRAW_NO' });
+  }
+  const result = rejectPredictMasterWithdrawalReview({
+    withdrawNo,
+    reviewNote,
+    reviewedBy: 'admin'
+  });
+  if (result.kind === 'not_found') {
+    return res.status(404).json({ ok: false, error: 'WITHDRAWAL_NOT_FOUND' });
+  }
+  if (result.kind === 'wallet_not_found') {
+    return res.status(404).json({ ok: false, error: 'WALLET_NOT_FOUND' });
+  }
+  if (result.kind === 'not_review_pending') {
+    return res.status(409).json({ ok: false, error: 'WITHDRAWAL_NOT_REVIEW_PENDING' });
+  }
+  return res.json({ ok: true, status: result.status || 'rejected', walletBalance: result.walletBalance });
 });
 
 app.get('/api/admin/predict-master-shares', requireAdmin, (req, res) => {

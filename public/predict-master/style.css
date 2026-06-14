@@ -116,13 +116,20 @@ select {
 }
 
 #predictMasterReloadBtn,
-#predictMasterRechargeBtn {
+#predictMasterRechargeBtn,
+#predictMasterWithdrawBtn {
   padding: 0 16px;
   color: #05120d;
   background: var(--accent);
   border-color: transparent;
   font-size: 14px;
   cursor: pointer;
+}
+
+#predictMasterWithdrawBtn {
+  background: #2f453d;
+  color: var(--text);
+  border-color: var(--line);
 }
 
 #predictMasterReloadBtn {
@@ -319,7 +326,8 @@ body.predict-master-product-spread .predict-master-header {
   }
 
   #predictMasterReloadBtn,
-  #predictMasterRechargeBtn {
+  #predictMasterRechargeBtn,
+  #predictMasterWithdrawBtn {
     padding: 0 10px;
   }
 }

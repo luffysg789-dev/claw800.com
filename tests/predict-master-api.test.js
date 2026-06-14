@@ -1016,6 +1016,185 @@ test('predict-master wallet endpoint returns the local Detrade wallet balance fo
   }
 });
 
+test('predict-master withdrawal creates a review item and admin can approve it', async () => {
+  const harness = createHarness();
+
+  try {
+    const walletBefore = await harness.request('POST', '/api/predict-master/wallet', {
+      openId: 'nexa-predict-withdraw-approve',
+      sessionKey: 'session-predict-withdraw-approve'
+    });
+    assert.equal(walletBefore.statusCode, 200);
+
+    const userId = harness.db
+      .prepare('SELECT id FROM game_users WHERE openid = ?')
+      .get('nexa-predict-withdraw-approve').id;
+    harness.db
+      .prepare("UPDATE detrade_wallets SET available_balance = '20.00' WHERE user_id = ?")
+      .run(userId);
+
+    const create = await harness.request('POST', '/api/predict-master/withdraw/create', {
+      openId: 'nexa-predict-withdraw-approve',
+      sessionKey: 'session-predict-withdraw-approve',
+      amount: '6.25'
+    });
+    assert.equal(create.statusCode, 200);
+    assert.equal(create.body.ok, true);
+    assert.equal(create.body.status, 'review_pending');
+    assert.equal(create.body.amount, '6.25');
+    assert.equal(create.body.currency, 'USDT');
+    assert.equal(create.body.walletBalance, '13.75');
+    assert.match(create.body.withdrawNo, /^pmwd/);
+
+    const row = harness.db
+      .prepare('SELECT withdraw_no, user_id, external_user_id, amount, status FROM detrade_withdrawals WHERE withdraw_no = ?')
+      .get(create.body.withdrawNo);
+    assert.deepEqual(row, {
+      withdraw_no: create.body.withdrawNo,
+      user_id: userId,
+      external_user_id: 'nexa-predict-withdraw-approve',
+      amount: '6.25',
+      status: 'review_pending'
+    });
+
+    const debit = harness.db
+      .prepare('SELECT type, amount, balance_after, related_type, related_id FROM detrade_wallet_ledger WHERE related_id = ?')
+      .get(create.body.withdrawNo);
+    assert.deepEqual(debit, {
+      type: 'withdraw_debit',
+      amount: '-6.25',
+      balance_after: '13.75',
+      related_type: 'withdraw',
+      related_id: create.body.withdrawNo
+    });
+
+    const cookies = await harness.adminCookies();
+    const list = await harness.request('GET', '/api/admin/predict-master-withdrawals?status=review_pending', null, {
+      cookies
+    });
+    assert.equal(list.statusCode, 200);
+    assert.equal(list.body.ok, true);
+    assert.equal(list.body.items[0].withdrawNo, create.body.withdrawNo);
+    assert.equal(list.body.items[0].openId, 'nexa-predict-withdraw-approve');
+
+    const approve = await harness.request(
+      'POST',
+      `/api/admin/predict-master-withdrawals/${create.body.withdrawNo}/approve`,
+      { note: 'ok' },
+      { cookies }
+    );
+    assert.equal(approve.statusCode, 200);
+    assert.equal(approve.body.ok, true);
+    assert.equal(approve.body.status, 'success');
+
+    const approved = harness.db
+      .prepare('SELECT status, review_note, reviewed_by, finished_at FROM detrade_withdrawals WHERE withdraw_no = ?')
+      .get(create.body.withdrawNo);
+    assert.equal(approved.status, 'success');
+    assert.equal(approved.review_note, 'ok');
+    assert.equal(approved.reviewed_by, 'admin');
+    assert.notEqual(approved.finished_at, '');
+
+    const walletAfter = harness.db
+      .prepare('SELECT available_balance FROM detrade_wallets WHERE user_id = ?')
+      .get(userId);
+    assert.equal(walletAfter.available_balance, '13.75');
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('predict-master withdrawal rejection refunds the Detrade wallet', async () => {
+  const harness = createHarness();
+
+  try {
+    await harness.request('POST', '/api/predict-master/wallet', {
+      openId: 'nexa-predict-withdraw-reject',
+      sessionKey: 'session-predict-withdraw-reject'
+    });
+    const userId = harness.db
+      .prepare('SELECT id FROM game_users WHERE openid = ?')
+      .get('nexa-predict-withdraw-reject').id;
+    harness.db
+      .prepare("UPDATE detrade_wallets SET available_balance = '9.00' WHERE user_id = ?")
+      .run(userId);
+
+    const create = await harness.request('POST', '/api/predict-master/withdraw/create', {
+      openId: 'nexa-predict-withdraw-reject',
+      sessionKey: 'session-predict-withdraw-reject',
+      amount: '4.50'
+    });
+    assert.equal(create.statusCode, 200);
+    assert.equal(create.body.walletBalance, '4.50');
+
+    const cookies = await harness.adminCookies();
+    const reject = await harness.request(
+      'POST',
+      `/api/admin/predict-master-withdrawals/${create.body.withdrawNo}/reject`,
+      { note: '资料不完整' },
+      { cookies }
+    );
+    assert.equal(reject.statusCode, 200);
+    assert.equal(reject.body.ok, true);
+    assert.equal(reject.body.status, 'rejected');
+
+    const rejected = harness.db
+      .prepare('SELECT status, review_note, reviewed_by FROM detrade_withdrawals WHERE withdraw_no = ?')
+      .get(create.body.withdrawNo);
+    assert.deepEqual(rejected, {
+      status: 'rejected',
+      review_note: '资料不完整',
+      reviewed_by: 'admin'
+    });
+
+    const walletAfter = harness.db
+      .prepare('SELECT available_balance FROM detrade_wallets WHERE user_id = ?')
+      .get(userId);
+    assert.equal(walletAfter.available_balance, '9.00');
+
+    const refund = harness.db
+      .prepare("SELECT type, amount, balance_after FROM detrade_wallet_ledger WHERE related_id = ? AND type = 'withdraw_refund'")
+      .get(create.body.withdrawNo);
+    assert.deepEqual(refund, {
+      type: 'withdraw_refund',
+      amount: '4.50',
+      balance_after: '9.00'
+    });
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('predict-master withdrawal rejects insufficient balance', async () => {
+  const harness = createHarness();
+
+  try {
+    await harness.request('POST', '/api/predict-master/wallet', {
+      openId: 'nexa-predict-withdraw-low',
+      sessionKey: 'session-predict-withdraw-low'
+    });
+    const userId = harness.db.prepare('SELECT id FROM game_users WHERE openid = ?').get('nexa-predict-withdraw-low').id;
+    harness.db
+      .prepare("UPDATE detrade_wallets SET available_balance = '1.00' WHERE user_id = ?")
+      .run(userId);
+
+    const create = await harness.request('POST', '/api/predict-master/withdraw/create', {
+      openId: 'nexa-predict-withdraw-low',
+      sessionKey: 'session-predict-withdraw-low',
+      amount: '2.00'
+    });
+    assert.equal(create.statusCode, 409);
+    assert.equal(create.body.ok, false);
+    assert.equal(create.body.error, 'INSUFFICIENT_BALANCE');
+    assert.equal(
+      harness.db.prepare('SELECT COUNT(*) AS count FROM detrade_withdrawals').get().count,
+      0
+    );
+  } finally {
+    harness.cleanup();
+  }
+});
+
 test('predict-master recharge retries with documented Nexa payment payload after legacy HTTP 405', async () => {
   const harness = createHarness();
   const calls = [];
