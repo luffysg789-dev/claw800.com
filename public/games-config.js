@@ -551,14 +551,9 @@ async function fetchJson(path) {
 
 function gameCardMarkup(item) {
   const displayItem = localizeGame(item);
-  const showBrandBadge = isPredictMasterGame(item?.slug) && isNexaAppEnvironment();
-  const brandBadge = showBrandBadge
-    ? '<span class="game-card__brand-badge" aria-label="UPAL">UPAL</span>'
-    : '';
 
   return `
     <article class="game-card">
-      ${brandBadge}
       <div class="game-card__body">
         <h3>${escapeHtml(displayItem.name)}</h3>
         <p>${escapeHtml(displayItem.description)}</p>
