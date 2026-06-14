@@ -178,7 +178,8 @@ test('admin can save predict-master config without private key echo', async () =
         avatar: 'https://example.com/avatar.png',
         currency: 'USDT',
         exchangeRate: '1',
-        balanceType: '1'
+        balanceType: '1',
+        feePermille: '5'
       },
       { cookies }
     );
@@ -193,6 +194,7 @@ test('admin can save predict-master config without private key echo', async () =
     assert.equal(config.body.apiKey, 'predict-api-key');
     assert.equal(config.body.hasPrivateKey, true);
     assert.equal(config.body.privateKey, '');
+    assert.equal(config.body.feePermille, '5');
     assert.equal(config.body.paymentCompatMode, false);
 
     const keepSave = await harness.request(
@@ -208,6 +210,8 @@ test('admin can save predict-master config without private key echo', async () =
     assert.equal(keepSave.statusCode, 200);
     const storedPrivateKey = harness.db.prepare(`SELECT value FROM settings WHERE key = 'predict_master_private_key'`).get();
     assert.equal(storedPrivateKey.value, privateKey.trim());
+    const storedFeePermille = harness.db.prepare(`SELECT value FROM settings WHERE key = 'predict_master_fee_permille'`).get();
+    assert.equal(storedFeePermille.value, '5');
   } finally {
     harness.cleanup();
   }
@@ -1045,6 +1049,63 @@ test('predict-master wallet endpoint returns the local Detrade wallet balance fo
     });
     assert.equal(walletAfter.statusCode, 200);
     assert.equal(walletAfter.body.walletBalance, '12.34');
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('predict-master order deduction charges configured platform fee once', async () => {
+  const harness = createHarness();
+
+  try {
+    await harness.request('POST', '/api/predict-master/wallet', {
+      openId: 'nexa-predict-fee-user',
+      sessionKey: 'session-predict-fee-user'
+    });
+    const userId = harness.db.prepare('SELECT id FROM game_users WHERE openid = ?').get('nexa-predict-fee-user').id;
+    harness.db.prepare("UPDATE detrade_wallets SET available_balance = '100.00' WHERE user_id = ?").run(userId);
+    harness.db
+      .prepare("INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('predict_master_fee_permille', '5', datetime('now'))")
+      .run();
+
+    const payload = {
+      userId: 'nexa-predict-fee-user',
+      amount: '10.00',
+      currency: 'USDT',
+      bizId: 'fee-order-1',
+      bizType: 'binary',
+      source: 'PLACE_BINARY_ORDER',
+      bizSubId: 'fee-sub-1'
+    };
+    const deduction = await harness.request('POST', '/wallet/amount/deduction', payload);
+    assert.equal(deduction.statusCode, 200);
+    assert.equal(deduction.body.code, 200);
+    assert.deepEqual(deduction.body.data, { usdAmount: '10.00' });
+
+    const walletAfter = harness.db.prepare('SELECT available_balance FROM detrade_wallets WHERE user_id = ?').get(userId);
+    assert.equal(walletAfter.available_balance, '89.95');
+    const transactions = harness.db
+      .prepare(
+        `SELECT direction, source, amount, balance_after
+         FROM detrade_wallet_transactions
+         WHERE user_id = ?
+         ORDER BY id ASC`
+      )
+      .all(userId);
+    assert.deepEqual(transactions, [
+      { direction: 'deduction', source: 'PLACE_BINARY_ORDER', amount: '10.00', balance_after: '90.00' },
+      { direction: 'fee', source: 'PREDICT_ORDER_FEE', amount: '0.05', balance_after: '89.95' }
+    ]);
+
+    const repeated = await harness.request('POST', '/wallet/amount/deduction', payload);
+    assert.equal(repeated.statusCode, 200);
+    assert.equal(repeated.body.code, 200);
+    const walletAfterRepeated = harness.db.prepare('SELECT available_balance FROM detrade_wallets WHERE user_id = ?').get(userId);
+    assert.equal(walletAfterRepeated.available_balance, '89.95');
+    const transactionCount = harness.db
+      .prepare('SELECT COUNT(*) AS count FROM detrade_wallet_transactions WHERE user_id = ?')
+      .get(userId);
+    assert.equal(transactionCount.count, 2);
   } finally {
     harness.cleanup();
   }

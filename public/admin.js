@@ -492,6 +492,7 @@ const texts = {
     predictMasterCurrencyLabel: '币种',
     predictMasterExchangeRateLabel: '汇率',
     predictMasterBalanceTypeLabel: '资金类型（可选）',
+    predictMasterFeePermilleLabel: '预测手续费（千分之）',
     predictMasterPaymentCompatModeLabel: 'Nexa 支付兼容模式（测试）',
     predictMasterConfigSaveBtn: '保存预测大师设置',
     predictMasterConfigSaved: '预测大师设置已保存。',
@@ -922,6 +923,7 @@ const texts = {
     predictMasterCurrencyLabel: 'Currency',
     predictMasterExchangeRateLabel: 'Exchange Rate',
     predictMasterBalanceTypeLabel: 'Balance Type (optional)',
+    predictMasterFeePermilleLabel: 'Predict Fee (per mille)',
     predictMasterPaymentCompatModeLabel: 'Nexa Payment Compatibility Mode (test)',
     predictMasterConfigSaveBtn: 'Save Predict Master Settings',
     predictMasterConfigSaved: 'Predict Master settings saved.',
@@ -1614,6 +1616,7 @@ function applyLanguage() {
   document.getElementById('predictMasterCurrencyLabel').childNodes[0].textContent = dict.predictMasterCurrencyLabel;
   document.getElementById('predictMasterExchangeRateLabel').childNodes[0].textContent = dict.predictMasterExchangeRateLabel;
   document.getElementById('predictMasterBalanceTypeLabel').childNodes[0].textContent = dict.predictMasterBalanceTypeLabel;
+  document.getElementById('predictMasterFeePermilleLabel').childNodes[0].textContent = dict.predictMasterFeePermilleLabel;
   document.getElementById('predictMasterPaymentCompatModeLabel').childNodes[0].textContent = dict.predictMasterPaymentCompatModeLabel;
   document.getElementById('predictMasterConfigSaveBtn').textContent = dict.predictMasterConfigSaveBtn;
   document.getElementById('predictMasterLoginLogsTitle').textContent = dict.predictMasterLoginLogsTitle;
@@ -3105,6 +3108,7 @@ function fillPredictMasterConfigForm(config = {}) {
   elements.predictMasterCurrency.value = String(config.currency || 'USDT');
   elements.predictMasterExchangeRate.value = String(config.exchangeRate || '1');
   elements.predictMasterBalanceType.value = String(config.balanceType || '');
+  elements.predictMasterFeePermille.value = String(config.feePermille || '0');
   elements.predictMasterPaymentCompatMode.value = config.paymentCompatMode ? '1' : '0';
 }
 
@@ -4140,6 +4144,7 @@ if (predictMasterConfigForm) {
         currency: String(payload.predictMasterCurrency || 'USDT').trim(),
         exchangeRate: String(payload.predictMasterExchangeRate || '1').trim(),
         balanceType: String(payload.predictMasterBalanceType || '').trim(),
+        feePermille: String(payload.predictMasterFeePermille || '0').trim(),
         paymentCompatMode: String(payload.predictMasterPaymentCompatMode || '').trim() === '1',
         keepPrivateKey: privateKey === SAVED_PREDICT_MASTER_PRIVATE_KEY_MASK
       })

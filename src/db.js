@@ -1782,6 +1782,9 @@ db.prepare(
   "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('predict_master_balance_type', '', datetime('now'))"
 ).run();
 db.prepare(
+  "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('predict_master_fee_permille', '0', datetime('now'))"
+).run();
+db.prepare(
   "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('predict_master_payment_compat_mode', '0', datetime('now'))"
 ).run();
 

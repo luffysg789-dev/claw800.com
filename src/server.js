@@ -3373,6 +3373,23 @@ function normalizePredictMasterBalanceType(value) {
   return String(numericValue);
 }
 
+function normalizePredictMasterFeePermille(value, fallback = '0') {
+  return normalizeEscrowFeePermille(value, fallback);
+}
+
+function computePredictMasterOrderFeeCents(amountCents, feePermille) {
+  const normalizedAmountCents = BigInt(amountCents || 0n);
+  if (normalizedAmountCents <= 0n) return 0n;
+  const normalizedFee = normalizePredictMasterFeePermille(feePermille, '0');
+  const feeCentiPermille = BigInt(Math.round(Number(normalizedFee || '0') * 100));
+  if (feeCentiPermille <= 0n) return 0n;
+  return (normalizedAmountCents * feeCentiPermille + 50000n) / 100000n;
+}
+
+function shouldChargePredictMasterOrderFee(source) {
+  return /^PLACE_.*ORDER$/.test(String(source || '').trim());
+}
+
 function normalizeBooleanSetting(value) {
   if (value === true || value === 1) return true;
   const raw = String(value ?? '').trim().toLowerCase();
@@ -3389,6 +3406,7 @@ function getPredictMasterConfig() {
   const currency = getSetting('predict_master_currency', 'USDT').toUpperCase();
   const exchangeRate = normalizePredictMasterExchangeRate(getSetting('predict_master_exchange_rate', '1'), '1');
   const balanceType = normalizePredictMasterBalanceType(getSetting('predict_master_balance_type', ''));
+  const feePermille = normalizePredictMasterFeePermille(getSetting('predict_master_fee_permille', '0'), '0');
   const paymentCompatMode = normalizeBooleanSetting(getSetting('predict_master_payment_compat_mode', '0'));
   return {
     baseUrl,
@@ -3400,6 +3418,7 @@ function getPredictMasterConfig() {
     currency,
     exchangeRate,
     balanceType,
+    feePermille,
     paymentCompatMode,
     hasPrivateKey: Boolean(privateKey)
   };
@@ -3418,6 +3437,7 @@ function formatAdminPredictMasterConfig(config = getPredictMasterConfig()) {
     currency: String(config.currency || 'USDT'),
     exchangeRate: String(config.exchangeRate || '1'),
     balanceType: String(config.balanceType || ''),
+    feePermille: String(config.feePermille || '0'),
     paymentCompatMode: Boolean(config.paymentCompatMode)
   };
 }
@@ -10775,7 +10795,11 @@ function applyDetradeDeduction(payload = {}) {
   return db.transaction(() => {
     const wallet = selectDetradeWalletStmt.get(Number(ensured.user.id));
     const currentCents = parseMoneyToCents(wallet.available_balance);
-    if (currentCents < amountCents) return { kind: 'balance_not_enough' };
+    const feePermille = normalizePredictMasterFeePermille(getSetting('predict_master_fee_permille', '0'), '0');
+    const feeCents = shouldChargePredictMasterOrderFee(source)
+      ? computePredictMasterOrderFeeCents(amountCents, feePermille)
+      : 0n;
+    if (currentCents < amountCents + feeCents) return { kind: 'balance_not_enough' };
     const nextBalance = centsToMoneyString(currentCents - amountCents);
     updateDetradeWalletBalanceStmt.run(nextBalance, Number(ensured.user.id));
     insertDetradeWalletLedgerStmt.run(
@@ -10802,6 +10826,39 @@ function applyDetradeDeduction(payload = {}) {
       nextBalance,
       serializeNotifyPayload(payload)
     );
+    if (feeCents > 0n) {
+      const feeBalance = centsToMoneyString(currentCents - amountCents - feeCents);
+      updateDetradeWalletBalanceStmt.run(feeBalance, Number(ensured.user.id));
+      insertDetradeWalletLedgerStmt.run(
+        Number(ensured.user.id),
+        'detrade_fee',
+        centsToMoneyString(-feeCents),
+        feeBalance,
+        'detrade_fee',
+        detradeRelatedId({ bizId, bizSubId, source }),
+        `Predict Master fee ${feePermille}‰`
+      );
+      insertDetradeWalletTransactionStmt.run(
+        Number(ensured.user.id),
+        externalUserId,
+        currency,
+        'fee',
+        centsToMoneyString(feeCents),
+        centsToMoneyString(feeCents),
+        bizId,
+        bizType,
+        'PREDICT_ORDER_FEE',
+        bizSubId,
+        String(payload.balanceType ?? payload.balance_type ?? ''),
+        feeBalance,
+        serializeNotifyPayload({
+          ...payload,
+          platformFeePermille: feePermille,
+          platformFeeAmount: centsToMoneyString(feeCents),
+          platformFeeSource: source
+        })
+      );
+    }
     return {
       kind: 'ok',
       transaction: selectDetradeWalletTransactionStmt.get('deduction', source, bizId, bizSubId)
@@ -13568,6 +13625,7 @@ app.put('/api/admin/predict-master-config', requireAdmin, (req, res) => {
     '1'
   );
   const balanceType = normalizePredictMasterBalanceType(req.body?.balanceType ?? req.body?.predictMasterBalanceType ?? '');
+  const feePermille = normalizePredictMasterFeePermille(req.body?.feePermille ?? req.body?.predictMasterFeePermille ?? '0', '0');
   const paymentCompatMode = normalizeBooleanSetting(
     req.body?.paymentCompatMode ?? req.body?.predictMasterPaymentCompatMode ?? '0'
   );
@@ -13606,6 +13664,7 @@ app.put('/api/admin/predict-master-config', requireAdmin, (req, res) => {
     upsertSettingStmt.run('predict_master_currency', currency);
     upsertSettingStmt.run('predict_master_exchange_rate', exchangeRate);
     upsertSettingStmt.run('predict_master_balance_type', balanceType);
+    upsertSettingStmt.run('predict_master_fee_permille', feePermille);
     upsertSettingStmt.run('predict_master_payment_compat_mode', paymentCompatMode ? '1' : '0');
     if (shouldUpdatePrivateKey) {
       upsertSettingStmt.run('predict_master_private_key', privateKey);
