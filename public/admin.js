@@ -71,6 +71,10 @@ const predictMasterCallbackLogsSection = document.getElementById('predictMasterC
 const predictMasterCallbackLogsRefreshBtn = document.getElementById('predictMasterCallbackLogsRefreshBtn');
 const predictMasterCallbackLogsMessage = document.getElementById('predictMasterCallbackLogsMessage');
 const predictMasterCallbackLogsList = document.getElementById('predictMasterCallbackLogsList');
+const predictMasterClientErrorLogsSection = document.getElementById('predictMasterClientErrorLogsSection');
+const predictMasterClientErrorLogsRefreshBtn = document.getElementById('predictMasterClientErrorLogsRefreshBtn');
+const predictMasterClientErrorLogsMessage = document.getElementById('predictMasterClientErrorLogsMessage');
+const predictMasterClientErrorLogsList = document.getElementById('predictMasterClientErrorLogsList');
 const nexaPaymentUpstreamLogsSection = document.getElementById('nexaPaymentUpstreamLogsSection');
 const nexaPaymentUpstreamLogsRefreshBtn = document.getElementById('nexaPaymentUpstreamLogsRefreshBtn');
 const nexaPaymentUpstreamLogsMessage = document.getElementById('nexaPaymentUpstreamLogsMessage');
@@ -490,6 +494,10 @@ const texts = {
     predictMasterCallbackLogsRefreshBtn: '刷新',
     predictMasterCallbackLogsEmpty: '暂无回调日志。',
     predictMasterCallbackLogsLoadFailed: '预测上游回调日志加载失败。',
+    predictMasterClientErrorLogsTitle: '预测页面错误日志',
+    predictMasterClientErrorLogsRefreshBtn: '刷新',
+    predictMasterClientErrorLogsEmpty: '暂无预测页面错误日志。',
+    predictMasterClientErrorLogsLoadFailed: '预测页面错误日志加载失败。',
     nexaPaymentUpstreamLogsTitle: 'Nexa 支付上游日志',
     nexaPaymentUpstreamLogsRefreshBtn: '刷新',
     nexaPaymentUpstreamLogsEmpty: '暂无 Nexa 支付上游日志。',
@@ -902,6 +910,10 @@ const texts = {
     predictMasterCallbackLogsRefreshBtn: 'Refresh',
     predictMasterCallbackLogsEmpty: 'No callback logs yet.',
     predictMasterCallbackLogsLoadFailed: 'Failed to load predict callback logs.',
+    predictMasterClientErrorLogsTitle: 'Predict Page Error Logs',
+    predictMasterClientErrorLogsRefreshBtn: 'Refresh',
+    predictMasterClientErrorLogsEmpty: 'No predict page error logs yet.',
+    predictMasterClientErrorLogsLoadFailed: 'Failed to load predict page error logs.',
     nexaPaymentUpstreamLogsTitle: 'Nexa Payment Upstream Logs',
     nexaPaymentUpstreamLogsRefreshBtn: 'Refresh',
     nexaPaymentUpstreamLogsEmpty: 'No Nexa payment upstream logs yet.',
@@ -1570,6 +1582,9 @@ function applyLanguage() {
   document.getElementById('predictMasterLoginLogsRefreshBtn').textContent = dict.predictMasterLoginLogsRefreshBtn;
   document.getElementById('predictMasterCallbackLogsTitle').textContent = dict.predictMasterCallbackLogsTitle;
   document.getElementById('predictMasterCallbackLogsRefreshBtn').textContent = dict.predictMasterCallbackLogsRefreshBtn;
+  document.getElementById('predictMasterClientErrorLogsTitle').textContent = dict.predictMasterClientErrorLogsTitle;
+  document.getElementById('predictMasterClientErrorLogsRefreshBtn').textContent =
+    dict.predictMasterClientErrorLogsRefreshBtn;
   document.getElementById('nexaPaymentUpstreamLogsTitle').textContent = dict.nexaPaymentUpstreamLogsTitle;
   document.getElementById('nexaPaymentUpstreamLogsRefreshBtn').textContent = dict.nexaPaymentUpstreamLogsRefreshBtn;
   document.getElementById('predictMasterOrdersTitle').textContent = dict.predictMasterOrdersTitle;
@@ -1666,6 +1681,7 @@ function setView(view) {
   predictMasterConfigSection.classList.toggle('hidden', view !== 'predict-master-config');
   predictMasterLoginLogsSection.classList.toggle('hidden', view !== 'predict-master-login-logs');
   predictMasterCallbackLogsSection.classList.toggle('hidden', view !== 'predict-master-callback-logs');
+  predictMasterClientErrorLogsSection.classList.toggle('hidden', view !== 'predict-master-client-error-logs');
   nexaPaymentUpstreamLogsSection.classList.toggle('hidden', view !== 'nexa-payment-upstream-logs');
   predictMasterOrdersSection.classList.toggle('hidden', view !== 'predict-master-orders');
   predictMasterWalletTransactionsSection.classList.toggle('hidden', view !== 'predict-master-wallet-transactions');
@@ -1703,6 +1719,9 @@ function setView(view) {
   }
   if (view === 'predict-master-callback-logs') {
     loadPredictMasterCallbackLogs();
+  }
+  if (view === 'predict-master-client-error-logs') {
+    loadPredictMasterClientErrorLogs();
   }
   if (view === 'nexa-payment-upstream-logs') {
     loadNexaPaymentUpstreamLogs();
@@ -3164,6 +3183,60 @@ async function loadPredictMasterCallbackLogs() {
     return;
   }
   renderPredictMasterCallbackLogs(result.data?.items || []);
+}
+
+function renderPredictMasterClientErrorLogs(items = []) {
+  if (!predictMasterClientErrorLogsList) return;
+  if (!Array.isArray(items) || !items.length) {
+    predictMasterClientErrorLogsList.innerHTML = `<p class="empty">${escapeHtml(t('predictMasterClientErrorLogsEmpty'))}</p>`;
+    return;
+  }
+
+  predictMasterClientErrorLogsList.innerHTML = items
+    .map((item) => {
+      const contextJson = JSON.stringify(item.context || {}, null, 2);
+      const stack = String(item.stack || '').trim();
+      return `
+        <article class="review-card">
+          <h3>${escapeHtml(item.message || '预测页面错误')}</h3>
+          <p class="message error">source: ${escapeHtml(item.source || '-')} · 时间: ${escapeHtml(formatAdminLocalDateTime(item.createdAt))}</p>
+          <p class="small">产品: ${escapeHtml(item.productType || '-')} · activity: ${escapeHtml(item.activity || '-')}</p>
+          <p class="small">productPath: ${escapeHtml(item.productPath || '-')}</p>
+          <p class="small">accessCode: ${escapeHtml(item.accessCode || '-')}</p>
+          <p class="small">页面 URL: ${item.pageUrl ? `<a href="${escapeHtml(item.pageUrl)}" target="_blank" rel="noopener">${escapeHtml(item.pageUrl)}</a>` : '-'}</p>
+          <p class="small">User-Agent: ${escapeHtml(item.userAgent || '-')}</p>
+          ${stack ? `<details><summary>错误堆栈</summary><pre class="small">${escapeHtml(stack)}</pre></details>` : ''}
+          <details>
+            <summary>上下文</summary>
+            <pre class="small">${escapeHtml(contextJson)}</pre>
+          </details>
+        </article>
+      `;
+    })
+    .join('');
+}
+
+async function loadPredictMasterClientErrorLogs() {
+  if (!predictMasterClientErrorLogsList) return;
+  if (predictMasterClientErrorLogsMessage) {
+    predictMasterClientErrorLogsMessage.textContent = '';
+    predictMasterClientErrorLogsMessage.className = 'message';
+  }
+  const result = await requestTutorialJson(['/api/admin/predict-master-client-error-logs'], { method: 'GET' });
+  if (result.res?.status === 401) {
+    showLogin();
+    return;
+  }
+  if (!result.res || !result.res.ok) {
+    if (predictMasterClientErrorLogsMessage) {
+      predictMasterClientErrorLogsMessage.textContent = localizeApiError(
+        result.data?.error || t('predictMasterClientErrorLogsLoadFailed')
+      );
+      predictMasterClientErrorLogsMessage.className = 'message error';
+    }
+    return;
+  }
+  renderPredictMasterClientErrorLogs(result.data?.items || []);
 }
 
 function renderNexaPaymentUpstreamLogs(items = []) {
@@ -5762,6 +5835,9 @@ document.getElementById('navPartners').addEventListener('click', () => setView('
 document.getElementById('navPredictMasterConfig').addEventListener('click', () => setView('predict-master-config'));
 document.getElementById('navPredictMasterLoginLogs').addEventListener('click', () => setView('predict-master-login-logs'));
 document.getElementById('navPredictMasterCallbackLogs').addEventListener('click', () => setView('predict-master-callback-logs'));
+document
+  .getElementById('navPredictMasterClientErrorLogs')
+  .addEventListener('click', () => setView('predict-master-client-error-logs'));
 document.getElementById('navNexaPaymentUpstreamLogs').addEventListener('click', () => setView('nexa-payment-upstream-logs'));
 document.getElementById('navPredictMasterOrders').addEventListener('click', () => setView('predict-master-orders'));
 document
@@ -5795,6 +5871,9 @@ if (predictMasterLoginLogsRefreshBtn) {
 }
 if (predictMasterCallbackLogsRefreshBtn) {
   predictMasterCallbackLogsRefreshBtn.addEventListener('click', () => loadPredictMasterCallbackLogs());
+}
+if (predictMasterClientErrorLogsRefreshBtn) {
+  predictMasterClientErrorLogsRefreshBtn.addEventListener('click', () => loadPredictMasterClientErrorLogs());
 }
 if (nexaPaymentUpstreamLogsRefreshBtn) {
   nexaPaymentUpstreamLogsRefreshBtn.addEventListener('click', () => loadNexaPaymentUpstreamLogs());

@@ -369,6 +369,45 @@ test('admin can view recent predict-master login logs', async () => {
   }
 });
 
+test('predict-master client error logs capture SDK order failures for admin diagnosis', async () => {
+  const harness = createHarness();
+
+  try {
+    const cookies = await harness.adminCookies();
+    const create = await harness.request('POST', '/api/predict-master/client-error', {
+      source: 'sdk-on-error',
+      pageUrl: 'https://claw800.com/predict-master/?type=predict&activity=football-worldcup',
+      productType: 'predict',
+      activity: 'football-worldcup',
+      productPath: 'dashboard/predict/sports',
+      accessCode: 'access-code-123',
+      message: 'Platform key not found.',
+      stack: 'Error: Platform key not found.',
+      userAgent: 'NexaWebView',
+      context: {
+        sdkEntry: 'https://testwww.exchange2currency.com',
+        productUrl: 'https://testwww.exchange2currency.com/dashboard/predict/sports'
+      }
+    });
+    assert.equal(create.statusCode, 200);
+    assert.equal(create.body.ok, true);
+
+    const response = await harness.request('GET', '/api/admin/predict-master-client-error-logs', null, { cookies });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.ok, true);
+    assert.equal(response.body.items.length, 1);
+    assert.equal(response.body.items[0].source, 'sdk-on-error');
+    assert.equal(response.body.items[0].productType, 'predict');
+    assert.equal(response.body.items[0].activity, 'football-worldcup');
+    assert.equal(response.body.items[0].productPath, 'dashboard/predict/sports');
+    assert.equal(response.body.items[0].message, 'Platform key not found.');
+    assert.equal(response.body.items[0].context.productUrl, 'https://testwww.exchange2currency.com/dashboard/predict/sports');
+  } finally {
+    harness.cleanup();
+  }
+});
+
 test('admin can view Nexa payment upstream logs after a 405 failure', async () => {
   const harness = createHarness();
 

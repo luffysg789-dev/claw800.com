@@ -43,8 +43,8 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(html, /<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" \/>/);
   assert.match(html, /\/predict-master\/style\.css/);
   assert.match(html, /\/predict-master\/script\.js/);
-  assert.match(html, /\/predict-master\/style\.css\?v=20260614-10/);
-  assert.match(html, /\/predict-master\/script\.js\?v=20260614-10/);
+  assert.match(html, /\/predict-master\/style\.css\?v=20260614-11/);
+  assert.match(html, /\/predict-master\/script\.js\?v=20260614-11/);
   assert.doesNotMatch(html, /class="back-link"/);
   assert.doesNotMatch(html, /id="predictMasterTitle"/);
   assert.doesNotMatch(html, /id="predictMasterStatus"/);
@@ -86,6 +86,10 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(script, /\/api\/predict-master\/wallet/);
   assert.match(script, /\/api\/predict-master\/payment\/create/);
   assert.match(script, /\/api\/predict-master\/payment\/query/);
+  assert.match(script, /\/api\/predict-master\/client-error/);
+  assert.match(script, /function logPredictMasterClientError/);
+  assert.match(script, /logPredictMasterClientError\('sdk-on-error'/);
+  assert.match(script, /window\.addEventListener\('unhandledrejection'/);
   assert.match(script, /function openRechargeModal/);
   assert.match(script, /function closeRechargeModal/);
   assert.match(script, /function buildNexaPaymentUrl\(/);
@@ -115,10 +119,10 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(script, /function applyPredictMasterBodyState\(\)/);
   assert.match(script, /predict-master-product-\$\{type\}/);
   assert.match(script, /function getPredictMasterRenderType\(\)/);
-  assert.match(script, /type:\s*getPredictMasterRenderType\(\)/);
+  assert.match(script, /type:\s*currentRenderContext\.productType/);
   assert.match(script, /productPath:\s*productPath \|\| undefined/);
   assert.match(script, /productUrl:\s*productUrl \|\| undefined/);
-  assert.match(script, /activity:\s*getPredictMasterActivity\(\) \|\| undefined/);
+  assert.match(script, /activity:\s*currentRenderContext\.activity \|\| undefined/);
   assert.match(script, /devAuth:\s*devAuth \|\| undefined/);
   assert.doesNotMatch(script, /frame\.src\s*=/);
 });
@@ -127,6 +131,7 @@ test('admin exposes Predict Master settings without echoing the private key', ()
   assert.match(adminHtml, /id="navPredictMasterConfig"/);
   assert.match(adminHtml, /id="navPredictMasterLoginLogs"/);
   assert.match(adminHtml, /id="navPredictMasterCallbackLogs"/);
+  assert.match(adminHtml, /id="navPredictMasterClientErrorLogs"/);
   assert.match(adminHtml, /id="navNexaPaymentUpstreamLogs"/);
   assert.match(adminHtml, /id="navPredictMasterOrders"/);
   assert.match(adminHtml, /id="navPredictMasterWalletTransactions"/);
@@ -135,6 +140,7 @@ test('admin exposes Predict Master settings without echoing the private key', ()
   assert.match(adminHtml, /id="predictMasterConfigSection"/);
   assert.match(adminHtml, /id="predictMasterLoginLogsSection"/);
   assert.match(adminHtml, /id="predictMasterCallbackLogsSection"/);
+  assert.match(adminHtml, /id="predictMasterClientErrorLogsSection"/);
   assert.match(adminHtml, /id="nexaPaymentUpstreamLogsSection"/);
   assert.match(adminHtml, /id="predictMasterOrdersSection"/);
   assert.match(adminHtml, /id="predictMasterWalletTransactionsSection"/);
@@ -147,6 +153,8 @@ test('admin exposes Predict Master settings without echoing the private key', ()
   assert.match(adminJs, /paymentCompatMode/);
   assert.match(adminJs, /\/api\/admin\/predict-master-login-logs/);
   assert.match(adminJs, /\/api\/admin\/predict-master-callback-logs/);
+  assert.match(adminJs, /\/api\/admin\/predict-master-client-error-logs/);
+  assert.match(adminJs, /renderPredictMasterClientErrorLogs/);
   assert.match(adminJs, /\/api\/admin\/nexa-payment-upstream-logs/);
   assert.match(adminJs, /renderNexaPaymentUpstreamLogs/);
   assert.match(adminJs, /\/api\/admin\/predict-master-orders/);

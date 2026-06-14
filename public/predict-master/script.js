@@ -44,6 +44,8 @@
   let tradingApp = null;
   let tradingScriptUrl = '';
   let currentSession = null;
+  let currentRenderContext = {};
+  const reportedClientErrors = new Set();
 
   function setLoading(text) {
     if (status) status.textContent = text;
@@ -337,13 +339,21 @@
     unloadTradingApp();
     const productPath = getPredictMasterProductPath();
     const productUrl = buildPredictMasterProductUrl(entry, productPath);
+    currentRenderContext = {
+      accessCode,
+      sdkEntry: entry,
+      productType: getPredictMasterRenderType(),
+      productPath: productPath || '',
+      productUrl: productUrl || '',
+      activity: getPredictMasterActivity() || ''
+    };
     tradingApp = new Trading({ container: sdkApp });
     tradingApp.render({
       accessCode: data.accessCode,
-      type: getPredictMasterRenderType(),
+      type: currentRenderContext.productType,
       productPath: productPath || undefined,
       productUrl: productUrl || undefined,
-      activity: getPredictMasterActivity() || undefined,
+      activity: currentRenderContext.activity || undefined,
       theme: 'darken',
       sound: false,
       fontWeight: 'bold',
@@ -364,7 +374,7 @@
         openRechargeModal();
       },
       onError: (message) => {
-        setError(String(message || '预测大师 SDK 渲染失败'));
+        logPredictMasterClientError('sdk-on-error', message);
       }
     });
   }
@@ -386,6 +396,48 @@
       throw new Error(data?.error || data?.message || '请求失败');
     }
     return data;
+  }
+
+  function getErrorMessage(error) {
+    if (typeof error === 'string') return error;
+    return String(error?.message || error?.reason?.message || error?.reason || '预测页面错误');
+  }
+
+  function getErrorStack(error) {
+    if (typeof error === 'string') return '';
+    return String(error?.stack || error?.reason?.stack || '');
+  }
+
+  function logPredictMasterClientError(source, error, extraContext = {}) {
+    const message = getErrorMessage(error);
+    const stack = getErrorStack(error);
+    const dedupeKey = `${source}:${message}:${currentRenderContext.productType || ''}:${currentRenderContext.activity || ''}`;
+    if (reportedClientErrors.has(dedupeKey)) return;
+    reportedClientErrors.add(dedupeKey);
+    const payload = {
+      source,
+      pageUrl: window.location.href,
+      productType: currentRenderContext.productType || getPredictMasterRenderType(),
+      activity: currentRenderContext.activity || getPredictMasterActivity(),
+      productPath: currentRenderContext.productPath || getPredictMasterProductPath(),
+      accessCode: currentRenderContext.accessCode || '',
+      message,
+      stack,
+      userAgent: window.navigator?.userAgent || '',
+      context: {
+        sdkEntry: currentRenderContext.sdkEntry || '',
+        productUrl: currentRenderContext.productUrl || '',
+        ...extraContext
+      }
+    };
+    fetch('/api/predict-master/client-error', {
+      method: 'POST',
+      cache: 'no-store',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      keepalive: true
+    }).catch(() => {});
   }
 
   function extractAuthCodeFromUrl() {
@@ -557,6 +609,16 @@
       if (event.key === 'Escape') closeRechargeModal();
     });
   }
+  window.addEventListener('error', (event) => {
+    logPredictMasterClientError('window-error', event.error || event.message, {
+      filename: event.filename || '',
+      lineno: event.lineno || 0,
+      colno: event.colno || 0
+    });
+  });
+  window.addEventListener('unhandledrejection', (event) => {
+    logPredictMasterClientError('unhandled-rejection', event.reason || 'Unhandled promise rejection');
+  });
   applyPredictMasterProductTitle();
   requestLoginUrl();
 })();

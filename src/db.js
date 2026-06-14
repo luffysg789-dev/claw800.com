@@ -445,6 +445,28 @@ db.exec(`
 `);
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS detrade_client_error_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL DEFAULT '',
+    page_url TEXT NOT NULL DEFAULT '',
+    product_type TEXT NOT NULL DEFAULT '',
+    activity TEXT NOT NULL DEFAULT '',
+    product_path TEXT NOT NULL DEFAULT '',
+    access_code TEXT NOT NULL DEFAULT '',
+    message TEXT NOT NULL DEFAULT '',
+    stack TEXT NOT NULL DEFAULT '',
+    context_json TEXT NOT NULL DEFAULT '{}',
+    user_agent TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_detrade_client_error_logs_created
+  ON detrade_client_error_logs(created_at DESC, id DESC);
+`);
+
+db.exec(`
   CREATE TABLE IF NOT EXISTS nexa_payment_upstream_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     source TEXT NOT NULL DEFAULT '',

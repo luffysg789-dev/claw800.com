@@ -7031,6 +7031,25 @@ app.post('/api/predict-master/login-url', async (req, res) => {
   }
 });
 
+app.post('/api/predict-master/client-error', (req, res) => {
+  recordDetradeClientErrorLog(
+    {
+      source: req.body?.source,
+      pageUrl: req.body?.pageUrl,
+      productType: req.body?.productType,
+      activity: req.body?.activity,
+      productPath: req.body?.productPath,
+      accessCode: req.body?.accessCode,
+      message: req.body?.message,
+      stack: req.body?.stack,
+      context: req.body?.context,
+      userAgent: req.body?.userAgent
+    },
+    req
+  );
+  res.json({ ok: true });
+});
+
 app.post('/api/predict-master/payment/create', async (req, res) => {
   try {
     const openId = String(req.body?.openId || '').trim();
@@ -9588,6 +9607,18 @@ const listDetradeLoginLogsStmt = db.prepare(`
   ORDER BY id DESC
   LIMIT ?
 `);
+const insertDetradeClientErrorLogStmt = db.prepare(`
+  INSERT INTO detrade_client_error_logs (
+    source, page_url, product_type, activity, product_path, access_code, message, stack, context_json, user_agent
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`);
+const listDetradeClientErrorLogsStmt = db.prepare(`
+  SELECT id, source, page_url, product_type, activity, product_path, access_code, message, stack, context_json, user_agent,
+         created_at
+  FROM detrade_client_error_logs
+  ORDER BY id DESC
+  LIMIT ?
+`);
 const insertNexaPaymentUpstreamLogStmt = db.prepare(`
   INSERT INTO nexa_payment_upstream_logs (
     source, request_method, request_url, endpoint_path, request_body_json,
@@ -10175,6 +10206,42 @@ function formatDetradeLoginLog(row = {}) {
     errorMessage: String(row.error_message || ''),
     createdAt: String(row.created_at || '')
   };
+}
+
+function formatDetradeClientErrorLog(row = {}) {
+  return {
+    id: Number(row.id || 0) || 0,
+    source: String(row.source || ''),
+    pageUrl: String(row.page_url || ''),
+    productType: String(row.product_type || ''),
+    activity: String(row.activity || ''),
+    productPath: String(row.product_path || ''),
+    accessCode: String(row.access_code || ''),
+    message: String(row.message || ''),
+    stack: String(row.stack || ''),
+    context: safeJsonParse(row.context_json, {}),
+    userAgent: String(row.user_agent || ''),
+    createdAt: String(row.created_at || '')
+  };
+}
+
+function recordDetradeClientErrorLog(input = {}, req = null) {
+  try {
+    insertDetradeClientErrorLogStmt.run(
+      truncateLogText(String(input.source || '').trim(), 120),
+      truncateLogText(String(input.pageUrl || input.page_url || '').trim(), 2000),
+      truncateLogText(String(input.productType || input.product_type || '').trim(), 80),
+      truncateLogText(String(input.activity || '').trim(), 120),
+      truncateLogText(String(input.productPath || input.product_path || '').trim(), 500),
+      truncateLogText(String(input.accessCode || input.access_code || '').trim(), 200),
+      truncateLogText(String(input.message || '').trim(), 2000),
+      truncateLogText(String(input.stack || '').trim(), 10000),
+      truncateLogText(serializeNotifyPayload(input.context || {}), 20000),
+      truncateLogText(String(input.userAgent || input.user_agent || req?.headers?.['user-agent'] || '').trim(), 1000)
+    );
+  } catch {
+    // Client-side SDK errors are diagnostic only; never block user flows.
+  }
 }
 
 function formatNexaPaymentUpstreamLog(row = {}) {
@@ -13011,6 +13078,13 @@ app.get('/api/admin/predict-master-login-logs', requireAdmin, (req, res) => {
   const limitRaw = Number(req.query?.limit || 100);
   const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
   const items = listDetradeLoginLogsStmt.all(limit).map(formatDetradeLoginLog);
+  res.json({ ok: true, items });
+});
+
+app.get('/api/admin/predict-master-client-error-logs', requireAdmin, (req, res) => {
+  const limitRaw = Number(req.query?.limit || 100);
+  const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
+  const items = listDetradeClientErrorLogsStmt.all(limit).map(formatDetradeClientErrorLog);
   res.json({ ok: true, items });
 });
 
