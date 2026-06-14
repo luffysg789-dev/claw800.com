@@ -45,6 +45,8 @@
   let tradingScriptUrl = '';
   let currentSession = null;
   let currentRenderContext = {};
+  let lastPaymentLaunchAt = 0;
+  let paymentReturnCheckPromise = null;
   const reportedClientErrors = new Set();
 
   function setLoading(text) {
@@ -61,6 +63,11 @@
     if (loading) loading.classList.add('hidden');
     if (errorText) errorText.textContent = message || '请稍后重试。';
     if (errorPanel) errorPanel.classList.remove('hidden');
+  }
+
+  function hideLoading() {
+    if (loading) loading.classList.add('hidden');
+    if (errorPanel) errorPanel.classList.add('hidden');
   }
 
   function getPersistentStorage() {
@@ -543,8 +550,42 @@
       if (status) status.textContent = `充值成功，余额 ${response.walletBalance || ''} USDT`;
       return response;
     }
-    if (status) status.textContent = `充值状态：${response.status || '处理中'}`;
+    hideLoading();
+    if (status) status.textContent = '支付未完成，已恢复产品页面';
     return response;
+  }
+
+  async function checkReturnedRechargePayment() {
+    const pending = loadPendingRechargePayment();
+    if (!pending || paymentReturnCheckPromise) return paymentReturnCheckPromise;
+    paymentReturnCheckPromise = (async () => {
+      try {
+        const response = await checkPendingRechargePayment();
+        const session = normalizeSession(currentSession) || loadCachedSession();
+        if (session) {
+          currentSession = session;
+          await refreshWalletBalance(session);
+        }
+        return response;
+      } catch (error) {
+        hideLoading();
+        if (status) status.textContent = '支付未完成，已恢复产品页面';
+        return null;
+      } finally {
+        paymentReturnCheckPromise = null;
+      }
+    })();
+    return paymentReturnCheckPromise;
+  }
+
+  function schedulePaymentReturnCheck() {
+    if (!loadPendingRechargePayment()) return;
+    const elapsed = Date.now() - Number(lastPaymentLaunchAt || 0);
+    const delay = lastPaymentLaunchAt && elapsed < 1200 ? 1200 - elapsed : 150;
+    window.setTimeout(() => {
+      if (document.visibilityState && document.visibilityState !== 'visible') return;
+      checkReturnedRechargePayment();
+    }, delay);
   }
 
   async function refreshWalletBalance(session = currentSession) {
@@ -577,6 +618,7 @@
         })
       });
       savePendingRechargePayment(response);
+      lastPaymentLaunchAt = Date.now();
       launchNexaUrl(buildNexaPaymentUrl(response.payment));
     } catch (error) {
       setError(error?.message || '创建充值订单失败');
@@ -650,6 +692,11 @@
   });
   window.addEventListener('unhandledrejection', (event) => {
     logPredictMasterClientError('unhandled-rejection', event.reason || 'Unhandled promise rejection');
+  });
+  window.addEventListener('pageshow', schedulePaymentReturnCheck);
+  window.addEventListener('focus', schedulePaymentReturnCheck);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) schedulePaymentReturnCheck();
   });
   applyPredictMasterProductTitle();
   requestLoginUrl();
