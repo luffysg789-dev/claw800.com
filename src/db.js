@@ -1782,8 +1782,19 @@ db.prepare(
   "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('predict_master_balance_type', '', datetime('now'))"
 ).run();
 db.prepare(
-  "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('predict_master_fee_permille', '0', datetime('now'))"
+  "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('predict_master_fee_permille', '10', datetime('now'))"
 ).run();
+const predictMasterFeeDefaultUpgrade = db.prepare(
+  "SELECT value FROM settings WHERE key = 'predict_master_fee_permille_default_20260615'"
+).get();
+if (!predictMasterFeeDefaultUpgrade) {
+  db.prepare(
+    "UPDATE settings SET value = '10', updated_at = datetime('now') WHERE key = 'predict_master_fee_permille' AND value = '0'"
+  ).run();
+  db.prepare(
+    "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('predict_master_fee_permille_default_20260615', '1', datetime('now'))"
+  ).run();
+}
 db.prepare(
   "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('predict_master_payment_compat_mode', '0', datetime('now'))"
 ).run();

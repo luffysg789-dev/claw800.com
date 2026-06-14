@@ -1127,6 +1127,9 @@ test('predict-master withdrawal creates a review item and admin can approve it',
     harness.db
       .prepare("UPDATE detrade_wallets SET available_balance = '20.00' WHERE user_id = ?")
       .run(userId);
+    harness.db
+      .prepare("INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('predict_master_fee_permille', '10', datetime('now'))")
+      .run();
 
     const create = await harness.request('POST', '/api/predict-master/withdraw/create', {
       openId: 'nexa-predict-withdraw-approve',
@@ -1137,6 +1140,9 @@ test('predict-master withdrawal creates a review item and admin can approve it',
     assert.equal(create.body.ok, true);
     assert.equal(create.body.status, 'review_pending');
     assert.equal(create.body.amount, '6.25');
+    assert.equal(create.body.feeAmount, '0.06');
+    assert.equal(create.body.arrivalAmount, '6.19');
+    assert.equal(create.body.feePermille, '10');
     assert.equal(create.body.currency, 'USDT');
     assert.equal(create.body.walletBalance, '13.75');
     assert.match(create.body.withdrawNo, /^pmwd/);
@@ -1152,16 +1158,25 @@ test('predict-master withdrawal creates a review item and admin can approve it',
       status: 'review_pending'
     });
 
-    const debit = harness.db
-      .prepare('SELECT type, amount, balance_after, related_type, related_id FROM detrade_wallet_ledger WHERE related_id = ?')
-      .get(create.body.withdrawNo);
-    assert.deepEqual(debit, {
-      type: 'withdraw_debit',
-      amount: '-6.25',
-      balance_after: '13.75',
-      related_type: 'withdraw',
-      related_id: create.body.withdrawNo
-    });
+    const ledgerItems = harness.db
+      .prepare('SELECT type, amount, balance_after, related_type, related_id FROM detrade_wallet_ledger WHERE related_id = ? ORDER BY id ASC')
+      .all(create.body.withdrawNo);
+    assert.deepEqual(ledgerItems, [
+      {
+        type: 'withdraw_debit',
+        amount: '-6.19',
+        balance_after: '13.81',
+        related_type: 'withdraw',
+        related_id: create.body.withdrawNo
+      },
+      {
+        type: 'withdraw_fee',
+        amount: '-0.06',
+        balance_after: '13.75',
+        related_type: 'withdraw_fee',
+        related_id: create.body.withdrawNo
+      }
+    ]);
 
     const cookies = await harness.adminCookies();
     const list = await harness.request('GET', '/api/admin/predict-master-withdrawals?status=review_pending', null, {
@@ -1285,6 +1300,30 @@ test('predict-master withdrawal rejects insufficient balance', async () => {
       harness.db.prepare('SELECT COUNT(*) AS count FROM detrade_withdrawals').get().count,
       0
     );
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('predict-master withdrawal rejects amounts not greater than 1 USDT', async () => {
+  const harness = createHarness();
+
+  try {
+    await harness.request('POST', '/api/predict-master/wallet', {
+      openId: 'nexa-predict-withdraw-min',
+      sessionKey: 'session-predict-withdraw-min'
+    });
+
+    const create = await harness.request('POST', '/api/predict-master/withdraw/create', {
+      openId: 'nexa-predict-withdraw-min',
+      sessionKey: 'session-predict-withdraw-min',
+      amount: '1'
+    });
+
+    assert.equal(create.statusCode, 400);
+    assert.equal(create.body.ok, false);
+    assert.equal(create.body.error, '提现金额必须大于 1 USDT');
+    assert.equal(harness.db.prepare('SELECT COUNT(*) AS count FROM detrade_withdrawals').get().count, 0);
   } finally {
     harness.cleanup();
   }

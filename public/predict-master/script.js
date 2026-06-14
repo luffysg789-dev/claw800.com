@@ -47,6 +47,7 @@
   const withdrawCancelBtn = document.getElementById('predictMasterWithdrawCancelBtn');
   const withdrawConfirmBtn = document.getElementById('predictMasterWithdrawConfirmBtn');
   const withdrawAmount = document.getElementById('predictMasterWithdrawAmount');
+  const withdrawFeeHint = document.getElementById('predictMasterWithdrawFeeHint');
   const withdrawError = document.getElementById('predictMasterWithdrawError');
   const recordsModal = document.getElementById('predictMasterRecordsModal');
   const recordsCancelBtn = document.getElementById('predictMasterRecordsCancelBtn');
@@ -61,6 +62,7 @@
   let paymentReturnCheckPromise = null;
   let walletRefreshTimers = [];
   let lastWalletRefreshScheduleAt = 0;
+  let currentFeePermille = '10';
   const reportedClientErrors = new Set();
   const upstreamToastErrorMessages = ['Binary order odds error', 'Platform key not found'];
   let sdkToastObserver = null;
@@ -203,6 +205,47 @@
     walletBalance.textContent = normalized;
   }
 
+  function normalizeFeePermille(value) {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue) || numericValue < 0) return 10;
+    return numericValue;
+  }
+
+  function formatMoney(value) {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) return '0.00';
+    return numericValue.toFixed(2).replace(/\.00$/, '').replace(/(\.\d*[1-9])0+$/, '$1');
+  }
+
+  function formatFeeRate(feePermille) {
+    const rate = normalizeFeePermille(feePermille) / 10;
+    return `${formatMoney(rate)}%`;
+  }
+
+  function calculateWithdrawFee(amount) {
+    const numericAmount = Number(amount);
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      return { feeAmount: '0.00', arrivalAmount: '0.00' };
+    }
+    const fee = Math.round((numericAmount * normalizeFeePermille(currentFeePermille)) / 1000 * 100) / 100;
+    const arrival = Math.max(0, numericAmount - fee);
+    return {
+      feeAmount: fee.toFixed(2),
+      arrivalAmount: arrival.toFixed(2)
+    };
+  }
+
+  function updateWithdrawFeeHint() {
+    if (!withdrawFeeHint) return;
+    const amount = String(withdrawAmount?.value || '').trim();
+    if (!amount || !Number.isFinite(Number(amount)) || Number(amount) <= 0) {
+      withdrawFeeHint.textContent = `预测提现手续费 ${formatFeeRate(currentFeePermille)}，实际到账以后台审核为准。`;
+      return;
+    }
+    const { feeAmount, arrivalAmount } = calculateWithdrawFee(amount);
+    withdrawFeeHint.textContent = `预测提现手续费 ${formatFeeRate(currentFeePermille)}，手续费 ${feeAmount} USDT，预计到账 ${arrivalAmount} USDT。`;
+  }
+
   function openRechargeModal() {
     setRechargeError('');
     if (!rechargeModal) {
@@ -234,6 +277,8 @@
       beginWithdrawRequest();
       return;
     }
+    if (withdrawAmount) withdrawAmount.value = '';
+    updateWithdrawFeeHint();
     withdrawModal.hidden = false;
     window.setTimeout(() => {
       withdrawAmount?.focus();
@@ -794,6 +839,10 @@
       })
     });
     setWalletBalance(response.walletBalance || '0.00');
+    if (response.feePermille !== undefined) {
+      currentFeePermille = String(response.feePermille || '10');
+      updateWithdrawFeeHint();
+    }
     return response;
   }
 
@@ -861,6 +910,10 @@
         setWithdrawError('请输入提现金额');
         return;
       }
+      if (Number(amount) <= 1) {
+        setWithdrawError('提现金额必须大于 1 USDT');
+        return;
+      }
       setWithdrawError('');
       const response = await requestJson('/api/predict-master/withdraw/create', {
         method: 'POST',
@@ -872,7 +925,9 @@
       });
       if (response.walletBalance) setWalletBalance(response.walletBalance);
       closeWithdrawModal();
-      window.alert('提现申请已提交，等待后台审核。');
+      window.alert(
+        `提现申请已提交，等待后台审核。手续费 ${response.feeAmount || calculateWithdrawFee(amount).feeAmount} USDT，预计到账 ${response.arrivalAmount || calculateWithdrawFee(amount).arrivalAmount} USDT。`
+      );
       refreshWalletBalance(session).catch(() => {});
     } catch (error) {
       setWithdrawError(error?.message || '提交提现申请失败');
@@ -964,7 +1019,10 @@
     });
   }
   if (withdrawAmount) {
-    withdrawAmount.addEventListener('input', () => setWithdrawError(''));
+    withdrawAmount.addEventListener('input', () => {
+      setWithdrawError('');
+      updateWithdrawFeeHint();
+    });
     withdrawAmount.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') beginWithdrawRequest();
       if (event.key === 'Escape') closeWithdrawModal();

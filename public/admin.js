@@ -3108,7 +3108,7 @@ function fillPredictMasterConfigForm(config = {}) {
   elements.predictMasterCurrency.value = String(config.currency || 'USDT');
   elements.predictMasterExchangeRate.value = String(config.exchangeRate || '1');
   elements.predictMasterBalanceType.value = String(config.balanceType || '');
-  elements.predictMasterFeePermille.value = String(config.feePermille || '0');
+  elements.predictMasterFeePermille.value = String(config.feePermille || '10');
   elements.predictMasterPaymentCompatMode.value = config.paymentCompatMode ? '1' : '0';
 }
 
@@ -4144,7 +4144,7 @@ if (predictMasterConfigForm) {
         currency: String(payload.predictMasterCurrency || 'USDT').trim(),
         exchangeRate: String(payload.predictMasterExchangeRate || '1').trim(),
         balanceType: String(payload.predictMasterBalanceType || '').trim(),
-        feePermille: String(payload.predictMasterFeePermille || '0').trim(),
+        feePermille: String(payload.predictMasterFeePermille || '10').trim(),
         paymentCompatMode: String(payload.predictMasterPaymentCompatMode || '').trim() === '1',
         keepPrivateKey: privateKey === SAVED_PREDICT_MASTER_PRIVATE_KEY_MASK
       })

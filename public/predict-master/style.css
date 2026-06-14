@@ -276,6 +276,14 @@ body.predict-master-product-spread .predict-master-header {
   font-weight: 900;
 }
 
+.predict-master-modal__hint {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
 .predict-master-modal__error {
   margin: 10px 0 0;
   padding: 10px 12px;

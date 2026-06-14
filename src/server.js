@@ -67,6 +67,8 @@ const PREDICT_MASTER_RECHARGE_CURRENCY = 'USDT';
 const PREDICT_MASTER_NEXA_COMPAT_RETURN_PATH = '/xiangqi/';
 const PREDICT_MASTER_RECHARGE_MIN_CENTS = 100n;
 const PREDICT_MASTER_RECHARGE_MAX_CENTS = 10000000n;
+const PREDICT_MASTER_WITHDRAW_MIN_CENTS = 100n;
+const PREDICT_MASTER_DEFAULT_FEE_PERMILLE = '10';
 const U_CARD_REVIEW_POLL_INTERVAL_MS = 5 * 60 * 1000;
 const U_CARD_RECHARGE_DEFAULT_FEE_RATE = '0.02';
 const NEXA_ESCROW_CURRENCY = 'USDT';
@@ -3406,7 +3408,10 @@ function getPredictMasterConfig() {
   const currency = getSetting('predict_master_currency', 'USDT').toUpperCase();
   const exchangeRate = normalizePredictMasterExchangeRate(getSetting('predict_master_exchange_rate', '1'), '1');
   const balanceType = normalizePredictMasterBalanceType(getSetting('predict_master_balance_type', ''));
-  const feePermille = normalizePredictMasterFeePermille(getSetting('predict_master_fee_permille', '0'), '0');
+  const feePermille = normalizePredictMasterFeePermille(
+    getSetting('predict_master_fee_permille', PREDICT_MASTER_DEFAULT_FEE_PERMILLE),
+    PREDICT_MASTER_DEFAULT_FEE_PERMILLE
+  );
   const paymentCompatMode = normalizeBooleanSetting(getSetting('predict_master_payment_compat_mode', '0'));
   return {
     baseUrl,
@@ -7111,6 +7116,7 @@ app.post('/api/predict-master/wallet', async (req, res) => {
       ok: true,
       walletBalance: String(ensured.wallet.available_balance || '0.00'),
       frozenBalance: String(ensured.wallet.frozen_balance || '0.00'),
+      feePermille: getPredictMasterConfig().feePermille,
       currency: 'USDT'
     });
   } catch (error) {
@@ -7141,6 +7147,9 @@ app.post('/api/predict-master/withdraw/create', (req, res) => {
       status: 'review_pending',
       withdrawNo: result.withdrawNo,
       amount: result.amount,
+      feeAmount: result.feeAmount,
+      arrivalAmount: result.arrivalAmount,
+      feePermille: result.feePermille,
       currency: 'USDT',
       walletBalance: result.walletBalance
     });
@@ -10670,8 +10679,8 @@ function createPredictMasterWithdrawNo() {
 
 function normalizePredictMasterWithdrawalAmount(value) {
   const amountCents = parseMoneyToCents(String(value || '').trim());
-  if (amountCents <= 0n) {
-    const error = new Error('提现金额必须大于 0 USDT');
+  if (amountCents <= PREDICT_MASTER_WITHDRAW_MIN_CENTS) {
+    const error = new Error('提现金额必须大于 1 USDT');
     error.statusCode = 400;
     throw error;
   }
@@ -10682,6 +10691,12 @@ const createPendingPredictMasterWithdrawal = db.transaction((payload) => {
   const externalUserId = String(payload.externalUserId || '').trim();
   const amount = normalizePredictMasterWithdrawalAmount(payload.amount);
   const amountCents = parseMoneyToCents(amount);
+  const feePermille = normalizePredictMasterFeePermille(
+    getSetting('predict_master_fee_permille', PREDICT_MASTER_DEFAULT_FEE_PERMILLE),
+    PREDICT_MASTER_DEFAULT_FEE_PERMILLE
+  );
+  const feeCents = computePredictMasterOrderFeeCents(amountCents, feePermille);
+  const arrivalCents = amountCents - feeCents;
   const ensured = ensureDetradeUserWallet(externalUserId);
   if (!ensured?.user || !ensured?.wallet) return { kind: 'wallet_not_found' };
 
@@ -10697,19 +10712,39 @@ const createPendingPredictMasterWithdrawal = db.transaction((payload) => {
   }
 
   const nextBalance = centsToMoneyString(availableBalanceCents - amountCents);
+  const arrivalBalance = centsToMoneyString(availableBalanceCents - arrivalCents);
   updateDetradeWalletBalanceStmt.run(nextBalance, Number(ensured.user.id));
   insertDetradeWithdrawalStmt.run(withdrawNo, Number(ensured.user.id), externalUserId, amount, 'USDT');
   insertDetradeWalletLedgerStmt.run(
     Number(ensured.user.id),
     'withdraw_debit',
-    centsToMoneyString(-amountCents),
-    nextBalance,
+    centsToMoneyString(-arrivalCents),
+    arrivalBalance,
     'withdraw',
     withdrawNo,
-    'predict withdraw review pending'
+    `predict withdraw review pending, arrival ${centsToMoneyString(arrivalCents)} USDT`
   );
+  if (feeCents > 0n) {
+    insertDetradeWalletLedgerStmt.run(
+      Number(ensured.user.id),
+      'withdraw_fee',
+      centsToMoneyString(-feeCents),
+      nextBalance,
+      'withdraw_fee',
+      withdrawNo,
+      `predict withdraw fee ${feePermille}‰`
+    );
+  }
 
-  return { kind: 'review_pending', withdrawNo, amount, walletBalance: nextBalance };
+  return {
+    kind: 'review_pending',
+    withdrawNo,
+    amount,
+    feeAmount: centsToMoneyString(feeCents),
+    arrivalAmount: centsToMoneyString(arrivalCents),
+    feePermille,
+    walletBalance: nextBalance
+  };
 });
 
 const approvePredictMasterWithdrawalReview = db.transaction((payload) => {
@@ -10795,7 +10830,10 @@ function applyDetradeDeduction(payload = {}) {
   return db.transaction(() => {
     const wallet = selectDetradeWalletStmt.get(Number(ensured.user.id));
     const currentCents = parseMoneyToCents(wallet.available_balance);
-    const feePermille = normalizePredictMasterFeePermille(getSetting('predict_master_fee_permille', '0'), '0');
+    const feePermille = normalizePredictMasterFeePermille(
+      getSetting('predict_master_fee_permille', PREDICT_MASTER_DEFAULT_FEE_PERMILLE),
+      PREDICT_MASTER_DEFAULT_FEE_PERMILLE
+    );
     const feeCents = shouldChargePredictMasterOrderFee(source)
       ? computePredictMasterOrderFeeCents(amountCents, feePermille)
       : 0n;
@@ -13625,7 +13663,10 @@ app.put('/api/admin/predict-master-config', requireAdmin, (req, res) => {
     '1'
   );
   const balanceType = normalizePredictMasterBalanceType(req.body?.balanceType ?? req.body?.predictMasterBalanceType ?? '');
-  const feePermille = normalizePredictMasterFeePermille(req.body?.feePermille ?? req.body?.predictMasterFeePermille ?? '0', '0');
+  const feePermille = normalizePredictMasterFeePermille(
+    req.body?.feePermille ?? req.body?.predictMasterFeePermille ?? PREDICT_MASTER_DEFAULT_FEE_PERMILLE,
+    PREDICT_MASTER_DEFAULT_FEE_PERMILLE
+  );
   const paymentCompatMode = normalizeBooleanSetting(
     req.body?.paymentCompatMode ?? req.body?.predictMasterPaymentCompatMode ?? '0'
   );

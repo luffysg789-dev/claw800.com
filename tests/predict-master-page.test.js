@@ -124,6 +124,9 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(script, /function setWithdrawError/);
   assert.match(script, /function beginWithdrawRequest/);
   assert.match(script, /\/api\/predict-master\/withdraw\/create/);
+  assert.match(script, /提现金额必须大于 1 USDT/);
+  assert.match(script, /预测提现手续费/);
+  assert.match(script, /feePermille/);
   assert.match(script, /提现申请已提交，等待后台审核/);
   assert.match(script, /function openRecordsModal/);
   assert.match(script, /function closeRecordsModal/);
