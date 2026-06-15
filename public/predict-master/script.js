@@ -11,7 +11,7 @@
     contract: '合约',
     'up-down': '涨跌',
     spread: '点差',
-    'tap-trading': 'Tap Trading',
+    'tap-trading': '快速交易',
     predict: '预测'
   };
   const PREDICT_MASTER_PRODUCT_PATHS = {
@@ -26,6 +26,7 @@
   const DEFAULT_NEXA_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
   const SESSION_EXPIRY_GRACE_MS = 60 * 1000;
   const MAX_PENDING_PAYMENT_RETENTION_MS = 2 * 60 * 60 * 1000;
+  const PREDICT_MASTER_RECHARGE_PENDING_DISPLAY_TIMEOUT_MS = 5 * 60 * 1000;
 
   const sdkApp = document.getElementById('predictMasterSdkApp');
   const loading = document.getElementById('predictMasterLoading');
@@ -64,7 +65,12 @@
   let lastWalletRefreshScheduleAt = 0;
   let currentFeePermille = '10';
   const reportedClientErrors = new Set();
-  const upstreamToastErrorMessages = ['Binary order odds error', 'Platform key not found'];
+  const upstreamToastErrorMessages = [
+    'Binary order odds error',
+    'Binary order adds error',
+    'Platform key not found',
+    'remote access error'
+  ];
   let sdkToastObserver = null;
 
   function setLoading(text) {
@@ -239,11 +245,11 @@
     if (!withdrawFeeHint) return;
     const amount = String(withdrawAmount?.value || '').trim();
     if (!amount || !Number.isFinite(Number(amount)) || Number(amount) <= 0) {
-      withdrawFeeHint.textContent = `预测提现手续费 ${formatFeeRate(currentFeePermille)}，实际到账以后台审核为准。`;
+      withdrawFeeHint.textContent = `预测提现手续费 ${formatFeeRate(currentFeePermille)}，审核通过后 T+1到账。`;
       return;
     }
     const { feeAmount, arrivalAmount } = calculateWithdrawFee(amount);
-    withdrawFeeHint.textContent = `预测提现手续费 ${formatFeeRate(currentFeePermille)}，手续费 ${feeAmount} USDT，预计到账 ${arrivalAmount} USDT。`;
+    withdrawFeeHint.textContent = `预测提现手续费 ${formatFeeRate(currentFeePermille)}，手续费 ${feeAmount} USDT，预计到账 ${arrivalAmount} USDT，审核通过后 T+1到账。`;
   }
 
   function openRechargeModal() {
@@ -311,11 +317,19 @@
     });
   }
 
+  function parsePredictMasterServerTime(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return null;
+    const normalized = raw.includes('T') ? raw : raw.replace(' ', 'T');
+    if (/(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized)) return new Date(normalized);
+    return new Date(`${normalized}Z`);
+  }
+
   function formatPredictMasterRecordTime(value) {
     const raw = String(value || '').trim();
     if (!raw) return '';
-    const normalized = raw.includes('T') ? raw : raw.replace(' ', 'T');
-    const date = new Date(normalized);
+    const date = parsePredictMasterServerTime(raw);
+    if (!date) return raw;
     if (Number.isNaN(date.getTime())) return raw;
     return date.toLocaleString('zh-CN', {
       year: 'numeric',
@@ -338,9 +352,26 @@
 
   function getPredictMasterRecordStatusClass(record) {
     const status = String(record?.status || '').toLowerCase();
-    if (status === 'rejected') return 'predict-master-record-item__status--rejected';
-    if (record?.displayStatus === '提现中' || status.includes('pending')) return 'predict-master-record-item__status--pending';
+    const displayStatus = getPredictMasterRecordDisplayStatus(record);
+    if (status === 'rejected' || displayStatus === '失败') return 'predict-master-record-item__status--rejected';
+    if (displayStatus === '提现中' || displayStatus === '充值中' || status.includes('pending')) return 'predict-master-record-item__status--pending';
     return '';
+  }
+
+  function isExpiredRechargeRecord(record) {
+    if (record?.type !== 'recharge') return false;
+    const status = String(record?.status || '').trim().toUpperCase();
+    if (status === 'SUCCESS' || status === 'CANCELLED' || status === 'FAILED') return false;
+    const date = parsePredictMasterServerTime(record?.createdAt || record?.updatedAt || '');
+    if (!date || Number.isNaN(date.getTime())) return false;
+    return Date.now() - date.getTime() >= PREDICT_MASTER_RECHARGE_PENDING_DISPLAY_TIMEOUT_MS;
+  }
+
+  function getPredictMasterRecordDisplayStatus(record) {
+    if (isExpiredRechargeRecord(record)) return '失败';
+    const status = String(record?.status || '').trim().toUpperCase();
+    if (record?.type === 'recharge' && (status === 'CANCELLED' || status === 'FAILED')) return '失败';
+    return record?.displayStatus || (record?.type === 'withdraw' ? '提现中' : '充值中');
   }
 
   function renderPredictMasterRecords(items = []) {
@@ -354,12 +385,13 @@
         const typeLabel = item.type === 'withdraw' ? '提现' : '充值';
         const time = formatPredictMasterRecordTime(item.createdAt || item.finishedAt || item.updatedAt);
         const statusClass = getPredictMasterRecordStatusClass(item);
+        const displayStatus = getPredictMasterRecordDisplayStatus(item);
         const orderText = item.withdrawNo || item.orderNo || item.partnerOrderNo || item.id || '';
         return `
           <article class="predict-master-record-item">
             <div class="predict-master-record-item__top">
               <span>${escapeHtml(typeLabel)} ${escapeHtml(item.amount)} ${escapeHtml(item.currency || 'USDT')}</span>
-              <span class="predict-master-record-item__status ${escapeHtml(statusClass)}">${escapeHtml(item.displayStatus || '提现中')}</span>
+              <span class="predict-master-record-item__status ${escapeHtml(statusClass)}">${escapeHtml(displayStatus)}</span>
             </div>
             <p class="predict-master-record-item__meta">${escapeHtml(time)}${orderText ? ` · ${escapeHtml(orderText)}` : ''}</p>
           </article>
@@ -597,6 +629,9 @@
       sound: false,
       fontWeight: 'bold',
       lang: 'zh-CN',
+      hidewatermark: true,
+      hideWatermark: true,
+      hideWaterMark: true,
       onLoad: () => {
         if (loading) loading.classList.add('hidden');
         if (status) status.textContent = `${getPredictMasterProductName()}已连接`;
@@ -645,8 +680,19 @@
     return String(error?.stack || error?.reason?.stack || '');
   }
 
-  function logPredictMasterClientError(source, error, extraContext = {}) {
+  function normalizePredictMasterClientErrorMessage(error, extraContext = {}) {
     const message = getErrorMessage(error);
+    const filename = String(extraContext?.filename || '').trim();
+    const lineNumber = Number(extraContext?.lineno || 0) || 0;
+    const columnNumber = Number(extraContext?.colno || 0) || 0;
+    if (message === 'Script error.' && !filename && lineNumber === 0 && columnNumber === 0) {
+      return '跨域上游 SDK 脚本错误（浏览器未暴露具体堆栈）';
+    }
+    return message;
+  }
+
+  function logPredictMasterClientError(source, error, extraContext = {}) {
+    const message = normalizePredictMasterClientErrorMessage(error, extraContext);
     const stack = getErrorStack(error);
     const dedupeKey = `${source}:${message}:${currentRenderContext.productType || ''}:${currentRenderContext.activity || ''}`;
     if (reportedClientErrors.has(dedupeKey)) return;
@@ -926,7 +972,7 @@
       if (response.walletBalance) setWalletBalance(response.walletBalance);
       closeWithdrawModal();
       window.alert(
-        `提现申请已提交，等待后台审核。手续费 ${response.feeAmount || calculateWithdrawFee(amount).feeAmount} USDT，预计到账 ${response.arrivalAmount || calculateWithdrawFee(amount).arrivalAmount} USDT。`
+        `提现申请已提交，等待后台审核。手续费 ${response.feeAmount || calculateWithdrawFee(amount).feeAmount} USDT，预计到账 ${response.arrivalAmount || calculateWithdrawFee(amount).arrivalAmount} USDT，审核通过后 T+1到账。`
       );
       refreshWalletBalance(session).catch(() => {});
     } catch (error) {
@@ -1034,6 +1080,7 @@
   }
   window.addEventListener('error', (event) => {
     logPredictMasterClientError('window-error', event.error || event.message, {
+      originalMessage: event.message,
       filename: event.filename || '',
       lineno: event.lineno || 0,
       colno: event.colno || 0

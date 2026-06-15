@@ -65,8 +65,8 @@ const DEFAULT_GAMES = [
   },
   {
     slug: 'predict-master-tap-trading',
-    name: 'Tap Trading',
-    description: '进入 Detrade Tap Trading 快速预测玩法。',
+    name: '快速交易',
+    description: '进入 Detrade 快速交易预测玩法。',
     cover_image: '',
     secondary_image: '',
     sound_file: '',
@@ -77,7 +77,7 @@ const DEFAULT_GAMES = [
     route: '/predict-master/?type=tap-trading&productPath=trade-center%2Ftap-trading',
     predictType: 'tap-trading',
     icon: 'UPAL',
-    actionText: '进入 Tap Trading'
+    actionText: '进入快速交易'
   },
   {
     slug: 'predict-master-football-worldcup',
@@ -332,7 +332,7 @@ const GAME_ACTION_TEXT = {
   'predict-master-contract': '进入合约',
   'predict-master-up-down': '进入涨跌',
   'predict-master-spread': '进入点差',
-  'predict-master-tap-trading': '进入 Tap Trading',
+  'predict-master-tap-trading': '进入快速交易',
   'predict-master-football-worldcup': '进入预测',
   'u-card-query': '开始查询',
   nchat: '进入聊天',
@@ -372,9 +372,9 @@ const GAME_I18N = {
     actionText: 'Enter Spread'
   },
   'predict-master-tap-trading': {
-    name: 'Tap Trading',
-    description: 'Open the Detrade Tap Trading prediction mode.',
-    actionText: 'Enter Tap Trading'
+    name: '快速交易',
+    description: 'Open the Detrade quick trading prediction mode.',
+    actionText: '进入快速交易'
   },
   'predict-master-football-worldcup': {
     name: 'Prediction',

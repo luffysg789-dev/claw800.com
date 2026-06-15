@@ -14,7 +14,7 @@ test('games config includes Predict Master card defaults', () => {
     ['predict-master-contract', '合约', '/predict-master/?type=contract', 'contract'],
     ['predict-master-up-down', '涨跌', '/predict-master/?type=up-down&productPath=trade-center%2Fup-down', 'up-down'],
     ['predict-master-spread', '点差', '/predict-master/?type=spread', 'spread'],
-    ['predict-master-tap-trading', 'Tap Trading', '/predict-master/?type=tap-trading&productPath=trade-center%2Ftap-trading', 'tap-trading'],
+    ['predict-master-tap-trading', '快速交易', '/predict-master/?type=tap-trading&productPath=trade-center%2Ftap-trading', 'tap-trading'],
     [
       'predict-master-football-worldcup',
       '预测',
@@ -31,7 +31,7 @@ test('games config includes Predict Master card defaults', () => {
     assert.match(block[0], /icon:\s*'UPAL'/);
   }
   assert.match(gamesConfig, /'predict-master':\s*'进入高低期权'/);
-  assert.match(gamesConfig, /'predict-master-tap-trading':\s*'进入 Tap Trading'/);
+  assert.match(gamesConfig, /'predict-master-tap-trading':\s*'进入快速交易'/);
 });
 
 test('predict-master page shell loads its assets and calls backend login url API', () => {
@@ -43,8 +43,8 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(html, /<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" \/>/);
   assert.match(html, /\/predict-master\/style\.css/);
   assert.match(html, /\/predict-master\/script\.js/);
-  assert.match(html, /\/predict-master\/style\.css\?v=20260615-03/);
-  assert.match(html, /\/predict-master\/script\.js\?v=20260615-03/);
+  assert.match(html, /\/predict-master\/style\.css\?v=20260616-04/);
+  assert.match(html, /\/predict-master\/script\.js\?v=20260616-04/);
   assert.doesNotMatch(html, /class="back-link"/);
   assert.doesNotMatch(html, /id="predictMasterTitle"/);
   assert.doesNotMatch(html, /id="predictMasterStatus"/);
@@ -103,19 +103,27 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(script, /wallet-refresh-after-order/);
   assert.match(script, /sdkApp\.addEventListener\('click', \(\) => scheduleWalletBalanceRefresh\('sdk-click'\), true\)/);
   assert.match(script, /sdkApp\.addEventListener\('touchend', \(\) => scheduleWalletBalanceRefresh\('sdk-touchend'\), true\)/);
+  assert.match(script, /hidewatermark:\s*true/);
+  assert.match(script, /hideWatermark:\s*true/);
+  assert.match(script, /hideWaterMark:\s*true/);
   assert.match(script, /\[800, 3000, 8000, 18000, 35000, 70000, 130000\]/);
   assert.match(script, /\/api\/predict-master\/payment\/create/);
   assert.match(script, /\/api\/predict-master\/payment\/query/);
   assert.match(script, /\/api\/predict-master\/client-error/);
   assert.match(script, /function logPredictMasterClientError/);
+  assert.match(script, /function normalizePredictMasterClientErrorMessage/);
+  assert.match(script, /跨域上游 SDK 脚本错误/);
   assert.match(script, /logPredictMasterClientError\('sdk-on-error'/);
   assert.match(script, /upstreamToastErrorMessages/);
   assert.match(script, /Binary order odds error/);
+  assert.match(script, /Binary order adds error/);
   assert.match(script, /Platform key not found/);
+  assert.match(script, /remote access error/);
   assert.match(script, /sdk-toast-error/);
   assert.match(script, /new MutationObserver/);
   assert.match(script, /function startSdkToastErrorObserver/);
   assert.match(script, /window\.addEventListener\('unhandledrejection'/);
+  assert.match(script, /originalMessage:\s*event\.message/);
   assert.match(script, /function openRechargeModal/);
   assert.match(script, /function closeRechargeModal/);
   assert.match(script, /function setRechargeError/);
@@ -128,13 +136,20 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(script, /预测提现手续费/);
   assert.match(script, /feePermille/);
   assert.match(script, /提现申请已提交，等待后台审核/);
+  assert.match(script, /T\+1到账/);
+  assert.match(html, /T\+1到账/);
   assert.match(script, /function openRecordsModal/);
   assert.match(script, /function closeRecordsModal/);
   assert.match(script, /function loadPredictMasterRecords/);
   assert.match(script, /function renderPredictMasterRecords/);
+  assert.match(script, /function getPredictMasterRecordDisplayStatus/);
+  assert.match(script, /PREDICT_MASTER_RECHARGE_PENDING_DISPLAY_TIMEOUT_MS = 5 \* 60 \* 1000/);
   assert.match(script, /\/api\/predict-master\/records/);
+  assert.match(script, /function parsePredictMasterServerTime\(/);
+  assert.match(script, /return new Date\(`\$\{normalized\}Z`\)/);
   assert.match(script, /提现中/);
   assert.match(script, /完成/);
+  assert.match(script, /失败/);
   assert.match(script, /setRechargeError\('充值金额必须大于 1 USDT'\)/);
   assert.match(script, /rechargeAmount\.addEventListener\('input'/);
   assert.match(script, /充值金额必须大于 1 USDT/);

@@ -125,7 +125,7 @@ test('predict-master is seeded in the games catalog and routes to its page', asy
       ['predict-master-contract', ['/predict-master/?type=contract', '合约']],
       ['predict-master-up-down', ['/predict-master/?type=up-down&productPath=trade-center%2Fup-down', '涨跌']],
       ['predict-master-spread', ['/predict-master/?type=spread', '点差']],
-      ['predict-master-tap-trading', ['/predict-master/?type=tap-trading&productPath=trade-center%2Ftap-trading', 'Tap Trading']],
+      ['predict-master-tap-trading', ['/predict-master/?type=tap-trading&productPath=trade-center%2Ftap-trading', '快速交易']],
       [
         'predict-master-football-worldcup',
         ['/predict-master/?type=predict&activity=football-worldcup&productPath=dashboard%2Fpredict%2Fsports', '预测']
@@ -136,7 +136,7 @@ test('predict-master is seeded in the games catalog and routes to its page', asy
       ['predict-master-contract', '进入合约'],
       ['predict-master-up-down', '进入涨跌'],
       ['predict-master-spread', '进入点差'],
-      ['predict-master-tap-trading', '进入 Tap Trading'],
+      ['predict-master-tap-trading', '进入快速交易'],
       ['predict-master-football-worldcup', '进入预测']
     ]);
     for (const [slug, [route, name]] of expectedRoutes) {
@@ -1054,7 +1054,7 @@ test('predict-master wallet endpoint returns the local Detrade wallet balance fo
   }
 });
 
-test('predict-master order deduction charges configured platform fee once', async () => {
+test('predict-master order deduction does not charge an extra platform trading fee', async () => {
   const harness = createHarness();
 
   try {
@@ -1083,7 +1083,7 @@ test('predict-master order deduction charges configured platform fee once', asyn
     assert.deepEqual(deduction.body.data, { usdAmount: '10.00' });
 
     const walletAfter = harness.db.prepare('SELECT available_balance FROM detrade_wallets WHERE user_id = ?').get(userId);
-    assert.equal(walletAfter.available_balance, '89.95');
+    assert.equal(walletAfter.available_balance, '90.00');
     const transactions = harness.db
       .prepare(
         `SELECT direction, source, amount, balance_after
@@ -1093,19 +1093,72 @@ test('predict-master order deduction charges configured platform fee once', asyn
       )
       .all(userId);
     assert.deepEqual(transactions, [
-      { direction: 'deduction', source: 'PLACE_BINARY_ORDER', amount: '10.00', balance_after: '90.00' },
-      { direction: 'fee', source: 'PREDICT_ORDER_FEE', amount: '0.05', balance_after: '89.95' }
+      { direction: 'deduction', source: 'PLACE_BINARY_ORDER', amount: '10.00', balance_after: '90.00' }
     ]);
 
     const repeated = await harness.request('POST', '/wallet/amount/deduction', payload);
     assert.equal(repeated.statusCode, 200);
     assert.equal(repeated.body.code, 200);
     const walletAfterRepeated = harness.db.prepare('SELECT available_balance FROM detrade_wallets WHERE user_id = ?').get(userId);
-    assert.equal(walletAfterRepeated.available_balance, '89.95');
+    assert.equal(walletAfterRepeated.available_balance, '90.00');
     const transactionCount = harness.db
       .prepare('SELECT COUNT(*) AS count FROM detrade_wallet_transactions WHERE user_id = ?')
       .get(userId);
-    assert.equal(transactionCount.count, 2);
+    assert.equal(transactionCount.count, 1);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('predict-master accepts Detrade contract fee deduction callbacks', async () => {
+  const harness = createHarness();
+
+  try {
+    await harness.request('POST', '/api/predict-master/wallet', {
+      openId: 'nexa-predict-contract-fee-user',
+      sessionKey: 'session-predict-contract-fee-user'
+    });
+    const userId = harness.db.prepare('SELECT id FROM game_users WHERE openid = ?').get('nexa-predict-contract-fee-user').id;
+    harness.db.prepare("UPDATE detrade_wallets SET available_balance = '20.00' WHERE user_id = ?").run(userId);
+
+    const payload = {
+      userId: 'nexa-predict-contract-fee-user',
+      amount: 0.00445,
+      balanceType: 1,
+      bizId: '1155651986101763',
+      bizSubId: '1244011',
+      bizType: 'CONTRACT_ORDER',
+      currency: 'USDT',
+      source: 'CONTRACT_FEE'
+    };
+    const deduction = await harness.request('POST', '/wallet/amount/deduction', payload);
+    assert.equal(deduction.statusCode, 200);
+    assert.equal(deduction.body.code, 200);
+    assert.deepEqual(deduction.body.data, { usdAmount: '0.00445' });
+
+    const walletAfter = harness.db.prepare('SELECT available_balance FROM detrade_wallets WHERE user_id = ?').get(userId);
+    assert.equal(walletAfter.available_balance, '19.99555');
+    const transaction = harness.db
+      .prepare(
+        `SELECT direction, source, amount, balance_after
+         FROM detrade_wallet_transactions
+         WHERE user_id = ?`
+      )
+      .get(userId);
+    assert.deepEqual(transaction, {
+      direction: 'deduction',
+      source: 'CONTRACT_FEE',
+      amount: '0.00445',
+      balance_after: '19.99555'
+    });
+
+    const repeated = await harness.request('POST', '/wallet/amount/deduction', payload);
+    assert.equal(repeated.statusCode, 200);
+    assert.equal(repeated.body.code, 200);
+    const transactionCount = harness.db
+      .prepare('SELECT COUNT(*) AS count FROM detrade_wallet_transactions WHERE user_id = ?')
+      .get(userId);
+    assert.equal(transactionCount.count, 1);
   } finally {
     harness.cleanup();
   }
@@ -1403,6 +1456,81 @@ test('predict-master records endpoint returns recharge and withdrawal history fo
       ]
     );
     assert.equal(records.body.items.some((item) => item.amount === '99.00'), false);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('predict-master records cancel pending recharge orders after five minutes', async () => {
+  const harness = createHarness();
+
+  try {
+    await harness.request('POST', '/api/predict-master/wallet', {
+      openId: 'nexa-predict-expired-recharge',
+      sessionKey: 'session-predict-expired-recharge'
+    });
+    const userId = harness.db.prepare('SELECT id FROM game_users WHERE openid = ?').get('nexa-predict-expired-recharge').id;
+    harness.db
+      .prepare(
+        `INSERT INTO detrade_recharge_orders (
+          order_no, partner_order_no, user_id, external_user_id, amount, currency, status, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, 'USDT', 'PENDING', datetime('now', '-6 minutes'), datetime('now', '-6 minutes'))`
+      )
+      .run('T-record-expired-recharge-1', 'pm-record-expired-recharge-1', userId, 'nexa-predict-expired-recharge', '2.00');
+
+    const records = await harness.request('POST', '/api/predict-master/records', {
+      openId: 'nexa-predict-expired-recharge',
+      sessionKey: 'session-predict-expired-recharge'
+    });
+
+    assert.equal(records.statusCode, 200);
+    assert.equal(records.body.ok, true);
+    assert.equal(records.body.items.length, 1);
+    assert.equal(records.body.items[0].status, 'CANCELLED');
+    assert.equal(records.body.items[0].displayStatus, '失败');
+
+    const stored = harness.db.prepare('SELECT status FROM detrade_recharge_orders WHERE order_no = ?').get('T-record-expired-recharge-1');
+    assert.equal(stored.status, 'CANCELLED');
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('predict-master records cancel any unfinished recharge orders after five minutes', async () => {
+  const harness = createHarness();
+
+  try {
+    await harness.request('POST', '/api/predict-master/wallet', {
+      openId: 'nexa-predict-expired-unfinished-recharge',
+      sessionKey: 'session-predict-expired-unfinished-recharge'
+    });
+    const userId = harness.db.prepare('SELECT id FROM game_users WHERE openid = ?').get('nexa-predict-expired-unfinished-recharge').id;
+    harness.db
+      .prepare(
+        `INSERT INTO detrade_recharge_orders (
+          order_no, partner_order_no, user_id, external_user_id, amount, currency, status, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, 'USDT', ?, datetime('now', '-2 hours'), datetime('now', '-2 hours'))`
+      )
+      .run(
+        'T-record-expired-unfinished-recharge-1',
+        'pm-record-expired-unfinished-recharge-1',
+        userId,
+        'nexa-predict-expired-unfinished-recharge',
+        '6.00',
+        'pending'
+      );
+
+    const records = await harness.request('POST', '/api/predict-master/records', {
+      openId: 'nexa-predict-expired-unfinished-recharge',
+      sessionKey: 'session-predict-expired-unfinished-recharge'
+    });
+
+    assert.equal(records.statusCode, 200);
+    assert.equal(records.body.items[0].status, 'CANCELLED');
+    assert.equal(records.body.items[0].displayStatus, '失败');
+
+    const stored = harness.db.prepare('SELECT status FROM detrade_recharge_orders WHERE order_no = ?').get('T-record-expired-unfinished-recharge-1');
+    assert.equal(stored.status, 'CANCELLED');
   } finally {
     harness.cleanup();
   }

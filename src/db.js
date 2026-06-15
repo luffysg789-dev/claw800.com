@@ -1096,8 +1096,8 @@ const DEFAULT_GAMES_CATALOG = [
   },
   {
     slug: 'predict-master-tap-trading',
-    name: 'Tap Trading',
-    description: 'Detrade Tap Trading 快速预测玩法入口。',
+    name: '快速交易',
+    description: 'Detrade 快速交易预测玩法入口。',
     cover_image: '',
     secondary_image: '',
     sound_file: '',
@@ -1548,6 +1548,15 @@ db.prepare(`
       updated_at = datetime('now')
   WHERE slug = 'predict-master-football-worldcup'
     AND name = '足球/世界杯预测'
+`).run();
+
+db.prepare(`
+  UPDATE games_catalog
+  SET name = '快速交易',
+      description = 'Detrade 快速交易预测玩法入口。',
+      updated_at = datetime('now')
+  WHERE slug = 'predict-master-tap-trading'
+    AND name = 'Tap Trading'
 `).run();
 
 const hasSkillsCatalogSortOrder = db.prepare("SELECT 1 FROM pragma_table_info('skills_catalog') WHERE name = 'sort_order'").get();

@@ -65,6 +65,7 @@ const NEXA_TIP_AMOUNT = '0.10';
 const NEXA_TIP_CURRENCY = 'USDT';
 const PREDICT_MASTER_RECHARGE_CURRENCY = 'USDT';
 const PREDICT_MASTER_NEXA_COMPAT_RETURN_PATH = '/xiangqi/';
+const PREDICT_MASTER_RECHARGE_PENDING_TIMEOUT_SQL = '-5 minutes';
 const PREDICT_MASTER_RECHARGE_MIN_CENTS = 100n;
 const PREDICT_MASTER_RECHARGE_MAX_CENTS = 10000000n;
 const PREDICT_MASTER_WITHDRAW_MIN_CENTS = 100n;
@@ -1007,6 +1008,10 @@ function formatPredictMasterNexaCompatAmount(value) {
   return String(value || '').trim().replace(/\.00$/, '').replace(/(\.\d*[1-9])0+$/, '$1');
 }
 
+function expirePendingPredictMasterRechargeOrders() {
+  return expirePendingDetradeRechargeOrdersStmt.run(PREDICT_MASTER_RECHARGE_PENDING_TIMEOUT_SQL);
+}
+
 async function createPredictMasterRechargeOrder({ req, openId, sessionKey, amount }) {
   const { apiKey, appSecret } = ensureNexaCredentialsConfigured();
   const normalizedOpenId = String(openId || '').trim();
@@ -1185,13 +1190,13 @@ function settlePredictMasterRechargeSuccess(orderNo, paymentData = {}) {
         walletBalance: String(wallet.available_balance || '0.00')
       };
     }
-    const amountCents = parseMoneyToCents(order.amount);
-    const nextBalance = centsToMoneyString(parseMoneyToCents(wallet.available_balance) + amountCents);
+    const amountUnits = centsToDetradeUnits(parseMoneyToCents(order.amount));
+    const nextBalance = detradeUnitsToMoneyString(parseDetradeMoneyToUnits(wallet.available_balance) + amountUnits);
     updateDetradeWalletBalanceStmt.run(nextBalance, Number(order.user_id));
     insertDetradeWalletLedgerStmt.run(
       Number(order.user_id),
       'detrade_recharge',
-      centsToMoneyString(amountCents),
+      detradeUnitsToMoneyString(amountUnits),
       nextBalance,
       'detrade_recharge',
       order.order_no,
@@ -1224,6 +1229,9 @@ async function queryPredictMasterRechargeOrder(orderNo) {
   const status = String(data.status || 'PENDING').trim().toUpperCase();
   const paidTime = String(data.paidTime || '').trim();
   updateDetradeRechargeOrderStatusStmt.run(status, JSON.stringify(data || {}), paidTime, paidTime, normalizedOrderNo);
+  if (status !== 'SUCCESS') {
+    expirePendingPredictMasterRechargeOrders();
+  }
 
   let settlement = {
     settled: Boolean(String(localOrder.settled_at || '').trim()),
@@ -1233,10 +1241,11 @@ async function queryPredictMasterRechargeOrder(orderNo) {
     settlement = settlePredictMasterRechargeSuccess(normalizedOrderNo, data);
   }
   const updated = selectDetradeRechargeOrderStmt.get(normalizedOrderNo) || localOrder;
+  const updatedStatus = String(updated.status || status || 'PENDING').trim().toUpperCase();
   predictMasterRechargeOrders.set(normalizedOrderNo, {
     ...predictMasterRechargeOrders.get(normalizedOrderNo),
     orderNo: normalizedOrderNo,
-    status,
+    status: updatedStatus,
     amount: String(updated.amount || data.amount || localOrder.amount || '0.00'),
     currency: String(updated.currency || data.currency || PREDICT_MASTER_RECHARGE_CURRENCY),
     paidTime,
@@ -1245,7 +1254,7 @@ async function queryPredictMasterRechargeOrder(orderNo) {
 
   return {
     orderNo: normalizedOrderNo,
-    status,
+    status: updatedStatus,
     amount: String(updated.amount || data.amount || localOrder.amount || '0.00'),
     currency: String(updated.currency || data.currency || PREDICT_MASTER_RECHARGE_CURRENCY),
     paidTime,
@@ -3388,10 +3397,6 @@ function computePredictMasterOrderFeeCents(amountCents, feePermille) {
   return (normalizedAmountCents * feeCentiPermille + 50000n) / 100000n;
 }
 
-function shouldChargePredictMasterOrderFee(source) {
-  return /^PLACE_.*ORDER$/.test(String(source || '').trim());
-}
-
 function normalizeBooleanSetting(value) {
   if (value === true || value === 1) return true;
   const raw = String(value ?? '').trim().toLowerCase();
@@ -3588,7 +3593,7 @@ const GAME_ACTION_TEXT_MAP = {
   'predict-master-contract': '进入合约',
   'predict-master-up-down': '进入涨跌',
   'predict-master-spread': '进入点差',
-  'predict-master-tap-trading': '进入 Tap Trading',
+  'predict-master-tap-trading': '进入快速交易',
   'predict-master-football-worldcup': '进入预测',
   'u-card-query': '开始查询',
   nchat: '进入聊天',
@@ -7168,6 +7173,7 @@ app.post('/api/predict-master/records', (req, res) => {
     if (!ensured?.user) return res.status(500).json({ error: '预测钱包读取失败' });
     const limitRaw = Number(req.body?.limit || 50);
     const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(100, Math.floor(limitRaw))) : 50;
+    expirePendingPredictMasterRechargeOrders();
     const rechargeItems = listDetradeRechargeRecordsByUserStmt
       .all(Number(ensured.user.id), limit)
       .map(formatPredictMasterRechargeRecord);
@@ -9747,6 +9753,13 @@ const updateDetradeRechargeOrderStatusStmt = db.prepare(`
       updated_at = datetime('now')
   WHERE order_no = ?
 `);
+const expirePendingDetradeRechargeOrdersStmt = db.prepare(`
+  UPDATE detrade_recharge_orders
+  SET status = 'CANCELLED',
+      updated_at = datetime('now')
+  WHERE UPPER(status) NOT IN ('SUCCESS', 'CANCELLED')
+    AND datetime(created_at) <= datetime('now', ?)
+`);
 const markDetradeRechargeOrderSettledStmt = db.prepare(`
   UPDATE detrade_recharge_orders
   SET settled_at = datetime('now'),
@@ -10300,6 +10313,31 @@ function centsToMoneyString(value) {
   return `${negative ? '-' : ''}${wholePart}.${fractionPart}`;
 }
 
+const DETRADE_MONEY_SCALE = 100000000n;
+
+function parseDetradeMoneyToUnits(value) {
+  const normalized = String(value || '').trim();
+  if (!/^\d+(?:\.\d{1,8})?$/.test(normalized)) {
+    throw new Error('INVALID_AMOUNT');
+  }
+
+  const [wholePart, fractionPart = ''] = normalized.split('.');
+  return BigInt(wholePart) * DETRADE_MONEY_SCALE + BigInt((fractionPart + '00000000').slice(0, 8));
+}
+
+function detradeUnitsToMoneyString(value) {
+  const negative = value < 0n;
+  const absolute = negative ? -value : value;
+  const wholePart = absolute / DETRADE_MONEY_SCALE;
+  let fractionPart = String(absolute % DETRADE_MONEY_SCALE).padStart(8, '0').replace(/0+$/, '');
+  if (fractionPart.length < 2) fractionPart = fractionPart.padEnd(2, '0');
+  return `${negative ? '-' : ''}${wholePart}.${fractionPart}`;
+}
+
+function centsToDetradeUnits(value) {
+  return BigInt(value || 0n) * (DETRADE_MONEY_SCALE / 100n);
+}
+
 function serializeNotifyPayload(payload) {
   try {
     return JSON.stringify(payload || {});
@@ -10562,7 +10600,10 @@ function formatDetradeWithdrawal(row = {}) {
 }
 
 function getPredictMasterRechargeDisplayStatus(status = '') {
-  return String(status || '').trim().toUpperCase() === 'SUCCESS' ? '完成' : '充值中';
+  const normalized = String(status || '').trim().toUpperCase();
+  if (normalized === 'SUCCESS') return '完成';
+  if (normalized === 'CANCELLED' || normalized === 'FAILED') return '失败';
+  return '充值中';
 }
 
 function getPredictMasterWithdrawalDisplayStatus(status = '') {
@@ -10691,28 +10732,30 @@ const createPendingPredictMasterWithdrawal = db.transaction((payload) => {
   const externalUserId = String(payload.externalUserId || '').trim();
   const amount = normalizePredictMasterWithdrawalAmount(payload.amount);
   const amountCents = parseMoneyToCents(amount);
+  const amountUnits = centsToDetradeUnits(amountCents);
   const feePermille = normalizePredictMasterFeePermille(
     getSetting('predict_master_fee_permille', PREDICT_MASTER_DEFAULT_FEE_PERMILLE),
     PREDICT_MASTER_DEFAULT_FEE_PERMILLE
   );
   const feeCents = computePredictMasterOrderFeeCents(amountCents, feePermille);
   const arrivalCents = amountCents - feeCents;
+  const arrivalUnits = centsToDetradeUnits(arrivalCents);
   const ensured = ensureDetradeUserWallet(externalUserId);
   if (!ensured?.user || !ensured?.wallet) return { kind: 'wallet_not_found' };
 
   const wallet = selectDetradeWalletStmt.get(Number(ensured.user.id));
   if (!wallet) return { kind: 'wallet_not_found' };
 
-  const availableBalanceCents = parseMoneyToCents(wallet.available_balance);
-  if (availableBalanceCents < amountCents) return { kind: 'insufficient_balance' };
+  const availableBalanceUnits = parseDetradeMoneyToUnits(wallet.available_balance);
+  if (availableBalanceUnits < amountUnits) return { kind: 'insufficient_balance' };
 
   let withdrawNo = createPredictMasterWithdrawNo();
   while (selectDetradeWithdrawalByNoStmt.get(withdrawNo)) {
     withdrawNo = createPredictMasterWithdrawNo();
   }
 
-  const nextBalance = centsToMoneyString(availableBalanceCents - amountCents);
-  const arrivalBalance = centsToMoneyString(availableBalanceCents - arrivalCents);
+  const nextBalance = detradeUnitsToMoneyString(availableBalanceUnits - amountUnits);
+  const arrivalBalance = detradeUnitsToMoneyString(availableBalanceUnits - arrivalUnits);
   updateDetradeWalletBalanceStmt.run(nextBalance, Number(ensured.user.id));
   insertDetradeWithdrawalStmt.run(withdrawNo, Number(ensured.user.id), externalUserId, amount, 'USDT');
   insertDetradeWalletLedgerStmt.run(
@@ -10775,7 +10818,7 @@ const rejectPredictMasterWithdrawalReview = db.transaction((payload) => {
   const wallet = selectDetradeWalletStmt.get(Number(withdrawal.user_id));
   if (!wallet) return { kind: 'wallet_not_found' };
   const amountCents = parseMoneyToCents(withdrawal.amount);
-  const nextBalance = centsToMoneyString(parseMoneyToCents(wallet.available_balance) + amountCents);
+  const nextBalance = detradeUnitsToMoneyString(parseDetradeMoneyToUnits(wallet.available_balance) + centsToDetradeUnits(amountCents));
 
   updateDetradeWalletBalanceStmt.run(nextBalance, Number(withdrawal.user_id));
   insertDetradeWalletLedgerStmt.run(
@@ -10818,7 +10861,7 @@ function findMatchingDetradeDeduction({ bizId, source }) {
 function applyDetradeDeduction(payload = {}) {
   const externalUserId = String(payload.userId ?? payload.user_id ?? '').trim();
   const amount = String(payload.amount || '').trim();
-  const amountCents = parseMoneyToCents(amount);
+  const amountUnits = parseDetradeMoneyToUnits(amount);
   const currency = normalizeDetradeCurrency(payload.currency);
   const { bizId, bizType, source, bizSubId } = getDetradeTransactionKey(payload);
   if (!externalUserId || !bizId || !source) return { kind: 'param_invalid' };
@@ -10829,21 +10872,15 @@ function applyDetradeDeduction(payload = {}) {
 
   return db.transaction(() => {
     const wallet = selectDetradeWalletStmt.get(Number(ensured.user.id));
-    const currentCents = parseMoneyToCents(wallet.available_balance);
-    const feePermille = normalizePredictMasterFeePermille(
-      getSetting('predict_master_fee_permille', PREDICT_MASTER_DEFAULT_FEE_PERMILLE),
-      PREDICT_MASTER_DEFAULT_FEE_PERMILLE
-    );
-    const feeCents = shouldChargePredictMasterOrderFee(source)
-      ? computePredictMasterOrderFeeCents(amountCents, feePermille)
-      : 0n;
-    if (currentCents < amountCents + feeCents) return { kind: 'balance_not_enough' };
-    const nextBalance = centsToMoneyString(currentCents - amountCents);
+    const currentUnits = parseDetradeMoneyToUnits(wallet.available_balance);
+    if (currentUnits < amountUnits) return { kind: 'balance_not_enough' };
+    const amountString = detradeUnitsToMoneyString(amountUnits);
+    const nextBalance = detradeUnitsToMoneyString(currentUnits - amountUnits);
     updateDetradeWalletBalanceStmt.run(nextBalance, Number(ensured.user.id));
     insertDetradeWalletLedgerStmt.run(
       Number(ensured.user.id),
       'detrade_deduction',
-      centsToMoneyString(-amountCents),
+      detradeUnitsToMoneyString(-amountUnits),
       nextBalance,
       'detrade',
       detradeRelatedId({ bizId, bizSubId, source }),
@@ -10854,8 +10891,8 @@ function applyDetradeDeduction(payload = {}) {
       externalUserId,
       currency,
       'deduction',
-      centsToMoneyString(amountCents),
-      centsToMoneyString(amountCents),
+      amountString,
+      amountString,
       bizId,
       bizType,
       source,
@@ -10864,39 +10901,6 @@ function applyDetradeDeduction(payload = {}) {
       nextBalance,
       serializeNotifyPayload(payload)
     );
-    if (feeCents > 0n) {
-      const feeBalance = centsToMoneyString(currentCents - amountCents - feeCents);
-      updateDetradeWalletBalanceStmt.run(feeBalance, Number(ensured.user.id));
-      insertDetradeWalletLedgerStmt.run(
-        Number(ensured.user.id),
-        'detrade_fee',
-        centsToMoneyString(-feeCents),
-        feeBalance,
-        'detrade_fee',
-        detradeRelatedId({ bizId, bizSubId, source }),
-        `Predict Master fee ${feePermille}‰`
-      );
-      insertDetradeWalletTransactionStmt.run(
-        Number(ensured.user.id),
-        externalUserId,
-        currency,
-        'fee',
-        centsToMoneyString(feeCents),
-        centsToMoneyString(feeCents),
-        bizId,
-        bizType,
-        'PREDICT_ORDER_FEE',
-        bizSubId,
-        String(payload.balanceType ?? payload.balance_type ?? ''),
-        feeBalance,
-        serializeNotifyPayload({
-          ...payload,
-          platformFeePermille: feePermille,
-          platformFeeAmount: centsToMoneyString(feeCents),
-          platformFeeSource: source
-        })
-      );
-    }
     return {
       kind: 'ok',
       transaction: selectDetradeWalletTransactionStmt.get('deduction', source, bizId, bizSubId)
@@ -10907,7 +10911,7 @@ function applyDetradeDeduction(payload = {}) {
 function applyDetradeAdd(payload = {}) {
   const externalUserId = String(payload.userId ?? payload.user_id ?? '').trim();
   const amount = String(payload.amount || '').trim();
-  const amountCents = parseMoneyToCents(amount);
+  const amountUnits = parseDetradeMoneyToUnits(amount);
   const currency = normalizeDetradeCurrency(payload.currency);
   const { bizId, bizType, source, bizSubId } = getDetradeTransactionKey(payload);
   if (!externalUserId || !bizId || !source) return { kind: 'param_invalid' };
@@ -10921,12 +10925,13 @@ function applyDetradeAdd(payload = {}) {
 
   return db.transaction(() => {
     const wallet = selectDetradeWalletStmt.get(Number(ensured.user.id));
-    const nextBalance = centsToMoneyString(parseMoneyToCents(wallet.available_balance) + amountCents);
+    const amountString = detradeUnitsToMoneyString(amountUnits);
+    const nextBalance = detradeUnitsToMoneyString(parseDetradeMoneyToUnits(wallet.available_balance) + amountUnits);
     updateDetradeWalletBalanceStmt.run(nextBalance, Number(ensured.user.id));
     insertDetradeWalletLedgerStmt.run(
       Number(ensured.user.id),
       'detrade_add',
-      centsToMoneyString(amountCents),
+      amountString,
       nextBalance,
       'detrade',
       detradeRelatedId({ bizId, bizSubId, source }),
@@ -10937,8 +10942,8 @@ function applyDetradeAdd(payload = {}) {
       externalUserId,
       currency,
       'add',
-      centsToMoneyString(amountCents),
-      centsToMoneyString(amountCents),
+      amountString,
+      amountString,
       bizId,
       bizType,
       source,
@@ -13574,6 +13579,7 @@ app.get('/api/admin/predict-master-orders', requireAdmin, (req, res) => {
 app.get('/api/admin/predict-master-recharge-orders', requireAdmin, (req, res) => {
   const limitRaw = Number(req.query?.limit || 100);
   const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
+  expirePendingPredictMasterRechargeOrders();
   const items = listDetradeRechargeOrdersStmt.all(limit).map(formatPredictMasterRechargeOrder);
   res.json({ ok: true, items });
 });
