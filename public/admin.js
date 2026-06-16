@@ -486,6 +486,7 @@ const texts = {
     predictMasterBaseUrlLabel: 'Detrade Base URL',
     predictMasterApiKeyLabel: 'API Key',
     predictMasterPrivateKeyLabel: 'Private Key（BEGIN PRIVATE KEY，保存后不回显，留空则保留已保存私钥）',
+    predictMasterPublicKeyLabel: 'Public Key（上游提供，用于后续验签配置）',
     predictMasterUserIdLabel: '用户 ID',
     predictMasterUsernameLabel: '用户名',
     predictMasterAvatarLabel: '头像链接',
@@ -917,6 +918,7 @@ const texts = {
     predictMasterBaseUrlLabel: 'Detrade Base URL',
     predictMasterApiKeyLabel: 'API Key',
     predictMasterPrivateKeyLabel: 'Private Key (BEGIN PRIVATE KEY; saved value is hidden, leave blank to keep it)',
+    predictMasterPublicKeyLabel: 'Public Key (provided by upstream; kept for signature verification)',
     predictMasterUserIdLabel: 'User ID',
     predictMasterUsernameLabel: 'Username',
     predictMasterAvatarLabel: 'Avatar URL',
@@ -1610,6 +1612,7 @@ function applyLanguage() {
   document.getElementById('predictMasterBaseUrlLabel').childNodes[0].textContent = dict.predictMasterBaseUrlLabel;
   document.getElementById('predictMasterApiKeyLabel').childNodes[0].textContent = dict.predictMasterApiKeyLabel;
   document.getElementById('predictMasterPrivateKeyLabel').childNodes[0].textContent = dict.predictMasterPrivateKeyLabel;
+  document.getElementById('predictMasterPublicKeyLabel').childNodes[0].textContent = dict.predictMasterPublicKeyLabel;
   document.getElementById('predictMasterUserIdLabel').childNodes[0].textContent = dict.predictMasterUserIdLabel;
   document.getElementById('predictMasterUsernameLabel').childNodes[0].textContent = dict.predictMasterUsernameLabel;
   document.getElementById('predictMasterAvatarLabel').childNodes[0].textContent = dict.predictMasterAvatarLabel;
@@ -3102,6 +3105,7 @@ function fillPredictMasterConfigForm(config = {}) {
   elements.predictMasterBaseUrl.value = String(config.baseUrl || '');
   elements.predictMasterApiKey.value = String(config.apiKey || '');
   elements.predictMasterPrivateKey.value = config.hasPrivateKey ? SAVED_PREDICT_MASTER_PRIVATE_KEY_MASK : '';
+  elements.predictMasterPublicKey.value = String(config.publicKey || '');
   elements.predictMasterUserId.value = String(config.userId || '1727404213474304');
   elements.predictMasterUsername.value = String(config.username || 'Yxxvz');
   elements.predictMasterAvatar.value = String(config.avatar || '');
@@ -4138,6 +4142,7 @@ if (predictMasterConfigForm) {
         baseUrl: String(payload.predictMasterBaseUrl || '').trim(),
         apiKey: String(payload.predictMasterApiKey || '').trim(),
         privateKey,
+        publicKey: String(payload.predictMasterPublicKey || '').trim(),
         userId: String(payload.predictMasterUserId || '').trim(),
         username: String(payload.predictMasterUsername || '').trim(),
         avatar: String(payload.predictMasterAvatar || '').trim(),

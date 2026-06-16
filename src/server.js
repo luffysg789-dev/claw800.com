@@ -3407,6 +3407,7 @@ function getPredictMasterConfig() {
   const baseUrl = normalizeDetradeBaseUrl(getSetting('predict_master_base_url', DEFAULT_DETRADE_BASE_URL));
   const apiKey = getSetting('predict_master_api_key', DEFAULT_DETRADE_API_KEY);
   const privateKey = normalizeDetradePrivateKey(getSetting('predict_master_private_key', DEFAULT_DETRADE_PRIVATE_KEY));
+  const publicKey = normalizePem(getSetting('predict_master_public_key', ''));
   const userId = getSetting('predict_master_user_id', '1727404213474304');
   const username = getSetting('predict_master_username', 'Yxxvz');
   const avatar = getSetting('predict_master_avatar', '');
@@ -3422,6 +3423,7 @@ function getPredictMasterConfig() {
     baseUrl,
     apiKey,
     privateKey,
+    publicKey,
     userId,
     username,
     avatar,
@@ -3441,6 +3443,7 @@ function formatAdminPredictMasterConfig(config = getPredictMasterConfig()) {
     apiKey: String(config.apiKey || ''),
     privateKey: '',
     hasPrivateKey: Boolean(config.hasPrivateKey),
+    publicKey: String(config.publicKey || ''),
     userId: String(config.userId || ''),
     username: String(config.username || ''),
     avatar: String(config.avatar || ''),
@@ -13660,6 +13663,7 @@ app.put('/api/admin/predict-master-config', requireAdmin, (req, res) => {
   const baseUrl = normalizeDetradeBaseUrl(req.body?.baseUrl ?? req.body?.predictMasterBaseUrl ?? '');
   const apiKey = String(req.body?.apiKey ?? req.body?.predictMasterApiKey ?? '').trim();
   const privateKey = normalizeDetradePrivateKey(req.body?.privateKey ?? req.body?.predictMasterPrivateKey ?? '');
+  const publicKey = normalizePem(req.body?.publicKey ?? req.body?.predictMasterPublicKey ?? '');
   const userId = String(req.body?.userId ?? req.body?.predictMasterUserId ?? '').trim();
   const username = String(req.body?.username ?? req.body?.predictMasterUsername ?? '').trim();
   const avatar = String(req.body?.avatar ?? req.body?.predictMasterAvatar ?? '').trim();
@@ -13688,6 +13692,7 @@ app.put('/api/admin/predict-master-config', requireAdmin, (req, res) => {
   if (Buffer.byteLength(baseUrl, 'utf8') > 1000) return res.status(413).json({ error: 'Detrade Base URL 太长' });
   if (Buffer.byteLength(apiKey, 'utf8') > 2000) return res.status(413).json({ error: 'Detrade API Key 太长' });
   if (Buffer.byteLength(privateKey, 'utf8') > 20000) return res.status(413).json({ error: 'Detrade Private Key 太长' });
+  if (Buffer.byteLength(publicKey, 'utf8') > 20000) return res.status(413).json({ error: 'Detrade Public Key 太长' });
   if (Buffer.byteLength(userId, 'utf8') > 200) return res.status(413).json({ error: '用户 ID 太长' });
   if (Buffer.byteLength(username, 'utf8') > 200) return res.status(413).json({ error: '用户名太长' });
   if (Buffer.byteLength(avatar, 'utf8') > 1000) return res.status(413).json({ error: '头像链接太长' });
@@ -13705,6 +13710,7 @@ app.put('/api/admin/predict-master-config', requireAdmin, (req, res) => {
   try {
     upsertSettingStmt.run('predict_master_base_url', baseUrl);
     upsertSettingStmt.run('predict_master_api_key', apiKey);
+    upsertSettingStmt.run('predict_master_public_key', publicKey);
     upsertSettingStmt.run('predict_master_user_id', userId);
     upsertSettingStmt.run('predict_master_username', username);
     upsertSettingStmt.run('predict_master_avatar', avatar);

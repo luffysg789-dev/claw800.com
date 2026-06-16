@@ -166,6 +166,7 @@ test('admin can save predict-master config without private key echo', async () =
 
   try {
     const cookies = await harness.adminCookies();
+    const platformPublicKey = '-----BEGIN PUBLIC KEY-----\npredict-upstream-public-key\n-----END PUBLIC KEY-----';
     const save = await harness.request(
       'PUT',
       '/api/admin/predict-master-config',
@@ -173,6 +174,7 @@ test('admin can save predict-master config without private key echo', async () =
         baseUrl: 'https://detrade.example',
         apiKey: 'predict-api-key',
         privateKey,
+        publicKey: platformPublicKey,
         userId: '1727404213474304',
         username: 'Yxxvz',
         avatar: 'https://example.com/avatar.png',
@@ -188,12 +190,14 @@ test('admin can save predict-master config without private key echo', async () =
     assert.equal(save.body.ok, true);
     assert.equal(save.body.hasPrivateKey, true);
     assert.equal(save.body.privateKey, '');
+    assert.equal(save.body.publicKey, platformPublicKey);
 
     const config = await harness.request('GET', '/api/admin/predict-master-config', null, { cookies });
     assert.equal(config.statusCode, 200);
     assert.equal(config.body.apiKey, 'predict-api-key');
     assert.equal(config.body.hasPrivateKey, true);
     assert.equal(config.body.privateKey, '');
+    assert.equal(config.body.publicKey, platformPublicKey);
     assert.equal(config.body.feePermille, '5');
     assert.equal(config.body.paymentCompatMode, false);
 
@@ -210,6 +214,8 @@ test('admin can save predict-master config without private key echo', async () =
     assert.equal(keepSave.statusCode, 200);
     const storedPrivateKey = harness.db.prepare(`SELECT value FROM settings WHERE key = 'predict_master_private_key'`).get();
     assert.equal(storedPrivateKey.value, privateKey.trim());
+    const storedPublicKey = harness.db.prepare(`SELECT value FROM settings WHERE key = 'predict_master_public_key'`).get();
+    assert.equal(storedPublicKey.value, platformPublicKey);
     const storedFeePermille = harness.db.prepare(`SELECT value FROM settings WHERE key = 'predict_master_fee_permille'`).get();
     assert.equal(storedFeePermille.value, '5');
   } finally {

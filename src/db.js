@@ -1773,6 +1773,9 @@ db.prepare(
   "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('predict_master_private_key', '', datetime('now'))"
 ).run();
 db.prepare(
+  "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('predict_master_public_key', '', datetime('now'))"
+).run();
+db.prepare(
   "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('predict_master_user_id', '1727404213474304', datetime('now'))"
 ).run();
 db.prepare(

@@ -230,10 +230,12 @@ test('admin exposes Predict Master settings without echoing the private key', ()
   assert.match(adminHtml, /id="predictMasterSharesSection"/);
   assert.match(adminHtml, /id="predictMasterRiskReportsSection"/);
   assert.match(adminHtml, /name="predictMasterPrivateKey"/);
+  assert.match(adminHtml, /name="predictMasterPublicKey"/);
   assert.match(adminHtml, /name="predictMasterFeePermille"/);
   assert.match(adminHtml, /name="predictMasterPaymentCompatMode"/);
   assert.match(adminJs, /SAVED_PREDICT_MASTER_PRIVATE_KEY_MASK/);
   assert.match(adminJs, /\/api\/admin\/predict-master-config/);
+  assert.match(adminJs, /publicKey/);
   assert.match(adminJs, /feePermille/);
   assert.match(adminJs, /paymentCompatMode/);
   assert.match(adminJs, /\/api\/admin\/predict-master-login-logs/);
