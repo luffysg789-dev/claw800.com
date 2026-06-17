@@ -111,8 +111,7 @@ function squareCard(song) {
       el('a', { class: 'gm-square-title', href: `/ai-music/song/${encodeURIComponent(String(song.id || ''))}`, text: title }),
       el('div', { class: 'gm-square-author', text: author ? `作者：${author}` : '作者：匿名' }),
       el('div', { class: 'gm-song-meta', text: fmtDate(song.created_at) }),
-      el('div', { class: 'gm-actions' }, [
-        el('button', { type: 'button', class: 'gm-btn-ghost sm', text: '播放', onclick: () => toggleGlobalSong(song) }),
+      el('div', { class: 'gm-actions gm-square-actions' }, [
         el('button', { type: 'button', class: 'gm-btn-ghost sm', text: '分享', onclick: () => shareSong(song) })
       ])
     ])

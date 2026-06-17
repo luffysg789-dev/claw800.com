@@ -1755,6 +1755,11 @@ function formatAiMusicUser(row) {
   };
 }
 
+function isAiMusicPlaceholderNickname(value) {
+  const nickname = normalizeAiMusicNickname(value).toLowerCase();
+  return !nickname || nickname === 'ai music user' || nickname === 'nexa user';
+}
+
 function normalizeAiMusicNickname(value) {
   return String(value || '').trim().replace(/\s+/g, ' ');
 }
@@ -1763,6 +1768,11 @@ function validateAiMusicNickname(value) {
   const nickname = normalizeAiMusicNickname(value);
   if (!nickname) {
     const error = new Error('请填写昵称');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (isAiMusicPlaceholderNickname(nickname)) {
+    const error = new Error('请填写自己的昵称');
     error.statusCode = 400;
     throw error;
   }
@@ -1817,7 +1827,7 @@ function buildAiMusicBootstrapPayload(session) {
   const user = ensureAiMusicUserAccount(session);
   return {
     user,
-    profileRequired: !String(user.nickname || '').trim(),
+    profileRequired: isAiMusicPlaceholderNickname(user.nickname),
     credits: getAiMusicCreditSummary(user.id),
     package: getAiMusicPackage(),
     packages: getAiMusicPackages()

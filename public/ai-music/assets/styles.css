@@ -114,6 +114,7 @@ textarea.gm-input{resize:vertical;line-height:1.6;font-family:inherit;}
 .gm-square-title{display:block;color:#111827;font-size:15px;font-weight:900;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .gm-square-title:hover{color:#be185d;}
 .gm-square-author{margin-top:4px;color:#be185d;font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.gm-square-actions{justify-content:flex-end;}
 .gm-square-empty{grid-column:1 / -1;background:#fff;border:1px solid var(--line);border-radius:16px;padding:42px 20px;text-align:center;color:#64748b;font-weight:700;}
 .gm-square-pager{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:16px;}
 .gm-square-sentinel{display:block;width:100%;margin:14px 0 0;padding:12px;border:0;background:transparent;color:#94a3b8;font-size:13px;font-weight:800;text-align:center;}

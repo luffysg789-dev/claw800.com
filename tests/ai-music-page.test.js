@@ -191,6 +191,9 @@ test('ai music square supports mobile pull-up loading', () => {
   assert.match(squareJs, /gm-square-sentinel/);
   assert.match(squareJs, /author_nickname/);
   assert.match(squareJs, /作者：/);
+  assert.doesNotMatch(squareJs, /text:\s*'播放'/);
+  assert.match(squareJs, /class:\s*'gm-actions gm-square-actions'/);
+  assert.match(styles, /\.gm-square-actions[\s\S]*justify-content:\s*flex-end/);
   assert.match(squareJs, /loadMore/);
   assert.match(squareJs, /append:\s*true/);
   assert.match(squareJs, /scrollIntoView/);

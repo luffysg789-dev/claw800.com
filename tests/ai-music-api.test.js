@@ -209,6 +209,22 @@ test('ai music profile save is required after login and stores author nickname',
   }
 });
 
+test('ai music legacy placeholder nicknames still require profile setup', async () => {
+  const harness = createHarness();
+  try {
+    const { cookies } = await createAiMusicSession(harness, 'ai-music-open-id-legacy-profile');
+    const user = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-legacy-profile');
+    harness.db.prepare('UPDATE ai_music_users SET nickname = ? WHERE id = ?').run('AI Music User', user.id);
+
+    const bootstrap = await harness.request('GET', '/api/ai-music/session', null, { cookies });
+    assert.equal(bootstrap.statusCode, 200);
+    assert.equal(bootstrap.body.profileRequired, true);
+    assert.equal(bootstrap.body.user.nickname, 'AI Music User');
+  } finally {
+    harness.cleanup();
+  }
+});
+
 test('ai music credits endpoint requires session and returns balance', async () => {
   const harness = createHarness();
   try {
