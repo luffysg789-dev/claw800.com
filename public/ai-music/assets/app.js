@@ -1,4 +1,4 @@
-import { getApiKey, logoutSession, bootstrapSession, api } from './api.js?v=20260617-ai-music-payment-refresh';
+import { getApiKey, bootstrapSession, api } from './api.js?v=20260617-ai-music-payment-refresh';
 import { el, clear, toast } from './ui.js?v=20260617-ai-music-payment-refresh';
 import { openKeyModal, renderInlineKeyPrompt, handleNexaAuthCallback, openBuyCreditsModal, refreshPendingCreditOrder } from './auth.js?v=20260617-ai-music-payment-refresh';
 import { renderGenerate } from './generate.js?v=20260617-ai-music-payment-refresh';
@@ -58,10 +58,9 @@ function authControl() {
       }),
       el('button', {
         class: 'gm-btn-ghost sm',
-        text: '购买',
+        text: '充值',
         onclick: () => openBuyCreditsModal()
       }),
-      el('button', { class: 'gm-btn-ghost sm', text: '退出', onclick: async () => { await logoutSession(); boot(); } }),
     ]);
   }
   return el('button', { class: 'gm-btn-ghost sm', text: 'Nexa 登录', onclick: () => openKeyModal({}) });

@@ -158,6 +158,7 @@ export const api = {
   mySongs: ({ tab = 'mine', page = 1, page_size = 20, q = '' } = {}) =>
     request('GET', '/my-songs', { query: { tab, page, page_size, q } }),
   songDetail: (id) => request('GET', `/song/${id}`),
+  songLyrics: (id) => request('GET', `/song/${id}/lyrics`),
   downloadMp3: (id) => request('GET', `/song/${id}/download-mp3`),
   exportWav: (id) => request('POST', `/song/${id}/export-wav`, { body: {} }),
   wavStatus: (id) => request('GET', `/song/${id}/wav-status`),

@@ -217,10 +217,11 @@ function actionBar(s) {
       </div></div>
     </div>
     <button type="button" data-bar-move data-bar-order="1" class="hh-bar-btn" data-act="copyright">授权</button>
-    <button type="button" data-bar-move data-bar-order="2" class="hh-bar-btn" data-act="share">分享</button>
-    <button type="button" data-bar-move data-bar-order="3" class="hh-bar-btn" data-act="remake">重做</button>
-    <button type="button" data-bar-move data-bar-order="4" class="hh-bar-btn" data-act="stem-split">${stemmed ? '升级分轨' : '分轨'}</button>
-    <button type="button" data-bar-move data-bar-order="5" class="hh-bar-btn" data-act="stem-inst">分离伴奏</button>
+    <button type="button" data-bar-move data-bar-order="2" class="hh-bar-btn" data-act="lyrics">歌词</button>
+    <button type="button" data-bar-move data-bar-order="3" class="hh-bar-btn" data-act="share">分享</button>
+    <button type="button" data-bar-move data-bar-order="4" class="hh-bar-btn" data-act="remake">重做</button>
+    <button type="button" data-bar-move data-bar-order="5" class="hh-bar-btn" data-act="stem-split">${stemmed ? '升级分轨' : '分轨'}</button>
+    <button type="button" data-bar-move data-bar-order="6" class="hh-bar-btn" data-act="stem-inst">分离伴奏</button>
     <div class="hh-cat hh-cat-more-wrap">
       <button type="button" class="hh-bar-btn hh-bar-btn-more" data-cat-toggle aria-label="更多" aria-expanded="false">⋯</button>
       <div class="hh-cat-menu" hidden><div class="hh-cat-list">
@@ -254,6 +255,7 @@ function onBarClick(e, s) {
   if (ly) { ({ copy: copyLyrics, txt: downloadLyricsTxt, lrc: dlLrc }[ly] || (() => {}))(s); return; }
   switch (item.getAttribute('data-act')) {
     case 'copyright': doCopyright(s); break;
+    case 'lyrics': doLyrics(s); break;
     case 'share': doShare(s); break;
     case 'remake': doRemake(s, item); break;
     case 'stem-split': goStemLab(s); break;
@@ -526,6 +528,71 @@ function wavUpgradeModal() {
     + '<button data-buy style="flex:2;padding:11px;background:linear-gradient(135deg,#f59e0b,#f97316);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;">购买次数</button>'
     + '</div></div>',
     (card, close) => { card.querySelector('[data-buy]').onclick = () => { close(); toast('请点击顶部购买次数选择套餐', 'info'); }; });
+}
+
+function extractLyricsPayload(payload) {
+  if (!payload) return '';
+  if (typeof payload === 'string') return payload.trim();
+  const candidates = [
+    payload.lyrics,
+    payload.lyric,
+    payload.text,
+    payload.lrc,
+    payload.data?.lyrics,
+    payload.data?.lyric,
+    payload.data?.text,
+    payload.data?.lrc,
+    payload.song?.lyrics,
+    payload.song?.lyric
+  ];
+  return String(candidates.find((value) => value != null && String(value).trim()) || '').trim();
+}
+
+async function fetchLyrics(s) {
+  if (s.lyrics && String(s.lyrics).trim()) return String(s.lyrics).trim();
+  try {
+    const r = await api.songLyrics(s.id);
+    const text = extractLyricsPayload(r);
+    if (text) return text;
+  } catch (e) {
+    // 老上游可能没有独立 lyrics 端点，落到歌曲详情兜底。
+  }
+  const detail = await api.songDetail(s.id);
+  return extractLyricsPayload(detail);
+}
+
+async function doLyrics(s) {
+  const close = openModal(
+    `<button data-close style="${MODAL_X}">&times;</button>`
+    + '<h3 style="font-size:18px;font-weight:900;color:#111827;margin:0 0 10px;text-align:center;">歌词</h3>'
+    + `<div style="font-size:13px;font-weight:800;color:#be123c;text-align:center;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(s.title || '未命名')}</div>`
+    + '<pre data-role="lyrics-body" style="min-height:180px;max-height:52vh;overflow:auto;white-space:pre-wrap;background:#0f172a;color:#e2e8f0;border-radius:12px;padding:14px;font-size:13px;line-height:1.8;margin:0 0 14px;">加载中...</pre>'
+    + '<div style="display:flex;gap:10px;">'
+    + '<button data-copy style="flex:1;padding:10px;background:#fff;color:#be123c;border:1px solid #fecdd3;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;">复制歌词</button>'
+    + '<button data-close style="flex:1;padding:10px;background:linear-gradient(135deg,#f43f5e,#ec4899,#f97316);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:900;cursor:pointer;">关闭</button>'
+    + '</div>',
+    async (card) => {
+      const body = card.querySelector('[data-role="lyrics-body"]');
+      const copyBtn = card.querySelector('[data-copy]');
+      let lyrics = '';
+      copyBtn.disabled = true;
+      try {
+        lyrics = await fetchLyrics(s);
+        body.textContent = lyrics || '暂无歌词';
+        s.lyrics = lyrics || s.lyrics;
+      } catch (e) {
+        body.textContent = e instanceof ApiError ? e.message : '歌词加载失败';
+      } finally {
+        copyBtn.disabled = !lyrics;
+      }
+      copyBtn.onclick = () => {
+        if (!lyrics) return;
+        if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(lyrics).then(() => toast('歌词已复制', 'success')).catch(() => fallbackCopy(lyrics, () => toast('歌词已复制', 'success')));
+        else fallbackCopy(lyrics, () => toast('歌词已复制', 'success'));
+      };
+    },
+    '32rem');
+  return close;
 }
 
 // 复制歌词 / 歌词下载(.txt)（照搬主站 copyLyrics / downloadLyrics，纯前端用 s.lyrics）

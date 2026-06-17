@@ -57,6 +57,9 @@ test('ai music purchase flow shows three Nexa package choices', () => {
   assert.match(appJs, /document\.addEventListener\('visibilitychange'/);
   assert.match(appJs, /gm-credits-changed/);
   assert.match(appJs, /href:\s*'#library'[\s\S]*text:\s*'我的音乐'/);
+  assert.match(appJs, /text:\s*'充值'/);
+  assert.doesNotMatch(appJs, /text:\s*'购买'/);
+  assert.doesNotMatch(appJs, /text:\s*'退出'/);
   assert.match(generateJs, /gm-credits-changed/);
   assert.match(generateJs, /api\.generate\(payload\)[\s\S]*window\.dispatchEvent\(new CustomEvent\('gm-credits-changed'/);
 });
@@ -127,15 +130,22 @@ test('ai music uses persistent bottom player with scrolling lyrics', () => {
   const appJs = readPublicAiMusicFile('assets/app.js');
   const generateJs = readPublicAiMusicFile('assets/generate.js');
   const libraryJs = readPublicAiMusicFile('assets/library.js');
+  const apiJs = readPublicAiMusicFile('assets/api.js');
   const playerJs = readPublicAiMusicFile('assets/player.js');
   const styles = readPublicAiMusicFile('assets/styles.css');
 
   assert.match(appJs, /initGlobalPlayer/);
   assert.match(generateJs, /toggleGlobalSong/);
   assert.match(libraryJs, /toggleGlobalSong/);
+  assert.match(apiJs, /songLyrics:\s*\(id\)\s*=>\s*request\('GET',\s*`\/song\/\$\{id\}\/lyrics`/);
+  assert.match(libraryJs, /data-act="lyrics"/);
+  assert.match(libraryJs, /api\.songLyrics/);
+  assert.match(playerJs, /import\s+\{\s*api\s*\}\s+from '\.\/api\.js\?v=/);
+  assert.match(playerJs, /api\.songLyrics/);
   assert.match(playerJs, /id:\s*'gm-mini-player'/);
   assert.match(playerJs, /class:\s*'gm-mini-lyric'/);
   assert.match(playerJs, /new Audio/);
+  assert.match(playerJs, /activeAudio\s*!==\s*audio/);
   assert.match(styles, /\.gm-mini-player/);
   assert.match(styles, /\.gm-mini-lyric-track/);
   assert.match(styles, /@keyframes\s+gmMiniLyricScroll/);

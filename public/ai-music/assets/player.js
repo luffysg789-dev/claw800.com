@@ -1,3 +1,4 @@
+import { api } from './api.js?v=20260617-ai-music-payment-refresh';
 import { el, fmtDuration, mediaUrl, toast } from './ui.js?v=20260617-ai-music-payment-refresh';
 
 let audio = null;
@@ -16,6 +17,39 @@ function parseLyrics(raw) {
     .map((line) => line.replace(/\[[0-9:.]+\]/g, '').trim())
     .filter(Boolean)
     .slice(0, 80);
+}
+
+function extractLyricsPayload(payload) {
+  if (!payload) return '';
+  if (typeof payload === 'string') return payload.trim();
+  const candidates = [
+    payload.lyrics,
+    payload.lyric,
+    payload.text,
+    payload.lrc,
+    payload.data?.lyrics,
+    payload.data?.lyric,
+    payload.data?.text,
+    payload.data?.lrc,
+    payload.song?.lyrics,
+    payload.song?.lyric
+  ];
+  return String(candidates.find((value) => value != null && String(value).trim()) || '').trim();
+}
+
+async function loadSongLyrics(song, songId) {
+  if (!songId) return;
+  try {
+    const payload = await api.songLyrics(songId);
+    const text = extractLyricsPayload(payload);
+    if (!text || cleanText(currentSong?.id) !== songId) return;
+    currentSong = { ...currentSong, lyrics: text };
+    lyricLines = parseLyrics(text);
+    lyricIndex = -1;
+    updateLyric(true);
+  } catch {
+    // 歌词接口不可用时保留标题，不影响播放。
+  }
 }
 
 function emitState() {
@@ -149,7 +183,13 @@ export function toggleGlobalSong(song = {}) {
   currentSong = { ...song, id: songId || cleanText(song.id) };
   lyricLines = parseLyrics(song.lyrics || song.lyric || '');
   lyricIndex = -1;
+  const needsLyricsFetch = !lyricLines.length;
+  if (needsLyricsFetch) {
+    currentSong.lyrics = '正在加载歌词...';
+    lyricLines = parseLyrics(currentSong.lyrics);
+  }
   audio = new Audio(url);
+  const activeAudio = audio;
   audio.preload = 'auto';
   audio.playsInline = true;
   audio.addEventListener('timeupdate', updateUi);
@@ -157,11 +197,16 @@ export function toggleGlobalSong(song = {}) {
   audio.addEventListener('play', updateUi);
   audio.addEventListener('pause', updateUi);
   audio.addEventListener('ended', updateUi);
-  audio.addEventListener('error', () => toast('音频加载失败', 'error'));
+  audio.addEventListener('error', () => {
+    if (activeAudio !== audio) return;
+    toast('音频加载失败', 'error');
+  });
   setHidden(false);
   updateUi();
   updateLyric(true);
+  if (needsLyricsFetch) loadSongLyrics(currentSong, cleanText(currentSong.id));
   audio.play().catch(() => {
+    if (activeAudio !== audio) return;
     toast('播放失败', 'error');
     updateUi();
   });
