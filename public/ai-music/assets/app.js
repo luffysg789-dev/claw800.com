@@ -49,6 +49,11 @@ function authControl() {
   if (getApiKey()) {
     return el('div', { class: 'gm-auth' }, [
       el('span', { class: 'gm-auth-on', id: 'gm-credits-chip', text: '已登录' }),
+      el('a', {
+        class: 'gm-btn-ghost sm',
+        href: '#library',
+        text: '我的音乐'
+      }),
       el('button', {
         class: 'gm-btn-ghost sm',
         text: '购买',

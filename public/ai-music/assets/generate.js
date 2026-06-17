@@ -925,8 +925,12 @@ async function submitGenerate(root) {
   submit.disabled = true; submit.style.opacity = '.6'; submit.textContent = '正在提交…';
   state.polling = true;
   try {
-    const { generation_id } = await api.generate(payload);
-    pushPendingGen(generation_id);
+    const result = await api.generate(payload);
+    const generationId = result.generation_id || result.generationId || result.task_id || result.taskId || result.id;
+    if (generationId) pushPendingGen(generationId);
+    if (result.credits) {
+      window.dispatchEvent(new CustomEvent('gm-credits-changed', { detail: result }));
+    }
     toast('已提交，去「我的音乐」看创作进度', 'success');
     location.hash = 'library';   // 跳「我的音乐」: 那边轮询显示进度 + 完成自动出歌
   } catch (e) {

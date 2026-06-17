@@ -55,7 +55,9 @@ test('ai music purchase flow shows three Nexa package choices', () => {
   assert.match(appJs, /window\.addEventListener\('focus'/);
   assert.match(appJs, /document\.addEventListener\('visibilitychange'/);
   assert.match(appJs, /gm-credits-changed/);
+  assert.match(appJs, /href:\s*'#library'[\s\S]*text:\s*'我的音乐'/);
   assert.match(generateJs, /gm-credits-changed/);
+  assert.match(generateJs, /api\.generate\(payload\)[\s\S]*window\.dispatchEvent\(new CustomEvent\('gm-credits-changed'/);
 });
 
 test('ai music is listed in games hub and served by express route', () => {

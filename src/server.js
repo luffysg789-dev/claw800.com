@@ -1922,6 +1922,95 @@ function extractAiMusicTaskId(data = {}) {
   ).trim();
 }
 
+function extractAiMusicSongs(data = {}) {
+  const candidates = [
+    data.songs,
+    data.items,
+    data.data?.songs,
+    data.data?.items,
+    data.result?.songs,
+    data.result?.items
+  ];
+  return candidates.find((items) => Array.isArray(items)) || [];
+}
+
+function formatLocalAiMusicSong(row = {}) {
+  const upstreamSongId = String(row.upstream_song_id || row.id || '').trim();
+  return {
+    id: upstreamSongId || String(row.id || '').trim(),
+    title: String(row.title || '').trim() || '未命名',
+    status: String(row.status || '').trim(),
+    image_url: String(row.cover_url || '').trim(),
+    cover_url: String(row.cover_url || '').trim(),
+    playable_url: String(row.audio_url || '').trim(),
+    audio_url: String(row.audio_url || '').trim(),
+    created_at: String(row.created_at || '').trim(),
+    updated_at: String(row.updated_at || '').trim()
+  };
+}
+
+function normalizeAiMusicSong(input = {}) {
+  const upstreamSongId = String(input.id || input.song_id || input.songId || input.upstream_song_id || '').trim();
+  const title = String(input.title || input.name || input.song_title || '').trim();
+  const status = String(input.status || input.state || 'complete').trim();
+  const coverUrl = String(input.image_url || input.cover_url || input.cover || input.image || '').trim();
+  const audioUrl = String(input.playable_url || input.audio_url || input.mp3_url || input.url || input.play_url || '').trim();
+  return {
+    upstreamSongId,
+    title,
+    status,
+    coverUrl,
+    audioUrl
+  };
+}
+
+function listLocalAiMusicSongsForUser(userId, { page = 1, pageSize = 20, q = '', tab = 'mine' } = {}) {
+  const normalizedTab = String(tab || 'mine').trim();
+  if (normalizedTab === 'favorites') {
+    return { ok: true, songs: [], total: 0, page, page_size: pageSize };
+  }
+  const normalizedPage = Math.max(1, Number(page || 1) || 1);
+  const normalizedPageSize = Math.min(50, Math.max(1, Number(pageSize || 20) || 20));
+  const keyword = String(q || '').trim();
+  const where = ['user_id = ?'];
+  const params = [Number(userId)];
+  if (keyword) {
+    where.push('title LIKE ?');
+    params.push(`%${keyword}%`);
+  }
+  const whereSql = where.join(' AND ');
+  const total = db.prepare(`SELECT COUNT(*) AS count FROM ai_music_songs WHERE ${whereSql}`).get(...params)?.count || 0;
+  const rows = db.prepare(`
+    SELECT id, user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url, created_at, updated_at
+    FROM ai_music_songs
+    WHERE ${whereSql}
+    ORDER BY datetime(created_at) DESC, id DESC
+    LIMIT ? OFFSET ?
+  `).all(...params, normalizedPageSize, (normalizedPage - 1) * normalizedPageSize);
+  return {
+    ok: true,
+    songs: rows.map(formatLocalAiMusicSong),
+    total: Number(total || 0) || 0,
+    page: normalizedPage,
+    page_size: normalizedPageSize
+  };
+}
+
+function persistAiMusicSongsForGeneration({ userId, taskId, songs = [] } = {}) {
+  const generation = selectAiMusicGenerationByTaskStmt.get(String(taskId || '').trim());
+  if (!generation || Number(generation.user_id) !== Number(userId)) return;
+  const normalizedSongs = songs.map(normalizeAiMusicSong).filter((song) => song.upstreamSongId);
+  if (!normalizedSongs.length) return;
+  const status = String(normalizedSongs.some((song) => song.status && song.status !== 'complete') ? 'partial' : 'success');
+  upsertAiMusicSongsForGenerationTx({
+    userId: Number(userId),
+    generationId: Number(generation.id),
+    taskId: String(taskId || '').trim(),
+    status,
+    songs: normalizedSongs
+  });
+}
+
 async function forwardAiMusicRequest(req, upstreamPath) {
   const { upstream, apiKey } = getAiMusicConfig();
   const query = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
@@ -1981,6 +2070,30 @@ const debitAiMusicGenerationCreditTx = db.transaction(({ userId, taskId, request
     'AI music generation'
   );
   return summary;
+});
+
+const upsertAiMusicSongsForGenerationTx = db.transaction(({ userId, generationId, taskId, status, songs }) => {
+  updateAiMusicGenerationStatusStmt.run(String(status || 'success'), String(status || ''), Number(generationId));
+  for (const song of songs || []) {
+    insertAiMusicSongIgnoreStmt.run(
+      Number(userId),
+      Number(generationId),
+      String(song.upstreamSongId || '').trim(),
+      String(song.title || '').trim(),
+      String(song.status || '').trim() || 'complete',
+      String(song.coverUrl || '').trim(),
+      String(song.audioUrl || '').trim()
+    );
+    updateAiMusicSongByUpstreamIdStmt.run(
+      String(song.title || '').trim(),
+      String(song.status || '').trim() || 'complete',
+      String(song.coverUrl || '').trim(),
+      String(song.audioUrl || '').trim(),
+      String(song.upstreamSongId || '').trim(),
+      Number(userId)
+    );
+  }
+  return selectAiMusicGenerationByTaskStmt.get(String(taskId || '').trim());
 });
 
 function createNchatChatId() {
@@ -8143,6 +8256,19 @@ app.all('/api/ai-music/music/*', async (req, res) => {
     const isGenerate =
       String(req.method || '').toUpperCase() === 'POST' &&
       upstreamPath === '/generate';
+    const isMySongs =
+      String(req.method || '').toUpperCase() === 'GET' &&
+      upstreamPath === '/my-songs';
+    const generationStatusMatch = upstreamPath.match(/^\/generation\/([^/]+)\/status$/);
+
+    if (isMySongs) {
+      return res.json(listLocalAiMusicSongsForUser(user.id, {
+        tab: req.query?.tab,
+        page: req.query?.page,
+        pageSize: req.query?.page_size,
+        q: req.query?.q
+      }));
+    }
 
     getAiMusicConfig();
 
@@ -8162,6 +8288,14 @@ app.all('/api/ai-music/music/*', async (req, res) => {
     const upstreamResponse = await forwardAiMusicRequest(req, upstreamPath);
     if (!upstreamResponse.ok) {
       return res.status(upstreamResponse.status || 502).json(upstreamResponse.data || { ok: false, error: 'AI_MUSIC_UPSTREAM_FAILED' });
+    }
+
+    if (generationStatusMatch) {
+      persistAiMusicSongsForGeneration({
+        userId: user.id,
+        taskId: decodeURIComponent(generationStatusMatch[1] || ''),
+        songs: extractAiMusicSongs(upstreamResponse.data)
+      });
     }
 
     if (!isGenerate) {
@@ -9706,6 +9840,31 @@ const selectAiMusicCreditLedgerByReferenceStmt = db.prepare(
 const insertAiMusicGenerationStmt = db.prepare(`
   INSERT INTO ai_music_generations (user_id, upstream_task_id, request_payload_json, status, credits_charged)
   VALUES (?, ?, ?, ?, ?)
+`);
+const selectAiMusicGenerationByTaskStmt = db.prepare(
+  'SELECT id, user_id, upstream_task_id, status FROM ai_music_generations WHERE upstream_task_id = ?'
+);
+const updateAiMusicGenerationStatusStmt = db.prepare(`
+  UPDATE ai_music_generations
+  SET status = ?,
+      completed_at = CASE WHEN ? = 'success' THEN datetime('now') ELSE completed_at END,
+      updated_at = datetime('now')
+  WHERE id = ?
+`);
+const insertAiMusicSongIgnoreStmt = db.prepare(`
+  INSERT INTO ai_music_songs (user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url, updated_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+  ON CONFLICT DO NOTHING
+`);
+const updateAiMusicSongByUpstreamIdStmt = db.prepare(`
+  UPDATE ai_music_songs
+  SET title = ?,
+      status = ?,
+      cover_url = ?,
+      audio_url = ?,
+      updated_at = datetime('now')
+  WHERE upstream_song_id = ?
+    AND user_id = ?
 `);
 const searchNchatUsersByKeywordStmt = db.prepare(`
   SELECT id, openid, chat_id, nickname, avatar_url, created_at, updated_at

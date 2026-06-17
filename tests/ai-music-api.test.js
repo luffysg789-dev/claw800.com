@@ -565,3 +565,77 @@ test('ai music generation does not deduct credits when upstream rejects request'
     harness.cleanup();
   }
 });
+
+test('ai music my songs only returns local songs owned by the current user', async () => {
+  const harness = createHarness();
+  try {
+    const { cookies: aliceCookies } = await createAiMusicSession(harness, 'ai-music-open-id-alice-songs');
+    const { cookies: bobCookies } = await createAiMusicSession(harness, 'ai-music-open-id-bob-songs');
+    const alice = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-alice-songs');
+    const bob = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-bob-songs');
+    harness.db.prepare(`
+      INSERT INTO ai_music_songs (user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url)
+      VALUES (?, NULL, ?, ?, ?, ?, ?)
+    `).run(alice.id, 'alice-upstream-song', 'Alice Song', 'complete', 'https://cdn.example/alice.jpg', 'https://cdn.example/alice.mp3');
+    harness.db.prepare(`
+      INSERT INTO ai_music_songs (user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url)
+      VALUES (?, NULL, ?, ?, ?, ?, ?)
+    `).run(bob.id, 'bob-upstream-song', 'Bob Song', 'complete', 'https://cdn.example/bob.jpg', 'https://cdn.example/bob.mp3');
+    let fetchCalled = false;
+    harness.setFetch(async () => {
+      fetchCalled = true;
+      return new Response(JSON.stringify({
+        songs: [
+          { id: 'upstream-global-song', title: 'Global Upstream Song' }
+        ],
+        total: 1
+      }), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+
+    const aliceSongs = await harness.request('GET', '/api/ai-music/music/my-songs', null, { cookies: aliceCookies });
+
+    assert.equal(aliceSongs.statusCode, 200);
+    assert.equal(fetchCalled, false);
+    assert.equal(aliceSongs.body.total, 1);
+    assert.deepEqual(aliceSongs.body.songs.map((song) => song.id), ['alice-upstream-song']);
+    assert.deepEqual(aliceSongs.body.songs.map((song) => song.title), ['Alice Song']);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('ai music generation status stores returned songs for the current user library', async () => {
+  const harness = createHarness();
+  try {
+    const { cookies } = await createAiMusicSession(harness, 'ai-music-open-id-library-sync');
+    const user = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-library-sync');
+    harness.db.prepare(`
+      INSERT INTO ai_music_generations (user_id, upstream_task_id, request_payload_json, status, credits_charged)
+      VALUES (?, ?, '{}', 'submitted', 1)
+    `).run(user.id, 'library-task-1');
+    harness.setHhApiKey('hh_server_secret');
+    harness.setFetch(async () => new Response(JSON.stringify({
+      status: 'success',
+      songs: [
+        {
+          id: 'library-song-1',
+          title: 'Library Song',
+          image_url: 'https://cdn.example/library.jpg',
+          playable_url: 'https://cdn.example/library.mp3'
+        }
+      ]
+    }), { status: 200, headers: { 'content-type': 'application/json' } }));
+
+    const status = await harness.request('GET', '/api/ai-music/music/generation/library-task-1/status', null, { cookies });
+    const songs = await harness.request('GET', '/api/ai-music/music/my-songs', null, { cookies });
+
+    assert.equal(status.statusCode, 200);
+    assert.equal(songs.statusCode, 200);
+    assert.equal(songs.body.total, 1);
+    assert.equal(songs.body.songs[0].id, 'library-song-1');
+    assert.equal(songs.body.songs[0].title, 'Library Song');
+    assert.equal(songs.body.songs[0].playable_url, 'https://cdn.example/library.mp3');
+  } finally {
+    harness.cleanup();
+  }
+});
