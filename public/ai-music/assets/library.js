@@ -120,7 +120,7 @@ async function load(root) {
       : (state.tab === 'favorites' ? '还没有收藏，在播放器上点收藏即可' : '还没有作品，去「写歌」创作第一首吧')));
     return;
   }
-  songs.forEach((s) => feed.appendChild(playerCard(s)));
+  songs.forEach((s, index) => feed.appendChild(playerCard(s, index)));
 
   const total = data.total || songs.length;
   const totalPages = Math.max(1, Math.ceil(total / state.page_size));
@@ -135,10 +135,12 @@ async function load(root) {
 }
 
 // ——— 单首歌卡片：照搬 _player.html(size=md) + _my_songs_cards.html 的结构 ———
-function playerCard(s) {
+function playerCard(s, index = 0) {
   const title = s.title || '(未命名)';
   const cover = mediaUrl(s.image_url);
   const durTxt = s.duration ? `${Math.round(s.duration)}s` : '--:--';
+  const coverLoading = index < 4 ? 'eager' : 'lazy';
+  const coverPriority = index < 4 ? 'high' : 'auto';
   const card = el('div', { class: 'hh-my-song-card', style: 'position:relative;' + (s.is_hidden ? 'opacity:0.5;' : '') });
   card.innerHTML = `
     <div class="hh-my-song-owner-actions" style="position:absolute;top:8px;right:8px;display:flex;flex-direction:column;align-items:center;gap:6px;z-index:6;">
@@ -149,7 +151,7 @@ function playerCard(s) {
     <div class="hh-music-player hh-music-player-md" data-song-id="${esc(s.id)}">
       <div class="hh-music-player-inner">
         <div class="hh-music-cover${cover ? '' : ' hh-music-cover-fallback'}">
-          ${cover ? `<img src="${esc(cover)}" alt="${esc(title)}" loading="lazy" onerror="this.parentElement.classList.add('hh-music-cover-fallback');this.remove();">` : ''}
+          ${cover ? `<img src="${esc(cover)}" alt="${esc(title)}" loading="${coverLoading}" decoding="async" fetchpriority="${coverPriority}" onerror="this.parentElement.classList.add('hh-music-cover-fallback');this.remove();">` : ''}
           <button type="button" class="hh-music-play-btn" data-act="play" aria-label="播放">
             <svg class="hh-icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7L8 5z"/></svg>
             <svg class="hh-icon-pause" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>

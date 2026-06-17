@@ -93,7 +93,7 @@ async function load(root, { append = false } = {}) {
     updateSentinel(root);
     return;
   }
-  songs.forEach((song) => feed.appendChild(squareCard(song)));
+  songs.forEach((song, index) => feed.appendChild(squareCard(song, index)));
   const total = Number(data.total || 0) || 0;
   const loaded = feed.querySelectorAll('.gm-square-card').length;
   state.hasMore = total ? loaded < total : songs.length >= state.page_size;
@@ -102,7 +102,7 @@ async function load(root, { append = false } = {}) {
   updateSentinel(root);
 }
 
-function squareCard(song) {
+function squareCard(song, index = 0) {
   const title = song.title || '未命名';
   const author = String(song.author_nickname || song.authorNickname || '').trim();
   const cover = mediaUrl(song.image_url || song.cover_url || '');
@@ -120,7 +120,9 @@ function squareCard(song) {
       class: 'gm-square-cover-img',
       src: cover,
       alt: title,
-      loading: 'lazy',
+      loading: index < 4 ? 'eager' : 'lazy',
+      decoding: 'async',
+      fetchpriority: index < 4 ? 'high' : 'auto',
       onerror: (event) => { event.currentTarget.remove(); }
     }) : null,
     el('span', { class: 'gm-square-play', text: '▶' })

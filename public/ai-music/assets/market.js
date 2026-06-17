@@ -65,12 +65,12 @@ async function load(root) {
     state.loading = false;
     return;
   }
-  listings.forEach((listing) => feed.appendChild(marketCard(listing, root)));
+  listings.forEach((listing, index) => feed.appendChild(marketCard(listing, root, index)));
   renderPager(root, Number(data.total || listings.length) || listings.length);
   state.loading = false;
 }
 
-function marketCard(listing, root) {
+function marketCard(listing, root, index = 0) {
   const song = listing.song || {};
   const title = song.title || '未命名';
   const cover = mediaUrl(song.image_url || song.cover_url || '');
@@ -85,7 +85,14 @@ function marketCard(listing, root) {
       'aria-label': '播放 ' + title,
       onclick: () => playMarketSong(song)
     }, [
-      cover ? el('img', { src: cover, alt: title, loading: 'lazy', onerror: (event) => { event.currentTarget.remove(); } }) : null,
+      cover ? el('img', {
+        src: cover,
+        alt: title,
+        loading: index < 4 ? 'eager' : 'lazy',
+        decoding: 'async',
+        fetchpriority: index < 4 ? 'high' : 'auto',
+        onerror: (event) => { event.currentTarget.remove(); }
+      }) : null,
       el('span', { class: 'gm-market-play', text: '▶' })
     ].filter(Boolean)),
     el('div', { class: 'gm-market-info' }, [

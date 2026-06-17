@@ -248,6 +248,15 @@ test('ai music uses persistent bottom player with scrolling lyrics', () => {
   assert.match(marketJs, /gm-market-share/);
   assert.match(marketJs, /api\.publicSongLyrics/);
   assert.match(marketJs, /const url = `\$\{location\.origin\}\/ai-music\/song\//);
+  assert.match(squareJs, /songs\.forEach\(\(song,\s*index\)/);
+  assert.match(squareJs, /loading:\s*index\s*<\s*4\s*\?\s*'eager'\s*:\s*'lazy'/);
+  assert.match(squareJs, /fetchpriority:\s*index\s*<\s*4\s*\?\s*'high'\s*:\s*'auto'/);
+  assert.match(marketJs, /listings\.forEach\(\(listing,\s*index\)/);
+  assert.match(marketJs, /loading:\s*index\s*<\s*4\s*\?\s*'eager'\s*:\s*'lazy'/);
+  assert.match(marketJs, /fetchpriority:\s*index\s*<\s*4\s*\?\s*'high'\s*:\s*'auto'/);
+  assert.match(libraryJs, /songs\.forEach\(\(s,\s*index\)/);
+  assert.match(libraryJs, /const coverLoading = index < 4 \? 'eager' : 'lazy'/);
+  assert.match(libraryJs, /fetchpriority="\$\{coverPriority\}"/);
   assert.match(styles, /\.gm-market-cover\.gm-market-playing/);
   assert.match(styles, /\.gm-market-actions/);
   assert.match(styles, /\.gm-market-sub-actions/);
