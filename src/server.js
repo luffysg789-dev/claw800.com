@@ -15,7 +15,6 @@ const {
   buildNexaAccessTokenPayload,
   buildNexaUserInfoPayload,
   buildNexaLegacyPaymentCreatePayload,
-  buildNexaPaymentCreatePayload,
   buildNexaPaymentCreatePayloadVariants,
   prioritizeNexaPaymentCreateVariants,
   buildNexaPaymentQueryPayload,
@@ -1003,14 +1002,12 @@ async function createNexaTipOrder({ req, gameSlug, openId, sessionKey, amount = 
 async function createAiMusicCreditOrder({ req, session, user }) {
   const { apiKey, appSecret } = ensureNexaCredentialsConfigured();
   const baseUrl = getPublicBaseUrl(req);
-  const orderNo = `ai_music_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
-  const payload = buildNexaPaymentCreatePayload({
+  const partnerOrderNo = `ai_music_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+  const legacyPayload = buildNexaLegacyPaymentCreatePayload({
     apiKey,
     appSecret,
-    orderNo,
     amount: AI_MUSIC_PACKAGE_AMOUNT,
     currency: AI_MUSIC_CURRENCY,
-    callbackUrl: `${baseUrl}/ai-music/`,
     subject: 'AI 音乐生成次数',
     body: `AI 音乐 ${AI_MUSIC_PACKAGE_CREDITS} 次生成`,
     notifyUrl: `${baseUrl}/api/ai-music/credits/notify`,
@@ -1018,11 +1015,93 @@ async function createAiMusicCreditOrder({ req, session, user }) {
     openId: String(session.openId || '').trim(),
     sessionKey: String(session.sessionKey || '').trim()
   });
+  const fallbackVariants = prioritizeNexaPaymentCreateVariants(
+    buildNexaPaymentCreatePayloadVariants({
+      apiKey,
+      appSecret,
+      orderNo: partnerOrderNo,
+      amount: AI_MUSIC_PACKAGE_AMOUNT,
+      currency: AI_MUSIC_CURRENCY,
+      callbackUrl: `${baseUrl}/ai-music/`,
+      subject: 'AI 音乐生成次数',
+      body: `AI 音乐 ${AI_MUSIC_PACKAGE_CREDITS} 次生成`,
+      notifyUrl: `${baseUrl}/api/ai-music/credits/notify`,
+      returnUrl: `${baseUrl}/ai-music/`,
+      openId: String(session.openId || '').trim(),
+      sessionKey: String(session.sessionKey || '').trim()
+    }),
+    preferredNexaPaymentVariantName
+  ).slice(0, 1);
 
-  const response = await postConfiguredNexaJson('/partner/api/openapi/payment/create', payload, {
-    source: 'ai-music-payment-create'
-  });
+  let response = null;
+  let lastSignatureResponse = null;
+  try {
+    response = await postConfiguredNexaJson('/partner/api/openapi/payment/create', legacyPayload, {
+      source: 'ai-music-payment-create-legacy'
+    });
+  } catch (error) {
+    if (isNexaRateLimitError(error)) {
+      const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
+      rateLimitError.statusCode = 429;
+      throw rateLimitError;
+    }
+    if (shouldRetryNexaDocumentedPaymentPayload(error)) {
+      response = null;
+    } else {
+      throw error;
+    }
+  }
+
+  if (isNexaRateLimitError(response)) {
+    const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
+    rateLimitError.statusCode = 429;
+    throw rateLimitError;
+  }
+
+  if (isNexaSignatureError(response)) {
+    lastSignatureResponse = response;
+    response = null;
+  }
+
+  if (!response) {
+    for (const variant of fallbackVariants) {
+      try {
+        response = await postConfiguredNexaJson('/partner/api/openapi/payment/create', variant.payload, {
+          source: `ai-music-payment-create-${variant.name}`
+        });
+      } catch (error) {
+        if (isNexaRateLimitError(error)) {
+          const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
+          rateLimitError.statusCode = 429;
+          throw rateLimitError;
+        }
+        throw error;
+      }
+
+      if (isNexaRateLimitError(response)) {
+        const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
+        rateLimitError.statusCode = 429;
+        throw rateLimitError;
+      }
+
+      if (isNexaSignatureError(response)) {
+        lastSignatureResponse = response;
+        response = null;
+        continue;
+      }
+
+      preferredNexaPaymentVariantName = variant.name;
+      break;
+    }
+  }
+
+  if (!response) {
+    if (lastSignatureResponse) throw new Error(String(lastSignatureResponse?.message || 'AI 音乐支付订单创建失败'));
+    throw new Error('AI 音乐支付订单创建失败');
+  }
+
   const data = unwrapNexaResult(response, 'AI 音乐支付订单创建失败');
+  const orderNo = String(data.orderNo || partnerOrderNo).trim();
   const nexaOrderId = String(
     data.orderId ||
       data.order_id ||

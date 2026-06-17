@@ -234,7 +234,7 @@ test('ai music credit order returns Nexa payment launch fields', async () => {
       return new Response(JSON.stringify({
         code: 0,
         data: {
-          orderNo: capturedRequest.orderNo,
+          orderNo: 'nexa-ai-music-legacy-order',
           paySign: 'signed-ai-music-order',
           signType: 'MD5',
           nonce: 'ai-music-nonce',
@@ -254,6 +254,7 @@ test('ai music credit order returns Nexa payment launch fields', async () => {
     assert.equal(response.body.order.amount, '1.00');
     assert.equal(response.body.order.credits, 3);
     assert.equal(response.body.payment.orderNo, response.body.order.orderNo);
+    assert.equal(response.body.order.orderNo, 'nexa-ai-music-legacy-order');
     assert.equal(response.body.payment.paySign, 'signed-ai-music-order');
     assert.equal(response.body.payment.signType, 'MD5');
     assert.equal(response.body.payment.nonce, 'ai-music-nonce');
@@ -261,6 +262,8 @@ test('ai music credit order returns Nexa payment launch fields', async () => {
     assert.equal(response.body.payment.apiKey, 'ai-music-test-nexa-key');
     assert.equal(capturedRequest.amount, '1.00');
     assert.equal(capturedRequest.openid, 'ai-music-open-id-pay');
+    assert.equal('orderNo' in capturedRequest, false);
+    assert.equal('callbackUrl' in capturedRequest, false);
     assert.equal(capturedRequest.returnUrl.endsWith('/ai-music/'), true);
     assert.equal(capturedRequest.notifyUrl.endsWith('/api/ai-music/credits/notify'), true);
   } finally {
