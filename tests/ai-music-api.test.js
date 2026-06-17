@@ -880,6 +880,36 @@ test('ai music public song play count increments without login', async () => {
   }
 });
 
+test('ai music public song lyrics are available without login for stored public songs', async () => {
+  const harness = createHarness();
+  try {
+    const { cookies } = await createAiMusicSession(harness, 'ai-music-open-id-public-lyrics');
+    const user = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-public-lyrics');
+    assert.ok(cookies);
+    harness.db.prepare(`
+      INSERT INTO ai_music_songs (user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url)
+      VALUES (?, NULL, ?, ?, ?, ?, ?)
+    `).run(user.id, 'public-lyrics-song', 'Public Lyrics Song', 'complete', '/covers/lyrics.jpg', '/audio/lyrics.mp3');
+    harness.setHhApiKey('hh_server_secret');
+    let fetchedUrl = '';
+    harness.setFetch(async (url, init = {}) => {
+      fetchedUrl = String(url);
+      assert.equal(String(init.headers?.Authorization || ''), 'Bearer hh_server_secret');
+      return new Response(JSON.stringify({ lyrics: '第一句\n第二句' }), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+
+    const ok = await harness.request('GET', '/api/ai-music/public/songs/public-lyrics-song/lyrics');
+    const missing = await harness.request('GET', '/api/ai-music/public/songs/not-found/lyrics');
+
+    assert.equal(ok.statusCode, 200);
+    assert.equal(ok.body.lyrics, '第一句\n第二句');
+    assert.equal(fetchedUrl, 'https://ai6666.com/ai6api/music/song/public-lyrics-song/lyrics');
+    assert.equal(missing.statusCode, 404);
+  } finally {
+    harness.cleanup();
+  }
+});
+
 test('ai music public media proxy only serves stored song media without login', async () => {
   const harness = createHarness();
   try {
@@ -928,6 +958,36 @@ test('ai music public media proxy only serves stored song media without login', 
     assert.equal(fetchedAuth, 'Bearer hh_server_secret');
     assert.equal(forbidden.statusCode, 403);
     assert.equal(forbidden.body.error, 'MEDIA_NOT_PUBLIC');
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('ai music media proxy can force attachment downloads with filename', async () => {
+  const harness = createHarness();
+  try {
+    const { cookies } = await createAiMusicSession(harness, 'ai-music-open-id-media-download');
+    harness.setHhApiKey('hh_server_secret');
+    harness.setFetch(async () => new Response(Buffer.from('mp3-download'), {
+      status: 200,
+      headers: {
+        'content-type': 'audio/mpeg',
+        'content-length': '12'
+      }
+    }));
+
+    const response = await harness.request(
+      'GET',
+      '/api/ai-music/media?u=' + encodeURIComponent('https://ai6666.com/audio/download.mp3') + '&download=1&filename=' + encodeURIComponent('我的歌.mp3'),
+      null,
+      { cookies }
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(String(response.body), 'mp3-download');
+    assert.match(response.headers['content-disposition'], /attachment/);
+    assert.match(response.headers['content-disposition'], /filename\*=UTF-8''/);
+    assert.match(response.headers['content-disposition'], /%E6%88%91%E7%9A%84%E6%AD%8C\.mp3/);
   } finally {
     harness.cleanup();
   }

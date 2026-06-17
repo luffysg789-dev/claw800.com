@@ -1993,6 +1993,32 @@ function extractAiMusicSongDetail(data = {}) {
   return candidates.find((item) => item && typeof item === 'object' && !Array.isArray(item)) || {};
 }
 
+function extractAiMusicLyricsPayload(payload = {}) {
+  if (!payload) return '';
+  if (typeof payload === 'string') return payload.trim();
+  const candidates = [
+    payload.lyrics,
+    payload.lyric,
+    payload.text,
+    payload.lrc,
+    payload.raw,
+    payload.data?.lyrics,
+    payload.data?.lyric,
+    payload.data?.text,
+    payload.data?.lrc,
+    payload.data?.raw,
+    payload.song?.lyrics,
+    payload.song?.lyric,
+    payload.song?.text,
+    payload.song?.lrc,
+    payload.result?.lyrics,
+    payload.result?.lyric,
+    payload.result?.text,
+    payload.result?.lrc
+  ];
+  return String(candidates.find((value) => value != null && String(value).trim()) || '').trim();
+}
+
 function isAiMusicCompleteStatus(status) {
   const normalized = String(status || '').trim().toLowerCase();
   return ['complete', 'completed', 'done', 'success', 'succeeded', 'finished'].includes(normalized);
@@ -2326,6 +2352,20 @@ async function sendAiMusicMediaResponse(response, res) {
     res.on('close', finish);
     stream.pipe(res);
   });
+}
+
+function sanitizeDownloadFilename(value = 'download') {
+  const name = String(value || 'download')
+    .replace(/[\\/:*?"<>|\r\n]+/g, '_')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return (name || 'download').slice(0, 160);
+}
+
+function setDownloadDisposition(req, res, fallbackFilename = 'download') {
+  if (String(req.query?.download || '') !== '1') return;
+  const filename = sanitizeDownloadFilename(req.query?.filename || fallbackFilename);
+  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
 }
 
 async function forwardAiMusicRequest(req, upstreamPath) {
@@ -8610,6 +8650,40 @@ app.get('/api/ai-music/public/songs/:songId', (req, res) => {
   }
 });
 
+app.get('/api/ai-music/public/songs/:songId/lyrics', async (req, res) => {
+  try {
+    const songId = String(req.params?.songId || '').trim();
+    if (!songId) return res.status(400).json({ ok: false, error: 'SONG_ID_REQUIRED' });
+    const row = selectPublicAiMusicSongByUpstreamIdStmt.get(songId);
+    if (!row) return res.status(404).json({ ok: false, error: 'SONG_NOT_FOUND' });
+    const config = getAiMusicConfig();
+    const headers = { Authorization: `Bearer ${config.apiKey}` };
+    const lyricsUrl = `${config.upstream}/ai6api/music/song/${encodeURIComponent(songId)}/lyrics`;
+    const detailUrl = `${config.upstream}/ai6api/music/song/${encodeURIComponent(songId)}`;
+    let payload = {};
+    let text = '';
+    try {
+      const response = await fetch(lyricsUrl, { headers });
+      const body = await response.text();
+      try { payload = body ? JSON.parse(body) : {}; } catch { payload = body || {}; }
+      text = extractAiMusicLyricsPayload(payload);
+    } catch {
+      payload = {};
+      text = '';
+    }
+    if (!text) {
+      const response = await fetch(detailUrl, { headers });
+      const body = await response.text();
+      try { payload = body ? JSON.parse(body) : {}; } catch { payload = body || {}; }
+      text = extractAiMusicLyricsPayload(payload);
+    }
+    return res.json({ ok: true, lyrics: text, data: payload });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 500) || 500;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_PUBLIC_LYRICS_FAILED') });
+  }
+});
+
 app.post('/api/ai-music/public/songs/:songId/play', (req, res) => {
   try {
     const songId = String(req.params?.songId || '').trim();
@@ -8649,6 +8723,7 @@ app.get('/api/ai-music/public/media', async (req, res) => {
       return res.status(403).json({ ok: false, error: 'MEDIA_NOT_PUBLIC' });
     }
     const response = await fetch(targetUrl, { headers: buildAiMusicMediaHeaders(req, config) });
+    setDownloadDisposition(req, res);
     return sendAiMusicMediaResponse(response, res);
   } catch (error) {
     const statusCode = Number(error?.statusCode || 500) || 500;
@@ -8744,6 +8819,7 @@ app.get('/api/ai-music/media', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'INVALID_MEDIA_URL' });
     }
     const response = await fetch(targetUrl, { headers: buildAiMusicMediaHeaders(req, config) });
+    setDownloadDisposition(req, res);
     return sendAiMusicMediaResponse(response, res);
   } catch (error) {
     const statusCode = Number(error?.statusCode || 500) || 500;

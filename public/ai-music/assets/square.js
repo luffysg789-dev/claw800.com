@@ -122,11 +122,14 @@ function squareCard(song) {
       onclick: () => playPublicSong(song, plays)
     }, coverChildren),
     el('div', { class: 'gm-square-info' }, [
-      el('a', { class: 'gm-square-title', href: `/ai-music/song/${encodeURIComponent(String(song.id || ''))}`, text: title }),
+      el('div', { class: 'gm-square-title-row' }, [
+        el('a', { class: 'gm-square-title', href: `/ai-music/song/${encodeURIComponent(String(song.id || ''))}`, text: title }),
+        plays
+      ]),
       el('div', { class: 'gm-square-author-row' }, [
         el('div', { class: 'gm-square-author', text: author ? `作者：${author}` : '作者：匿名' }),
-        el('div', { class: 'gm-square-side' }, [
-          plays,
+        el('div', { class: 'gm-square-actions' }, [
+          el('button', { type: 'button', class: 'gm-btn-ghost sm gm-square-lyrics', text: '歌词', onclick: () => showLyrics(song) }),
           el('button', { type: 'button', class: 'gm-btn-ghost sm gm-square-share', text: '分享', onclick: () => shareSong(song) })
         ])
       ]),
@@ -155,6 +158,85 @@ async function playPublicSong(song, countEl) {
   } catch {
     // 播放不能被计数接口影响。
   }
+}
+
+function extractLyricsPayload(payload) {
+  if (!payload) return '';
+  if (typeof payload === 'string') return payload.trim();
+  const candidates = [
+    payload.lyrics,
+    payload.lyric,
+    payload.text,
+    payload.lrc,
+    payload.raw,
+    payload.data?.lyrics,
+    payload.data?.lyric,
+    payload.data?.text,
+    payload.data?.lrc,
+    payload.data?.raw,
+    payload.song?.lyrics,
+    payload.song?.lyric,
+    payload.song?.text,
+    payload.song?.lrc
+  ];
+  return String(candidates.find((value) => value != null && String(value).trim()) || '').trim();
+}
+
+function fallbackCopy(text, done) {
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.style.position = 'fixed';
+  area.style.left = '-9999px';
+  document.body.appendChild(area);
+  area.focus();
+  area.select();
+  try { document.execCommand('copy'); done?.(); } catch {}
+  area.remove();
+}
+
+function openLyricsModal(song) {
+  const overlay = el('div', { class: 'gm-square-lyrics-mask' });
+  const close = () => overlay.remove();
+  const title = song.title || '未命名';
+  const body = el('pre', { class: 'gm-square-lyrics-body', text: '加载中...' });
+  const copyBtn = el('button', { type: 'button', class: 'gm-square-lyrics-copy', text: '复制歌词', disabled: true });
+  overlay.appendChild(el('div', { class: 'gm-square-lyrics-card' }, [
+    el('button', { type: 'button', class: 'gm-square-lyrics-close', html: '&times;', onclick: close }),
+    el('h3', { text: '歌词' }),
+    el('div', { class: 'gm-square-lyrics-title', text: title }),
+    body,
+    el('div', { class: 'gm-square-lyrics-footer' }, [
+      copyBtn,
+      el('button', { type: 'button', class: 'gm-square-lyrics-done', text: '关闭', onclick: close })
+    ])
+  ]));
+  overlay.addEventListener('click', (event) => { if (event.target === overlay) close(); });
+  document.body.appendChild(overlay);
+  return { body, copyBtn };
+}
+
+async function showLyrics(song) {
+  const { body, copyBtn } = openLyricsModal(song);
+  let lyrics = String(song.lyrics || song.lyric || '').trim();
+  try {
+    if (!lyrics && song.id) {
+      const payload = await api.publicSongLyrics(song.id);
+      lyrics = extractLyricsPayload(payload);
+    }
+    body.textContent = lyrics || '暂无歌词';
+    song.lyrics = lyrics || song.lyrics;
+  } catch (error) {
+    body.textContent = error instanceof ApiError ? error.message : '歌词加载失败';
+  }
+  copyBtn.disabled = !lyrics;
+  copyBtn.onclick = () => {
+    if (!lyrics) return;
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(lyrics).then(() => toast('歌词已复制', 'success')).catch(() => fallbackCopy(lyrics, () => toast('歌词已复制', 'success')));
+    } else {
+      fallbackCopy(lyrics, () => toast('歌词已复制', 'success'));
+    }
+  };
 }
 
 function renderPager(root, total) {

@@ -31,14 +31,15 @@ async function proxyDownload(rawUrl, filename) {
       if (!new URL(rawUrl).hostname.endsWith('ai6666.com')) { window.open(rawUrl, '_blank'); return; }
     } catch (e) { /* 非法 URL, 落到代理 */ }
   }
-  const resp = await fetch(mediaUrl(rawUrl));
-  if (!resp.ok) throw new ApiError('下载失败 (' + resp.status + ')', resp.status);
-  const blob = await resp.blob();
-  const obj = URL.createObjectURL(blob);
+  const url = new URL(mediaUrl(rawUrl), location.origin);
+  url.searchParams.set('download', '1');
+  if (filename) url.searchParams.set('filename', filename);
   const a = document.createElement('a');
-  a.href = obj; a.download = filename || 'download';
+  a.href = url.toString();
+  a.target = '_blank';
+  a.rel = 'noopener';
+  a.download = filename || 'download';
   document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(obj), 20000);
 }
 
 export function renderLibrary(root) {
