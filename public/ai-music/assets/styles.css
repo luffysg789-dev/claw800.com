@@ -118,7 +118,6 @@ textarea.gm-input{resize:vertical;line-height:1.6;font-family:inherit;}
 .gm-square-title-row{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;}
 .gm-square-title-side{display:flex;align-items:center;gap:6px;flex:0 0 auto;}
 .gm-square-title{display:block;min-width:0;flex:1;color:#111827;font-size:14px;font-weight:900;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.gm-square-title:hover{color:#be185d;}
 .gm-square-author-row{display:flex;align-items:center;justify-content:space-between;gap:8px;}
 .gm-square-author{color:#be185d;font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .gm-square-author-row .gm-square-author{margin-top:0;min-width:0;}
@@ -506,13 +505,19 @@ body.gm-has-mini-player .gm-main{padding-bottom:132px;}
 .gm-market-cover{width:62px;height:62px;border:0;border-radius:13px;overflow:hidden;background:#e5e7eb;color:#fff;display:grid;place-items:center;position:relative;cursor:pointer;flex:none;}
 .gm-market-cover img{width:100%;height:100%;object-fit:cover;display:block;}
 .gm-market-cover span{position:absolute;inset:0;display:grid;place-items:center;font-size:24px;text-shadow:0 2px 10px rgba(0,0,0,.28);}
+.gm-market-cover.gm-market-playing::after{content:'';position:absolute;inset:0;background:rgba(190,24,93,.18);box-shadow:inset 0 0 0 2px rgba(244,63,94,.42);pointer-events:none;}
+.gm-market-cover.gm-market-playing .gm-market-play{font-weight:900;animation:gmMarketPulse 1.1s ease-in-out infinite;}
+@keyframes gmMarketPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.12);}}
 .gm-market-info{min-width:0;display:grid;gap:5px;}
 .gm-market-title-row{display:flex;align-items:center;gap:8px;min-width:0;}
 .gm-market-title{font-size:15px;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
 .gm-market-price{flex:none;font-size:12px;font-weight:900;color:#be185d;background:#fff1f2;border:1px solid #fecdd3;border-radius:999px;padding:3px 8px;}
 .gm-market-meta{font-size:12px;font-weight:800;color:#9f1239;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.gm-market-actions{display:grid;justify-items:end;gap:6px;}
 .gm-market-buy{height:34px;border:0;border-radius:999px;background:linear-gradient(135deg,#f43f5e,#f97316);color:#fff;font-size:13px;font-weight:900;padding:0 14px;cursor:pointer;box-shadow:0 8px 18px rgba(244,63,94,.22);}
 .gm-market-buy:active{transform:scale(.98);}
+.gm-market-sub-actions{display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-wrap:wrap;}
+.gm-market-sub-actions .gm-btn-ghost{height:28px;padding:0 9px;font-size:12px;}
 @media(max-width:520px){
   .gm-market{padding-left:10px;padding-right:10px;}
   .gm-market-card{grid-template-columns:56px minmax(0,1fr) auto;padding:9px;border-radius:14px;}
@@ -520,6 +525,7 @@ body.gm-has-mini-player .gm-main{padding-bottom:132px;}
   .gm-market-title{font-size:14px;}
   .gm-market-price{font-size:11px;padding:2px 7px;}
   .gm-market-buy{height:32px;padding:0 11px;font-size:12px;}
+  .gm-market-sub-actions .gm-btn-ghost{height:26px;padding:0 7px;font-size:11px;}
 }
 
 /* 资产 */

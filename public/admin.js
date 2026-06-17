@@ -116,6 +116,15 @@ const adminXiangqiWithdrawalsSection = document.getElementById('adminXiangqiWith
 const adminAiMusicOrdersSection = document.getElementById('adminAiMusicOrdersSection');
 const aiMusicOrdersMessage = document.getElementById('aiMusicOrdersMessage');
 const aiMusicOrdersList = document.getElementById('aiMusicOrdersList');
+const adminAiMusicRechargeOrdersSection = document.getElementById('adminAiMusicRechargeOrdersSection');
+const aiMusicRechargeOrdersMessage = document.getElementById('aiMusicRechargeOrdersMessage');
+const aiMusicRechargeOrdersList = document.getElementById('aiMusicRechargeOrdersList');
+const adminAiMusicMarketOrdersSection = document.getElementById('adminAiMusicMarketOrdersSection');
+const aiMusicMarketOrdersMessage = document.getElementById('aiMusicMarketOrdersMessage');
+const aiMusicMarketOrdersList = document.getElementById('aiMusicMarketOrdersList');
+const adminAiMusicWithdrawalsSection = document.getElementById('adminAiMusicWithdrawalsSection');
+const aiMusicWithdrawalsMessage = document.getElementById('aiMusicWithdrawalsMessage');
+const aiMusicWithdrawalsList = document.getElementById('aiMusicWithdrawalsList');
 const adminAiMusicCallbackLogsSection = document.getElementById('adminAiMusicCallbackLogsSection');
 const aiMusicCallbackLogsRefreshBtn = document.getElementById('aiMusicCallbackLogsRefreshBtn');
 const aiMusicCallbackLogsMessage = document.getElementById('aiMusicCallbackLogsMessage');
@@ -585,6 +594,9 @@ const texts = {
     ordersXiangqiDepositsBtn: '象棋充值订单',
     ordersXiangqiWithdrawalsBtn: '象棋提现审核',
     ordersAiMusicBtn: 'AI 音乐订单',
+    ordersAiMusicRechargeOrdersBtn: 'AI 音乐充值订单',
+    ordersAiMusicMarketOrdersBtn: 'AI 音乐市场交易订单',
+    ordersAiMusicWithdrawalsBtn: 'AI 音乐提现审核',
     ordersAiMusicCallbackLogsBtn: 'AI 音乐回调日志',
     pMiningOrdersTitle: '挖矿算力订单',
     nexaTipOrdersTitle: '打赏订单',
@@ -608,8 +620,18 @@ const texts = {
     pMiningOrdersEmpty: '当前没有挖矿算力订单。',
     nexaTipOrdersEmpty: '当前没有打赏订单。',
     aiMusicOrdersEmpty: '当前没有 AI 音乐订单。',
+    aiMusicRechargeOrdersEmpty: '当前没有 AI 音乐充值订单。',
+    aiMusicMarketOrdersEmpty: '当前没有 AI 音乐市场交易订单。',
+    aiMusicWithdrawalsEmpty: '当前没有 AI 音乐提现申请。',
     aiMusicCallbackLogsEmpty: '当前没有 AI 音乐回调日志。',
     aiMusicOrdersLoadFailed: 'AI 音乐订单加载失败。',
+    aiMusicRechargeOrdersLoadFailed: 'AI 音乐充值订单加载失败。',
+    aiMusicMarketOrdersLoadFailed: 'AI 音乐市场交易订单加载失败。',
+    aiMusicWithdrawalsLoadFailed: 'AI 音乐提现审核加载失败。',
+    aiMusicWithdrawalsApprove: '通过',
+    aiMusicWithdrawalsReject: '拒绝',
+    aiMusicWithdrawalsApproved: 'AI 音乐提现已通过。',
+    aiMusicWithdrawalsRejected: 'AI 音乐提现已拒绝并退回余额。',
     aiMusicCallbackLogsLoadFailed: 'AI 音乐回调日志加载失败。',
     nchatUsersEmpty: '当前还没有聊天用户。',
     xiangqiDepositsEmpty: '当前没有象棋充值订单。',
@@ -1023,6 +1045,9 @@ const texts = {
     ordersXiangqiDepositsBtn: 'Xiangqi Deposits',
     ordersXiangqiWithdrawalsBtn: 'Xiangqi Withdrawals',
     ordersAiMusicBtn: 'AI Music Orders',
+    ordersAiMusicRechargeOrdersBtn: 'AI Music Recharge Orders',
+    ordersAiMusicMarketOrdersBtn: 'AI Music Market Orders',
+    ordersAiMusicWithdrawalsBtn: 'AI Music Withdrawals',
     ordersAiMusicCallbackLogsBtn: 'AI Music Callback Logs',
     pMiningOrdersTitle: 'P-Mining Power Orders',
     nexaTipOrdersTitle: 'Game Tip Orders',
@@ -1046,8 +1071,18 @@ const texts = {
     pMiningOrdersEmpty: 'No P-Mining power orders yet.',
     nexaTipOrdersEmpty: 'No tip orders yet.',
     aiMusicOrdersEmpty: 'No AI music orders yet.',
+    aiMusicRechargeOrdersEmpty: 'No AI music recharge orders yet.',
+    aiMusicMarketOrdersEmpty: 'No AI music market orders yet.',
+    aiMusicWithdrawalsEmpty: 'No AI music withdrawal requests yet.',
     aiMusicCallbackLogsEmpty: 'No AI music callback logs yet.',
     aiMusicOrdersLoadFailed: 'Failed to load AI music orders.',
+    aiMusicRechargeOrdersLoadFailed: 'Failed to load AI music recharge orders.',
+    aiMusicMarketOrdersLoadFailed: 'Failed to load AI music market orders.',
+    aiMusicWithdrawalsLoadFailed: 'Failed to load AI music withdrawals.',
+    aiMusicWithdrawalsApprove: 'Approve',
+    aiMusicWithdrawalsReject: 'Reject',
+    aiMusicWithdrawalsApproved: 'AI music withdrawal approved.',
+    aiMusicWithdrawalsRejected: 'AI music withdrawal rejected and refunded.',
     aiMusicCallbackLogsLoadFailed: 'Failed to load AI music callback logs.',
     nchatUsersEmpty: 'No chat users yet.',
     xiangqiDepositsEmpty: 'No Xiangqi deposit orders yet.',
@@ -1606,6 +1641,9 @@ function applyLanguage() {
   document.getElementById('ordersXiangqiDepositsBtn').textContent = dict.ordersXiangqiDepositsBtn;
   document.getElementById('ordersXiangqiWithdrawalsBtn').textContent = dict.ordersXiangqiWithdrawalsBtn;
   document.getElementById('ordersAiMusicBtn').textContent = dict.ordersAiMusicBtn;
+  document.getElementById('ordersAiMusicRechargeOrdersBtn').textContent = dict.ordersAiMusicRechargeOrdersBtn;
+  document.getElementById('ordersAiMusicMarketOrdersBtn').textContent = dict.ordersAiMusicMarketOrdersBtn;
+  document.getElementById('ordersAiMusicWithdrawalsBtn').textContent = dict.ordersAiMusicWithdrawalsBtn;
   document.getElementById('ordersAiMusicCallbackLogsBtn').textContent = dict.ordersAiMusicCallbackLogsBtn;
   document.getElementById('pMiningOrdersTitle').textContent = dict.pMiningOrdersTitle;
   document.getElementById('nexaTipOrdersTitle').textContent = dict.nexaTipOrdersTitle;
@@ -1615,6 +1653,9 @@ function applyLanguage() {
   document.getElementById('nexaEscrowWithdrawalsTitle').textContent = dict.nexaEscrowWithdrawalsTitle;
   document.getElementById('xiangqiDepositsTitle').textContent = dict.xiangqiDepositsTitle;
   document.getElementById('xiangqiWithdrawalsTitle').textContent = dict.xiangqiWithdrawalsTitle;
+  document.getElementById('aiMusicRechargeOrdersTitle').textContent = dict.ordersAiMusicRechargeOrdersBtn;
+  document.getElementById('aiMusicMarketOrdersTitle').textContent = dict.ordersAiMusicMarketOrdersBtn;
+  document.getElementById('aiMusicWithdrawalsTitle').textContent = dict.ordersAiMusicWithdrawalsBtn;
   document.getElementById('skillsSyncConfigTitle').textContent = dict.skillsSyncConfigTitle;
   document.getElementById('skillsSyncEnabledLabel').childNodes[0].textContent = dict.skillsSyncEnabledLabel;
   document.getElementById('skillsSyncTimeLabel').childNodes[0].textContent = dict.skillsSyncTimeLabel;
@@ -1744,7 +1785,7 @@ function applyLanguage() {
 
 function setView(view) {
   currentView = view;
-  const orderViews = ['orders', 'p-mining-orders', 'nexa-tip-orders', 'nexa-escrow-orders', 'nexa-escrow-withdrawals', 'xiangqi-deposits', 'xiangqi-withdrawals', 'ai-music-orders', 'ai-music-callback-logs'];
+  const orderViews = ['orders', 'p-mining-orders', 'nexa-tip-orders', 'nexa-escrow-orders', 'nexa-escrow-withdrawals', 'xiangqi-deposits', 'xiangqi-withdrawals', 'ai-music-orders', 'ai-music-recharge-orders', 'ai-music-market-orders', 'ai-music-withdrawals', 'ai-music-callback-logs'];
   adminAddSection.classList.toggle('hidden', view !== 'add');
   adminVisitStatsSection.classList.toggle('hidden', view !== 'visit-stats');
   adminSiteConfigSection.classList.toggle('hidden', view !== 'site-config');
@@ -1783,6 +1824,9 @@ function setView(view) {
   adminXiangqiDepositsSection.classList.toggle('hidden', view !== 'xiangqi-deposits');
   adminXiangqiWithdrawalsSection.classList.toggle('hidden', view !== 'xiangqi-withdrawals');
   adminAiMusicOrdersSection.classList.toggle('hidden', view !== 'ai-music-orders');
+  adminAiMusicRechargeOrdersSection.classList.toggle('hidden', view !== 'ai-music-recharge-orders');
+  adminAiMusicMarketOrdersSection.classList.toggle('hidden', view !== 'ai-music-market-orders');
+  adminAiMusicWithdrawalsSection.classList.toggle('hidden', view !== 'ai-music-withdrawals');
   adminAiMusicCallbackLogsSection.classList.toggle('hidden', view !== 'ai-music-callback-logs');
   adminPasswordSection.classList.toggle('hidden', view !== 'password');
   adminListSection.classList.toggle('hidden', view !== 'pending' && view !== 'approved');
@@ -1888,6 +1932,15 @@ function setView(view) {
   }
   if (view === 'ai-music-orders') {
     loadAiMusicOrdersList();
+  }
+  if (view === 'ai-music-recharge-orders') {
+    loadAiMusicRechargeOrdersList();
+  }
+  if (view === 'ai-music-market-orders') {
+    loadAiMusicMarketOrdersList();
+  }
+  if (view === 'ai-music-withdrawals') {
+    loadAiMusicWithdrawalsList();
   }
   if (view === 'ai-music-callback-logs') {
     loadAiMusicCallbackLogs();
@@ -2108,6 +2161,163 @@ async function loadAiMusicOrdersList() {
     return;
   }
   renderAiMusicOrdersList(result.data?.items || []);
+}
+
+function renderAiMusicRechargeOrdersList(items) {
+  if (!aiMusicRechargeOrdersList) return;
+  if (!Array.isArray(items) || !items.length) {
+    aiMusicRechargeOrdersList.innerHTML = `<p class="empty">${escapeHtml(t('aiMusicRechargeOrdersEmpty'))}</p>`;
+    return;
+  }
+  aiMusicRechargeOrdersList.innerHTML = items
+    .map((item) => {
+      const orderNo = String(item.orderNo || '').trim();
+      const nexaOrderId = String(item.nexaOrderId || '').trim();
+      const openId = String(item.openId || '').trim();
+      const nickname = String(item.nickname || '').trim();
+      const amount = String(item.amount || '0.00').trim();
+      const currency = String(item.currency || 'USDT').trim();
+      const credits = Number(item.credits || 0) || 0;
+      const status = String(item.status || '').trim();
+      const notifyJson = JSON.stringify(item.notifyPayload || {}, null, 2);
+      return `
+        <article class="review-card">
+          <h3>${escapeHtml(orderNo || 'AI 音乐充值订单')} · ${escapeHtml(status || '-')}</h3>
+          <p class="small">Nexa 订单号: ${escapeHtml(nexaOrderId || '-')}</p>
+          <p class="small">OpenID: ${escapeHtml(openId || '-')} · 昵称: ${escapeHtml(nickname || '-')}</p>
+          <p class="small">金额: ${escapeHtml(amount)} ${escapeHtml(currency)} · 次数: ${escapeHtml(String(credits))}</p>
+          <p class="small">创建: ${escapeHtml(formatAdminLocalDateTime(item.createdAt))} · 支付: ${escapeHtml(formatAdminLocalDateTime(item.paidAt) || '-')} · 更新: ${escapeHtml(formatAdminLocalDateTime(item.updatedAt) || '-')}</p>
+          <details>
+            <summary>回调内容</summary>
+            <pre class="small">${escapeHtml(notifyJson)}</pre>
+          </details>
+        </article>
+      `;
+    })
+    .join('');
+}
+
+async function loadAiMusicRechargeOrdersList() {
+  if (!aiMusicRechargeOrdersList || !aiMusicRechargeOrdersMessage) return;
+  aiMusicRechargeOrdersMessage.textContent = '';
+  aiMusicRechargeOrdersMessage.className = 'message';
+  const result = await requestTutorialJson(['/api/admin/ai-music-recharge-orders'], { method: 'GET' });
+  if (!result.res) {
+    aiMusicRechargeOrdersMessage.textContent = t('aiMusicRechargeOrdersLoadFailed');
+    aiMusicRechargeOrdersMessage.className = 'message error';
+    return;
+  }
+  if (result.res.status === 401) {
+    showLogin();
+    return;
+  }
+  if (!result.res.ok) {
+    aiMusicRechargeOrdersMessage.textContent = localizeApiError(result.data?.error || t('aiMusicRechargeOrdersLoadFailed'));
+    aiMusicRechargeOrdersMessage.className = 'message error';
+    return;
+  }
+  renderAiMusicRechargeOrdersList(result.data?.items || []);
+}
+
+function renderAiMusicMarketOrdersList(items) {
+  if (!aiMusicMarketOrdersList) return;
+  if (!Array.isArray(items) || !items.length) {
+    aiMusicMarketOrdersList.innerHTML = `<p class="empty">${escapeHtml(t('aiMusicMarketOrdersEmpty'))}</p>`;
+    return;
+  }
+  aiMusicMarketOrdersList.innerHTML = items
+    .map((item) => {
+      const notifyJson = JSON.stringify(item.notifyPayload || {}, null, 2);
+      return `
+        <article class="review-card">
+          <h3>${escapeHtml(item.orderNo || 'AI 音乐市场交易订单')} · ${escapeHtml(item.status || '-')}</h3>
+          <p class="small">歌曲: ${escapeHtml(item.title || item.songId || '-')} · listing: ${escapeHtml(String(item.listingId || '-'))}</p>
+          <p class="small">买家: ${escapeHtml(item.buyerNickname || '-')} · ${escapeHtml(item.buyerOpenId || '-')}</p>
+          <p class="small">卖家: ${escapeHtml(item.sellerNickname || '-')} · ${escapeHtml(item.sellerOpenId || '-')}</p>
+          <p class="small">金额: ${escapeHtml(item.amount || '0.00')} ${escapeHtml(item.currency || 'USDT')} · Nexa: ${escapeHtml(item.nexaOrderId || '-')}</p>
+          <p class="small">创建: ${escapeHtml(formatAdminLocalDateTime(item.createdAt))} · 支付: ${escapeHtml(formatAdminLocalDateTime(item.paidAt) || '-')} · 更新: ${escapeHtml(formatAdminLocalDateTime(item.updatedAt) || '-')}</p>
+          <details>
+            <summary>回调内容</summary>
+            <pre class="small">${escapeHtml(notifyJson)}</pre>
+          </details>
+        </article>
+      `;
+    })
+    .join('');
+}
+
+async function loadAiMusicMarketOrdersList() {
+  if (!aiMusicMarketOrdersList || !aiMusicMarketOrdersMessage) return;
+  aiMusicMarketOrdersMessage.textContent = '';
+  aiMusicMarketOrdersMessage.className = 'message';
+  const result = await requestTutorialJson(['/api/admin/ai-music-market-orders'], { method: 'GET' });
+  if (!result.res) {
+    aiMusicMarketOrdersMessage.textContent = t('aiMusicMarketOrdersLoadFailed');
+    aiMusicMarketOrdersMessage.className = 'message error';
+    return;
+  }
+  if (result.res.status === 401) {
+    showLogin();
+    return;
+  }
+  if (!result.res.ok) {
+    aiMusicMarketOrdersMessage.textContent = localizeApiError(result.data?.error || t('aiMusicMarketOrdersLoadFailed'));
+    aiMusicMarketOrdersMessage.className = 'message error';
+    return;
+  }
+  renderAiMusicMarketOrdersList(result.data?.items || []);
+}
+
+function renderAiMusicWithdrawalsList(items) {
+  if (!aiMusicWithdrawalsList) return;
+  if (!Array.isArray(items) || !items.length) {
+    aiMusicWithdrawalsList.innerHTML = `<p class="empty">${escapeHtml(t('aiMusicWithdrawalsEmpty'))}</p>`;
+    return;
+  }
+  aiMusicWithdrawalsList.innerHTML = items
+    .map((item) => {
+      const id = String(item.id || '').trim();
+      const status = String(item.status || '').trim().toLowerCase();
+      const actions = status === 'pending'
+        ? `<div class="toolbar">
+            <button type="button" onclick="approveAiMusicWithdrawal('${escapeHtml(id)}')">${escapeHtml(t('aiMusicWithdrawalsApprove'))}</button>
+            <button type="button" class="danger" onclick="rejectAiMusicWithdrawal('${escapeHtml(id)}')">${escapeHtml(t('aiMusicWithdrawalsReject'))}</button>
+          </div>`
+        : '';
+      return `
+        <article class="review-card">
+          <h3>${escapeHtml(item.referenceId || `#${id}`)} · ${escapeHtml(item.status || '-')}</h3>
+          <p class="small">OpenID: ${escapeHtml(item.openId || '-')} · 昵称: ${escapeHtml(item.nickname || '-')}</p>
+          <p class="small">金额: ${escapeHtml(item.amount || '0.00')} ${escapeHtml(item.currency || 'USDT')} · 扣后余额: ${escapeHtml(item.balanceAfter || '0.00')}</p>
+          <p class="small">申请: ${escapeHtml(formatAdminLocalDateTime(item.createdAt))} · 审核: ${escapeHtml(formatAdminLocalDateTime(item.reviewedAt) || '-')}</p>
+          <p class="small">审核人: ${escapeHtml(item.reviewedBy || '-')} · 备注: ${escapeHtml(item.reviewNote || item.note || '-')}</p>
+          ${actions}
+        </article>
+      `;
+    })
+    .join('');
+}
+
+async function loadAiMusicWithdrawalsList() {
+  if (!aiMusicWithdrawalsList || !aiMusicWithdrawalsMessage) return;
+  aiMusicWithdrawalsMessage.textContent = '';
+  aiMusicWithdrawalsMessage.className = 'message';
+  const result = await requestTutorialJson(['/api/admin/ai-music-withdrawals'], { method: 'GET' });
+  if (!result.res) {
+    aiMusicWithdrawalsMessage.textContent = t('aiMusicWithdrawalsLoadFailed');
+    aiMusicWithdrawalsMessage.className = 'message error';
+    return;
+  }
+  if (result.res.status === 401) {
+    showLogin();
+    return;
+  }
+  if (!result.res.ok) {
+    aiMusicWithdrawalsMessage.textContent = localizeApiError(result.data?.error || t('aiMusicWithdrawalsLoadFailed'));
+    aiMusicWithdrawalsMessage.className = 'message error';
+    return;
+  }
+  renderAiMusicWithdrawalsList(result.data?.items || []);
 }
 
 function renderAiMusicCallbackLogs(items = []) {
@@ -3813,6 +4023,78 @@ window.rejectPredictMasterWithdrawal = async function rejectPredictMasterWithdra
     predictMasterWithdrawalsMessage.className = 'message success';
   }
   await loadPredictMasterWithdrawals();
+};
+
+window.approveAiMusicWithdrawal = async function approveAiMusicWithdrawal(id) {
+  const note = window.prompt('请输入审核备注（可留空）', '') || '';
+  if (aiMusicWithdrawalsMessage) {
+    aiMusicWithdrawalsMessage.textContent = '';
+    aiMusicWithdrawalsMessage.className = 'message';
+  }
+  const result = await requestTutorialJson([`/api/admin/ai-music-withdrawals/${encodeURIComponent(id)}/approve`], {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note })
+  });
+  if (!result.res) {
+    if (aiMusicWithdrawalsMessage) {
+      aiMusicWithdrawalsMessage.textContent = t('operationFailed');
+      aiMusicWithdrawalsMessage.className = 'message error';
+    }
+    return;
+  }
+  if (result.res.status === 401) {
+    showLogin();
+    return;
+  }
+  if (!result.res.ok) {
+    if (aiMusicWithdrawalsMessage) {
+      aiMusicWithdrawalsMessage.textContent = localizeApiError(result.data?.error || t('operationFailed'));
+      aiMusicWithdrawalsMessage.className = 'message error';
+    }
+    return;
+  }
+  if (aiMusicWithdrawalsMessage) {
+    aiMusicWithdrawalsMessage.textContent = t('aiMusicWithdrawalsApproved');
+    aiMusicWithdrawalsMessage.className = 'message success';
+  }
+  await loadAiMusicWithdrawalsList();
+};
+
+window.rejectAiMusicWithdrawal = async function rejectAiMusicWithdrawal(id) {
+  const note = window.prompt(t('rejectPrompt'), '') || '';
+  if (aiMusicWithdrawalsMessage) {
+    aiMusicWithdrawalsMessage.textContent = '';
+    aiMusicWithdrawalsMessage.className = 'message';
+  }
+  const result = await requestTutorialJson([`/api/admin/ai-music-withdrawals/${encodeURIComponent(id)}/reject`], {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note })
+  });
+  if (!result.res) {
+    if (aiMusicWithdrawalsMessage) {
+      aiMusicWithdrawalsMessage.textContent = t('operationFailed');
+      aiMusicWithdrawalsMessage.className = 'message error';
+    }
+    return;
+  }
+  if (result.res.status === 401) {
+    showLogin();
+    return;
+  }
+  if (!result.res.ok) {
+    if (aiMusicWithdrawalsMessage) {
+      aiMusicWithdrawalsMessage.textContent = localizeApiError(result.data?.error || t('operationFailed'));
+      aiMusicWithdrawalsMessage.className = 'message error';
+    }
+    return;
+  }
+  if (aiMusicWithdrawalsMessage) {
+    aiMusicWithdrawalsMessage.textContent = t('aiMusicWithdrawalsRejected');
+    aiMusicWithdrawalsMessage.className = 'message success';
+  }
+  await loadAiMusicWithdrawalsList();
 };
 
 async function loadUCardUpstreamConfig() {
@@ -6231,6 +6513,9 @@ document.getElementById('ordersNexaEscrowWithdrawalsBtn').addEventListener('clic
 document.getElementById('ordersXiangqiDepositsBtn').addEventListener('click', () => setView('xiangqi-deposits'));
 document.getElementById('ordersXiangqiWithdrawalsBtn').addEventListener('click', () => setView('xiangqi-withdrawals'));
 document.getElementById('ordersAiMusicBtn').addEventListener('click', () => setView('ai-music-orders'));
+document.getElementById('ordersAiMusicRechargeOrdersBtn').addEventListener('click', () => setView('ai-music-recharge-orders'));
+document.getElementById('ordersAiMusicMarketOrdersBtn').addEventListener('click', () => setView('ai-music-market-orders'));
+document.getElementById('ordersAiMusicWithdrawalsBtn').addEventListener('click', () => setView('ai-music-withdrawals'));
 document.getElementById('ordersAiMusicCallbackLogsBtn').addEventListener('click', () => setView('ai-music-callback-logs'));
 document.getElementById('navNchatUsers').addEventListener('click', () => setView('nchat-users'));
 document.getElementById('navNexaEscrowUsers').addEventListener('click', () => setView('nexa-escrow-users'));

@@ -2,7 +2,7 @@
 // 傻瓜模式(description) / 专业模式(lyrics) 的 UI + 点击行为照搬主站；数据源走 Claw800 AI Music 代理。
 // gmw 两处有意保留与主站不同：
 //   1) 自由模式(free)保留为顶部第三个 tab（2026-06-16 产品决策），不回退成主站的勾选框。
-//   2) 生成结果保留当页内联展示（不跳「我的音乐」）。
+//   2) 点击生成后立即跳「我的音乐」展示正在生成占位。
 // 其余傻瓜/专业内部交互与主站一致。
 import { api, poll, ApiError, getApiKey } from './api.js?v=20260617-ai-music-payment-refresh';
 import { ensureKey, openBuyCreditsModal } from './auth.js?v=20260617-ai-music-payment-refresh';
@@ -892,13 +892,78 @@ function buildPayload(root) {
 
 const SUBMIT_LABEL = '🎵 生成音乐（消耗 1 次，产出 2 首）';
 
-// 把刚提交的生成任务记进 sessionStorage 队列, 跳「我的音乐」后那边轮询显示进度。
-function pushPendingGen(id) {
+function readPendingGens() {
   let arr = [];
   try { arr = JSON.parse(sessionStorage.getItem('gm_pending_gens') || '[]'); } catch { arr = []; }
-  arr.push({ id, ts: Date.now() });
+  return Array.isArray(arr) ? arr : [];
+}
+
+function writePendingGens(arr) {
   if (arr.length > 6) arr = arr.slice(-6);   // 防堆积, 只留最近几条
   try { sessionStorage.setItem('gm_pending_gens', JSON.stringify(arr)); } catch (e) {}
+  window.dispatchEvent(new CustomEvent('gm-pending-gens-changed'));
+}
+
+function pendingTitleFromPayload(payload) {
+  return String(payload?.title || payload?.prompt || '生成中的歌曲').trim().slice(0, 40) || '生成中的歌曲';
+}
+
+// 把刚提交的生成任务记进 sessionStorage 队列, 跳「我的音乐」后那边轮询显示进度。
+function pushPendingGen(item) {
+  const now = Date.now();
+  const gen = typeof item === 'string' ? { id: item } : { ...(item || {}) };
+  const id = String(gen.id || '').trim();
+  if (!id) return '';
+  const arr = readPendingGens().filter((x) => String(x.id || '') !== id);
+  arr.push({ ...gen, id, ts: gen.ts || now });
+  writePendingGens(arr);
+  return id;
+}
+
+function replacePendingGen(oldId, nextItem) {
+  const next = typeof nextItem === 'string' ? { id: nextItem } : { ...(nextItem || {}) };
+  const nextId = String(next.id || '').trim();
+  if (!nextId) return;
+  let replaced = false;
+  const arr = readPendingGens().map((item) => {
+    if (String(item.id || '') !== String(oldId || '')) return item;
+    replaced = true;
+    return { ...item, ...next, id: nextId, local: false };
+  });
+  if (!replaced) arr.push({ ...next, id: nextId, ts: Date.now(), local: false });
+  writePendingGens(arr.filter((item, index, list) => list.findIndex((x) => String(x.id || '') === String(item.id || '')) === index));
+}
+
+function removePendingGen(id) {
+  writePendingGens(readPendingGens().filter((item) => String(item.id || '') !== String(id || '')));
+}
+
+function extractGenerationId(result = {}) {
+  const candidates = [
+    result.generation_id,
+    result.generationId,
+    result.task_id,
+    result.taskId,
+    result.id,
+    result.data?.generation_id,
+    result.data?.generationId,
+    result.data?.task_id,
+    result.data?.taskId,
+    result.data?.id,
+    result.generation?.id,
+    result.task?.id,
+    Array.isArray(result.generations) ? result.generations[0]?.id : '',
+    Array.isArray(result.tasks) ? result.tasks[0]?.id : ''
+  ];
+  return String(candidates.find((value) => String(value || '').trim()) || '').trim();
+}
+
+function jumpLibraryNow() {
+  if (location.hash === '#library') {
+    window.dispatchEvent(new Event('hashchange'));
+  } else {
+    location.hash = 'library';
+  }
 }
 
 async function submitGenerate(root) {
@@ -926,16 +991,20 @@ async function submitGenerate(root) {
   const submit = $(root, '#submitBtn');
   submit.disabled = true; submit.style.opacity = '.6'; submit.textContent = '正在提交…';
   state.polling = true;
+  const pendingId = `local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  pushPendingGen({ id: pendingId, title: pendingTitleFromPayload(payload), local: true, status: 'submitting' });
+  jumpLibraryNow();
   try {
     const result = await api.generate(payload);
-    const generationId = result.generation_id || result.generationId || result.task_id || result.taskId || result.id;
-    if (generationId) pushPendingGen(generationId);
+    const generationId = extractGenerationId(result);
+    if (generationId) replacePendingGen(pendingId, { id: generationId, title: pendingTitleFromPayload(payload) });
+    else removePendingGen(pendingId);
     if (result.credits) {
       window.dispatchEvent(new CustomEvent('gm-credits-changed', { detail: result }));
     }
-    toast('已提交，去「我的音乐」看创作进度', 'success');
-    location.hash = 'library';   // 跳「我的音乐」: 那边轮询显示进度 + 完成自动出歌
+    toast('已提交，正在「我的音乐」生成', 'success');
   } catch (e) {
+    removePendingGen(pendingId);
     // Nexa 额度不足时由后端拦截，前端提示用户购买生成次数。
     toast(e instanceof ApiError ? e.message : '生成出错', 'error');
   } finally {

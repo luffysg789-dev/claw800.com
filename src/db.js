@@ -293,6 +293,17 @@ db.exec(`
   );
 `);
 
+for (const [columnName, columnDefinition] of [
+  ['review_note', "TEXT NOT NULL DEFAULT ''"],
+  ['reviewed_by', "TEXT NOT NULL DEFAULT ''"],
+  ['reviewed_at', "TEXT NOT NULL DEFAULT ''"]
+]) {
+  const hasColumn = db.prepare("SELECT 1 FROM pragma_table_info('ai_music_asset_ledger') WHERE name = ?").get(columnName);
+  if (!hasColumn) {
+    db.exec(`ALTER TABLE ai_music_asset_ledger ADD COLUMN ${columnName} ${columnDefinition}`);
+  }
+}
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS ai_music_orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

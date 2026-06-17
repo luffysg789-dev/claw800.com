@@ -480,7 +480,7 @@ test('ai music payment notify marks paid, grants credits, and writes callback lo
   }
 });
 
-test('admin can list ai music orders and callback logs', async () => {
+test('admin can list ai music recharge orders, market orders, withdrawals, and callback logs', async () => {
   const harness = createHarness();
   try {
     const cookies = adminCookies();
@@ -500,6 +500,54 @@ test('admin can list ai music orders and callback logs', async () => {
     assert.equal(orders.body.ok, true);
     assert.equal(orders.body.items[0].orderNo, 'ai_music_admin_order');
     assert.equal(orders.body.items[0].openId, 'ai-music-open-id-admin-list');
+
+    const rechargeOrders = await harness.request('GET', '/api/admin/ai-music-recharge-orders', null, { cookies });
+    assert.equal(rechargeOrders.statusCode, 200);
+    assert.equal(rechargeOrders.body.ok, true);
+    assert.equal(rechargeOrders.body.items[0].orderNo, 'ai_music_admin_order');
+
+    const { cookies: buyerCookies } = await createAiMusicSession(harness, 'ai-music-open-id-admin-market-buyer');
+    assert.ok(buyerCookies);
+    const buyer = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-admin-market-buyer');
+    harness.db.prepare(`
+      INSERT INTO ai_music_songs (user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url)
+      VALUES (?, NULL, ?, ?, ?, ?, ?)
+    `).run(user.id, 'admin-market-song', '后台市场歌曲', 'complete', '/cover.jpg', '/audio.mp3');
+    const listing = harness.db.prepare(`
+      INSERT INTO ai_music_market_listings (upstream_song_id, seller_user_id, price, currency, status)
+      VALUES (?, ?, ?, ?, ?)
+    `).run('admin-market-song', user.id, '8.00', 'USDT', 'active');
+    harness.db.prepare(`
+      INSERT INTO ai_music_market_orders (order_no, listing_id, upstream_song_id, buyer_user_id, seller_user_id, amount, currency, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run('ai_music_admin_market_order', listing.lastInsertRowid, 'admin-market-song', buyer.id, user.id, '8.00', 'USDT', 'paid');
+    const marketOrders = await harness.request('GET', '/api/admin/ai-music-market-orders', null, { cookies });
+    assert.equal(marketOrders.statusCode, 200);
+    assert.equal(marketOrders.body.ok, true);
+    assert.equal(marketOrders.body.items[0].orderNo, 'ai_music_admin_market_order');
+    assert.equal(marketOrders.body.items[0].title, '后台市场歌曲');
+    assert.equal(marketOrders.body.items[0].buyerOpenId, 'ai-music-open-id-admin-market-buyer');
+
+    harness.db.prepare('UPDATE ai_music_wallets SET balance = ? WHERE user_id = ?').run('10.00', user.id);
+    const withdrawA = await harness.request('POST', '/api/ai-music/assets/withdraw', { amount: '2.00' }, { cookies: musicCookies });
+    const withdrawB = await harness.request('POST', '/api/ai-music/assets/withdraw', { amount: '3.00' }, { cookies: musicCookies });
+    assert.equal(withdrawA.statusCode, 200);
+    assert.equal(withdrawB.statusCode, 200);
+    const withdrawals = await harness.request('GET', '/api/admin/ai-music-withdrawals', null, { cookies });
+    assert.equal(withdrawals.statusCode, 200);
+    assert.equal(withdrawals.body.ok, true);
+    const withdrawalA = withdrawals.body.items.find((item) => item.amount === '2.00');
+    const withdrawalB = withdrawals.body.items.find((item) => item.amount === '3.00');
+    assert.ok(withdrawalA);
+    assert.ok(withdrawalB);
+    const approve = await harness.request('POST', `/api/admin/ai-music-withdrawals/${withdrawalA.id}/approve`, { note: 'ok' }, { cookies });
+    const reject = await harness.request('POST', `/api/admin/ai-music-withdrawals/${withdrawalB.id}/reject`, { note: 'bad' }, { cookies });
+    assert.equal(approve.statusCode, 200);
+    assert.equal(approve.body.item.status, 'completed');
+    assert.equal(reject.statusCode, 200);
+    assert.equal(reject.body.item.status, 'rejected');
+    const wallet = harness.db.prepare('SELECT balance FROM ai_music_wallets WHERE user_id = ?').get(user.id);
+    assert.equal(wallet.balance, '8.00');
 
     const logs = await harness.request('GET', '/api/admin/ai-music-callback-logs', null, { cookies });
     assert.equal(logs.statusCode, 200);

@@ -135,7 +135,7 @@ function squareCard(song) {
     }, coverChildren),
     el('div', { class: 'gm-square-info' }, [
       el('div', { class: 'gm-square-title-row' }, [
-        el('a', { class: 'gm-square-title', href: `/ai-music/song/${encodeURIComponent(String(song.id || ''))}`, text: title }),
+        el('span', { class: 'gm-square-title', text: title }),
         el('div', { class: 'gm-square-title-side' }, [plays, favoriteBtn])
       ]),
       el('div', { class: 'gm-square-author-row' }, [

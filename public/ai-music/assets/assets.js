@@ -14,7 +14,6 @@ export function renderAssets(root) {
       el('div', { class: 'gm-assets-label', text: '可提现余额' }),
       el('div', { id: 'gm-assets-balance', class: 'gm-assets-balance', text: '-- USDT' }),
       el('div', { class: 'gm-assets-actions' }, [
-        el('button', { type: 'button', class: 'gm-btn-ghost', text: '余额', onclick: () => loadAssets(root) }),
         el('button', { type: 'button', class: 'gm-btn-ghost', text: '明细', onclick: () => root.querySelector('#gm-assets-ledger')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }),
         el('button', { type: 'button', class: 'gm-btn-primary gm-assets-withdraw-btn', text: '提现', onclick: () => openWithdrawModal(root) })
       ]),

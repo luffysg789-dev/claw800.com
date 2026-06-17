@@ -2104,8 +2104,13 @@ function formatAiMusicMarketOrder(row) {
     nexaOrderId: String(row?.nexa_order_id || '').trim(),
     listingId: Number(row?.listing_id || 0) || 0,
     songId: String(row?.upstream_song_id || '').trim(),
+    title: String(row?.title || '').trim(),
     buyerUserId: Number(row?.buyer_user_id || 0) || 0,
     sellerUserId: Number(row?.seller_user_id || 0) || 0,
+    buyerOpenId: String(row?.buyer_open_id || '').trim(),
+    buyerNickname: String(row?.buyer_nickname || '').trim(),
+    sellerOpenId: String(row?.seller_open_id || '').trim(),
+    sellerNickname: String(row?.seller_nickname || '').trim(),
     amount: String(row?.amount || '').trim(),
     currency: String(row?.currency || AI_MUSIC_CURRENCY).trim() || AI_MUSIC_CURRENCY,
     status: String(row?.status || 'pending').trim() || 'pending',
@@ -2113,6 +2118,25 @@ function formatAiMusicMarketOrder(row) {
     createdAt: String(row?.created_at || '').trim(),
     paidAt: String(row?.paid_at || '').trim(),
     updatedAt: String(row?.updated_at || '').trim()
+  };
+}
+
+function formatAdminAiMusicWithdrawal(row = {}) {
+  return {
+    id: Number(row.id || 0) || 0,
+    userId: Number(row.user_id || 0) || 0,
+    openId: String(row.open_id || '').trim(),
+    nickname: String(row.nickname || '').trim(),
+    amount: String(row.amount || '0.00').trim() || '0.00',
+    balanceAfter: String(row.balance_after || '0.00').trim() || '0.00',
+    currency: String(row.currency || AI_MUSIC_CURRENCY).trim() || AI_MUSIC_CURRENCY,
+    status: String(row.status || '').trim(),
+    referenceId: String(row.reference_id || '').trim(),
+    note: String(row.note || '').trim(),
+    reviewNote: String(row.review_note || '').trim(),
+    reviewedBy: String(row.reviewed_by || '').trim(),
+    reviewedAt: String(row.reviewed_at || '').trim(),
+    createdAt: String(row.created_at || '').trim()
   };
 }
 
@@ -2459,6 +2483,57 @@ function createAiMusicWithdrawRequest(userId, amount) {
   );
   return getAiMusicAssetSummary(normalizedUserId);
 }
+
+const approveAiMusicWithdrawalReview = db.transaction(({ id, note = '', reviewer = 'admin' } = {}) => {
+  const withdrawalId = Number(id || 0);
+  const withdrawal = selectAiMusicWithdrawalByIdStmt.get(withdrawalId);
+  if (!withdrawal) return { kind: 'not_found' };
+  if (String(withdrawal.status || '').toLowerCase() !== 'pending') {
+    return { kind: 'already_reviewed', withdrawal };
+  }
+  const result = updateAiMusicWithdrawalReviewStmt.run(
+    'completed',
+    String(note || '').trim(),
+    String(reviewer || 'admin').trim() || 'admin',
+    withdrawalId
+  );
+  if (!result.changes) return { kind: 'already_reviewed', withdrawal };
+  return { kind: 'approved', withdrawal: selectAiMusicWithdrawalByIdStmt.get(withdrawalId) };
+});
+
+const rejectAiMusicWithdrawalReview = db.transaction(({ id, note = '', reviewer = 'admin' } = {}) => {
+  const withdrawalId = Number(id || 0);
+  const withdrawal = selectAiMusicWithdrawalByIdStmt.get(withdrawalId);
+  if (!withdrawal) return { kind: 'not_found' };
+  if (String(withdrawal.status || '').toLowerCase() !== 'pending') {
+    return { kind: 'already_reviewed', withdrawal };
+  }
+  const userId = Number(withdrawal.user_id || 0);
+  ensureAiMusicWalletStmt.run(userId);
+  const wallet = selectAiMusicWalletStmt.get(userId) || {};
+  const amount = normalizeAiMusicMarketPrice(withdrawal.amount || '0.00');
+  const nextBalance = aiMusicCentsToAmount(aiMusicAmountToCents(wallet.balance || '0.00') + aiMusicAmountToCents(amount));
+  updateAiMusicWalletBalanceStmt.run(nextBalance, userId);
+  insertAiMusicAssetLedgerStmt.run(
+    userId,
+    'withdraw_refund',
+    amount,
+    nextBalance,
+    AI_MUSIC_CURRENCY,
+    'completed',
+    'withdraw',
+    String(withdrawal.reference_id || withdrawalId).trim(),
+    '提现审核拒绝，金额已退回'
+  );
+  const result = updateAiMusicWithdrawalReviewStmt.run(
+    'rejected',
+    String(note || '').trim(),
+    String(reviewer || 'admin').trim() || 'admin',
+    withdrawalId
+  );
+  if (!result.changes) return { kind: 'already_reviewed', withdrawal };
+  return { kind: 'rejected', withdrawal: selectAiMusicWithdrawalByIdStmt.get(withdrawalId) };
+});
 
 function toggleAiMusicFavorite(userId, songId) {
   const normalizedSongId = String(songId || '').trim();
@@ -10956,6 +11031,65 @@ const listAiMusicAssetLedgerStmt = db.prepare(`
   ORDER BY created_at DESC, id DESC
   LIMIT ?
 `);
+const listAdminAiMusicWithdrawalsStmt = db.prepare(`
+  SELECT
+    l.id,
+    l.user_id,
+    l.type,
+    l.amount,
+    l.balance_after,
+    l.currency,
+    l.status,
+    l.reference_type,
+    l.reference_id,
+    l.note,
+    l.review_note,
+    l.reviewed_by,
+    l.reviewed_at,
+    l.created_at,
+    u.open_id,
+    u.nickname
+  FROM ai_music_asset_ledger l
+  LEFT JOIN ai_music_users u ON u.id = l.user_id
+  WHERE l.type = 'withdraw_pending'
+  ORDER BY
+    CASE WHEN l.status = 'pending' THEN 0 ELSE 1 END,
+    l.created_at DESC,
+    l.id DESC
+  LIMIT ?
+`);
+const selectAiMusicWithdrawalByIdStmt = db.prepare(`
+  SELECT
+    l.id,
+    l.user_id,
+    l.type,
+    l.amount,
+    l.balance_after,
+    l.currency,
+    l.status,
+    l.reference_id,
+    l.review_note,
+    l.reviewed_by,
+    l.reviewed_at,
+    l.created_at,
+    u.open_id,
+    u.nickname
+  FROM ai_music_asset_ledger l
+  LEFT JOIN ai_music_users u ON u.id = l.user_id
+  WHERE l.id = ?
+    AND l.type = 'withdraw_pending'
+  LIMIT 1
+`);
+const updateAiMusicWithdrawalReviewStmt = db.prepare(`
+  UPDATE ai_music_asset_ledger
+  SET status = ?,
+      review_note = ?,
+      reviewed_by = ?,
+      reviewed_at = datetime('now')
+  WHERE id = ?
+    AND type = 'withdraw_pending'
+    AND status = 'pending'
+`);
 const insertAiMusicOrderStmt = db.prepare(`
   INSERT INTO ai_music_orders (user_id, order_no, nexa_order_id, amount, currency, credits, status)
   VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -11100,6 +11234,34 @@ const listAiMusicOrdersStmt = db.prepare(`
     u.nickname
   FROM ai_music_orders o
   LEFT JOIN ai_music_users u ON u.id = o.user_id
+  ORDER BY o.created_at DESC, o.id DESC
+  LIMIT ?
+`);
+const listAdminAiMusicMarketOrdersStmt = db.prepare(`
+  SELECT
+    o.id,
+    o.order_no,
+    o.nexa_order_id,
+    o.listing_id,
+    o.upstream_song_id,
+    o.buyer_user_id,
+    o.seller_user_id,
+    o.amount,
+    o.currency,
+    o.status,
+    o.notify_payload,
+    o.created_at,
+    o.paid_at,
+    o.updated_at,
+    s.title,
+    bu.open_id AS buyer_open_id,
+    bu.nickname AS buyer_nickname,
+    su.open_id AS seller_open_id,
+    su.nickname AS seller_nickname
+  FROM ai_music_market_orders o
+  LEFT JOIN ai_music_songs s ON s.upstream_song_id = o.upstream_song_id
+  LEFT JOIN ai_music_users bu ON bu.id = o.buyer_user_id
+  LEFT JOIN ai_music_users su ON su.id = o.seller_user_id
   ORDER BY o.created_at DESC, o.id DESC
   LIMIT ?
 `);
@@ -16049,6 +16211,53 @@ app.get('/api/admin/ai-music-orders', requireAdmin, (req, res) => {
   const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
   const items = listAiMusicOrdersStmt.all(limit).map(formatAiMusicOrder);
   res.json({ ok: true, items });
+});
+
+app.get('/api/admin/ai-music-recharge-orders', requireAdmin, (req, res) => {
+  const limitRaw = Number(req.query?.limit || 100);
+  const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
+  const items = listAiMusicOrdersStmt.all(limit).map(formatAiMusicOrder);
+  res.json({ ok: true, items });
+});
+
+app.get('/api/admin/ai-music-market-orders', requireAdmin, (req, res) => {
+  const limitRaw = Number(req.query?.limit || 100);
+  const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
+  const items = listAdminAiMusicMarketOrdersStmt.all(limit).map(formatAiMusicMarketOrder);
+  res.json({ ok: true, items });
+});
+
+app.get('/api/admin/ai-music-withdrawals', requireAdmin, (req, res) => {
+  const limitRaw = Number(req.query?.limit || 100);
+  const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
+  const items = listAdminAiMusicWithdrawalsStmt.all(limit).map(formatAdminAiMusicWithdrawal);
+  res.json({ ok: true, items });
+});
+
+app.post('/api/admin/ai-music-withdrawals/:id/approve', requireAdmin, (req, res) => {
+  const id = Number(req.params.id || 0);
+  if (!id) return res.status(400).json({ ok: false, error: '提现记录不存在' });
+  const result = approveAiMusicWithdrawalReview({
+    id,
+    note: req.body?.note,
+    reviewer: req.session?.adminUser || 'admin'
+  });
+  if (result.kind === 'not_found') return res.status(404).json({ ok: false, error: '提现记录不存在' });
+  if (result.kind === 'already_reviewed') return res.status(409).json({ ok: false, error: '该提现已审核' });
+  return res.json({ ok: true, item: formatAdminAiMusicWithdrawal(result.withdrawal) });
+});
+
+app.post('/api/admin/ai-music-withdrawals/:id/reject', requireAdmin, (req, res) => {
+  const id = Number(req.params.id || 0);
+  if (!id) return res.status(400).json({ ok: false, error: '提现记录不存在' });
+  const result = rejectAiMusicWithdrawalReview({
+    id,
+    note: req.body?.note,
+    reviewer: req.session?.adminUser || 'admin'
+  });
+  if (result.kind === 'not_found') return res.status(404).json({ ok: false, error: '提现记录不存在' });
+  if (result.kind === 'already_reviewed') return res.status(409).json({ ok: false, error: '该提现已审核' });
+  return res.json({ ok: true, item: formatAdminAiMusicWithdrawal(result.withdrawal) });
 });
 
 app.get('/api/admin/ai-music-callback-logs', requireAdmin, (req, res) => {

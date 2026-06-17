@@ -402,6 +402,10 @@ function pollPendingGens(root) {
   const tick = async () => {
     if (!readPendingGens().length) { clearInterval(pendingTimer); pendingTimer = null; renderActiveGenCards(curActiveBox()); return; }
     for (const g of readPendingGens()) {
+      if (g.local) {
+        pendingStatus[g.id] = { percent: 0, label: '提交中…', status: 'submitting' };
+        continue;
+      }
       try {
         const r = await api.generationStatus(g.id);
         pendingStatus[g.id] = { percent: r.percent || 0, label: r.label || r.status || '生成中…', status: r.status };
@@ -418,6 +422,11 @@ function pollPendingGens(root) {
   pendingTimer = setInterval(tick, 3500);
   tick();
 }
+
+window.addEventListener('gm-pending-gens-changed', () => {
+  const root = getLibRoot();
+  if (root) pollPendingGens(root);
+});
 
 // ============ 操作实现（弹窗/点击交互逐字照搬主站 /music/my/） ============
 
