@@ -1961,6 +1961,37 @@ function extractAiMusicSongs(data = {}) {
   return candidates.find((items) => Array.isArray(items)) || [];
 }
 
+function pickAiMusicString(input, keys = []) {
+  const stack = [input];
+  const normalizedKeys = new Set(keys.map((key) => String(key || '').toLowerCase()));
+  while (stack.length) {
+    const value = stack.shift();
+    if (!value || typeof value !== 'object') continue;
+    for (const [key, item] of Object.entries(value)) {
+      if (normalizedKeys.has(String(key || '').toLowerCase())) {
+        const text = String(item || '').trim();
+        if (text) return text;
+      }
+      if (item && typeof item === 'object') stack.push(item);
+    }
+  }
+  return '';
+}
+
+function extractAiMusicSongDetail(data = {}) {
+  const candidates = [
+    data.song,
+    data.item,
+    data.result,
+    data.data?.song,
+    data.data?.item,
+    data.data?.result,
+    data.data,
+    data
+  ];
+  return candidates.find((item) => item && typeof item === 'object' && !Array.isArray(item)) || {};
+}
+
 function formatLocalAiMusicSong(row = {}) {
   const upstreamSongId = String(row.upstream_song_id || row.id || '').trim();
   const authorNickname = String(row.author_nickname || row.nickname || '').trim();
@@ -2000,11 +2031,20 @@ function formatPublicAiMusicSong(row = {}) {
 }
 
 function normalizeAiMusicSong(input = {}) {
-  const upstreamSongId = String(input.id || input.song_id || input.songId || input.upstream_song_id || '').trim();
-  const title = String(input.title || input.name || input.song_title || '').trim();
-  const status = String(input.status || input.state || 'complete').trim();
-  const coverUrl = String(input.image_url || input.cover_url || input.cover || input.image || '').trim();
-  const audioUrl = String(input.playable_url || input.audio_url || input.mp3_url || input.url || input.play_url || '').trim();
+  const upstreamSongId = pickAiMusicString(input, ['id', 'song_id', 'songId', 'upstream_song_id', 'songUuid', 'uuid']);
+  const title = pickAiMusicString(input, ['title', 'name', 'song_title', 'songTitle']);
+  const status = pickAiMusicString(input, ['status', 'state']) || 'complete';
+  const coverUrl = pickAiMusicString(input, [
+    'image_url', 'imageUrl', 'cover_url', 'coverUrl', 'cover', 'image',
+    'cover_image', 'coverImage', 'cover_image_url', 'coverImageUrl',
+    'cover_path', 'coverPath', 'thumbnail', 'thumbnail_url', 'artwork_url', 'pic_url'
+  ]);
+  const audioUrl = pickAiMusicString(input, [
+    'playable_url', 'playableUrl', 'audio_url', 'audioUrl', 'mp3_url', 'mp3Url',
+    'url', 'play_url', 'playUrl', 'stream_url', 'streamUrl', 'music_url', 'musicUrl',
+    'song_url', 'songUrl', 'file_url', 'fileUrl', 'download_url', 'downloadUrl',
+    'audio_path', 'audioPath', 'src'
+  ]);
   return {
     upstreamSongId,
     title,
@@ -2014,7 +2054,7 @@ function normalizeAiMusicSong(input = {}) {
   };
 }
 
-function listLocalAiMusicSongsForUser(userId, { page = 1, pageSize = 20, q = '', tab = 'mine' } = {}) {
+async function listLocalAiMusicSongsForUser(userId, { page = 1, pageSize = 20, q = '', tab = 'mine' } = {}) {
   const normalizedTab = String(tab || 'mine').trim();
   if (normalizedTab === 'favorites') {
     return { ok: true, songs: [], total: 0, page, page_size: pageSize };
@@ -2049,6 +2089,7 @@ function listLocalAiMusicSongsForUser(userId, { page = 1, pageSize = 20, q = '',
     ORDER BY datetime(s.created_at) DESC, s.id DESC
     LIMIT ? OFFSET ?
   `).all(...params, normalizedPageSize, (normalizedPage - 1) * normalizedPageSize);
+  await syncMissingAiMusicSongMedia(rows);
   return {
     ok: true,
     songs: rows.map(formatLocalAiMusicSong),
@@ -2058,7 +2099,7 @@ function listLocalAiMusicSongsForUser(userId, { page = 1, pageSize = 20, q = '',
   };
 }
 
-function listPublicAiMusicSongs({ page = 1, pageSize = 20, q = '' } = {}) {
+async function listPublicAiMusicSongs({ page = 1, pageSize = 20, q = '' } = {}) {
   const normalizedPage = Math.max(1, Number(page || 1) || 1);
   const normalizedPageSize = Math.min(50, Math.max(1, Number(pageSize || 20) || 20));
   const keyword = String(q || '').trim();
@@ -2089,6 +2130,7 @@ function listPublicAiMusicSongs({ page = 1, pageSize = 20, q = '' } = {}) {
     ORDER BY datetime(s.created_at) DESC, s.id DESC
     LIMIT ? OFFSET ?
   `).all(...params, normalizedPageSize, (normalizedPage - 1) * normalizedPageSize);
+  await syncMissingAiMusicSongMedia(rows);
   return {
     ok: true,
     songs: rows.map(formatPublicAiMusicSong),
@@ -2142,6 +2184,79 @@ async function syncRecentAiMusicGenerationsForUser(userId) {
     }
   }
   return synced;
+}
+
+async function syncMissingAiMusicSongMedia(rows = []) {
+  const targets = (rows || []).filter((row) => (
+    String(row?.upstream_song_id || '').trim() &&
+    (!String(row?.cover_url || '').trim() || !String(row?.audio_url || '').trim())
+  )).slice(0, 8);
+  if (!targets.length) return 0;
+
+  let config;
+  try {
+    config = getAiMusicConfig();
+  } catch {
+    return 0;
+  }
+
+  let synced = 0;
+  for (const row of targets) {
+    const songId = String(row.upstream_song_id || '').trim();
+    try {
+      const response = await fetch(`${config.upstream}/ai6api/music/song/${encodeURIComponent(songId)}`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${config.apiKey}` }
+      });
+      if (!response.ok) continue;
+      const text = await response.text();
+      const data = text ? JSON.parse(text) : {};
+      const song = normalizeAiMusicSong({
+        ...extractAiMusicSongDetail(data),
+        id: songId
+      });
+      const nextCoverUrl = String(song.coverUrl || row.cover_url || '').trim();
+      const nextAudioUrl = String(song.audioUrl || row.audio_url || '').trim();
+      if (!nextCoverUrl && !nextAudioUrl) continue;
+      updateAiMusicSongByUpstreamIdStmt.run(
+        String(song.title || row.title || '').trim(),
+        String(song.status || row.status || '').trim() || 'complete',
+        nextCoverUrl,
+        nextAudioUrl,
+        songId,
+        Number(row.user_id)
+      );
+      row.cover_url = nextCoverUrl;
+      row.audio_url = nextAudioUrl;
+      if (song.title) row.title = String(song.title || '').trim();
+      if (song.status) row.status = String(song.status || '').trim();
+      synced += 1;
+    } catch {
+      // 旧歌补媒体失败不能影响列表展示。
+    }
+  }
+  return synced;
+}
+
+function normalizeAiMusicMediaTarget(rawUrl) {
+  const url = String(rawUrl || '').trim();
+  if (!/^https?:\/\//i.test(url)) return '';
+  try {
+    return new URL(encodeURI(url)).toString();
+  } catch {
+    return '';
+  }
+}
+
+function buildAiMusicMediaHeaders(req, config) {
+  const headers = {
+    Authorization: `Bearer ${config.apiKey}`,
+    Referer: `${config.upstream}/`,
+    'User-Agent': 'claw800-ai-music'
+  };
+  const range = String(req.headers?.range || '').trim();
+  if (range) headers.Range = range;
+  return headers;
 }
 
 async function forwardAiMusicRequest(req, upstreamPath) {
@@ -8401,9 +8516,9 @@ app.post('/api/ai-music/credits/notify', (req, res) => {
   return res.status(httpStatus === 400 ? 400 : 200).json({ code: responseCode, msg: responseMsg });
 });
 
-app.get('/api/ai-music/public/songs', (req, res) => {
+app.get('/api/ai-music/public/songs', async (req, res) => {
   try {
-    return res.json(listPublicAiMusicSongs({
+    return res.json(await listPublicAiMusicSongs({
       page: req.query?.page,
       pageSize: req.query?.page_size,
       q: req.query?.q
@@ -8430,24 +8545,25 @@ app.get('/api/ai-music/public/media', async (req, res) => {
   try {
     const config = getAiMusicConfig();
     const rawUrl = String(req.query?.u || '').trim();
-    if (!/^https?:\/\//i.test(rawUrl)) {
+    const targetUrl = normalizeAiMusicMediaTarget(rawUrl);
+    if (!targetUrl) {
       return res.status(400).json({ ok: false, error: 'INVALID_MEDIA_URL' });
     }
     let rawPath = '';
+    let decodedPath = '';
     try {
       const parsedUrl = new URL(rawUrl);
       rawPath = `${parsedUrl.pathname || ''}${parsedUrl.search || ''}`;
+      decodedPath = decodeURI(rawPath);
     } catch {
       rawPath = '';
+      decodedPath = '';
     }
-    const media = selectPublicAiMusicMediaStmt.get(rawUrl, rawPath, rawUrl, rawPath);
+    const media = selectPublicAiMusicMediaStmt.get(rawUrl, rawPath, decodedPath, rawUrl, rawPath, decodedPath);
     if (!media) {
       return res.status(403).json({ ok: false, error: 'MEDIA_NOT_PUBLIC' });
     }
-    const headers = { Authorization: `Bearer ${config.apiKey}` };
-    const range = String(req.headers?.range || '').trim();
-    if (range) headers.Range = range;
-    const response = await fetch(rawUrl, { headers });
+    const response = await fetch(targetUrl, { headers: buildAiMusicMediaHeaders(req, config) });
     ['content-type', 'content-length', 'content-range', 'accept-ranges'].forEach((name) => {
       const value = response.headers?.get?.(name);
       if (value) res.setHeader(name, value);
@@ -8477,7 +8593,7 @@ app.all('/api/ai-music/music/*', async (req, res) => {
       if (String(req.query?.tab || 'mine').trim() !== 'favorites') {
         await syncRecentAiMusicGenerationsForUser(user.id);
       }
-      return res.json(listLocalAiMusicSongsForUser(user.id, {
+      return res.json(await listLocalAiMusicSongsForUser(user.id, {
         tab: req.query?.tab,
         page: req.query?.page,
         pageSize: req.query?.page_size,
@@ -8543,13 +8659,11 @@ app.get('/api/ai-music/media', async (req, res) => {
     requireAiMusicSession(req);
     const config = getAiMusicConfig();
     const rawUrl = String(req.query?.u || '').trim();
-    if (!/^https?:\/\//i.test(rawUrl)) {
+    const targetUrl = normalizeAiMusicMediaTarget(rawUrl);
+    if (!targetUrl) {
       return res.status(400).json({ ok: false, error: 'INVALID_MEDIA_URL' });
     }
-    const headers = { Authorization: `Bearer ${config.apiKey}` };
-    const range = String(req.headers?.range || '').trim();
-    if (range) headers.Range = range;
-    const response = await fetch(rawUrl, { headers });
+    const response = await fetch(targetUrl, { headers: buildAiMusicMediaHeaders(req, config) });
     ['content-type', 'content-length', 'content-range', 'accept-ranges'].forEach((name) => {
       const value = response.headers?.get?.(name);
       if (value) res.setHeader(name, value);
@@ -10116,8 +10230,8 @@ const selectPublicAiMusicSongByUpstreamIdStmt = db.prepare(`
 const selectPublicAiMusicMediaStmt = db.prepare(`
   SELECT id
   FROM ai_music_songs
-  WHERE audio_url IN (?, ?)
-     OR cover_url IN (?, ?)
+  WHERE audio_url IN (?, ?, ?)
+     OR cover_url IN (?, ?, ?)
   LIMIT 1
 `);
 const searchNchatUsersByKeywordStmt = db.prepare(`

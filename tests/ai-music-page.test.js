@@ -13,7 +13,10 @@ test('ai music page shell is installed under public route', () => {
   const html = readPublicAiMusicFile('index.html');
 
   assert.match(html, /<div id="app"><\/div>/);
-  assert.match(html, /assets\/app\.js\?v=/);
+  assert.match(html, /href="\/ai-music\/assets\/styles\.css\?v=/);
+  assert.match(html, /href="\/ai-music\/assets\/my-music\.css\?v=/);
+  assert.match(html, /src="\/ai-music\/assets\/app\.js\?v=/);
+  assert.doesNotMatch(html, /(?:href|src)="\.\/assets\//);
 });
 
 test('ai music frontend uses Claw800 API routes instead of user API keys', () => {
@@ -133,9 +136,9 @@ test('ai music shell and assets avoid stale Nexa webview caches', () => {
   const serverJs = fs.readFileSync(path.join(rootDir, 'src', 'server.js'), 'utf8');
   const combinedModules = `${appJs}\n${authJs}\n${generateJs}\n${libraryJs}\n${stemlabJs}\n${studioJs}`;
 
-  assert.match(html, /assets\/styles\.css\?v=/);
-  assert.match(html, /assets\/my-music\.css\?v=/);
-  assert.match(html, /assets\/app\.js\?v=/);
+  assert.match(html, /\/ai-music\/assets\/styles\.css\?v=/);
+  assert.match(html, /\/ai-music\/assets\/my-music\.css\?v=/);
+  assert.match(html, /\/ai-music\/assets\/app\.js\?v=/);
   assert.match(appJs, /from '\.\/api\.js\?v=/);
   assert.match(appJs, /from '\.\/auth\.js\?v=/);
   assert.match(authJs, /from '\.\/api\.js\?v=/);

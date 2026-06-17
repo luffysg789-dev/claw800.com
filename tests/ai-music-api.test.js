@@ -646,6 +646,45 @@ test('ai music my songs only returns local songs owned by the current user', asy
   }
 });
 
+test('ai music my songs refreshes missing media from upstream song detail', async () => {
+  const harness = createHarness();
+  try {
+    const { cookies } = await createAiMusicSession(harness, 'ai-music-open-id-missing-media');
+    const user = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-missing-media');
+    harness.db.prepare(`
+      INSERT INTO ai_music_songs (user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url)
+      VALUES (?, NULL, ?, ?, ?, ?, ?)
+    `).run(user.id, 'missing-media-song', 'Missing Media Song', 'complete', '', '');
+    harness.setHhApiKey('hh_server_secret');
+    let fetchedUrl = '';
+    harness.setFetch(async (url, init = {}) => {
+      fetchedUrl = String(url);
+      assert.equal(String(init.headers?.Authorization || ''), 'Bearer hh_server_secret');
+      return new Response(JSON.stringify({
+        data: {
+          id: 'missing-media-song',
+          songTitle: 'Recovered Song',
+          coverImageUrl: '/covers/recovered.jpg',
+          streamUrl: '/audio/recovered.mp3'
+        }
+      }), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+
+    const songs = await harness.request('GET', '/api/ai-music/music/my-songs', null, { cookies });
+    const row = harness.db.prepare('SELECT title, cover_url, audio_url FROM ai_music_songs WHERE upstream_song_id = ?').get('missing-media-song');
+
+    assert.equal(songs.statusCode, 200);
+    assert.equal(fetchedUrl.endsWith('/ai6api/music/song/missing-media-song'), true);
+    assert.equal(songs.body.songs[0].title, 'Recovered Song');
+    assert.equal(songs.body.songs[0].image_url, '/covers/recovered.jpg');
+    assert.equal(songs.body.songs[0].playable_url, '/audio/recovered.mp3');
+    assert.equal(row.cover_url, '/covers/recovered.jpg');
+    assert.equal(row.audio_url, '/audio/recovered.mp3');
+  } finally {
+    harness.cleanup();
+  }
+});
+
 test('ai music generation status stores returned songs for the current user library', async () => {
   const harness = createHarness();
   try {
@@ -779,6 +818,8 @@ test('ai music public media proxy only serves stored song media without login', 
       fetchedUrl = String(url);
       fetchedAuth = String(init.headers?.Authorization || '');
       assert.equal(String(init.headers?.Range || ''), 'bytes=0-1023');
+      assert.equal(String(init.headers?.Referer || ''), 'https://ai6666.com/');
+      assert.equal(String(init.headers?.['User-Agent'] || ''), 'claw800-ai-music');
       return new Response(Buffer.from('mp3-bytes'), {
         status: 206,
         headers: {
