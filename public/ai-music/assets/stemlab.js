@@ -5,8 +5,8 @@
 //   - 来源仅「平台歌曲选择」，不做本地上传 tab。
 //   - 不做历史按钮 / 弹窗。
 //   - 无套餐页 → 计费提示照常显示，但跳购买的链接省去。
-import { api, ApiError, ai6Media, authedDownload } from './api.js';
-import { el, clear, toast } from './ui.js';
+import { api, ApiError, ai6Media, authedDownload } from './api.js?v=20260617-ai-music-payment-refresh';
+import { el, clear, toast } from './ui.js?v=20260617-ai-music-payment-refresh';
 
 // 分轨工作台 markup（去掉本地上传 / 历史 / 购买入口），作用域类 .gm-st-scope（样式见 styles.css）。
 const TEMPLATE = `

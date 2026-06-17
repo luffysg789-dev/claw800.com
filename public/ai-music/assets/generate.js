@@ -4,9 +4,9 @@
 //   1) 自由模式(free)保留为顶部第三个 tab（2026-06-16 产品决策），不回退成主站的勾选框。
 //   2) 生成结果保留当页内联展示（不跳「我的音乐」）。
 // 其余傻瓜/专业内部交互与主站一致。
-import { api, poll, ApiError, getApiKey } from './api.js';
-import { ensureKey } from './auth.js';
-import { el, clear, toast, playToggle, fmtDuration, mediaUrl } from './ui.js';
+import { api, poll, ApiError, getApiKey } from './api.js?v=20260617-ai-music-payment-refresh';
+import { ensureKey } from './auth.js?v=20260617-ai-music-payment-refresh';
+import { el, clear, toast, playToggle, fmtDuration, mediaUrl } from './ui.js?v=20260617-ai-music-payment-refresh';
 
 // 风格标签库 — 逐字搬自 create.html 各 tagGroup 的 data-tag 集合（中文 label 对齐）。
 const STYLE_GROUPS = {
@@ -97,6 +97,7 @@ export function renderGenerate(root) {
   switchMode(root, 'description');
   loadDraft(root);
   refreshCredits(root);
+  bindCreditsChangedListener(root);
   applyRemakeHandoff(root);
   bindStudioHandoffListener();
   applyStudioHandoff(root);
@@ -838,6 +839,20 @@ async function refreshCredits(root) {
   const badge = $(root, '#cf-credits');
   if (!getApiKey()) { badge.textContent = '登录后可生成'; return; }
   try { const r = await api.credits(); badge.textContent = `剩余次数 ${r.credits}`; } catch { badge.textContent = '剩余次数 —'; }
+}
+
+function bindCreditsChangedListener(root) {
+  if (root.__gmCreditsChangedHandler) {
+    window.removeEventListener('gm-credits-changed', root.__gmCreditsChangedHandler);
+  }
+  root.__gmCreditsChangedHandler = (event) => {
+    const badge = $(root, '#cf-credits');
+    if (!badge) return;
+    const credits = event.detail?.credits?.availableCredits;
+    if (credits !== undefined) badge.textContent = `剩余次数 ${credits}`;
+    else refreshCredits(root);
+  };
+  window.addEventListener('gm-credits-changed', root.__gmCreditsChangedHandler);
 }
 
 // ---------- 提交 ----------

@@ -35,15 +35,27 @@ test('ai music purchase flow shows three Nexa package choices', () => {
   const apiJs = readPublicAiMusicFile('assets/api.js');
   const authJs = readPublicAiMusicFile('assets/auth.js');
   const appJs = readPublicAiMusicFile('assets/app.js');
+  const generateJs = readPublicAiMusicFile('assets/generate.js');
   const combined = `${apiJs}\n${authJs}\n${appJs}`;
 
   assert.match(apiJs, /createCreditOrder\(tier/);
+  assert.match(apiJs, /refreshCreditOrder\(orderNo\)/);
   assert.match(authJs, /AI_MUSIC_PACKAGES/);
+  assert.match(authJs, /AI_MUSIC_PENDING_PAYMENT_STORAGE_KEY/);
+  assert.match(authJs, /savePendingCreditOrder/);
+  assert.match(authJs, /refreshPendingCreditOrder/);
   assert.match(authJs, /tier:\s*'1u'[\s\S]*amount:\s*'1\.00'[\s\S]*credits:\s*2/);
   assert.match(authJs, /tier:\s*'10u'[\s\S]*amount:\s*'10\.00'[\s\S]*credits:\s*25/);
   assert.match(authJs, /tier:\s*'100u'[\s\S]*amount:\s*'100\.00'[\s\S]*credits:\s*300/);
   assert.match(authJs, /openBuyCreditsModal/);
+  assert.match(authJs, /window\.dispatchEvent\(new CustomEvent\('gm-credits-changed'/);
   assert.match(combined, /openBuyCreditsModal/);
+  assert.match(appJs, /refreshPendingCreditOrder/);
+  assert.match(appJs, /window\.addEventListener\('pageshow'/);
+  assert.match(appJs, /window\.addEventListener\('focus'/);
+  assert.match(appJs, /document\.addEventListener\('visibilitychange'/);
+  assert.match(appJs, /gm-credits-changed/);
+  assert.match(generateJs, /gm-credits-changed/);
 });
 
 test('ai music is listed in games hub and served by express route', () => {
@@ -90,7 +102,12 @@ test('ai music shell and assets avoid stale Nexa webview caches', () => {
   const html = readPublicAiMusicFile('index.html');
   const appJs = readPublicAiMusicFile('assets/app.js');
   const authJs = readPublicAiMusicFile('assets/auth.js');
+  const generateJs = readPublicAiMusicFile('assets/generate.js');
+  const libraryJs = readPublicAiMusicFile('assets/library.js');
+  const stemlabJs = readPublicAiMusicFile('assets/stemlab.js');
+  const studioJs = readPublicAiMusicFile('assets/studio.js');
   const serverJs = fs.readFileSync(path.join(rootDir, 'src', 'server.js'), 'utf8');
+  const combinedModules = `${appJs}\n${authJs}\n${generateJs}\n${libraryJs}\n${stemlabJs}\n${studioJs}`;
 
   assert.match(html, /assets\/styles\.css\?v=/);
   assert.match(html, /assets\/my-music\.css\?v=/);
@@ -98,6 +115,7 @@ test('ai music shell and assets avoid stale Nexa webview caches', () => {
   assert.match(appJs, /from '\.\/api\.js\?v=/);
   assert.match(appJs, /from '\.\/auth\.js\?v=/);
   assert.match(authJs, /from '\.\/api\.js\?v=/);
+  assert.doesNotMatch(combinedModules, /from '\.\/(?:api|auth|ui)\.js'/);
   assert.match(serverJs, /app\.get\(\['\/ai-music', '\/ai-music\/'\][\s\S]*Cache-Control', 'no-store/);
   assert.match(serverJs, /filePath\.includes\(path\.join\('public', 'ai-music'\)\)[\s\S]*Cache-Control', 'no-store/);
 });

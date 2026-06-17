@@ -1,8 +1,9 @@
-import { getApiKey, api, syncSession, createCreditOrder, ApiError } from './api.js?v=20260617-ai-music-packages';
-import { el, clear, toast } from './ui.js';
+import { getApiKey, api, syncSession, createCreditOrder, refreshCreditOrder, ApiError } from './api.js?v=20260617-ai-music-payment-refresh';
+import { el, clear, toast } from './ui.js?v=20260617-ai-music-payment-refresh';
 
 const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth://oauth/authorize';
 const NEXA_PROTOCOL_ORDER_BASE = 'nexaauth://order';
+const AI_MUSIC_PENDING_PAYMENT_STORAGE_KEY = 'claw800:ai-music:pending-payment';
 const AI_MUSIC_PACKAGES = [
   { tier: '1u', amount: '1.00', credits: 2 },
   { tier: '10u', amount: '10.00', credits: 25 },
@@ -24,6 +25,46 @@ async function getNexaPublicConfig() {
   const resp = await fetch('/api/nexa/public-config', { credentials: 'same-origin' });
   if (!resp.ok) throw new ApiError('Nexa 配置不可用', resp.status);
   return resp.json();
+}
+
+function getPendingCreditOrder() {
+  try {
+    const item = JSON.parse(sessionStorage.getItem(AI_MUSIC_PENDING_PAYMENT_STORAGE_KEY) || 'null');
+    const orderNo = String(item?.orderNo || '').trim();
+    if (!orderNo) return null;
+    return { orderNo, savedAt: Number(item?.savedAt || 0) || 0 };
+  } catch {
+    return null;
+  }
+}
+
+function clearPendingCreditOrder() {
+  try { sessionStorage.removeItem(AI_MUSIC_PENDING_PAYMENT_STORAGE_KEY); } catch {}
+}
+
+export function savePendingCreditOrder(orderNo) {
+  const normalizedOrderNo = String(orderNo || '').trim();
+  if (!normalizedOrderNo) return;
+  try {
+    sessionStorage.setItem(AI_MUSIC_PENDING_PAYMENT_STORAGE_KEY, JSON.stringify({ orderNo: normalizedOrderNo, savedAt: Date.now() }));
+  } catch {}
+}
+
+function notifyCreditsChanged(payload = {}) {
+  window.dispatchEvent(new CustomEvent('gm-credits-changed', { detail: payload }));
+}
+
+export async function refreshPendingCreditOrder({ silent = false } = {}) {
+  const pending = getPendingCreditOrder();
+  if (!pending) return null;
+  const payload = await refreshCreditOrder(pending.orderNo);
+  const status = String(payload.order?.status || '').toLowerCase();
+  notifyCreditsChanged(payload);
+  if (status === 'paid' || status === 'success') {
+    clearPendingCreditOrder();
+    if (!silent) toast(`购买成功，剩余 ${payload.credits?.availableCredits ?? 0} 次`, 'success');
+  }
+  return payload;
 }
 
 export async function handleNexaAuthCallback() {
@@ -58,6 +99,7 @@ export async function buyCredits(tier = '1u') {
   const payload = await createCreditOrder(tier);
   const order = payload.order || {};
   const payment = payload.payment || {};
+  savePendingCreditOrder(payment.orderNo || order.orderNo);
   const orderUrl = String(payment.orderUrl || payment.order_url || payment.payUrl || payment.pay_url || payment.url || '').trim();
   if (orderUrl) {
     window.location.href = orderUrl;

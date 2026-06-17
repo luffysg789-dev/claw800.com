@@ -1,10 +1,10 @@
-import { getApiKey, logoutSession, bootstrapSession, api } from './api.js?v=20260617-ai-music-packages';
-import { el, clear, toast } from './ui.js';
-import { openKeyModal, renderInlineKeyPrompt, handleNexaAuthCallback, openBuyCreditsModal } from './auth.js?v=20260617-ai-music-packages';
-import { renderGenerate } from './generate.js';
-import { renderLibrary } from './library.js';
-import { renderStemLab } from './stemlab.js';
-import { renderStudio } from './studio.js';
+import { getApiKey, logoutSession, bootstrapSession, api } from './api.js?v=20260617-ai-music-payment-refresh';
+import { el, clear, toast } from './ui.js?v=20260617-ai-music-payment-refresh';
+import { openKeyModal, renderInlineKeyPrompt, handleNexaAuthCallback, openBuyCreditsModal, refreshPendingCreditOrder } from './auth.js?v=20260617-ai-music-payment-refresh';
+import { renderGenerate } from './generate.js?v=20260617-ai-music-payment-refresh';
+import { renderLibrary } from './library.js?v=20260617-ai-music-payment-refresh';
+import { renderStemLab } from './stemlab.js?v=20260617-ai-music-payment-refresh';
+import { renderStudio } from './studio.js?v=20260617-ai-music-payment-refresh';
 
 const app = document.getElementById('app');
 
@@ -17,6 +17,7 @@ const SCREENS = [
 const ALWAYS_RERENDER = new Set(['library', 'stemlab', 'studio']);
 let active = 'generate';
 let mounted = new Set();
+let pendingPaymentRefreshTimer = null;
 
 function boot() { renderShell(); }
 
@@ -65,12 +66,30 @@ function refreshAuthUI() {
   refreshCreditsChip();
 }
 
+function setCreditsChip(credits) {
+  const c = document.getElementById('gm-credits-chip');
+  if (c) c.textContent = '剩余 ' + credits + ' 次';
+}
+
 function refreshCreditsChip() {
   if (!getApiKey()) return;
   api.credits().then((r) => {
-    const c = document.getElementById('gm-credits-chip');
-    if (c) c.textContent = '剩余 ' + r.credits + ' 次';
+    setCreditsChip(r.credits);
   }).catch(() => {});
+}
+
+function schedulePendingPaymentRefresh(reason = 'page-return') {
+  if (!getApiKey()) return;
+  if (pendingPaymentRefreshTimer) window.clearTimeout(pendingPaymentRefreshTimer);
+  pendingPaymentRefreshTimer = window.setTimeout(async () => {
+    pendingPaymentRefreshTimer = null;
+    try {
+      const payload = await refreshPendingCreditOrder({ silent: reason !== 'manual' });
+      if (payload?.credits) setCreditsChip(payload.credits.availableCredits ?? 0);
+    } catch {
+      refreshCreditsChip();
+    }
+  }, 250);
 }
 
 function switchScreen(key, nav) {
@@ -89,6 +108,16 @@ function mount(key) {
 }
 
 window.addEventListener('gm-auth-changed', () => { refreshAuthUI(); mount(active); });
+window.addEventListener('gm-credits-changed', (event) => {
+  const credits = event.detail?.credits?.availableCredits;
+  if (credits !== undefined) setCreditsChip(credits);
+  else refreshCreditsChip();
+});
+window.addEventListener('pageshow', () => schedulePendingPaymentRefresh('pageshow'));
+window.addEventListener('focus', () => schedulePendingPaymentRefresh('focus'));
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) schedulePendingPaymentRefresh('visible');
+});
 
 window.addEventListener('hashchange', () => {
   const key = location.hash.replace('#', '') || 'generate';
@@ -100,6 +129,7 @@ async function init() {
   try {
     const handledCallback = await handleNexaAuthCallback();
     if (!handledCallback) await bootstrapSession();
+    schedulePendingPaymentRefresh('init');
   } catch (error) {
     toast(error.message || '登录状态获取失败', 'error');
   }

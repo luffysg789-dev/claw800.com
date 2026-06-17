@@ -822,10 +822,10 @@
     return null;
   }
 
-  async function checkPendingRechargePayment() {
+  async function checkPendingRechargePayment({ silent = false } = {}) {
     const pending = loadPendingRechargePayment();
     if (!pending) return null;
-    setLoading('正在确认预测充值...');
+    if (!silent) setLoading('正在确认预测充值...');
     const response = await requestJson('/api/predict-master/payment/query', {
       method: 'POST',
       body: JSON.stringify({ orderNo: pending.orderNo })
@@ -836,8 +836,10 @@
       if (status) status.textContent = `充值成功，余额 ${response.walletBalance || ''} USDT`;
       return response;
     }
-    hideLoading();
-    if (status) status.textContent = '支付未完成，已恢复产品页面';
+    if (!silent) {
+      hideLoading();
+      if (status) status.textContent = '支付未完成，已恢复产品页面';
+    }
     return response;
   }
 
@@ -850,7 +852,7 @@
         const session = normalizeSession(currentSession) || loadCachedSession();
         if (session) {
           currentSession = session;
-          await refreshWalletBalance(session);
+          refreshWalletBalanceInBackground(session, 'wallet-refresh-after-return');
         }
         return response;
       } catch (error) {
@@ -889,6 +891,22 @@
       updateWithdrawFeeHint();
     }
     return response;
+  }
+
+  function refreshWalletBalanceInBackground(session = currentSession, reason = 'wallet-refresh-initial-load') {
+    const normalizedSession = normalizeSession(session) || loadCachedSession();
+    if (!normalizedSession) return;
+    currentSession = normalizedSession;
+    refreshWalletBalance(normalizedSession).catch((error) => {
+      logPredictMasterClientError(reason, error);
+    });
+  }
+
+  function checkPendingRechargePaymentInBackground(reason = 'pending-recharge-initial-load') {
+    if (!loadPendingRechargePayment()) return;
+    checkPendingRechargePayment({ silent: true }).catch((error) => {
+      logPredictMasterClientError(reason, error);
+    });
   }
 
   function clearScheduledWalletBalanceRefreshes() {
@@ -986,13 +1004,11 @@
 
     try {
       const devAuth = isPredictMasterDevAuthEnabled();
-      const pendingRecharge = devAuth ? null : await checkPendingRechargePayment();
       const session = devAuth ? null : await getNexaSession();
       if (!devAuth && !session) return;
       if (!devAuth) {
-        if (!pendingRecharge || String(pendingRecharge.status || '').toUpperCase() !== 'SUCCESS') {
-          await refreshWalletBalance(session);
-        }
+        checkPendingRechargePaymentInBackground('pending-recharge-initial-load');
+        refreshWalletBalanceInBackground(session, 'wallet-refresh-initial-load');
       } else {
         setWalletBalance('测试');
       }
@@ -1091,12 +1107,12 @@
   window.addEventListener('pageshow', schedulePaymentReturnCheck);
   window.addEventListener('focus', () => {
     schedulePaymentReturnCheck();
-    refreshWalletBalance().catch(() => {});
+    refreshWalletBalanceInBackground(currentSession, 'wallet-refresh-focus');
   });
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
       schedulePaymentReturnCheck();
-      refreshWalletBalance().catch(() => {});
+      refreshWalletBalanceInBackground(currentSession, 'wallet-refresh-visible');
     }
   });
   applyPredictMasterProductTitle();

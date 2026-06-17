@@ -1,8 +1,8 @@
 // 「我的音乐」—— 卡片/操作条样式逐字抄自主站 /music/my/（见 assets/my-music.css，
 // 复用 .hh-my-* / .hh-music-* / .hh-card-bar / .hh-cat-* 类）。这里只把 Django 模板换成
 // JS 取数 + /ai6api 调接口；播放走本地单实例 Audio（gmw 无主站常驻迷你播放器）。
-import { api, poll, ApiError, authedDownload } from './api.js';
-import { el, clear, toast, fmtDuration, mediaUrl } from './ui.js';
+import { api, poll, ApiError, authedDownload } from './api.js?v=20260617-ai-music-payment-refresh';
+import { el, clear, toast, fmtDuration, mediaUrl } from './ui.js?v=20260617-ai-music-payment-refresh';
 
 let state = { tab: 'mine', page: 1, page_size: 20, q: '' };
 let globalBound = false;

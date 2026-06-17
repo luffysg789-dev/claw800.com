@@ -3,9 +3,9 @@
 // {% %} → JS；{% url 'music:studio_arrange' %} → api.studioArrange/Poll；
 // Yapie 帮我写 → api.generateLyrics/lyricsStatus（gmw 无 generate-lyrics-stream 端点，
 //   改用现成 generateLyrics 一次性回填）。Yapie 头像主站取 pk=1，gmw 无该接口 → emoji 🎩 + 名字「Yapie」兜底。
-import { api, poll, ApiError, getApiKey } from './api.js';
-import { ensureKey } from './auth.js';
-import { clear } from './ui.js';
+import { api, poll, ApiError, getApiKey } from './api.js?v=20260617-ai-music-payment-refresh';
+import { ensureKey } from './auth.js?v=20260617-ai-music-payment-refresh';
+import { clear } from './ui.js?v=20260617-ai-music-payment-refresh';
 
 const STYLE_DELIM = '===风格===';
 const HOST_NAME = 'Yapie';
