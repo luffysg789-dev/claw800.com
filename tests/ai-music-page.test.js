@@ -26,6 +26,8 @@ test('ai music frontend uses Claw800 API routes instead of user API keys', () =>
   assert.match(apiJs, /\/api\/ai-music\/music/);
   assert.match(apiJs, /\/api\/ai-music\/media/);
   assert.match(authJs, /nexaauth:\/\/oauth\/authorize/);
+  assert.match(authJs, /nexaauth:\/\/order/);
+  assert.match(authJs, /paySign/);
   assert.match(combined, /\/api\/ai-music\/credits\/order/);
 });
 
@@ -56,4 +58,15 @@ test('admin exposes ai music key, orders, and callback log management', () => {
   assert.match(adminJs, /\/api\/admin\/ai-music-callback-logs/);
   assert.match(serverJs, /\/api\/admin\/ai-music-orders/);
   assert.match(serverJs, /\/api\/admin\/ai-music-callback-logs/);
+});
+
+test('ai music mobile inputs keep 16px text to prevent iOS focus zoom', () => {
+  const styles = readPublicAiMusicFile('assets/styles.css');
+
+  assert.match(styles, /@media\s*\(max-width:\s*768px\)/);
+  assert.match(styles, /\.gm-input[\s\S]*font-size:\s*16px\s*!important/);
+  assert.match(styles, /\.cf-scope textarea[\s\S]*font-size:\s*16px\s*!important/);
+  assert.match(styles, /\.cf-scope input[\s\S]*font-size:\s*16px\s*!important/);
+  assert.match(styles, /\.gm-st-scope input[\s\S]*font-size:\s*16px\s*!important/);
+  assert.match(styles, /\.gm-st-scope select[\s\S]*font-size:\s*16px\s*!important/);
 });

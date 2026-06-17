@@ -43,6 +43,19 @@ button{font-family:inherit;}
 .gm-input{width:100%;border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px;outline:none;background:#fff;color:var(--ink);}
 .gm-input:focus{border-color:var(--pink);box-shadow:0 0 0 3px rgba(236,72,153,.12);}
 textarea.gm-input{resize:vertical;line-height:1.6;font-family:inherit;}
+@media (max-width:768px){
+  .gm-input,
+  .cf-scope textarea,
+  .cf-scope input,
+  .gm-st-scope input,
+  .gm-st-scope select,
+  .st-wrap textarea,
+  .st-wrap input,
+  .st-wrap select,
+  .hh-my-search input{
+    font-size:16px !important;
+  }
+}
 .gm-grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 @media(max-width:560px){.gm-grid2{grid-template-columns:1fr;}}
 .gm-switches{display:flex;flex-wrap:wrap;gap:14px;margin:6px 0 14px;}

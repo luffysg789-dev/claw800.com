@@ -293,6 +293,18 @@ test('admin site config can store Nexa credentials and public config only return
     );
     assert.equal(keepSave.statusCode, 200);
 
+    const legacyMaskSave = await harness.request(
+      'PUT',
+      '/api/admin/site-config',
+      {
+        ...adminConfig.body,
+        title: 'claw800.com',
+        nexaAppSecret: '••••••••已保存'
+      },
+      { cookies }
+    );
+    assert.equal(legacyMaskSave.statusCode, 200);
+
     const storedSecret = harness.db.prepare(`SELECT value FROM settings WHERE key = 'nexa_app_secret'`).get();
     assert.equal(storedSecret.value, 'admin-runtime-app-secret');
   } finally {

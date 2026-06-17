@@ -2,6 +2,7 @@ import { getApiKey, api, syncSession, createCreditOrder, ApiError } from './api.
 import { el, clear, toast } from './ui.js';
 
 const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth://oauth/authorize';
+const NEXA_PROTOCOL_ORDER_BASE = 'nexaauth://order';
 
 function getAuthCodeFromUrl() {
   const params = new URLSearchParams(window.location.search || '');
@@ -55,6 +56,22 @@ export async function buyCredits() {
   const orderUrl = String(payment.orderUrl || payment.order_url || payment.payUrl || payment.pay_url || payment.url || '').trim();
   if (orderUrl) {
     window.location.href = orderUrl;
+    return payload;
+  }
+  const paymentOrderNo = String(payment.orderNo || order.orderNo || '').trim();
+  const paySign = String(payment.paySign || payment.pay_sign || '').trim();
+  const apiKey = String(payment.apiKey || payment.api_key || '').trim();
+  if (paymentOrderNo && paySign && apiKey) {
+    const params = new URLSearchParams({
+      orderNo: paymentOrderNo,
+      paySign,
+      signType: String(payment.signType || payment.sign_type || 'MD5').trim(),
+      apiKey,
+      nonce: String(payment.nonce || '').trim(),
+      timestamp: String(payment.timestamp || '').trim(),
+      redirectUrl: `${window.location.origin}${window.location.pathname}`
+    });
+    window.location.href = `${NEXA_PROTOCOL_ORDER_BASE}?${params.toString()}`;
     return payload;
   }
   toast(`订单已创建：${order.orderNo || ''}`, 'success');

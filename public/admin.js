@@ -238,11 +238,16 @@ const CATEGORY_EN = {
 };
 const TUTORIAL_MAX_BYTES = 5000000;
 const TUTORIAL_UPLOAD_CHUNK_SIZE = 100000;
-const SAVED_NEXA_SECRET_MASK = '••••••••已保存';
-const SAVED_AI_MUSIC_API_KEY_MASK = '••••••••已保存';
+const LEGACY_SAVED_SECRET_MASK = '••••••••已保存';
+const SAVED_NEXA_SECRET_MASK = '••••••••Nexa Secret 已保存';
+const SAVED_AI_MUSIC_API_KEY_MASK = '••••••••AI 音乐 Key 已保存';
 const SAVED_U_CARD_UPAL_PRIVATE_KEY_MASK = '••••••••私钥已保存';
 const SAVED_U_CARD_UPAL_API_KEY_MASK = '••••••••API Key 已保存';
 const SAVED_PREDICT_MASTER_PRIVATE_KEY_MASK = '••••••••私钥已保存';
+function isSavedSecretMask(value, currentMask) {
+  const normalized = String(value || '').trim();
+  return normalized === currentMask || normalized === LEGACY_SAVED_SECRET_MASK;
+}
 const DEFAULT_SITE_CONFIG = {
   title: 'claw800.com',
   subtitleZh: '龙虾学习导航网，为你的龙虾赋能。',
@@ -6135,12 +6140,12 @@ if (siteConfigForm) {
       nexaApiKey: String(payload.nexaApiKey || '').trim(),
       aiMusicApiBaseUrl: String(payload.aiMusicApiBaseUrl || '').trim(),
       aiMusicApiKey: String(payload.aiMusicApiKey || '').trim(),
-      keepAiMusicApiKey: String(payload.aiMusicApiKey || '').trim() === SAVED_AI_MUSIC_API_KEY_MASK,
+      keepAiMusicApiKey: isSavedSecretMask(payload.aiMusicApiKey, SAVED_AI_MUSIC_API_KEY_MASK),
       nexaEscrowMinAmount: String(payload.nexaEscrowMinAmount || '').trim(),
       nexaEscrowMaxAmount: String(payload.nexaEscrowMaxAmount || '').trim(),
       nexaEscrowFeePermille: String(payload.nexaEscrowFeePermille || '').trim(),
       nexaAppSecret: String(payload.nexaAppSecret || '').trim(),
-      keepNexaAppSecret: String(payload.nexaAppSecret || '').trim() === SAVED_NEXA_SECRET_MASK
+      keepNexaAppSecret: isSavedSecretMask(payload.nexaAppSecret, SAVED_NEXA_SECRET_MASK)
     };
     try {
       const result = await requestTutorialJson(['/api/admin/site-config', '/admin/site-config'], {

@@ -46,9 +46,11 @@ test('admin site config exposes Nexa credential fields without leaking the secre
   assert.match(adminHtml, /name="nexaApiKey"/);
   assert.match(adminHtml, /name="nexaAppSecret"/);
   assert.match(adminJs, /const SAVED_NEXA_SECRET_MASK = /);
+  assert.match(adminJs, /const SAVED_AI_MUSIC_API_KEY_MASK = /);
+  assert.match(adminJs, /function isSavedSecretMask/);
   assert.match(adminJs, /hasNexaAppSecret:\s*Boolean\(input\.hasNexaAppSecret\)/);
   assert.match(adminJs, /Boolean\(input\.hasNexaAppSecret\)\s*\?\s*SAVED_NEXA_SECRET_MASK/);
-  assert.match(adminJs, /keepNexaAppSecret:\s*String\(payload\.nexaAppSecret \|\| ''\)\.trim\(\) === SAVED_NEXA_SECRET_MASK/);
+  assert.match(adminJs, /keepNexaAppSecret:\s*isSavedSecretMask\(payload\.nexaAppSecret, SAVED_NEXA_SECRET_MASK\)/);
   assert.match(adminJs, /nexaApiBaseUrl:\s*String\(payload\.nexaApiBaseUrl \|\| ''\)\.trim\(\)/);
   assert.match(adminJs, /nexaApiKey:\s*String\(payload\.nexaApiKey \|\| ''\)\.trim\(\)/);
   assert.match(adminJs, /nexaAppSecret:\s*String\(payload\.nexaAppSecret \|\| ''\)\.trim\(\)/);

@@ -15,6 +15,7 @@ const {
   buildNexaAccessTokenPayload,
   buildNexaUserInfoPayload,
   buildNexaLegacyPaymentCreatePayload,
+  buildNexaPaymentCreatePayload,
   buildNexaPaymentCreatePayloadVariants,
   prioritizeNexaPaymentCreateVariants,
   buildNexaPaymentQueryPayload,
@@ -1044,7 +1045,15 @@ async function createAiMusicCreditOrder({ req, session, user }) {
 
   return {
     order: formatAiMusicOrder(selectAiMusicOrderByOrderNoStmt.get(orderNo)),
-    payment: data
+    payment: {
+      ...data,
+      timestamp: String(data.timestamp || '').trim(),
+      nonce: String(data.nonce || '').trim(),
+      signType: String(data.signType || 'MD5').trim(),
+      paySign: String(data.paySign || '').trim(),
+      apiKey: String(data.apiKey || apiKey).trim(),
+      orderNo: String(data.orderNo || orderNo).trim()
+    }
   };
 }
 
@@ -3662,6 +3671,10 @@ function getSetting(key, fallback = '') {
   return value || String(fallback || '');
 }
 
+function isSavedSecretMask(value) {
+  return String(value || '').trim().includes('已保存');
+}
+
 function normalizeEscrowConfigMoney(value, fallback) {
   const fallbackString = String(fallback || '').trim();
   try {
@@ -4582,12 +4595,12 @@ app.put('/api/admin/site-config', requireAdmin, (req, res) => {
   const nexaApiKey = String(req.body.nexaApiKey || '').trim();
   const aiMusicApiBaseUrl = String(req.body.aiMusicApiBaseUrl || '').trim();
   const aiMusicApiKey = String(req.body.aiMusicApiKey || '').trim();
-  const keepAiMusicApiKey = req.body.keepAiMusicApiKey === true || String(req.body.keepAiMusicApiKey || '').trim() === 'true';
+  const keepAiMusicApiKey = req.body.keepAiMusicApiKey === true || String(req.body.keepAiMusicApiKey || '').trim() === 'true' || isSavedSecretMask(aiMusicApiKey);
   const nexaEscrowMinAmount = String(req.body.nexaEscrowMinAmount || '').trim();
   const nexaEscrowMaxAmount = String(req.body.nexaEscrowMaxAmount || '').trim();
   const nexaEscrowFeePermille = String(req.body.nexaEscrowFeePermille || '').trim();
   const nexaAppSecret = String(req.body.nexaAppSecret || '').trim();
-  const keepNexaAppSecret = req.body.keepNexaAppSecret === true || String(req.body.keepNexaAppSecret || '').trim() === 'true';
+  const keepNexaAppSecret = req.body.keepNexaAppSecret === true || String(req.body.keepNexaAppSecret || '').trim() === 'true' || isSavedSecretMask(nexaAppSecret);
 
   if (!title) return res.status(400).json({ error: '网站名称必填' });
   if (Buffer.byteLength(title, 'utf8') > 200) return res.status(413).json({ error: '网站名称太长' });
@@ -4680,13 +4693,13 @@ app.put('/api/admin/site-config', requireAdmin, (req, res) => {
     upsertSettingStmt.run('nexa_api_base_url', normalizedNexaApiBaseUrl);
     upsertSettingStmt.run('nexa_api_key', nexaApiKey);
     upsertSettingStmt.run('ai_music_api_base_url', normalizedAiMusicApiBaseUrl);
-    if (!keepAiMusicApiKey || aiMusicApiKey) {
+    if (!keepAiMusicApiKey) {
       upsertSettingStmt.run('ai_music_api_key', aiMusicApiKey);
     }
     upsertSettingStmt.run('nexa_escrow_min_amount', normalizedMinAmount);
     upsertSettingStmt.run('nexa_escrow_max_amount', normalizedMaxAmount);
     upsertSettingStmt.run('nexa_escrow_fee_permille', normalizedFeePermille);
-    if (!keepNexaAppSecret || nexaAppSecret) {
+    if (!keepNexaAppSecret) {
       upsertSettingStmt.run('nexa_app_secret', nexaAppSecret);
     }
     res.json({ ok: true });

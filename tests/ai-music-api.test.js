@@ -216,6 +216,58 @@ test('ai music credit order requires session', async () => {
   }
 });
 
+test('ai music credit order returns Nexa payment launch fields', async () => {
+  const harness = createHarness();
+  try {
+    const config = await harness.request('PUT', '/api/admin/site-config', {
+      title: 'claw800.com',
+      nexaApiBaseUrl: 'https://merchantapi.nexaexworth.com',
+      nexaApiKey: 'ai-music-test-nexa-key',
+      nexaAppSecret: 'ai-music-test-nexa-secret'
+    }, { cookies: adminCookies() });
+    assert.equal(config.statusCode, 200);
+
+    const { cookies } = await createAiMusicSession(harness, 'ai-music-open-id-pay');
+    let capturedRequest = null;
+    harness.setFetch(async (_url, init = {}) => {
+      capturedRequest = JSON.parse(String(init.body || '{}'));
+      return new Response(JSON.stringify({
+        code: 0,
+        data: {
+          orderNo: capturedRequest.orderNo,
+          paySign: 'signed-ai-music-order',
+          signType: 'MD5',
+          nonce: 'ai-music-nonce',
+          timestamp: '1781707457848'
+        }
+      }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' }
+      });
+    });
+
+    const response = await harness.request('POST', '/api/ai-music/credits/order', {}, { cookies });
+
+    assert.equal(response.statusCode, 200, JSON.stringify(response.body));
+    assert.equal(response.body.ok, true);
+    assert.equal(response.body.order.status, 'pending');
+    assert.equal(response.body.order.amount, '1.00');
+    assert.equal(response.body.order.credits, 3);
+    assert.equal(response.body.payment.orderNo, response.body.order.orderNo);
+    assert.equal(response.body.payment.paySign, 'signed-ai-music-order');
+    assert.equal(response.body.payment.signType, 'MD5');
+    assert.equal(response.body.payment.nonce, 'ai-music-nonce');
+    assert.equal(response.body.payment.timestamp, '1781707457848');
+    assert.equal(response.body.payment.apiKey, 'ai-music-test-nexa-key');
+    assert.equal(capturedRequest.amount, '1.00');
+    assert.equal(capturedRequest.openid, 'ai-music-open-id-pay');
+    assert.equal(capturedRequest.returnUrl.endsWith('/ai-music/'), true);
+    assert.equal(capturedRequest.notifyUrl.endsWith('/api/ai-music/credits/notify'), true);
+  } finally {
+    harness.cleanup();
+  }
+});
+
 test('ai music paid credit order grants three credits exactly once', async () => {
   const harness = createHarness();
   try {
@@ -262,6 +314,13 @@ test('admin site config stores ai music api settings without echoing the key', a
     assert.equal(config.body.aiMusicApiBaseUrl, 'https://ai6666.com');
     assert.equal(config.body.aiMusicApiKey, '');
     assert.equal(config.body.hasAiMusicApiKey, true);
+
+    const keepUpdate = await harness.request('PUT', '/api/admin/site-config', {
+      ...config.body,
+      title: 'claw800.com',
+      aiMusicApiKey: '••••••••已保存'
+    }, { cookies });
+    assert.equal(keepUpdate.statusCode, 200);
 
     const { cookies: musicCookies } = await createAiMusicSession(harness, 'ai-music-open-id-admin-key');
     const user = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-admin-key');
