@@ -158,14 +158,6 @@ select {
   background: #0d1210;
 }
 
-body.predict-master-product-spread .predict-master-app {
-  grid-template-rows: minmax(0, 1fr);
-}
-
-body.predict-master-product-spread .predict-master-header {
-  display: none;
-}
-
 .predict-master-sdk-shell :is(input, textarea, select) {
   font-size: 16px !important;
 }

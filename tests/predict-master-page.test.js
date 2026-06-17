@@ -77,8 +77,8 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(css, /grid-template-rows:\s*auto minmax\(0,\s*1fr\);/);
   assert.match(css, /\.predict-master-header\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
   assert.doesNotMatch(css, /\.back-link/);
-  assert.match(css, /body\.predict-master-product-spread\s+\.predict-master-app\s*\{[\s\S]*grid-template-rows:\s*minmax\(0,\s*1fr\);/);
-  assert.match(css, /body\.predict-master-product-spread\s+\.predict-master-header\s*\{[\s\S]*display:\s*none;/);
+  assert.doesNotMatch(css, /body\.predict-master-product-spread\s+\.predict-master-app\s*\{[\s\S]*grid-template-rows:\s*minmax\(0,\s*1fr\);/);
+  assert.doesNotMatch(css, /body\.predict-master-product-spread\s+\.predict-master-header\s*\{[\s\S]*display:\s*none;/);
   assert.match(css, /\.predict-master-sdk-shell\s*\{[\s\S]*overflow:\s*auto;/);
   assert.match(css, /\.predict-master-sdk-shell\s*\{[\s\S]*-webkit-overflow-scrolling:\s*touch;/);
   assert.match(css, /\.predict-master-sdk-shell\s*\{[\s\S]*overscroll-behavior:\s*contain;/);
