@@ -685,6 +685,45 @@ test('ai music my songs refreshes missing media from upstream song detail', asyn
   }
 });
 
+test('ai music my songs replaces temporary signed media urls with stable song endpoints', async () => {
+  const harness = createHarness();
+  try {
+    const { cookies } = await createAiMusicSession(harness, 'ai-music-open-id-signed-media');
+    const user = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-signed-media');
+    harness.db.prepare(`
+      INSERT INTO ai_music_songs (user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url)
+      VALUES (?, NULL, ?, ?, ?, ?, ?)
+    `).run(
+      user.id,
+      'signed-media-song',
+      'Signed Media Song',
+      'complete',
+      'https://hh-wav-1329438625.cos.ap-chengdu.myqcloud.com/music/cover/signed-media-song.jpg?q-sign-time=1%3B2&q-signature=old',
+      'https://hh-wav-1329438625.cos.ap-chengdu.myqcloud.com/music/mp3/signed-media-song.mp3?q-sign-time=1%3B2&q-signature=old'
+    );
+    harness.setHhApiKey('hh_server_secret');
+    harness.setFetch(async () => new Response(JSON.stringify({
+      data: {
+        id: 'signed-media-song',
+        title: 'Signed Media Song',
+        cover_url: 'https://hh-wav-1329438625.cos.ap-chengdu.myqcloud.com/music/cover/signed-media-song.jpg?q-sign-time=3%3B4&q-signature=new',
+        playable_url: 'https://hh-wav-1329438625.cos.ap-chengdu.myqcloud.com/music/mp3/signed-media-song.mp3?q-sign-time=3%3B4&q-signature=new'
+      }
+    }), { status: 200, headers: { 'content-type': 'application/json' } }));
+
+    const songs = await harness.request('GET', '/api/ai-music/music/my-songs', null, { cookies });
+    const row = harness.db.prepare('SELECT cover_url, audio_url FROM ai_music_songs WHERE upstream_song_id = ?').get('signed-media-song');
+
+    assert.equal(songs.statusCode, 200);
+    assert.equal(songs.body.songs[0].image_url, '/music/song/signed-media-song/cover/');
+    assert.equal(songs.body.songs[0].playable_url, '/music/song/signed-media-song/audio/');
+    assert.equal(row.cover_url, '/music/song/signed-media-song/cover/');
+    assert.equal(row.audio_url, '/music/song/signed-media-song/audio/');
+  } finally {
+    harness.cleanup();
+  }
+});
+
 test('ai music generation status stores returned songs for the current user library', async () => {
   const harness = createHarness();
   try {

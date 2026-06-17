@@ -1992,6 +1992,28 @@ function extractAiMusicSongDetail(data = {}) {
   return candidates.find((item) => item && typeof item === 'object' && !Array.isArray(item)) || {};
 }
 
+function isAiMusicCompleteStatus(status) {
+  const normalized = String(status || '').trim().toLowerCase();
+  return ['complete', 'completed', 'done', 'success', 'succeeded', 'finished'].includes(normalized);
+}
+
+function isTemporaryAiMusicMediaUrl(rawUrl) {
+  const url = String(rawUrl || '').trim();
+  if (!url) return false;
+  if (/[?&](q-signature|q-sign-time|q-key-time)=/i.test(url)) return true;
+  try {
+    return /\.cos\.[a-z0-9-]+\.myqcloud\.com$/i.test(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
+function stableAiMusicMediaPath(songId, type) {
+  const id = String(songId || '').trim();
+  const mediaType = String(type || '').trim();
+  return id && mediaType ? `/music/song/${encodeURIComponent(id)}/${mediaType}/` : '';
+}
+
 function formatLocalAiMusicSong(row = {}) {
   const upstreamSongId = String(row.upstream_song_id || row.id || '').trim();
   const authorNickname = String(row.author_nickname || row.nickname || '').trim();
@@ -2034,17 +2056,24 @@ function normalizeAiMusicSong(input = {}) {
   const upstreamSongId = pickAiMusicString(input, ['id', 'song_id', 'songId', 'upstream_song_id', 'songUuid', 'uuid']);
   const title = pickAiMusicString(input, ['title', 'name', 'song_title', 'songTitle']);
   const status = pickAiMusicString(input, ['status', 'state']) || 'complete';
-  const coverUrl = pickAiMusicString(input, [
+  let coverUrl = pickAiMusicString(input, [
     'image_url', 'imageUrl', 'cover_url', 'coverUrl', 'cover', 'image',
     'cover_image', 'coverImage', 'cover_image_url', 'coverImageUrl',
     'cover_path', 'coverPath', 'thumbnail', 'thumbnail_url', 'artwork_url', 'pic_url'
   ]);
-  const audioUrl = pickAiMusicString(input, [
+  let audioUrl = pickAiMusicString(input, [
     'playable_url', 'playableUrl', 'audio_url', 'audioUrl', 'mp3_url', 'mp3Url',
     'url', 'play_url', 'playUrl', 'stream_url', 'streamUrl', 'music_url', 'musicUrl',
     'song_url', 'songUrl', 'file_url', 'fileUrl', 'download_url', 'downloadUrl',
     'audio_path', 'audioPath', 'src'
   ]);
+  const canUseStableMedia = upstreamSongId && (isAiMusicCompleteStatus(status) || isTemporaryAiMusicMediaUrl(coverUrl) || isTemporaryAiMusicMediaUrl(audioUrl));
+  if (canUseStableMedia && (!coverUrl || isTemporaryAiMusicMediaUrl(coverUrl))) {
+    coverUrl = stableAiMusicMediaPath(upstreamSongId, 'cover');
+  }
+  if (canUseStableMedia && (!audioUrl || isTemporaryAiMusicMediaUrl(audioUrl))) {
+    audioUrl = stableAiMusicMediaPath(upstreamSongId, 'audio');
+  }
   return {
     upstreamSongId,
     title,
@@ -2189,7 +2218,12 @@ async function syncRecentAiMusicGenerationsForUser(userId) {
 async function syncMissingAiMusicSongMedia(rows = []) {
   const targets = (rows || []).filter((row) => (
     String(row?.upstream_song_id || '').trim() &&
-    (!String(row?.cover_url || '').trim() || !String(row?.audio_url || '').trim())
+    (
+      !String(row?.cover_url || '').trim() ||
+      !String(row?.audio_url || '').trim() ||
+      isTemporaryAiMusicMediaUrl(row?.cover_url) ||
+      isTemporaryAiMusicMediaUrl(row?.audio_url)
+    )
   )).slice(0, 8);
   if (!targets.length) return 0;
 
