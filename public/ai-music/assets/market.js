@@ -12,7 +12,7 @@ export function renderMarket(root) {
   state = { page: 1, page_size: 20, q: '', loading: false };
   root.appendChild(el('div', { class: 'gm-market' }, [
     el('div', { class: 'gm-head' }, [
-      el('h2', { text: '音乐市场' }),
+      el('h2', { text: '音乐市场-购买版本' }),
       el('a', { class: 'hh-my-create-btn', href: '#generate', text: '写歌' })
     ]),
     searchBox(root),

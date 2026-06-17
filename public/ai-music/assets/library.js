@@ -145,7 +145,6 @@ function playerCard(s) {
       <button type="button" class="hh-btn-fav hh-my-owner-fav${s.user_favorited ? ' hh-fav-active' : ''}" data-act="fav" title="收藏" aria-label="收藏">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
       </button>
-      <button type="button" class="hh-btn-sell" data-act="sell">${s.market_listing_id ? '已上架' : '出售'}</button>
     </div>
     <div class="hh-music-player hh-music-player-md" data-song-id="${esc(s.id)}">
       <div class="hh-music-player-inner">
@@ -201,23 +200,16 @@ function seek(e, card) {
   cur.audio.currentTime = ((e.clientX - r.left) / r.width) * cur.audio.duration;
 }
 
-// ——— 操作条：逐字照搬主站 _my_songs_cards.html 的 .hh-card-bar ———
-//   下载▾(MP3 / WAV[4 态] / 封面 / 复制歌词 / 歌词下载 / 动态歌词) ·
-//   授权 · 分享 · 重做 · 分轨[/升级分轨] · 分离伴奏 · ⋯(改名 / 删除)
-//   注：主站此操作条无「公开到广场」——那是 C 端广场语义，不放在我的音乐（规矩#2）。
+// 我的音乐操作条：只保留当前开放功能，改名 / 删除 / 出售直接展示。
 function actionBar(s) {
   const bar = el('div', { class: 'hh-card-bar' });
   bar.innerHTML = `
     <button type="button" data-bar-move data-bar-order="2" class="hh-bar-btn" data-act="lyrics">歌词</button>
     <button type="button" data-bar-move data-bar-order="3" class="hh-bar-btn" data-act="share">分享</button>
     <button type="button" data-bar-move data-bar-order="4" class="hh-bar-btn" data-act="remake">重做</button>
-    <div class="hh-cat hh-cat-more-wrap">
-      <button type="button" class="hh-bar-btn hh-bar-btn-more" data-cat-toggle aria-label="更多" aria-expanded="false">⋯</button>
-      <div class="hh-cat-menu" hidden><div class="hh-cat-list">
-        <button type="button" class="hh-cat-item" data-act="rename">改名</button>
-        <button type="button" class="hh-cat-item hh-cat-item-danger" data-act="delete">删除</button>
-      </div></div>
-    </div>`;
+    <button type="button" data-bar-move data-bar-order="5" class="hh-bar-btn" data-act="rename">改名</button>
+    <button type="button" data-bar-move data-bar-order="6" class="hh-bar-btn hh-bar-btn-danger" data-act="delete">删除</button>
+    <button type="button" data-bar-move data-bar-order="7" class="hh-bar-btn hh-btn-sell" data-act="sell">出售</button>`;
   return bar;
 }
 
@@ -251,6 +243,7 @@ function onBarClick(e, s) {
     case 'stem-inst': goStemLab(s, 'inst'); break;
     case 'rename': doRename(s); break;
     case 'delete': doDelete(s, item); break;
+    case 'sell': openSellModal(s); break;
   }
 }
 
@@ -458,7 +451,7 @@ function confirmModal(msg, onOk) {
     (card, close) => { card.querySelector('[data-ok]').onclick = () => { close(); onOk(); }; });
 }
 
-const MODAL_INPUT = 'width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;';
+const MODAL_INPUT = 'width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:16px;';
 const MODAL_X = 'position:absolute;top:.75rem;right:1rem;color:#9ca3af;font-size:1.5rem;line-height:1;background:none;border:none;cursor:pointer;';
 
 async function dlMp3(s) {
@@ -694,7 +687,7 @@ function openSellModal(s) {
     + '<h3 style="font-size:18px;font-weight:800;color:#111;margin:0 0 4px;text-align:center;">出售歌曲版权</h3>'
     + `<p style="font-size:12px;color:#9ca3af;text-align:center;margin-bottom:16px;">${esc(s.title || '未命名')}</p>`
     + '<div style="margin-bottom:14px;"><label style="display:block;font-size:13px;font-weight:700;color:#374151;margin-bottom:6px;">价格（USDT）</label>'
-    + `<input id="sell-price" type="number" min="0.01" step="0.01" placeholder="请输入出售价格" style="${MODAL_INPUT}"></div>`
+    + `<input id="sell-price" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="请输入出售价格" style="${MODAL_INPUT}"></div>`
     + '<button id="sell-submit" style="width:100%;padding:12px;background:linear-gradient(135deg,#f43f5e,#f97316);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:900;cursor:pointer;">确认出售</button>',
     (card, close) => {
       const input = card.querySelector('#sell-price');

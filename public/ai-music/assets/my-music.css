@@ -1587,6 +1587,8 @@ details[open] .lyrics-arrow { transform: rotate(90deg); }
 }
 .hh-bar-btn:hover { border-color:#cbd5e1; color:#0f172a; background:#f8fafc; }
 .hh-bar-btn-primary { border:0; color:#fff; background:linear-gradient(135deg,#ec4899,#f97316); box-shadow:0 6px 16px -8px rgba(236,72,153,.6); }
+.hh-bar-btn-danger { color:#be123c; border-color:#fde2e6; }
+.hh-bar-btn-danger:hover { background:#fff1f2; color:#9f1239; border-color:#fda4af; }
 .hh-cat-caret { width:12px; height:12px; margin-left:3px; flex-shrink:0; transition:transform .18s ease; }
 .hh-bar-btn[aria-expanded="true"] .hh-cat-caret { transform:rotate(180deg); }
 .hh-bar-btn-primary:hover { color:#fff; background:linear-gradient(135deg,#ec4899,#f97316); opacity:.94; }
@@ -2067,4 +2069,11 @@ details[open] .lyrics-arrow { transform: rotate(90deg); }
 .hh-btn-sell:disabled {
     opacity: 0.55;
     cursor: not-allowed;
+}
+.hh-card-bar .hh-btn-sell {
+    min-height:32px;
+    padding:6px 12px;
+    font-size:12px;
+    line-height:1;
+    box-shadow:0 6px 16px -10px rgba(190, 24, 93, .35);
 }

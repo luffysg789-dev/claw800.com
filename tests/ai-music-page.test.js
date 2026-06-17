@@ -202,6 +202,7 @@ test('ai music uses persistent bottom player with scrolling lyrics', () => {
   assert.match(apiJs, /withdrawAssets:\s*\(amount\)/);
   assert.match(appJs, /renderMarket/);
   assert.match(appJs, /key:\s*'market'[\s\S]*label:\s*'市场'/);
+  assert.match(marketJs, /text:\s*'音乐市场-购买版本'/);
   assert.match(assetsJs, /renderAssets/);
   assert.match(assetsJs, /api\.assets/);
   assert.match(assetsJs, /api\.withdrawAssets/);
@@ -297,9 +298,16 @@ test('ai music library search and create button match square layout', () => {
   assert.match(libraryJs, /class:\s*'gm-square-search hh-my-search-unified'/);
   assert.match(libraryJs, /class:\s*'gm-input'/);
   assert.match(libraryJs, /class:\s*'gm-btn-ghost'[\s\S]*text:\s*'搜索'/);
-  assert.match(libraryJs, /class="hh-btn-sell"/);
+  assert.match(actionBarBody, /class="[^"]*hh-btn-sell[^"]*"[\s\S]*data-act="sell"[\s\S]*>出售</);
+  assert.match(libraryJs, /const MODAL_INPUT = '[^']*font-size:16px/);
+  assert.match(libraryJs, /id="sell-price"[^>]*inputmode="decimal"/);
   assert.match(libraryJs, /openSellModal/);
   assert.match(libraryJs, /api\.listSong/);
+  assert.match(actionBarBody, /data-act="rename"[\s\S]*>改名</);
+  assert.match(actionBarBody, /data-act="delete"[\s\S]*>删除</);
+  assert.match(actionBarBody, /data-act="delete"[\s\S]*data-act="sell"[\s\S]*>出售</);
+  assert.doesNotMatch(actionBarBody, /data-cat-toggle/);
+  assert.doesNotMatch(actionBarBody, /hh-cat-more-wrap/);
   assert.doesNotMatch(actionBarBody, /下载/);
   assert.doesNotMatch(actionBarBody, /data-act="copyright"/);
   assert.doesNotMatch(actionBarBody, /data-act="stem-split"/);
@@ -308,6 +316,8 @@ test('ai music library search and create button match square layout', () => {
   assert.match(myMusicCss, /\.hh-my-top-head/);
   assert.match(myMusicCss, /\.hh-my-search-unified/);
   assert.match(myMusicCss, /\.hh-btn-sell/);
+  assert.match(myMusicCss, /\.hh-card-bar \.hh-btn-sell/);
+  assert.match(myMusicCss, /\.hh-bar-btn-danger/);
 });
 
 test('ai music library downloads use direct attachment links for mobile webviews', () => {
