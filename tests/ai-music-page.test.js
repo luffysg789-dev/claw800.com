@@ -31,6 +31,21 @@ test('ai music frontend uses Claw800 API routes instead of user API keys', () =>
   assert.match(combined, /\/api\/ai-music\/credits\/order/);
 });
 
+test('ai music purchase flow shows three Nexa package choices', () => {
+  const apiJs = readPublicAiMusicFile('assets/api.js');
+  const authJs = readPublicAiMusicFile('assets/auth.js');
+  const appJs = readPublicAiMusicFile('assets/app.js');
+  const combined = `${apiJs}\n${authJs}\n${appJs}`;
+
+  assert.match(apiJs, /createCreditOrder\(tier/);
+  assert.match(authJs, /AI_MUSIC_PACKAGES/);
+  assert.match(authJs, /tier:\s*'1u'[\s\S]*amount:\s*'1\.00'[\s\S]*credits:\s*2/);
+  assert.match(authJs, /tier:\s*'10u'[\s\S]*amount:\s*'10\.00'[\s\S]*credits:\s*25/);
+  assert.match(authJs, /tier:\s*'100u'[\s\S]*amount:\s*'100\.00'[\s\S]*credits:\s*300/);
+  assert.match(authJs, /openBuyCreditsModal/);
+  assert.match(combined, /openBuyCreditsModal/);
+});
+
 test('ai music is listed in games hub and served by express route', () => {
   const gamesConfig = fs.readFileSync(path.join(rootDir, 'public', 'games-config.js'), 'utf8');
   const dbJs = fs.readFileSync(path.join(rootDir, 'src', 'db.js'), 'utf8');

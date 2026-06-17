@@ -3,6 +3,11 @@ import { el, clear, toast } from './ui.js';
 
 const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth://oauth/authorize';
 const NEXA_PROTOCOL_ORDER_BASE = 'nexaauth://order';
+const AI_MUSIC_PACKAGES = [
+  { tier: '1u', amount: '1.00', credits: 2 },
+  { tier: '10u', amount: '10.00', credits: 25 },
+  { tier: '100u', amount: '100.00', credits: 300 }
+];
 
 function getAuthCodeFromUrl() {
   const params = new URLSearchParams(window.location.search || '');
@@ -49,8 +54,8 @@ export async function startNexaLogin() {
   window.location.href = `${NEXA_PROTOCOL_AUTH_BASE}?apikey=${encodeURIComponent(config.apiKey)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
 }
 
-export async function buyCredits() {
-  const payload = await createCreditOrder();
+export async function buyCredits(tier = '1u') {
+  const payload = await createCreditOrder(tier);
   const order = payload.order || {};
   const payment = payload.payment || {};
   const orderUrl = String(payment.orderUrl || payment.order_url || payment.payUrl || payment.pay_url || payment.url || '').trim();
@@ -76,6 +81,33 @@ export async function buyCredits() {
   }
   toast(`订单已创建：${order.orderNo || ''}`, 'success');
   return payload;
+}
+
+export function openBuyCreditsModal() {
+  const overlay = el('div', { class: 'gm-modal', onclick: (e) => { if (e.target === overlay) overlay.remove(); } });
+  const rows = AI_MUSIC_PACKAGES.map((pkg) => el('button', {
+    class: 'gm-package-option',
+    type: 'button',
+    onclick: async () => {
+      try {
+        await buyCredits(pkg.tier);
+      } catch (error) {
+        toast(error.message || '创建订单失败', 'error');
+      }
+    }
+  }, [
+    el('span', { class: 'gm-package-main', text: `${pkg.amount.replace(/\.00$/, '')} USDT` }),
+    el('span', { class: 'gm-package-sub', text: `${pkg.credits} 次制作` }),
+    el('span', { class: 'gm-package-pay', text: '支付' })
+  ]));
+  overlay.appendChild(el('div', { class: 'gm-modal-card gm-package-card' }, [
+    el('button', { class: 'gm-modal-close', type: 'button', text: '×', onclick: () => overlay.remove() }),
+    el('div', { style: 'font-size:36px;text-align:center', text: '🎵' }),
+    el('h2', { style: 'text-align:center;font-size:20px;font-weight:900;margin:4px 0 6px', text: '购买生成次数' }),
+    el('p', { class: 'gm-note', style: 'text-align:center;margin-bottom:16px', text: '选择套餐后会跳转 Nexa 支付。' }),
+    el('div', { class: 'gm-package-list' }, rows)
+  ]));
+  document.body.appendChild(overlay);
 }
 
 export function openKeyModal({ onSuccess, onCancel } = {}) {
@@ -108,7 +140,7 @@ export function renderInlineKeyPrompt(sec, label, onSuccess) {
   sec.appendChild(el('div', { class: 'gm-keyprompt' }, [
     el('div', { style: 'font-size:40px', text: '🎼' }),
     el('h2', { text: `${label} 需要 Nexa 登录` }),
-    el('p', { class: 'gm-note', text: '授权后可购买生成次数。当前价格：1 USDT = 3 次生成。' }),
+    el('p', { class: 'gm-note', text: '授权后可购买生成次数。' }),
     el('button', {
       class: 'gm-btn-primary',
       text: 'Nexa 授权登录',
@@ -123,11 +155,10 @@ export function renderInlineKeyPrompt(sec, label, onSuccess) {
     }),
     el('button', {
       class: 'gm-btn-ghost',
-      text: '购买 3 次 / 1 USDT',
+      text: '购买次数',
       onclick: async () => {
         if (!getApiKey() && !(await ensureKey())) return;
-        try { await buyCredits(); }
-        catch (error) { toast(error.message || '创建订单失败', 'error'); }
+        openBuyCreditsModal();
       }
     }),
   ]));

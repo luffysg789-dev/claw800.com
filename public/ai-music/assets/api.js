@@ -5,6 +5,7 @@ const MEDIA_API_BASE = '/api/ai-music/media';
 let cachedSession = null;
 let cachedCredits = null;
 let cachedPackage = null;
+let cachedPackages = null;
 
 export function getApiKey() {
   return cachedSession?.openId ? 'nexa-session' : '';
@@ -16,6 +17,7 @@ export function clearApiKey() {
   cachedSession = null;
   cachedCredits = null;
   cachedPackage = null;
+  cachedPackages = null;
   try { localStorage.removeItem(SESSION_STORAGE); } catch {}
 }
 
@@ -31,10 +33,15 @@ export function getCachedPackage() {
   return cachedPackage;
 }
 
+export function getCachedPackages() {
+  return cachedPackages;
+}
+
 export function applyBootstrap(payload = {}) {
   cachedSession = payload.session || cachedSession;
   cachedCredits = payload.credits || cachedCredits;
   cachedPackage = payload.package || cachedPackage;
+  cachedPackages = payload.packages || cachedPackages;
   if (cachedSession?.openId) {
     try { localStorage.setItem(SESSION_STORAGE, JSON.stringify(cachedSession)); } catch {}
   }
@@ -118,8 +125,8 @@ export async function logoutSession() {
   clearApiKey();
 }
 
-export async function createCreditOrder() {
-  const payload = await appRequest('POST', '/api/ai-music/credits/order', { body: {} });
+export async function createCreditOrder(tier) {
+  const payload = await appRequest('POST', '/api/ai-music/credits/order', { body: { tier } });
   return applyBootstrap(payload);
 }
 

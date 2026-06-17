@@ -542,7 +542,7 @@ function wavUpgradeModal() {
     + '<button data-close style="flex:1;padding:11px;background:#f3f4f6;color:#374151;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">稍后</button>'
     + '<button data-buy style="flex:2;padding:11px;background:linear-gradient(135deg,#f59e0b,#f97316);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;">购买次数</button>'
     + '</div></div>',
-    (card, close) => { card.querySelector('[data-buy]').onclick = () => { close(); toast('请点击顶部购买次数：1 USDT = 3 次生成', 'info'); }; });
+    (card, close) => { card.querySelector('[data-buy]').onclick = () => { close(); toast('请点击顶部购买次数选择套餐', 'info'); }; });
 }
 
 // 复制歌词 / 歌词下载(.txt)（照搬主站 copyLyrics / downloadLyrics，纯前端用 s.lyrics）

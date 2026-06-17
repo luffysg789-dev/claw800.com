@@ -13,14 +13,10 @@ function createHarness() {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claw800-ai-music-api-'));
   const dbPath = path.join(tmpDir, 'claw800.db');
   const previousDbPath = process.env.CLAW800_DB_PATH;
-  const previousPackageAmount = process.env.AI_MUSIC_PACKAGE_AMOUNT;
-  const previousPackageCredits = process.env.AI_MUSIC_PACKAGE_CREDITS;
   const previousHhApiKey = process.env.HH_API_KEY;
   const previousFetch = global.fetch;
 
   process.env.CLAW800_DB_PATH = dbPath;
-  process.env.AI_MUSIC_PACKAGE_AMOUNT = '1.00';
-  process.env.AI_MUSIC_PACKAGE_CREDITS = '3';
 
   delete require.cache[require.resolve(dbModulePath)];
   delete require.cache[require.resolve(serverModulePath)];
@@ -104,10 +100,6 @@ function createHarness() {
       delete require.cache[require.resolve(dbModulePath)];
       if (previousDbPath === undefined) delete process.env.CLAW800_DB_PATH;
       else process.env.CLAW800_DB_PATH = previousDbPath;
-      if (previousPackageAmount === undefined) delete process.env.AI_MUSIC_PACKAGE_AMOUNT;
-      else process.env.AI_MUSIC_PACKAGE_AMOUNT = previousPackageAmount;
-      if (previousPackageCredits === undefined) delete process.env.AI_MUSIC_PACKAGE_CREDITS;
-      else process.env.AI_MUSIC_PACKAGE_CREDITS = previousPackageCredits;
       if (previousHhApiKey === undefined) delete process.env.HH_API_KEY;
       else process.env.HH_API_KEY = previousHhApiKey;
     }
@@ -174,7 +166,12 @@ test('ai music session creates user and zero-credit account', async () => {
     assert.equal(response.body.ok, true);
     assert.equal(response.body.session.openId, 'ai-music-open-id-session');
     assert.equal(response.body.credits.availableCredits, 0);
-    assert.deepEqual(response.body.package, { amount: '1.00', currency: 'USDT', credits: 3 });
+    assert.deepEqual(response.body.package, { tier: '1u', amount: '1.00', currency: 'USDT', credits: 2 });
+    assert.deepEqual(response.body.packages, [
+      { tier: '1u', amount: '1.00', currency: 'USDT', credits: 2 },
+      { tier: '10u', amount: '10.00', currency: 'USDT', credits: 25 },
+      { tier: '100u', amount: '100.00', currency: 'USDT', credits: 300 }
+    ]);
     assert.match(response.headers['set-cookie'][0], /"name":"ai_music_session"/);
 
     const user = harness.db.prepare('SELECT * FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-session');
@@ -198,7 +195,8 @@ test('ai music credits endpoint requires session and returns balance', async () 
     assert.equal(credits.statusCode, 200);
     assert.equal(credits.body.ok, true);
     assert.equal(credits.body.credits.availableCredits, 0);
-    assert.deepEqual(credits.body.package, { amount: '1.00', currency: 'USDT', credits: 3 });
+    assert.deepEqual(credits.body.package, { tier: '1u', amount: '1.00', currency: 'USDT', credits: 2 });
+    assert.equal(credits.body.packages.length, 3);
   } finally {
     harness.cleanup();
   }
@@ -246,13 +244,14 @@ test('ai music credit order returns Nexa payment launch fields', async () => {
       });
     });
 
-    const response = await harness.request('POST', '/api/ai-music/credits/order', {}, { cookies });
+    const response = await harness.request('POST', '/api/ai-music/credits/order', { tier: '10u' }, { cookies });
 
     assert.equal(response.statusCode, 200, JSON.stringify(response.body));
     assert.equal(response.body.ok, true);
     assert.equal(response.body.order.status, 'pending');
-    assert.equal(response.body.order.amount, '1.00');
-    assert.equal(response.body.order.credits, 3);
+    assert.equal(response.body.order.amount, '10.00');
+    assert.equal(response.body.order.credits, 25);
+    assert.deepEqual(response.body.package, { tier: '10u', amount: '10.00', currency: 'USDT', credits: 25 });
     assert.equal(response.body.payment.orderNo, response.body.order.orderNo);
     assert.equal(response.body.order.orderNo, 'nexa-ai-music-legacy-order');
     assert.equal(response.body.payment.paySign, 'signed-ai-music-order');
@@ -260,12 +259,27 @@ test('ai music credit order returns Nexa payment launch fields', async () => {
     assert.equal(response.body.payment.nonce, 'ai-music-nonce');
     assert.equal(response.body.payment.timestamp, '1781707457848');
     assert.equal(response.body.payment.apiKey, 'ai-music-test-nexa-key');
-    assert.equal(capturedRequest.amount, '1.00');
+    assert.equal(capturedRequest.amount, '10.00');
+    assert.equal(capturedRequest.body, 'AI 音乐 25 次生成');
     assert.equal(capturedRequest.openid, 'ai-music-open-id-pay');
     assert.equal('orderNo' in capturedRequest, false);
     assert.equal('callbackUrl' in capturedRequest, false);
     assert.equal(capturedRequest.returnUrl.endsWith('/ai-music/'), true);
     assert.equal(capturedRequest.notifyUrl.endsWith('/api/ai-music/credits/notify'), true);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('ai music credit order rejects unknown package tiers', async () => {
+  const harness = createHarness();
+  try {
+    const { cookies } = await createAiMusicSession(harness, 'ai-music-open-id-bad-tier');
+    const response = await harness.request('POST', '/api/ai-music/credits/order', { tier: '3u' }, { cookies });
+
+    assert.equal(response.statusCode, 400);
+    assert.equal(response.body.ok, false);
+    assert.match(response.body.error, /套餐/);
   } finally {
     harness.cleanup();
   }

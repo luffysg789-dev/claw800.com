@@ -66,8 +66,11 @@ const TRUST_PROXY = String(process.env.TRUST_PROXY || 'loopback, linklocal, uniq
 const NEXA_TIP_AMOUNT = '0.10';
 const NEXA_TIP_CURRENCY = 'USDT';
 const AI_MUSIC_CURRENCY = 'USDT';
-const AI_MUSIC_PACKAGE_AMOUNT = String(process.env.AI_MUSIC_PACKAGE_AMOUNT || '1.00').trim() || '1.00';
-const AI_MUSIC_PACKAGE_CREDITS = Math.max(1, Number.parseInt(String(process.env.AI_MUSIC_PACKAGE_CREDITS || '3'), 10) || 3);
+const AI_MUSIC_PACKAGES = Object.freeze([
+  Object.freeze({ tier: '1u', amount: '1.00', currency: AI_MUSIC_CURRENCY, credits: 2 }),
+  Object.freeze({ tier: '10u', amount: '10.00', currency: AI_MUSIC_CURRENCY, credits: 25 }),
+  Object.freeze({ tier: '100u', amount: '100.00', currency: AI_MUSIC_CURRENCY, credits: 300 })
+]);
 const PREDICT_MASTER_RECHARGE_CURRENCY = 'USDT';
 const PREDICT_MASTER_NEXA_COMPAT_RETURN_PATH = '/xiangqi/';
 const PREDICT_MASTER_RECHARGE_PENDING_TIMEOUT_SQL = '-5 minutes';
@@ -999,17 +1002,18 @@ async function createNexaTipOrder({ req, gameSlug, openId, sessionKey, amount = 
   };
 }
 
-async function createAiMusicCreditOrder({ req, session, user }) {
+async function createAiMusicCreditOrder({ req, session, user, packageTier = '1u' }) {
+  const selectedPackage = requireAiMusicPackage(packageTier);
   const { apiKey, appSecret } = ensureNexaCredentialsConfigured();
   const baseUrl = getPublicBaseUrl(req);
   const partnerOrderNo = `ai_music_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
   const legacyPayload = buildNexaLegacyPaymentCreatePayload({
     apiKey,
     appSecret,
-    amount: AI_MUSIC_PACKAGE_AMOUNT,
-    currency: AI_MUSIC_CURRENCY,
+    amount: selectedPackage.amount,
+    currency: selectedPackage.currency,
     subject: 'AI 音乐生成次数',
-    body: `AI 音乐 ${AI_MUSIC_PACKAGE_CREDITS} 次生成`,
+    body: `AI 音乐 ${selectedPackage.credits} 次生成`,
     notifyUrl: `${baseUrl}/api/ai-music/credits/notify`,
     returnUrl: `${baseUrl}/ai-music/`,
     openId: String(session.openId || '').trim(),
@@ -1020,11 +1024,11 @@ async function createAiMusicCreditOrder({ req, session, user }) {
       apiKey,
       appSecret,
       orderNo: partnerOrderNo,
-      amount: AI_MUSIC_PACKAGE_AMOUNT,
-      currency: AI_MUSIC_CURRENCY,
+      amount: selectedPackage.amount,
+      currency: selectedPackage.currency,
       callbackUrl: `${baseUrl}/ai-music/`,
       subject: 'AI 音乐生成次数',
-      body: `AI 音乐 ${AI_MUSIC_PACKAGE_CREDITS} 次生成`,
+      body: `AI 音乐 ${selectedPackage.credits} 次生成`,
       notifyUrl: `${baseUrl}/api/ai-music/credits/notify`,
       returnUrl: `${baseUrl}/ai-music/`,
       openId: String(session.openId || '').trim(),
@@ -1116,14 +1120,15 @@ async function createAiMusicCreditOrder({ req, session, user }) {
     Number(user.id),
     orderNo,
     nexaOrderId,
-    AI_MUSIC_PACKAGE_AMOUNT,
-    AI_MUSIC_CURRENCY,
-    AI_MUSIC_PACKAGE_CREDITS,
+    selectedPackage.amount,
+    selectedPackage.currency,
+    selectedPackage.credits,
     'pending'
   );
 
   return {
     order: formatAiMusicOrder(selectAiMusicOrderByOrderNoStmt.get(orderNo)),
+    package: selectedPackage,
     payment: {
       ...data,
       timestamp: String(data.timestamp || '').trim(),
@@ -1696,12 +1701,33 @@ function requireAiMusicSession(req) {
   return session;
 }
 
-function getAiMusicPackage() {
+function formatAiMusicPackage(pkg) {
   return {
-    amount: AI_MUSIC_PACKAGE_AMOUNT,
-    currency: AI_MUSIC_CURRENCY,
-    credits: AI_MUSIC_PACKAGE_CREDITS
+    tier: String(pkg?.tier || '').trim(),
+    amount: String(pkg?.amount || '').trim(),
+    currency: String(pkg?.currency || AI_MUSIC_CURRENCY).trim() || AI_MUSIC_CURRENCY,
+    credits: Number(pkg?.credits || 0) || 0
   };
+}
+
+function getAiMusicPackages() {
+  return AI_MUSIC_PACKAGES.map(formatAiMusicPackage);
+}
+
+function getAiMusicPackage(tier = '1u') {
+  const normalizedTier = String(tier || '1u').trim().toLowerCase();
+  return formatAiMusicPackage(AI_MUSIC_PACKAGES.find((pkg) => pkg.tier === normalizedTier) || AI_MUSIC_PACKAGES[0]);
+}
+
+function requireAiMusicPackage(tier = '1u') {
+  const normalizedTier = String(tier || '1u').trim().toLowerCase();
+  const pkg = AI_MUSIC_PACKAGES.find((item) => item.tier === normalizedTier);
+  if (!pkg) {
+    const error = new Error('AI 音乐套餐无效');
+    error.statusCode = 400;
+    throw error;
+  }
+  return formatAiMusicPackage(pkg);
 }
 
 function formatAiMusicSession(session) {
@@ -1771,7 +1797,8 @@ function buildAiMusicBootstrapPayload(session) {
   return {
     user,
     credits: getAiMusicCreditSummary(user.id),
-    package: getAiMusicPackage()
+    package: getAiMusicPackage(),
+    packages: getAiMusicPackages()
   };
 }
 
@@ -7956,7 +7983,8 @@ app.get('/api/ai-music/credits', (req, res) => {
     return res.json({
       ok: true,
       credits: getAiMusicCreditSummary(user.id),
-      package: getAiMusicPackage()
+      package: getAiMusicPackage(),
+      packages: getAiMusicPackages()
     });
   } catch (error) {
     return res.status(Number(error?.statusCode || 401)).json({ ok: false, error: String(error?.message || 'UNAUTHORIZED') });
@@ -7967,12 +7995,14 @@ app.post('/api/ai-music/credits/order', async (req, res) => {
   try {
     const session = requireAiMusicSession(req);
     const user = ensureAiMusicUserAccount(session);
-    const created = await createAiMusicCreditOrder({ req, session, user });
+    const packageTier = req.body?.tier ?? req.body?.packageTier ?? req.body?.package;
+    const created = await createAiMusicCreditOrder({ req, session, user, packageTier });
     return res.json({
       ok: true,
       ...created,
       credits: getAiMusicCreditSummary(user.id),
-      package: getAiMusicPackage()
+      package: created.package || getAiMusicPackage(),
+      packages: getAiMusicPackages()
     });
   } catch (error) {
     const statusCode = Number(error?.statusCode || 500) || 500;
@@ -7994,7 +8024,8 @@ app.get('/api/ai-music/credits/order/:orderNo', (req, res) => {
       ok: true,
       order: formatAiMusicOrder(result.order),
       credits: result.credits,
-      package: getAiMusicPackage()
+      package: getAiMusicPackage(),
+      packages: getAiMusicPackages()
     });
   } catch (error) {
     const statusCode = Number(error?.statusCode || 500) || 500;
@@ -8016,7 +8047,8 @@ app.post('/api/ai-music/credits/order/:orderNo/refresh', (req, res) => {
       ok: true,
       order: formatAiMusicOrder(result.order),
       credits: result.credits,
-      package: getAiMusicPackage()
+      package: getAiMusicPackage(),
+      packages: getAiMusicPackages()
     });
   } catch (error) {
     const statusCode = Number(error?.statusCode || 500) || 500;
@@ -8111,7 +8143,8 @@ app.all('/api/ai-music/music/*', async (req, res) => {
           ok: false,
           error: 'INSUFFICIENT_CREDITS',
           credits,
-          package: getAiMusicPackage()
+          package: getAiMusicPackage(),
+          packages: getAiMusicPackages()
         });
       }
     }

@@ -1,6 +1,6 @@
 import { getApiKey, logoutSession, bootstrapSession, api } from './api.js';
 import { el, clear, toast } from './ui.js';
-import { openKeyModal, renderInlineKeyPrompt, handleNexaAuthCallback, buyCredits } from './auth.js';
+import { openKeyModal, renderInlineKeyPrompt, handleNexaAuthCallback, openBuyCreditsModal } from './auth.js';
 import { renderGenerate } from './generate.js';
 import { renderLibrary } from './library.js';
 import { renderStemLab } from './stemlab.js';
@@ -51,10 +51,7 @@ function authControl() {
       el('button', {
         class: 'gm-btn-ghost sm',
         text: '购买',
-        onclick: async () => {
-          try { await buyCredits(); }
-          catch (error) { toast(error.message || '创建订单失败', 'error'); }
-        }
+        onclick: () => openBuyCreditsModal()
       }),
       el('button', { class: 'gm-btn-ghost sm', text: '退出', onclick: async () => { await logoutSession(); boot(); } }),
     ]);
