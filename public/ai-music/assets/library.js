@@ -666,9 +666,8 @@ function doCopyright(s) {
 // 分享：复制一条带播放链接的邀请文案到剪贴板 + toast（照搬主站 shareMySong，不调后端）
 function doShare(s) {
   const title = s.title || 'AI 歌曲';
-  // 主站用 /music/player/<id>/ 沉浸页，gmw 纯静态前端无此路由 → 用可达的「我的音乐」URL
-  const url = location.origin + location.pathname + '#library';
-  const text = '我在 ai6666 用 AI 1 分钟做了首歌《' + title + '》, 你也来做一首: ' + url;
+  const url = `${location.origin}/ai-music/song/${encodeURIComponent(String(s.id || ''))}`;
+  const text = '我在 claw800.com 用 AI 1 分钟做了首歌《' + title + '》, 你也来做一首: ' + url;
   const done = () => toast('已复制', 'success');
   if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(text).then(done).catch(() => shareFallback(text));

@@ -262,7 +262,7 @@ app.get(['/predict-master', '/predict-master/'], (_req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'predict-master', 'index.html'));
 });
 
-app.get(['/ai-music', '/ai-music/'], (_req, res) => {
+app.get(['/ai-music', '/ai-music/', '/ai-music/song/:songId'], (_req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
   res.sendFile(path.join(__dirname, '..', 'public', 'ai-music', 'index.html'));
 });
@@ -1949,6 +1949,24 @@ function formatLocalAiMusicSong(row = {}) {
   };
 }
 
+function publicAiMusicMediaPath(rawUrl) {
+  const url = String(rawUrl || '').trim();
+  return url ? `/api/ai-music/public/media?u=${encodeURIComponent(url)}` : '';
+}
+
+function formatPublicAiMusicSong(row = {}) {
+  const song = formatLocalAiMusicSong(row);
+  const id = String(song.id || '').trim();
+  return {
+    ...song,
+    image_url: publicAiMusicMediaPath(row.cover_url || song.image_url),
+    cover_url: publicAiMusicMediaPath(row.cover_url || song.cover_url),
+    playable_url: publicAiMusicMediaPath(row.audio_url || song.playable_url),
+    audio_url: publicAiMusicMediaPath(row.audio_url || song.audio_url),
+    share_url: `/ai-music/song/${encodeURIComponent(id)}`
+  };
+}
+
 function normalizeAiMusicSong(input = {}) {
   const upstreamSongId = String(input.id || input.song_id || input.songId || input.upstream_song_id || '').trim();
   const title = String(input.title || input.name || input.song_title || '').trim();
@@ -1990,6 +2008,34 @@ function listLocalAiMusicSongsForUser(userId, { page = 1, pageSize = 20, q = '',
   return {
     ok: true,
     songs: rows.map(formatLocalAiMusicSong),
+    total: Number(total || 0) || 0,
+    page: normalizedPage,
+    page_size: normalizedPageSize
+  };
+}
+
+function listPublicAiMusicSongs({ page = 1, pageSize = 20, q = '' } = {}) {
+  const normalizedPage = Math.max(1, Number(page || 1) || 1);
+  const normalizedPageSize = Math.min(50, Math.max(1, Number(pageSize || 20) || 20));
+  const keyword = String(q || '').trim();
+  const where = ["COALESCE(audio_url, '') <> ''"];
+  const params = [];
+  if (keyword) {
+    where.push('title LIKE ?');
+    params.push(`%${keyword}%`);
+  }
+  const whereSql = where.join(' AND ');
+  const total = db.prepare(`SELECT COUNT(*) AS count FROM ai_music_songs WHERE ${whereSql}`).get(...params)?.count || 0;
+  const rows = db.prepare(`
+    SELECT id, user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url, created_at, updated_at
+    FROM ai_music_songs
+    WHERE ${whereSql}
+    ORDER BY datetime(created_at) DESC, id DESC
+    LIMIT ? OFFSET ?
+  `).all(...params, normalizedPageSize, (normalizedPage - 1) * normalizedPageSize);
+  return {
+    ok: true,
+    songs: rows.map(formatPublicAiMusicSong),
     total: Number(total || 0) || 0,
     page: normalizedPage,
     page_size: normalizedPageSize
@@ -8279,6 +8325,57 @@ app.post('/api/ai-music/credits/notify', (req, res) => {
   return res.status(httpStatus === 400 ? 400 : 200).json({ code: responseCode, msg: responseMsg });
 });
 
+app.get('/api/ai-music/public/songs', (req, res) => {
+  try {
+    return res.json(listPublicAiMusicSongs({
+      page: req.query?.page,
+      pageSize: req.query?.page_size,
+      q: req.query?.q
+    }));
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 500) || 500;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_PUBLIC_SONGS_FAILED') });
+  }
+});
+
+app.get('/api/ai-music/public/songs/:songId', (req, res) => {
+  try {
+    const songId = String(req.params?.songId || '').trim();
+    const row = selectPublicAiMusicSongByUpstreamIdStmt.get(songId);
+    if (!row) return res.status(404).json({ ok: false, error: 'SONG_NOT_FOUND' });
+    return res.json({ ok: true, song: formatPublicAiMusicSong(row) });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 500) || 500;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_PUBLIC_SONG_FAILED') });
+  }
+});
+
+app.get('/api/ai-music/public/media', async (req, res) => {
+  try {
+    const config = getAiMusicConfig();
+    const rawUrl = String(req.query?.u || '').trim();
+    if (!/^https?:\/\//i.test(rawUrl)) {
+      return res.status(400).json({ ok: false, error: 'INVALID_MEDIA_URL' });
+    }
+    const media = selectPublicAiMusicMediaStmt.get(rawUrl, rawUrl);
+    if (!media) {
+      return res.status(403).json({ ok: false, error: 'MEDIA_NOT_PUBLIC' });
+    }
+    const response = await fetch(rawUrl, {
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`
+      }
+    });
+    const contentType = response.headers?.get?.('content-type');
+    if (contentType) res.setHeader('Content-Type', contentType);
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return res.status(response.status).send(buffer);
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 500) || 500;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_PUBLIC_MEDIA_FAILED') });
+  }
+});
+
 app.all('/api/ai-music/music/*', async (req, res) => {
   try {
     const session = requireAiMusicSession(req);
@@ -9908,6 +10005,20 @@ const updateAiMusicSongByUpstreamIdStmt = db.prepare(`
       updated_at = datetime('now')
   WHERE upstream_song_id = ?
     AND user_id = ?
+`);
+const selectPublicAiMusicSongByUpstreamIdStmt = db.prepare(`
+  SELECT id, user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url, created_at, updated_at
+  FROM ai_music_songs
+  WHERE upstream_song_id = ?
+    AND COALESCE(audio_url, '') <> ''
+  LIMIT 1
+`);
+const selectPublicAiMusicMediaStmt = db.prepare(`
+  SELECT id
+  FROM ai_music_songs
+  WHERE audio_url = ?
+     OR cover_url = ?
+  LIMIT 1
 `);
 const searchNchatUsersByKeywordStmt = db.prepare(`
   SELECT id, openid, chat_id, nickname, avatar_url, created_at, updated_at

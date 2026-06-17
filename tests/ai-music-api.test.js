@@ -679,3 +679,71 @@ test('ai music my songs syncs recent completed generations before listing local 
     harness.cleanup();
   }
 });
+
+test('ai music public square and song links are playable without login', async () => {
+  const harness = createHarness();
+  try {
+    const { cookies: aliceCookies } = await createAiMusicSession(harness, 'ai-music-open-id-public-alice');
+    const { cookies: bobCookies } = await createAiMusicSession(harness, 'ai-music-open-id-public-bob');
+    const alice = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-public-alice');
+    const bob = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-public-bob');
+    assert.ok(aliceCookies);
+    assert.ok(bobCookies);
+    harness.db.prepare(`
+      INSERT INTO ai_music_songs (user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url)
+      VALUES (?, NULL, ?, ?, ?, ?, ?)
+    `).run(alice.id, 'public-song-a', 'Public Song A', 'complete', 'https://ai6666.com/covers/a.jpg', 'https://ai6666.com/audio/a.mp3');
+    harness.db.prepare(`
+      INSERT INTO ai_music_songs (user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url)
+      VALUES (?, NULL, ?, ?, ?, ?, ?)
+    `).run(bob.id, 'public-song-b', 'Public Song B', 'complete', 'https://ai6666.com/covers/b.jpg', 'https://ai6666.com/audio/b.mp3');
+
+    const square = await harness.request('GET', '/api/ai-music/public/songs');
+    const detail = await harness.request('GET', '/api/ai-music/public/songs/public-song-a');
+
+    assert.equal(square.statusCode, 200);
+    assert.equal(square.body.ok, true);
+    assert.deepEqual(square.body.songs.map((song) => song.id), ['public-song-b', 'public-song-a']);
+    assert.equal(square.body.songs[0].share_url, '/ai-music/song/public-song-b');
+    assert.equal(square.body.songs[0].audio_url.startsWith('/api/ai-music/public/media?u='), true);
+    assert.equal(detail.statusCode, 200);
+    assert.equal(detail.body.song.id, 'public-song-a');
+    assert.equal(detail.body.song.title, 'Public Song A');
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('ai music public media proxy only serves stored song media without login', async () => {
+  const harness = createHarness();
+  try {
+    const { cookies } = await createAiMusicSession(harness, 'ai-music-open-id-public-media');
+    const user = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-public-media');
+    assert.ok(cookies);
+    harness.db.prepare(`
+      INSERT INTO ai_music_songs (user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url)
+      VALUES (?, NULL, ?, ?, ?, ?, ?)
+    `).run(user.id, 'public-media-song', 'Public Media Song', 'complete', 'https://ai6666.com/covers/media.jpg', 'https://ai6666.com/audio/media.mp3');
+    harness.setHhApiKey('hh_server_secret');
+    let fetchedUrl = '';
+    let fetchedAuth = '';
+    harness.setFetch(async (url, init = {}) => {
+      fetchedUrl = String(url);
+      fetchedAuth = String(init.headers?.Authorization || '');
+      return new Response(Buffer.from('mp3-bytes'), { status: 200, headers: { 'content-type': 'audio/mpeg' } });
+    });
+
+    const ok = await harness.request('GET', '/api/ai-music/public/media?u=' + encodeURIComponent('https://ai6666.com/audio/media.mp3'));
+    const forbidden = await harness.request('GET', '/api/ai-music/public/media?u=' + encodeURIComponent('https://ai6666.com/audio/not-stored.mp3'));
+
+    assert.equal(ok.statusCode, 200);
+    assert.equal(String(ok.body), 'mp3-bytes');
+    assert.equal(ok.headers['content-type'], 'audio/mpeg');
+    assert.equal(fetchedUrl, 'https://ai6666.com/audio/media.mp3');
+    assert.equal(fetchedAuth, 'Bearer hh_server_secret');
+    assert.equal(forbidden.statusCode, 403);
+    assert.equal(forbidden.body.error, 'MEDIA_NOT_PUBLIC');
+  } finally {
+    harness.cleanup();
+  }
+});

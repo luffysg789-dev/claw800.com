@@ -36,6 +36,7 @@ test('ai music purchase flow shows three Nexa package choices', () => {
   const authJs = readPublicAiMusicFile('assets/auth.js');
   const appJs = readPublicAiMusicFile('assets/app.js');
   const generateJs = readPublicAiMusicFile('assets/generate.js');
+  const libraryJs = readPublicAiMusicFile('assets/library.js');
   const combined = `${apiJs}\n${authJs}\n${appJs}`;
 
   assert.match(apiJs, /createCreditOrder\(tier/);
@@ -50,18 +51,22 @@ test('ai music purchase flow shows three Nexa package choices', () => {
   assert.match(authJs, /openBuyCreditsModal/);
   assert.match(authJs, /window\.dispatchEvent\(new CustomEvent\('gm-credits-changed'/);
   assert.match(combined, /openBuyCreditsModal/);
-  assert.match(appJs, /class:\s*'gm-brand'[\s\S]*href:\s*'#generate'/);
+  assert.match(appJs, /class:\s*'gm-brand'[\s\S]*href:\s*'\/ai-music\/#generate'/);
   assert.match(appJs, /refreshPendingCreditOrder/);
   assert.match(appJs, /window\.addEventListener\('pageshow'/);
   assert.match(appJs, /window\.addEventListener\('focus'/);
   assert.match(appJs, /document\.addEventListener\('visibilitychange'/);
   assert.match(appJs, /gm-credits-changed/);
-  assert.match(appJs, /href:\s*'#library'[\s\S]*text:\s*'我的音乐'/);
+  assert.match(appJs, /href:\s*'\/ai-music\/#library'[\s\S]*text:\s*'我的音乐'/);
+  assert.match(appJs, /key:\s*'square'[\s\S]*label:\s*'广场'/);
   assert.match(appJs, /text:\s*'充值'/);
   assert.doesNotMatch(appJs, /text:\s*'购买'/);
   assert.doesNotMatch(appJs, /text:\s*'退出'/);
   assert.match(generateJs, /gm-credits-changed/);
   assert.match(generateJs, /api\.generate\(payload\)[\s\S]*window\.dispatchEvent\(new CustomEvent\('gm-credits-changed'/);
+  assert.match(libraryJs, /\/ai-music\/song\/\$\{encodeURIComponent\(String\(s\.id/);
+  assert.match(libraryJs, /我在 claw800\.com 用 AI 1 分钟做了首歌/);
+  assert.doesNotMatch(libraryJs, /我在 ai6666/);
 });
 
 test('ai music is listed in games hub and served by express route', () => {
@@ -73,7 +78,7 @@ test('ai music is listed in games hub and served by express route', () => {
   assert.match(gamesConfig, /route:\s*'\/ai-music\/'/);
   assert.match(gamesConfig, /actionText:\s*'生成音乐'/);
   assert.match(dbJs, /slug:\s*'ai-music'/);
-  assert.match(serverJs, /app\.get\(\['\/ai-music',\s*'\/ai-music\/'\]/);
+  assert.match(serverJs, /app\.get\(\['\/ai-music',\s*'\/ai-music\/',\s*'\/ai-music\/song\/:songId'\]/);
   assert.match(serverJs, /'ai-music':\s*'\/ai-music\/'/);
 });
 
@@ -122,7 +127,7 @@ test('ai music shell and assets avoid stale Nexa webview caches', () => {
   assert.match(appJs, /from '\.\/auth\.js\?v=/);
   assert.match(authJs, /from '\.\/api\.js\?v=/);
   assert.doesNotMatch(combinedModules, /from '\.\/(?:api|auth|ui)\.js'/);
-  assert.match(serverJs, /app\.get\(\['\/ai-music', '\/ai-music\/'\][\s\S]*Cache-Control', 'no-store/);
+  assert.match(serverJs, /app\.get\(\['\/ai-music', '\/ai-music\/', '\/ai-music\/song\/:songId'\][\s\S]*Cache-Control', 'no-store/);
   assert.match(serverJs, /filePath\.includes\(path\.join\('public', 'ai-music'\)\)[\s\S]*Cache-Control', 'no-store/);
 });
 
@@ -132,6 +137,8 @@ test('ai music uses persistent bottom player with scrolling lyrics', () => {
   const libraryJs = readPublicAiMusicFile('assets/library.js');
   const apiJs = readPublicAiMusicFile('assets/api.js');
   const playerJs = readPublicAiMusicFile('assets/player.js');
+  const squareJs = readPublicAiMusicFile('assets/square.js');
+  const publicSongJs = readPublicAiMusicFile('assets/public-song.js');
   const styles = readPublicAiMusicFile('assets/styles.css');
 
   assert.match(appJs, /initGlobalPlayer/);
@@ -142,6 +149,14 @@ test('ai music uses persistent bottom player with scrolling lyrics', () => {
   assert.match(libraryJs, /api\.songLyrics/);
   assert.match(playerJs, /import\s+\{\s*api\s*\}\s+from '\.\/api\.js\?v=/);
   assert.match(playerJs, /api\.songLyrics/);
+  assert.match(playerJs, /api\.songDetail/);
+  assert.match(playerJs, /parseLyricTimestamp/);
+  assert.match(playerJs, /line\.time\s*<=\s*currentTime/);
+  assert.match(apiJs, /publicSongs:\s*\(/);
+  assert.match(apiJs, /publicSong:\s*\(id\)/);
+  assert.match(squareJs, /api\.publicSongs/);
+  assert.match(publicSongJs, /api\.publicSong/);
+  assert.match(publicSongJs, /toggleGlobalSong/);
   assert.match(playerJs, /id:\s*'gm-mini-player'/);
   assert.match(playerJs, /class:\s*'gm-mini-lyric'/);
   assert.match(playerJs, /new Audio/);

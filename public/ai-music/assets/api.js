@@ -1,6 +1,7 @@
 const SESSION_STORAGE = 'claw800:ai-music:nexa-session';
 const MUSIC_API_BASE = '/api/ai-music/music';
 const MEDIA_API_BASE = '/api/ai-music/media';
+const PUBLIC_API_BASE = '/api/ai-music/public';
 
 let cachedSession = null;
 let cachedCredits = null;
@@ -157,6 +158,9 @@ export const api = {
   translateLyricsStatus: (taskId) => request('GET', `/translate-lyrics/${taskId}/status`),
   mySongs: ({ tab = 'mine', page = 1, page_size = 20, q = '' } = {}) =>
     request('GET', '/my-songs', { query: { tab, page, page_size, q } }),
+  publicSongs: ({ page = 1, page_size = 20, q = '' } = {}) =>
+    appRequest('GET', `${PUBLIC_API_BASE}/songs`, { query: { page, page_size, q } }),
+  publicSong: (id) => appRequest('GET', `${PUBLIC_API_BASE}/songs/${encodeURIComponent(id)}`),
   songDetail: (id) => request('GET', `/song/${id}`),
   songLyrics: (id) => request('GET', `/song/${id}/lyrics`),
   downloadMp3: (id) => request('GET', `/song/${id}/download-mp3`),

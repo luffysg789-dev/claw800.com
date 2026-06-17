@@ -3,6 +3,8 @@ import { el, clear, toast } from './ui.js?v=20260617-ai-music-payment-refresh';
 import { openKeyModal, renderInlineKeyPrompt, handleNexaAuthCallback, openBuyCreditsModal, refreshPendingCreditOrder } from './auth.js?v=20260617-ai-music-payment-refresh';
 import { renderGenerate } from './generate.js?v=20260617-ai-music-payment-refresh';
 import { renderLibrary } from './library.js?v=20260617-ai-music-payment-refresh';
+import { renderSquare } from './square.js?v=20260617-ai-music-payment-refresh';
+import { renderPublicSong, publicSongIdFromPath } from './public-song.js?v=20260617-ai-music-payment-refresh';
 import { renderStemLab } from './stemlab.js?v=20260617-ai-music-payment-refresh';
 import { renderStudio } from './studio.js?v=20260617-ai-music-payment-refresh';
 import { initGlobalPlayer } from './player.js?v=20260617-ai-music-payment-refresh';
@@ -11,11 +13,13 @@ const app = document.getElementById('app');
 
 const SCREENS = [
   { key: 'generate', label: '生成音乐', render: renderGenerate, needsKey: true },
+  { key: 'square', label: '广场', render: renderSquare, needsKey: false },
   { key: 'library', label: '我的音乐', render: renderLibrary, needsKey: true },
   { key: 'stemlab', label: '分轨', render: renderStemLab, needsKey: true },
   { key: 'studio', label: '编曲房', render: renderStudio, needsKey: true },
+  { key: 'public-song', label: '歌曲', render: renderPublicSong, needsKey: false, hidden: true },
 ];
-const ALWAYS_RERENDER = new Set(['library', 'stemlab', 'studio']);
+const ALWAYS_RERENDER = new Set(['library', 'stemlab', 'studio', 'square', 'public-song']);
 let active = 'generate';
 let mounted = new Set();
 let pendingPaymentRefreshTimer = null;
@@ -25,13 +29,13 @@ function boot() { renderShell(); }
 function renderShell() {
   clear(app);
   mounted = new Set();
-  active = location.hash.replace('#', '') || 'generate';
+  active = publicSongIdFromPath() ? 'public-song' : (location.hash.replace('#', '') || 'generate');
   if (!SCREENS.some((s) => s.key === active)) active = 'generate';
 
   const nav = el('nav', { class: 'gm-nav' }, [
-    el('a', { class: 'gm-brand', href: '#generate', text: '🎵 AI 音乐' }),
-    el('div', { class: 'gm-nav-links' }, SCREENS.map((s) =>
-      el('a', { href: '#' + s.key, 'data-key': s.key, class: 'gm-nav-link' + (s.key === active ? ' active' : ''), text: s.label }))),
+    el('a', { class: 'gm-brand', href: '/ai-music/#generate', text: '🎵 AI 音乐' }),
+    el('div', { class: 'gm-nav-links' }, SCREENS.filter((s) => !s.hidden).map((s) =>
+      el('a', { href: '/ai-music/#' + s.key, 'data-key': s.key, class: 'gm-nav-link' + (s.key === active ? ' active' : ''), text: s.label }))),
     el('div', { id: 'gm-authslot' }, [authControl()]),
   ]);
 
@@ -53,7 +57,7 @@ function authControl() {
       el('span', { class: 'gm-auth-on', id: 'gm-credits-chip', text: '已登录' }),
       el('a', {
         class: 'gm-btn-ghost sm',
-        href: '#library',
+        href: '/ai-music/#library',
         text: '我的音乐'
       }),
       el('button', {
@@ -126,6 +130,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 window.addEventListener('hashchange', () => {
+  if (publicSongIdFromPath()) return;
   const key = location.hash.replace('#', '') || 'generate';
   const nav = document.querySelector('.gm-nav');
   if (nav && SCREENS.some((s) => s.key === key)) switchScreen(key, nav);

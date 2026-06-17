@@ -24,6 +24,7 @@ export function clear(node) {
 // 封面 / 音频走 AI Music 媒体代理：服务端代取媒体后回传，前端无需关心跨域/来源限制。
 export function mediaUrl(u) {
   if (!u) return '';
+  if (u.startsWith('/api/ai-music/')) return u;
   if (/^https?:\/\//.test(u)) {
     try { if (!new URL(u).hostname.endsWith('ai6666.com')) return u; } catch (e) { /* 非法 URL, 落到代理 */ }
   }
