@@ -65,6 +65,7 @@
   let lastWalletRefreshScheduleAt = 0;
   let currentFeePermille = '10';
   const reportedClientErrors = new Set();
+  const MAX_SDK_TOAST_NODE_TEXT_LENGTH = 1200;
   const upstreamToastErrorMessages = [
     'Binary order odds error',
     'Binary order adds error',
@@ -736,7 +737,9 @@
 
   function inspectSdkToastErrorNode(node) {
     if (!node) return;
+    if (node.nodeType !== Node.ELEMENT_NODE && node.nodeType !== Node.TEXT_NODE) return;
     const rawText = node.nodeType === Node.TEXT_NODE ? node.nodeValue : node.textContent;
+    if (!rawText || rawText.length > MAX_SDK_TOAST_NODE_TEXT_LENGTH) return;
     const matchedMessage = getUpstreamToastError(rawText);
     if (!matchedMessage) return;
     const element = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
@@ -749,20 +752,16 @@
   }
 
   function startSdkToastErrorObserver() {
-    if (sdkToastObserver || !window.MutationObserver || !document.body) return;
+    if (sdkToastObserver || !window.MutationObserver || !sdkApp) return;
     sdkToastObserver = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
-        if (mutation.type === 'characterData') {
-          inspectSdkToastErrorNode(mutation.target);
-          return;
-        }
         mutation.addedNodes.forEach(inspectSdkToastErrorNode);
       });
     });
-    sdkToastObserver.observe(document.body, {
+    sdkToastObserver.observe(sdkApp, {
       childList: true,
       subtree: true,
-      characterData: true
+      characterData: false
     });
   }
 

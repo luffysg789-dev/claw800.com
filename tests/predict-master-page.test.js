@@ -43,8 +43,8 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(html, /<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" \/>/);
   assert.match(html, /\/predict-master\/style\.css/);
   assert.match(html, /\/predict-master\/script\.js/);
-  assert.match(html, /\/predict-master\/style\.css\?v=20260616-04/);
-  assert.match(html, /\/predict-master\/script\.js\?v=20260616-04/);
+  assert.match(html, /\/predict-master\/style\.css\?v=20260617-01/);
+  assert.match(html, /\/predict-master\/script\.js\?v=20260617-01/);
   assert.doesNotMatch(html, /class="back-link"/);
   assert.doesNotMatch(html, /id="predictMasterTitle"/);
   assert.doesNotMatch(html, /id="predictMasterStatus"/);
@@ -122,6 +122,11 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(script, /sdk-toast-error/);
   assert.match(script, /new MutationObserver/);
   assert.match(script, /function startSdkToastErrorObserver/);
+  assert.match(script, /MAX_SDK_TOAST_NODE_TEXT_LENGTH/);
+  assert.match(script, /sdkToastObserver\.observe\(sdkApp,/);
+  assert.match(script, /characterData:\s*false/);
+  assert.doesNotMatch(script, /sdkToastObserver\.observe\(document\.body,/);
+  assert.doesNotMatch(script, /characterData:\s*true/);
   assert.match(script, /window\.addEventListener\('unhandledrejection'/);
   assert.match(script, /originalMessage:\s*event\.message/);
   assert.match(script, /function openRechargeModal/);
