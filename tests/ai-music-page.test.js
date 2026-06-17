@@ -202,7 +202,7 @@ test('ai music uses persistent bottom player with scrolling lyrics', () => {
   assert.match(apiJs, /withdrawAssets:\s*\(amount\)/);
   assert.match(appJs, /renderMarket/);
   assert.match(appJs, /key:\s*'market'[\s\S]*label:\s*'市场'/);
-  assert.match(marketJs, /text:\s*'音乐市场-购买版本'/);
+  assert.match(marketJs, /text:\s*'音乐市场-版权自由交易'/);
   assert.match(assetsJs, /renderAssets/);
   assert.match(assetsJs, /api\.assets/);
   assert.match(assetsJs, /api\.withdrawAssets/);
@@ -230,6 +230,7 @@ test('ai music uses persistent bottom player with scrolling lyrics', () => {
   assert.match(styles, /\.gm-mini-player/);
   assert.match(styles, /\.gm-mini-lyric-track/);
   assert.match(styles, /\.gm-market-card/);
+  assert.match(styles, /\.gm-market\{[^}]*min-height:calc\(100svh - 96px\)[^}]*-webkit-overflow-scrolling:touch[^}]*overscroll-behavior-y:contain/);
   assert.match(styles, /\.gm-assets-card/);
   assert.match(styles, /\.gm-assets-row/);
   assert.match(styles, /@keyframes\s+gmMiniLyricScroll/);
@@ -315,6 +316,7 @@ test('ai music library search and create button match square layout', () => {
   assert.match(myMusicCss, /\.hh-my-toolbar-flat/);
   assert.match(myMusicCss, /\.hh-my-top-head/);
   assert.match(myMusicCss, /\.hh-my-search-unified/);
+  assert.match(myMusicCss, /\.hh-my-wrap\s*\{[\s\S]*min-height:\s*calc\(100svh - 96px\)[\s\S]*-webkit-overflow-scrolling:\s*touch[\s\S]*overscroll-behavior-y:\s*contain/);
   assert.match(myMusicCss, /\.hh-btn-sell/);
   assert.match(myMusicCss, /\.hh-card-bar \.hh-btn-sell/);
   assert.match(myMusicCss, /\.hh-bar-btn-danger/);

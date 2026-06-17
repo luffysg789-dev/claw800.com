@@ -500,7 +500,7 @@ body.gm-has-mini-player .gm-main{padding-bottom:132px;}
 }
 
 /* 音乐市场 */
-.gm-market{max-width:760px;margin:0 auto;padding:10px 14px 120px;}
+.gm-market{max-width:760px;margin:0 auto;padding:10px 14px 120px;min-height:calc(100svh - 96px);-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;}
 .gm-market-feed{display:flex;flex-direction:column;gap:10px;}
 .gm-market-card{display:grid;grid-template-columns:62px minmax(0,1fr) auto;align-items:center;gap:10px;background:#fff;border:1px solid #f3e8ee;border-radius:16px;padding:10px;box-shadow:0 8px 24px rgba(190,24,93,.06);}
 .gm-market-cover{width:62px;height:62px;border:0;border-radius:13px;overflow:hidden;background:#e5e7eb;color:#fff;display:grid;place-items:center;position:relative;cursor:pointer;flex:none;}

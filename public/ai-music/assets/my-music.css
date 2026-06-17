@@ -1035,6 +1035,9 @@ details[open] .lyrics-arrow { transform: rotate(90deg); }
     max-width: 1120px;
     margin: 0 auto;
     padding: 8px 18px 64px;
+    min-height: calc(100svh - 96px);
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
 }
 .hh-my-topnav {
     margin-bottom: 14px;
