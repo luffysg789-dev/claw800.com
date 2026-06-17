@@ -639,3 +639,43 @@ test('ai music generation status stores returned songs for the current user libr
     harness.cleanup();
   }
 });
+
+test('ai music my songs syncs recent completed generations before listing local library', async () => {
+  const harness = createHarness();
+  try {
+    const { cookies } = await createAiMusicSession(harness, 'ai-music-open-id-library-auto-sync');
+    const user = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-library-auto-sync');
+    harness.db.prepare(`
+      INSERT INTO ai_music_generations (user_id, upstream_task_id, request_payload_json, status, credits_charged)
+      VALUES (?, ?, '{}', 'submitted', 1)
+    `).run(user.id, 'auto-sync-task-1');
+    harness.setHhApiKey('hh_server_secret');
+
+    let statusCalls = 0;
+    harness.setFetch(async (url) => {
+      assert.match(String(url), /\/ai6api\/music\/generation\/auto-sync-task-1\/status$/);
+      statusCalls += 1;
+      return new Response(JSON.stringify({
+        status: 'success',
+        songs: [
+          {
+            id: 'auto-sync-song-1',
+            title: 'Auto Sync Song',
+            image_url: 'https://cdn.example/auto-sync.jpg',
+            playable_url: 'https://cdn.example/auto-sync.mp3'
+          }
+        ]
+      }), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+
+    const songs = await harness.request('GET', '/api/ai-music/music/my-songs', null, { cookies });
+
+    assert.equal(songs.statusCode, 200);
+    assert.equal(statusCalls, 1);
+    assert.equal(songs.body.total, 1);
+    assert.equal(songs.body.songs[0].id, 'auto-sync-song-1');
+    assert.equal(songs.body.songs[0].title, 'Auto Sync Song');
+  } finally {
+    harness.cleanup();
+  }
+});

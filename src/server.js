@@ -2011,6 +2011,37 @@ function persistAiMusicSongsForGeneration({ userId, taskId, songs = [] } = {}) {
   });
 }
 
+async function syncRecentAiMusicGenerationsForUser(userId) {
+  let config;
+  try {
+    config = getAiMusicConfig();
+  } catch {
+    return 0;
+  }
+  const rows = selectAiMusicGenerationsWithoutSongsStmt.all(Number(userId));
+  let synced = 0;
+  for (const row of rows) {
+    const taskId = String(row.upstream_task_id || '').trim();
+    if (!taskId) continue;
+    try {
+      const response = await fetch(`${config.upstream}/ai6api/music/generation/${encodeURIComponent(taskId)}/status`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${config.apiKey}` }
+      });
+      if (!response.ok) continue;
+      const text = await response.text();
+      const data = text ? JSON.parse(text) : {};
+      const songs = extractAiMusicSongs(data);
+      if (!songs.length) continue;
+      persistAiMusicSongsForGeneration({ userId, taskId, songs });
+      synced += songs.length;
+    } catch {
+      // 上游状态偶发失败不能影响用户查看已落库的作品。
+    }
+  }
+  return synced;
+}
+
 async function forwardAiMusicRequest(req, upstreamPath) {
   const { upstream, apiKey } = getAiMusicConfig();
   const query = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
@@ -8262,6 +8293,9 @@ app.all('/api/ai-music/music/*', async (req, res) => {
     const generationStatusMatch = upstreamPath.match(/^\/generation\/([^/]+)\/status$/);
 
     if (isMySongs) {
+      if (String(req.query?.tab || 'mine').trim() !== 'favorites') {
+        await syncRecentAiMusicGenerationsForUser(user.id);
+      }
       return res.json(listLocalAiMusicSongsForUser(user.id, {
         tab: req.query?.tab,
         page: req.query?.page,
@@ -9844,6 +9878,15 @@ const insertAiMusicGenerationStmt = db.prepare(`
 const selectAiMusicGenerationByTaskStmt = db.prepare(
   'SELECT id, user_id, upstream_task_id, status FROM ai_music_generations WHERE upstream_task_id = ?'
 );
+const selectAiMusicGenerationsWithoutSongsStmt = db.prepare(`
+  SELECT g.id, g.user_id, g.upstream_task_id, g.status
+  FROM ai_music_generations g
+  LEFT JOIN ai_music_songs s ON s.generation_id = g.id
+  WHERE g.user_id = ?
+    AND s.id IS NULL
+  ORDER BY datetime(g.created_at) DESC, g.id DESC
+  LIMIT 5
+`);
 const updateAiMusicGenerationStatusStmt = db.prepare(`
   UPDATE ai_music_generations
   SET status = ?,

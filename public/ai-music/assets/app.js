@@ -28,7 +28,7 @@ function renderShell() {
   if (!SCREENS.some((s) => s.key === active)) active = 'generate';
 
   const nav = el('nav', { class: 'gm-nav' }, [
-    el('div', { class: 'gm-brand', text: '🎵 AI 音乐' }),
+    el('a', { class: 'gm-brand', href: '#generate', text: '🎵 AI 音乐' }),
     el('div', { class: 'gm-nav-links' }, SCREENS.map((s) =>
       el('a', { href: '#' + s.key, 'data-key': s.key, class: 'gm-nav-link' + (s.key === active ? ' active' : ''), text: s.label }))),
     el('div', { id: 'gm-authslot' }, [authControl()]),

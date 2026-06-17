@@ -50,6 +50,7 @@ test('ai music purchase flow shows three Nexa package choices', () => {
   assert.match(authJs, /openBuyCreditsModal/);
   assert.match(authJs, /window\.dispatchEvent\(new CustomEvent\('gm-credits-changed'/);
   assert.match(combined, /openBuyCreditsModal/);
+  assert.match(appJs, /class:\s*'gm-brand'[\s\S]*href:\s*'#generate'/);
   assert.match(appJs, /refreshPendingCreditOrder/);
   assert.match(appJs, /window\.addEventListener\('pageshow'/);
   assert.match(appJs, /window\.addEventListener\('focus'/);
