@@ -5,7 +5,7 @@
 //   2) 生成结果保留当页内联展示（不跳「我的音乐」）。
 // 其余傻瓜/专业内部交互与主站一致。
 import { api, poll, ApiError, getApiKey } from './api.js?v=20260617-ai-music-payment-refresh';
-import { ensureKey } from './auth.js?v=20260617-ai-music-payment-refresh';
+import { ensureKey, openBuyCreditsModal } from './auth.js?v=20260617-ai-music-payment-refresh';
 import { el, clear, toast, fmtDuration, mediaUrl } from './ui.js?v=20260617-ai-music-payment-refresh';
 import { toggleGlobalSong } from './player.js?v=20260617-ai-music-payment-refresh';
 
@@ -117,7 +117,7 @@ function formHTML() {
     </div>`).join('');
   const presetChips = presets.map(presetChipHtml).join('');
 
-  return `<div class="gm-head"><h2>生成音乐</h2><span class="gm-credits" id="cf-credits">剩余次数 …</span></div>
+  return `<div class="gm-head"><h2>生成音乐</h2><div class="gm-head-actions"><span class="gm-credits" id="cf-credits">剩余次数 …</span><button type="button" class="gm-btn-ghost sm" id="cf-recharge">充值</button></div></div>
   <div class="cf-scope">
    <div class="cf-card">
     <div class="mode-row" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
@@ -255,6 +255,7 @@ function $(root, sel) { return root.querySelector(sel); }
 const _langName = (v) => (LANG_OPTIONS.find(([val]) => val === v) || [])[1] || '中文';
 
 function wire(root) {
+  $(root, '#cf-recharge')?.addEventListener('click', () => openBuyCreditsModal());
   // 模式切换
   root.querySelectorAll('.mode-tab').forEach((b) => b.addEventListener('click', () => {
     switchMode(root, b.dataset.mode); saveDraft(root);

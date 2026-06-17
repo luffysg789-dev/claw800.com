@@ -1,4 +1,4 @@
-import { getApiKey, api, syncSession, createCreditOrder, refreshCreditOrder, ApiError } from './api.js?v=20260617-ai-music-payment-refresh';
+import { getApiKey, getCachedUser, isProfileRequired, api, syncSession, createCreditOrder, refreshCreditOrder, ApiError } from './api.js?v=20260617-ai-music-payment-refresh';
 import { el, clear, toast } from './ui.js?v=20260617-ai-music-payment-refresh';
 
 const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth://oauth/authorize';
@@ -9,6 +9,7 @@ const AI_MUSIC_PACKAGES = [
   { tier: '10u', amount: '10.00', credits: 25 },
   { tier: '100u', amount: '100.00', credits: 300 }
 ];
+let profileModalPromise = null;
 
 function getAuthCodeFromUrl() {
   const params = new URLSearchParams(window.location.search || '');
@@ -150,6 +151,68 @@ export function openBuyCreditsModal() {
     el('div', { class: 'gm-package-list' }, rows)
   ]));
   document.body.appendChild(overlay);
+}
+
+export function openProfileModal() {
+  if (profileModalPromise) return profileModalPromise;
+  profileModalPromise = new Promise((resolve) => {
+    const input = el('input', {
+      class: 'gm-input',
+      type: 'text',
+      maxlength: '20',
+      placeholder: '请输入你的作者昵称'
+    });
+    const status = el('p', { class: 'gm-note', text: '请填写昵称，确认后才可以进入 AI 音乐。' });
+    const overlay = el('div', { class: 'gm-modal gm-profile-modal' });
+    const submit = el('button', {
+      class: 'gm-btn-primary',
+      type: 'button',
+      text: '确认进入',
+      onclick: async () => {
+        const nickname = String(input.value || '').trim();
+        if (!nickname) {
+          status.textContent = '请填写昵称';
+          status.className = 'gm-error';
+          input.focus();
+          return;
+        }
+        submit.disabled = true;
+        submit.textContent = '保存中...';
+        try {
+          const payload = await api.updateProfile({ nickname });
+          window.dispatchEvent(new CustomEvent('gm-profile-changed', { detail: payload }));
+          overlay.remove();
+          profileModalPromise = null;
+          resolve(true);
+        } catch (error) {
+          status.textContent = error.message || '昵称保存失败';
+          status.className = 'gm-error';
+          submit.disabled = false;
+          submit.textContent = '确认进入';
+        }
+      }
+    });
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') submit.click();
+    });
+    overlay.appendChild(el('div', { class: 'gm-modal-card gm-profile-card' }, [
+      el('h2', { style: 'text-align:center;font-size:20px;font-weight:900;margin:4px 0 6px', text: '设置作者昵称' }),
+      el('p', { class: 'gm-note', style: 'text-align:center;margin-bottom:14px', text: '以后音乐广场会显示这个昵称。' }),
+      input,
+      status,
+      submit
+    ]));
+    document.body.appendChild(overlay);
+    setTimeout(() => input.focus(), 50);
+  });
+  return profileModalPromise;
+}
+
+export function ensureProfileComplete() {
+  if (!getApiKey()) return Promise.resolve(true);
+  const user = getCachedUser();
+  if (!isProfileRequired() && String(user?.nickname || '').trim()) return Promise.resolve(true);
+  return openProfileModal();
 }
 
 export function openKeyModal({ onSuccess, onCancel } = {}) {

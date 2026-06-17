@@ -165,6 +165,8 @@ test('ai music session creates user and zero-credit account', async () => {
     assert.equal(response.statusCode, 200);
     assert.equal(response.body.ok, true);
     assert.equal(response.body.session.openId, 'ai-music-open-id-session');
+    assert.equal(response.body.profileRequired, true);
+    assert.equal(response.body.user.nickname, '');
     assert.equal(response.body.credits.availableCredits, 0);
     assert.deepEqual(response.body.package, { tier: '1u', amount: '1.00', currency: 'USDT', credits: 2 });
     assert.deepEqual(response.body.packages, [
@@ -175,9 +177,33 @@ test('ai music session creates user and zero-credit account', async () => {
     assert.match(response.headers['set-cookie'][0], /"name":"ai_music_session"/);
 
     const user = harness.db.prepare('SELECT * FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-session');
-    assert.equal(user.nickname, 'Composer');
+    assert.equal(user.nickname, '');
     const account = harness.db.prepare('SELECT * FROM ai_music_credit_accounts WHERE user_id = ?').get(user.id);
     assert.equal(account.available_credits, 0);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('ai music profile save is required after login and stores author nickname', async () => {
+  const harness = createHarness();
+  try {
+    const { response, cookies } = await createAiMusicSession(harness, 'ai-music-open-id-profile');
+    assert.equal(response.body.profileRequired, true);
+    assert.equal(response.body.user.nickname, '');
+
+    const empty = await harness.request('POST', '/api/ai-music/profile', { nickname: '   ' }, { cookies });
+    assert.equal(empty.statusCode, 400);
+
+    const saved = await harness.request('POST', '/api/ai-music/profile', { nickname: '行李箱作者' }, { cookies });
+    assert.equal(saved.statusCode, 200);
+    assert.equal(saved.body.ok, true);
+    assert.equal(saved.body.profileRequired, false);
+    assert.equal(saved.body.user.nickname, '行李箱作者');
+
+    const bootstrap = await harness.request('GET', '/api/ai-music/session', null, { cookies });
+    assert.equal(bootstrap.body.profileRequired, false);
+    assert.equal(bootstrap.body.user.nickname, '行李箱作者');
   } finally {
     harness.cleanup();
   }
@@ -689,6 +715,8 @@ test('ai music public square and song links are playable without login', async (
     const bob = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-public-bob');
     assert.ok(aliceCookies);
     assert.ok(bobCookies);
+    harness.db.prepare('UPDATE ai_music_users SET nickname = ? WHERE id = ?').run('Alice 作者', alice.id);
+    harness.db.prepare('UPDATE ai_music_users SET nickname = ? WHERE id = ?').run('Bob 作者', bob.id);
     harness.db.prepare(`
       INSERT INTO ai_music_songs (user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url)
       VALUES (?, NULL, ?, ?, ?, ?, ?)
@@ -704,11 +732,13 @@ test('ai music public square and song links are playable without login', async (
     assert.equal(square.statusCode, 200);
     assert.equal(square.body.ok, true);
     assert.deepEqual(square.body.songs.map((song) => song.id), ['public-song-b', 'public-song-a']);
+    assert.deepEqual(square.body.songs.map((song) => song.author_nickname), ['Bob 作者', 'Alice 作者']);
     assert.equal(square.body.songs[0].share_url, '/ai-music/song/public-song-b');
     assert.equal(square.body.songs[0].audio_url.startsWith('/api/ai-music/public/media?u='), true);
     assert.equal(detail.statusCode, 200);
     assert.equal(detail.body.song.id, 'public-song-a');
     assert.equal(detail.body.song.title, 'Public Song A');
+    assert.equal(detail.body.song.author_nickname, 'Alice 作者');
   } finally {
     harness.cleanup();
   }

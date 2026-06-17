@@ -4,9 +4,11 @@ const MEDIA_API_BASE = '/api/ai-music/media';
 const PUBLIC_API_BASE = '/api/ai-music/public';
 
 let cachedSession = null;
+let cachedUser = null;
 let cachedCredits = null;
 let cachedPackage = null;
 let cachedPackages = null;
+let cachedProfileRequired = false;
 
 export function getApiKey() {
   return cachedSession?.openId ? 'nexa-session' : '';
@@ -16,9 +18,11 @@ export function setApiKey() {}
 
 export function clearApiKey() {
   cachedSession = null;
+  cachedUser = null;
   cachedCredits = null;
   cachedPackage = null;
   cachedPackages = null;
+  cachedProfileRequired = false;
   try { localStorage.removeItem(SESSION_STORAGE); } catch {}
 }
 
@@ -28,6 +32,14 @@ export function getCachedSession() {
 
 export function getCachedCredits() {
   return cachedCredits;
+}
+
+export function getCachedUser() {
+  return cachedUser;
+}
+
+export function isProfileRequired() {
+  return !!cachedProfileRequired;
 }
 
 export function getCachedPackage() {
@@ -40,9 +52,11 @@ export function getCachedPackages() {
 
 export function applyBootstrap(payload = {}) {
   cachedSession = payload.session || cachedSession;
+  cachedUser = payload.user || cachedUser;
   cachedCredits = payload.credits || cachedCredits;
   cachedPackage = payload.package || cachedPackage;
   cachedPackages = payload.packages || cachedPackages;
+  if (Object.prototype.hasOwnProperty.call(payload, 'profileRequired')) cachedProfileRequired = !!payload.profileRequired;
   if (cachedSession?.openId) {
     try { localStorage.setItem(SESSION_STORAGE, JSON.stringify(cachedSession)); } catch {}
   }
@@ -137,6 +151,8 @@ export async function refreshCreditOrder(orderNo) {
 }
 
 export const api = {
+  updateProfile: ({ nickname } = {}) =>
+    appRequest('POST', '/api/ai-music/profile', { body: { nickname } }).then(applyBootstrap),
   credits: async () => {
     const payload = await appRequest('GET', '/api/ai-music/credits');
     applyBootstrap(payload);
@@ -163,6 +179,7 @@ export const api = {
   publicSong: (id) => appRequest('GET', `${PUBLIC_API_BASE}/songs/${encodeURIComponent(id)}`),
   songDetail: (id) => request('GET', `/song/${id}`),
   songLyrics: (id) => request('GET', `/song/${id}/lyrics`),
+  songLrc: (id) => request('GET', `/song/${id}/download-lrc`),
   downloadMp3: (id) => request('GET', `/song/${id}/download-mp3`),
   exportWav: (id) => request('POST', `/song/${id}/export-wav`, { body: {} }),
   wavStatus: (id) => request('GET', `/song/${id}/wav-status`),

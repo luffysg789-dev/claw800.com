@@ -63,7 +63,15 @@ test('ai music purchase flow shows three Nexa package choices', () => {
   assert.match(appJs, /key:\s*'square'[\s\S]*label:\s*'广场'/);
   assert.match(appJs, /class:\s*'gm-btn-ghost sm gm-square-top'/);
   assert.match(appJs, /href:\s*'\/ai-music\/#square'[\s\S]*text:\s*'广场'/);
-  assert.match(appJs, /text:\s*'充值'/);
+  assert.doesNotMatch(appJs, /gm-credits-chip/);
+  assert.doesNotMatch(appJs, /text:\s*'充值'/);
+  assert.match(generateJs, /openBuyCreditsModal/);
+  assert.match(generateJs, /id="cf-recharge"[\s\S]*充值/);
+  assert.match(apiJs, /updateProfile:\s*\(\{\s*nickname/);
+  assert.match(authJs, /openProfileModal/);
+  assert.match(authJs, /ensureProfileComplete/);
+  assert.match(authJs, /请填写昵称/);
+  assert.match(appJs, /ensureProfileComplete/);
   assert.doesNotMatch(appJs, /text:\s*'购买'/);
   assert.doesNotMatch(appJs, /text:\s*'退出'/);
   assert.match(generateJs, /gm-credits-changed/);
@@ -150,12 +158,16 @@ test('ai music uses persistent bottom player with scrolling lyrics', () => {
   assert.match(generateJs, /toggleGlobalSong/);
   assert.match(libraryJs, /toggleGlobalSong/);
   assert.match(apiJs, /songLyrics:\s*\(id\)\s*=>\s*request\('GET',\s*`\/song\/\$\{id\}\/lyrics`/);
+  assert.match(apiJs, /songLrc:\s*\(id\)\s*=>\s*request\('GET',\s*`\/song\/\$\{id\}\/download-lrc`/);
   assert.match(libraryJs, /data-act="lyrics"/);
   assert.match(libraryJs, /api\.songLyrics/);
   assert.match(playerJs, /import\s+\{\s*api\s*\}\s+from '\.\/api\.js\?v=/);
   assert.match(playerJs, /api\.songLyrics/);
+  assert.match(playerJs, /api\.songLrc/);
   assert.match(playerJs, /api\.songDetail/);
   assert.match(playerJs, /parseLyricTimestamp/);
+  assert.match(playerJs, /hasTimedLyrics/);
+  assert.match(playerJs, /needsSyncedLyricsFetch/);
   assert.match(playerJs, /line\.time\s*<=\s*currentTime/);
   assert.match(apiJs, /publicSongs:\s*\(/);
   assert.match(apiJs, /publicSong:\s*\(id\)/);
@@ -169,4 +181,20 @@ test('ai music uses persistent bottom player with scrolling lyrics', () => {
   assert.match(styles, /\.gm-mini-player/);
   assert.match(styles, /\.gm-mini-lyric-track/);
   assert.match(styles, /@keyframes\s+gmMiniLyricScroll/);
+});
+
+test('ai music square supports mobile pull-up loading', () => {
+  const squareJs = readPublicAiMusicFile('assets/square.js');
+  const styles = readPublicAiMusicFile('assets/styles.css');
+
+  assert.match(squareJs, /IntersectionObserver/);
+  assert.match(squareJs, /gm-square-sentinel/);
+  assert.match(squareJs, /author_nickname/);
+  assert.match(squareJs, /作者：/);
+  assert.match(squareJs, /loadMore/);
+  assert.match(squareJs, /append:\s*true/);
+  assert.match(squareJs, /scrollIntoView/);
+  assert.match(styles, /\.gm-square-sentinel/);
+  assert.match(styles, /\.gm-square-author/);
+  assert.match(styles, /-webkit-overflow-scrolling:\s*touch/);
 });

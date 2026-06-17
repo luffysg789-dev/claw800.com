@@ -61,20 +61,39 @@ function parseLyrics(raw) {
     .slice(0, 80);
 }
 
+function hasTimedLyrics(lines) {
+  return (lines || []).some((line) => line && line.time !== null);
+}
+
 function extractLyricsPayload(payload) {
   if (!payload) return '';
   if (typeof payload === 'string') return payload.trim();
   const candidates = [
+    payload.raw,
     payload.lyrics,
     payload.lyric,
     payload.text,
     payload.lrc,
+    payload.lrcText,
+    payload.lrc_text,
+    payload.syncedLyrics,
+    payload.synced_lyrics,
+    payload.data?.raw,
     payload.data?.lyrics,
     payload.data?.lyric,
     payload.data?.text,
     payload.data?.lrc,
+    payload.data?.lrcText,
+    payload.data?.lrc_text,
+    payload.data?.syncedLyrics,
+    payload.data?.synced_lyrics,
     payload.song?.lyrics,
-    payload.song?.lyric
+    payload.song?.lyric,
+    payload.song?.lrc,
+    payload.song?.lrcText,
+    payload.song?.lrc_text,
+    payload.song?.syncedLyrics,
+    payload.song?.synced_lyrics
   ];
   return normalizeLyricsValue(candidates.find((value) => normalizeLyricsValue(value)));
 }
@@ -83,8 +102,17 @@ async function loadSongLyrics(song, songId) {
   if (!songId) return;
   let text = '';
   try {
-    const payload = await api.songLyrics(songId);
-    text = extractLyricsPayload(payload);
+    const lrcPayload = await api.songLrc(songId);
+    const lrcText = extractLyricsPayload(lrcPayload);
+    if (hasTimedLyrics(parseLyrics(lrcText))) text = lrcText;
+  } catch {
+    // 上游同步歌词接口不可用时，再尝试普通歌词和歌曲详情。
+  }
+  try {
+    if (!text) {
+      const payload = await api.songLyrics(songId);
+      text = extractLyricsPayload(payload);
+    }
   } catch {
     // 老上游可能没有独立 lyrics 端点，落到歌曲详情兜底。
   }
@@ -135,7 +163,10 @@ function updateLyric(force = false) {
     return;
   }
   const currentTime = (audio && audio.currentTime) || 0;
-  let nextIndex = Math.max(0, Math.min(lyricLines.length - 1, Math.floor(currentTime / 6) % lyricLines.length));
+  const fallbackStep = audio && Number.isFinite(audio.duration) && audio.duration > 0
+    ? Math.max(2, audio.duration / Math.max(1, lyricLines.length))
+    : 6;
+  let nextIndex = Math.max(0, Math.min(lyricLines.length - 1, Math.floor(currentTime / fallbackStep) % lyricLines.length));
   const timedLines = lyricLines.filter((line) => line.time !== null);
   if (timedLines.length) {
     nextIndex = 0;
@@ -254,6 +285,7 @@ export function toggleGlobalSong(song = {}) {
   lyricLines = parseLyrics(song.lyrics || song.lyric || '');
   lyricIndex = -1;
   const needsLyricsFetch = !lyricLines.length;
+  const needsSyncedLyricsFetch = !hasTimedLyrics(lyricLines);
   if (needsLyricsFetch) {
     currentSong.lyrics = '正在加载歌词...';
     lyricLines = parseLyrics(currentSong.lyrics);
@@ -274,7 +306,7 @@ export function toggleGlobalSong(song = {}) {
   setHidden(false);
   updateUi();
   updateLyric(true);
-  if (needsLyricsFetch) loadSongLyrics(currentSong, cleanText(currentSong.id));
+  if (needsSyncedLyricsFetch) loadSongLyrics(currentSong, cleanText(currentSong.id));
   audio.play().catch(() => {
     if (activeAudio !== audio) return;
     toast('播放失败', 'error');

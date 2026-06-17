@@ -34,6 +34,7 @@ button{font-family:inherit;}
 
 .gm-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
 .gm-head h2{font-size:22px;font-weight:900;}
+.gm-head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
 .gm-credits{font-size:13px;font-weight:800;color:var(--violet);background:#f5f3ff;border:1px solid #ddd6fe;padding:5px 12px;border-radius:999px;}
 
 /* —— 卡片 / 表单 —— */
@@ -103,6 +104,7 @@ textarea.gm-input{resize:vertical;line-height:1.6;font-family:inherit;}
 .gm-stem-panel{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;padding:8px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;}
 
 /* —— 音乐广场 / 公开单曲 —— */
+.gm-square{min-height:calc(100svh - 96px);-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;}
 .gm-square-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;margin-bottom:14px;}
 .gm-square-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 .gm-square-card{display:flex;gap:12px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:0 8px 26px -22px rgba(15,23,42,.45);}
@@ -111,8 +113,11 @@ textarea.gm-input{resize:vertical;line-height:1.6;font-family:inherit;}
 .gm-square-info{min-width:0;flex:1;}
 .gm-square-title{display:block;color:#111827;font-size:15px;font-weight:900;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .gm-square-title:hover{color:#be185d;}
+.gm-square-author{margin-top:4px;color:#be185d;font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .gm-square-empty{grid-column:1 / -1;background:#fff;border:1px solid var(--line);border-radius:16px;padding:42px 20px;text-align:center;color:#64748b;font-weight:700;}
 .gm-square-pager{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:16px;}
+.gm-square-sentinel{display:block;width:100%;margin:14px 0 0;padding:12px;border:0;background:transparent;color:#94a3b8;font-size:13px;font-weight:800;text-align:center;}
+.gm-square-sentinel:disabled{opacity:.75;}
 .gm-public-card{display:grid;grid-template-columns:minmax(220px,320px) minmax(0,1fr);gap:22px;background:#fff;border:1px solid var(--line);border-radius:22px;padding:20px;box-shadow:0 18px 55px -38px rgba(15,23,42,.55);}
 .gm-public-cover{width:100%;aspect-ratio:1/1;border-radius:18px;background:linear-gradient(135deg,#f43f5e,#ec4899,#f97316) center/cover no-repeat;box-shadow:0 18px 40px -30px rgba(15,23,42,.75);}
 .gm-public-body{min-width:0;display:flex;flex-direction:column;justify-content:center;}

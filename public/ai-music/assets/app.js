@@ -1,6 +1,6 @@
 import { getApiKey, bootstrapSession, api } from './api.js?v=20260617-ai-music-payment-refresh';
 import { el, clear, toast } from './ui.js?v=20260617-ai-music-payment-refresh';
-import { openKeyModal, renderInlineKeyPrompt, handleNexaAuthCallback, openBuyCreditsModal, refreshPendingCreditOrder } from './auth.js?v=20260617-ai-music-payment-refresh';
+import { openKeyModal, renderInlineKeyPrompt, handleNexaAuthCallback, refreshPendingCreditOrder, ensureProfileComplete } from './auth.js?v=20260617-ai-music-payment-refresh';
 import { renderGenerate } from './generate.js?v=20260617-ai-music-payment-refresh';
 import { renderLibrary } from './library.js?v=20260617-ai-music-payment-refresh';
 import { renderSquare } from './square.js?v=20260617-ai-music-payment-refresh';
@@ -60,17 +60,11 @@ function authControl() {
   if (getApiKey()) {
     return el('div', { class: 'gm-auth' }, [
       squareLink,
-      el('span', { class: 'gm-auth-on', id: 'gm-credits-chip', text: '已登录' }),
       el('a', {
         class: 'gm-btn-ghost sm',
         href: '/ai-music/#library',
         text: '我的音乐'
-      }),
-      el('button', {
-        class: 'gm-btn-ghost sm',
-        text: '充值',
-        onclick: () => openBuyCreditsModal()
-      }),
+      })
     ]);
   }
   return el('div', { class: 'gm-auth' }, [
@@ -85,15 +79,10 @@ function refreshAuthUI() {
   refreshCreditsChip();
 }
 
-function setCreditsChip(credits) {
-  const c = document.getElementById('gm-credits-chip');
-  if (c) c.textContent = '剩余 ' + credits + ' 次';
-}
-
 function refreshCreditsChip() {
   if (!getApiKey()) return;
   api.credits().then((r) => {
-    setCreditsChip(r.credits);
+    window.dispatchEvent(new CustomEvent('gm-credits-changed', { detail: { credits: { availableCredits: r.credits } } }));
   }).catch(() => {});
 }
 
@@ -104,7 +93,7 @@ function schedulePendingPaymentRefresh(reason = 'page-return') {
     pendingPaymentRefreshTimer = null;
     try {
       const payload = await refreshPendingCreditOrder({ silent: reason !== 'manual' });
-      if (payload?.credits) setCreditsChip(payload.credits.availableCredits ?? 0);
+      if (payload?.credits) window.dispatchEvent(new CustomEvent('gm-credits-changed', { detail: payload }));
     } catch {
       refreshCreditsChip();
     }
@@ -126,11 +115,15 @@ function mount(key) {
   if (ALWAYS_RERENDER.has(key) || !mounted.has(key)) { screen.render(sec); mounted.add(key); }
 }
 
-window.addEventListener('gm-auth-changed', () => { refreshAuthUI(); mount(active); });
+window.addEventListener('gm-auth-changed', () => {
+  refreshAuthUI();
+  mount(active);
+  ensureProfileComplete().then(() => { refreshAuthUI(); mount(active); });
+});
+window.addEventListener('gm-profile-changed', () => { refreshAuthUI(); mount(active); });
 window.addEventListener('gm-credits-changed', (event) => {
   const credits = event.detail?.credits?.availableCredits;
-  if (credits !== undefined) setCreditsChip(credits);
-  else refreshCreditsChip();
+  if (credits === undefined) refreshCreditsChip();
 });
 window.addEventListener('pageshow', () => schedulePendingPaymentRefresh('pageshow'));
 window.addEventListener('focus', () => schedulePendingPaymentRefresh('focus'));
@@ -154,6 +147,7 @@ async function init() {
     toast(error.message || '登录状态获取失败', 'error');
   }
   boot();
+  ensureProfileComplete().then(() => { refreshAuthUI(); mount(active); });
 }
 
 init();

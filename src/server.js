@@ -768,7 +768,7 @@ function decodeAiMusicSessionCookie(raw) {
     return {
       openId,
       sessionKey,
-      nickname: String(parsed.nickname || 'Nexa User').trim() || 'Nexa User',
+      nickname: String(parsed.nickname || '').trim(),
       avatar: String(parsed.avatar || '').trim(),
       savedAt: Number(parsed.savedAt || 0) || Date.now()
     };
@@ -781,7 +781,7 @@ function buildAiMusicCookieSession(payload = {}) {
   return {
     openId: String(payload.openId || '').trim(),
     sessionKey: String(payload.sessionKey || '').trim(),
-    nickname: String(payload.nickname || 'Nexa User').trim() || 'Nexa User',
+    nickname: String(payload.nickname || '').trim(),
     avatar: String(payload.avatar || '').trim(),
     savedAt: Date.now()
   };
@@ -1739,7 +1739,7 @@ function formatAiMusicSession(session) {
   return {
     openId: String(session?.openId || '').trim(),
     sessionKey: String(session?.sessionKey || '').trim(),
-    nickname: String(session?.nickname || 'Nexa User').trim() || 'Nexa User',
+    nickname: String(session?.nickname || '').trim(),
     avatar: String(session?.avatar || '').trim(),
     savedAt: Number(session?.savedAt || 0) || Date.now(),
     expiresAt: (Number(session?.savedAt || 0) || Date.now()) + AI_MUSIC_SESSION_MAX_AGE_MS
@@ -1755,6 +1755,25 @@ function formatAiMusicUser(row) {
   };
 }
 
+function normalizeAiMusicNickname(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ');
+}
+
+function validateAiMusicNickname(value) {
+  const nickname = normalizeAiMusicNickname(value);
+  if (!nickname) {
+    const error = new Error('请填写昵称');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (nickname.length > 20) {
+    const error = new Error('昵称最多 20 个字符');
+    error.statusCode = 400;
+    throw error;
+  }
+  return nickname;
+}
+
 function ensureAiMusicUserAccount(session) {
   const openId = String(session?.openId || '').trim();
   if (!openId) {
@@ -1767,16 +1786,13 @@ function ensureAiMusicUserAccount(session) {
   if (!row) {
     insertAiMusicUserStmt.run(
       openId,
-      String(session?.nickname || 'Nexa User').trim() || 'Nexa User',
+      '',
       String(session?.avatar || '').trim()
     );
     row = selectAiMusicUserByOpenIdStmt.get(openId);
-  } else if (
-    (String(session?.nickname || '').trim() && String(row.nickname || '').trim() !== String(session.nickname || '').trim()) ||
-    (String(session?.avatar || '').trim() && String(row.avatar || '').trim() !== String(session.avatar || '').trim())
-  ) {
+  } else if (String(session?.avatar || '').trim() && String(row.avatar || '').trim() !== String(session.avatar || '').trim()) {
     updateAiMusicUserIdentityStmt.run(
-      String(session?.nickname || 'Nexa User').trim() || 'Nexa User',
+      String(row.nickname || '').trim(),
       String(session?.avatar || '').trim(),
       Number(row.id)
     );
@@ -1801,6 +1817,7 @@ function buildAiMusicBootstrapPayload(session) {
   const user = ensureAiMusicUserAccount(session);
   return {
     user,
+    profileRequired: !String(user.nickname || '').trim(),
     credits: getAiMusicCreditSummary(user.id),
     package: getAiMusicPackage(),
     packages: getAiMusicPackages()
@@ -1936,6 +1953,7 @@ function extractAiMusicSongs(data = {}) {
 
 function formatLocalAiMusicSong(row = {}) {
   const upstreamSongId = String(row.upstream_song_id || row.id || '').trim();
+  const authorNickname = String(row.author_nickname || row.nickname || '').trim();
   return {
     id: upstreamSongId || String(row.id || '').trim(),
     title: String(row.title || '').trim() || '未命名',
@@ -1944,6 +1962,8 @@ function formatLocalAiMusicSong(row = {}) {
     cover_url: String(row.cover_url || '').trim(),
     playable_url: String(row.audio_url || '').trim(),
     audio_url: String(row.audio_url || '').trim(),
+    author_nickname: authorNickname,
+    authorNickname,
     created_at: String(row.created_at || '').trim(),
     updated_at: String(row.updated_at || '').trim()
   };
@@ -1999,10 +2019,22 @@ function listLocalAiMusicSongsForUser(userId, { page = 1, pageSize = 20, q = '',
   const whereSql = where.join(' AND ');
   const total = db.prepare(`SELECT COUNT(*) AS count FROM ai_music_songs WHERE ${whereSql}`).get(...params)?.count || 0;
   const rows = db.prepare(`
-    SELECT id, user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url, created_at, updated_at
-    FROM ai_music_songs
-    WHERE ${whereSql}
-    ORDER BY datetime(created_at) DESC, id DESC
+    SELECT
+      s.id,
+      s.user_id,
+      s.generation_id,
+      s.upstream_song_id,
+      s.title,
+      s.status,
+      s.cover_url,
+      s.audio_url,
+      s.created_at,
+      s.updated_at,
+      u.nickname AS author_nickname
+    FROM ai_music_songs s
+    LEFT JOIN ai_music_users u ON u.id = s.user_id
+    WHERE ${whereSql.replaceAll('audio_url', 's.audio_url').replaceAll('title', 's.title')}
+    ORDER BY datetime(s.created_at) DESC, s.id DESC
     LIMIT ? OFFSET ?
   `).all(...params, normalizedPageSize, (normalizedPage - 1) * normalizedPageSize);
   return {
@@ -2018,19 +2050,31 @@ function listPublicAiMusicSongs({ page = 1, pageSize = 20, q = '' } = {}) {
   const normalizedPage = Math.max(1, Number(page || 1) || 1);
   const normalizedPageSize = Math.min(50, Math.max(1, Number(pageSize || 20) || 20));
   const keyword = String(q || '').trim();
-  const where = ["COALESCE(audio_url, '') <> ''"];
+  const where = ["COALESCE(s.audio_url, '') <> ''"];
   const params = [];
   if (keyword) {
-    where.push('title LIKE ?');
+    where.push('s.title LIKE ?');
     params.push(`%${keyword}%`);
   }
   const whereSql = where.join(' AND ');
-  const total = db.prepare(`SELECT COUNT(*) AS count FROM ai_music_songs WHERE ${whereSql}`).get(...params)?.count || 0;
+  const total = db.prepare(`SELECT COUNT(*) AS count FROM ai_music_songs s WHERE ${whereSql}`).get(...params)?.count || 0;
   const rows = db.prepare(`
-    SELECT id, user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url, created_at, updated_at
-    FROM ai_music_songs
+    SELECT
+      s.id,
+      s.user_id,
+      s.generation_id,
+      s.upstream_song_id,
+      s.title,
+      s.status,
+      s.cover_url,
+      s.audio_url,
+      s.created_at,
+      s.updated_at,
+      u.nickname AS author_nickname
+    FROM ai_music_songs s
+    LEFT JOIN ai_music_users u ON u.id = s.user_id
     WHERE ${whereSql}
-    ORDER BY datetime(created_at) DESC, id DESC
+    ORDER BY datetime(s.created_at) DESC, s.id DESC
     LIMIT ? OFFSET ?
   `).all(...params, normalizedPageSize, (normalizedPage - 1) * normalizedPageSize);
   return {
@@ -8166,6 +8210,26 @@ app.get('/api/ai-music/session', (req, res) => {
   }
 });
 
+app.post('/api/ai-music/profile', (req, res) => {
+  try {
+    const session = requireAiMusicSession(req);
+    const user = ensureAiMusicUserAccount(session);
+    const nickname = validateAiMusicNickname(req.body?.nickname);
+    updateAiMusicUserProfileStmt.run(nickname, Number(user.id));
+    const nextUser = selectAiMusicUserByOpenIdStmt.get(user.openId);
+    return res.json({
+      ok: true,
+      user: formatAiMusicUser(nextUser),
+      profileRequired: false,
+      credits: getAiMusicCreditSummary(user.id),
+      package: getAiMusicPackage(),
+      packages: getAiMusicPackages()
+    });
+  } catch (error) {
+    return res.status(Number(error?.statusCode || 500)).json({ ok: false, error: String(error?.message || 'AI_MUSIC_PROFILE_SAVE_FAILED') });
+  }
+});
+
 app.post('/api/ai-music/session/logout', (_req, res) => {
   res.clearCookie(AI_MUSIC_SESSION_COOKIE_NAME, {
     httpOnly: true,
@@ -9889,6 +9953,9 @@ const insertAiMusicUserStmt = db.prepare(
 const updateAiMusicUserIdentityStmt = db.prepare(
   'UPDATE ai_music_users SET nickname = ?, avatar = ?, updated_at = datetime(\'now\') WHERE id = ?'
 );
+const updateAiMusicUserProfileStmt = db.prepare(
+  'UPDATE ai_music_users SET nickname = ?, updated_at = datetime(\'now\') WHERE id = ?'
+);
 const ensureAiMusicCreditAccountStmt = db.prepare(
   'INSERT OR IGNORE INTO ai_music_credit_accounts (user_id) VALUES (?)'
 );
@@ -10007,10 +10074,22 @@ const updateAiMusicSongByUpstreamIdStmt = db.prepare(`
     AND user_id = ?
 `);
 const selectPublicAiMusicSongByUpstreamIdStmt = db.prepare(`
-  SELECT id, user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url, created_at, updated_at
-  FROM ai_music_songs
-  WHERE upstream_song_id = ?
-    AND COALESCE(audio_url, '') <> ''
+  SELECT
+    s.id,
+    s.user_id,
+    s.generation_id,
+    s.upstream_song_id,
+    s.title,
+    s.status,
+    s.cover_url,
+    s.audio_url,
+    s.created_at,
+    s.updated_at,
+    u.nickname AS author_nickname
+  FROM ai_music_songs s
+  LEFT JOIN ai_music_users u ON u.id = s.user_id
+  WHERE s.upstream_song_id = ?
+    AND COALESCE(s.audio_url, '') <> ''
   LIMIT 1
 `);
 const selectPublicAiMusicMediaStmt = db.prepare(`
