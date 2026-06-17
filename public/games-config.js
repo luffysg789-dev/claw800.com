@@ -96,6 +96,21 @@ const DEFAULT_GAMES = [
     actionText: '进入预测'
   },
   {
+    slug: 'ai-music',
+    name: 'AI 音乐',
+    description: 'Nexa 授权登录后，用 USDT 购买生成次数，创作 AI 歌曲和分轨素材。',
+    cover_image: '',
+    secondary_image: '',
+    sound_file: '',
+    background_music_file: '',
+    is_enabled: 1,
+    showInGamesHub: 1,
+    sort_order: 59,
+    route: '/ai-music/',
+    icon: '🎵',
+    actionText: '生成音乐'
+  },
+  {
     slug: 'lucky-star',
     name: 'LUCKY STAR INVESTMENT',
     description: '迪拜注册投资公司官网，展示公司简介、投资领域、注册资质与办公室环境。',
@@ -334,6 +349,7 @@ const GAME_ACTION_TEXT = {
   'predict-master-spread': '进入点差',
   'predict-master-tap-trading': '进入快速交易',
   'predict-master-football-worldcup': '进入预测',
+  'ai-music': '生成音乐',
   'u-card-query': '开始查询',
   nchat: '进入聊天',
   sbti: '开始测试',
@@ -380,6 +396,11 @@ const GAME_I18N = {
     name: 'Prediction',
     description: 'Open the Detrade prediction market for sports and World Cup pages.',
     actionText: 'Enter Prediction'
+  },
+  'ai-music': {
+    name: 'AI Music',
+    description: 'Authorize with Nexa, buy generation credits with USDT, and create AI songs.',
+    actionText: 'Generate Music'
   },
   'u-card-query': {
     name: 'U Card Scenario Lookup',

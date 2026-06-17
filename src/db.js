@@ -230,6 +230,104 @@ db.exec(`
   );
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ai_music_users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    open_id TEXT NOT NULL UNIQUE,
+    nickname TEXT NOT NULL DEFAULT '',
+    avatar TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ai_music_credit_accounts (
+    user_id INTEGER PRIMARY KEY,
+    available_credits INTEGER NOT NULL DEFAULT 0 CHECK (available_credits >= 0),
+    total_purchased_credits INTEGER NOT NULL DEFAULT 0 CHECK (total_purchased_credits >= 0),
+    total_used_credits INTEGER NOT NULL DEFAULT 0 CHECK (total_used_credits >= 0),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY(user_id) REFERENCES ai_music_users(id)
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ai_music_credit_ledger (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    credits INTEGER NOT NULL,
+    balance_after INTEGER NOT NULL,
+    reference_type TEXT NOT NULL DEFAULT '',
+    reference_id TEXT NOT NULL DEFAULT '',
+    note TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY(user_id) REFERENCES ai_music_users(id)
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ai_music_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    order_no TEXT NOT NULL UNIQUE,
+    nexa_order_id TEXT NOT NULL DEFAULT '',
+    amount TEXT NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'USDT',
+    credits INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    paid_at TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY(user_id) REFERENCES ai_music_users(id)
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ai_music_generations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    upstream_task_id TEXT NOT NULL DEFAULT '',
+    request_payload_json TEXT NOT NULL DEFAULT '{}',
+    status TEXT NOT NULL DEFAULT 'submitted',
+    credits_charged INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    completed_at TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY(user_id) REFERENCES ai_music_users(id)
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ai_music_songs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    generation_id INTEGER,
+    upstream_song_id TEXT NOT NULL DEFAULT '',
+    title TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT '',
+    cover_url TEXT NOT NULL DEFAULT '',
+    audio_url TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY(user_id) REFERENCES ai_music_users(id),
+    FOREIGN KEY(generation_id) REFERENCES ai_music_generations(id)
+  );
+`);
+
+db.exec(`
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_music_generations_upstream_task
+  ON ai_music_generations(upstream_task_id)
+  WHERE upstream_task_id <> '';
+`);
+
+db.exec(`
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_music_songs_upstream_song
+  ON ai_music_songs(upstream_song_id)
+  WHERE upstream_song_id <> '';
+`);
+
 const hasGameUserEscrowCode = db.prepare("SELECT 1 FROM pragma_table_info('game_users') WHERE name = 'escrow_code'").get();
 if (!hasGameUserEscrowCode) {
   db.exec("ALTER TABLE game_users ADD COLUMN escrow_code TEXT NOT NULL DEFAULT ''");
@@ -1115,6 +1213,17 @@ const DEFAULT_GAMES_CATALOG = [
     background_music_file: '',
     is_enabled: 1,
     sort_order: 60
+  },
+  {
+    slug: 'ai-music',
+    name: 'AI 音乐',
+    description: 'Nexa 授权登录后，用 USDT 购买生成次数，创作 AI 歌曲和分轨素材。',
+    cover_image: '',
+    secondary_image: '',
+    sound_file: '',
+    background_music_file: '',
+    is_enabled: 1,
+    sort_order: 59
   },
   {
     slug: 'u-card-query',

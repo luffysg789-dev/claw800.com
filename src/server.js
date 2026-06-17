@@ -58,11 +58,16 @@ const TIGANG_SESSION_COOKIE_NAME = 'tigang_master_session';
 const TIGANG_SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const NCHAT_SESSION_COOKIE_NAME = 'nchat_session';
 const NCHAT_SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+const AI_MUSIC_SESSION_COOKIE_NAME = 'ai_music_session';
+const AI_MUSIC_SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 // Use COOKIE_SECURE=true in production HTTPS; keep false for localhost HTTP.
 const COOKIE_SECURE = String(process.env.COOKIE_SECURE || '') === 'true';
 const TRUST_PROXY = String(process.env.TRUST_PROXY || 'loopback, linklocal, uniquelocal').trim();
 const NEXA_TIP_AMOUNT = '0.10';
 const NEXA_TIP_CURRENCY = 'USDT';
+const AI_MUSIC_CURRENCY = 'USDT';
+const AI_MUSIC_PACKAGE_AMOUNT = String(process.env.AI_MUSIC_PACKAGE_AMOUNT || '1.00').trim() || '1.00';
+const AI_MUSIC_PACKAGE_CREDITS = Math.max(1, Number.parseInt(String(process.env.AI_MUSIC_PACKAGE_CREDITS || '3'), 10) || 3);
 const PREDICT_MASTER_RECHARGE_CURRENCY = 'USDT';
 const PREDICT_MASTER_NEXA_COMPAT_RETURN_PATH = '/xiangqi/';
 const PREDICT_MASTER_RECHARGE_PENDING_TIMEOUT_SQL = '-5 minutes';
@@ -252,6 +257,10 @@ app.get(['/u-card-query', '/u-card-query/'], (_req, res) => {
 
 app.get(['/predict-master', '/predict-master/'], (_req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'predict-master', 'index.html'));
+});
+
+app.get(['/ai-music', '/ai-music/'], (_req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'ai-music', 'index.html'));
 });
 
 app.get(['/u', '/u/'], (_req, res) => {
@@ -736,6 +745,40 @@ function buildNchatCookieSession(payload = {}) {
   };
 }
 
+function encodeAiMusicSessionCookie(session) {
+  return Buffer.from(JSON.stringify(session), 'utf8').toString('base64url');
+}
+
+function decodeAiMusicSessionCookie(raw) {
+  try {
+    const decoded = Buffer.from(String(raw || '').trim(), 'base64url').toString('utf8');
+    const parsed = JSON.parse(decoded);
+    if (!parsed || typeof parsed !== 'object') return null;
+    const openId = String(parsed.openId || '').trim();
+    const sessionKey = String(parsed.sessionKey || '').trim();
+    if (!openId || !sessionKey) return null;
+    return {
+      openId,
+      sessionKey,
+      nickname: String(parsed.nickname || 'Nexa User').trim() || 'Nexa User',
+      avatar: String(parsed.avatar || '').trim(),
+      savedAt: Number(parsed.savedAt || 0) || Date.now()
+    };
+  } catch {
+    return null;
+  }
+}
+
+function buildAiMusicCookieSession(payload = {}) {
+  return {
+    openId: String(payload.openId || '').trim(),
+    sessionKey: String(payload.sessionKey || '').trim(),
+    nickname: String(payload.nickname || 'Nexa User').trim() || 'Nexa User',
+    avatar: String(payload.avatar || '').trim(),
+    savedAt: Date.now()
+  };
+}
+
 async function exchangeNexaSessionFromAuthCode(authCode) {
   const { apiKey, appSecret } = ensureNexaCredentialsConfigured();
   const accessPayload = buildNexaAccessTokenPayload({
@@ -953,6 +996,55 @@ async function createNexaTipOrder({ req, gameSlug, openId, sessionKey, amount = 
       apiKey: String(data.apiKey || apiKey).trim(),
       orderNo
     }
+  };
+}
+
+async function createAiMusicCreditOrder({ req, session, user }) {
+  const { apiKey, appSecret } = ensureNexaCredentialsConfigured();
+  const baseUrl = getPublicBaseUrl(req);
+  const orderNo = `ai_music_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+  const payload = buildNexaPaymentCreatePayload({
+    apiKey,
+    appSecret,
+    orderNo,
+    amount: AI_MUSIC_PACKAGE_AMOUNT,
+    currency: AI_MUSIC_CURRENCY,
+    callbackUrl: `${baseUrl}/ai-music/`,
+    subject: 'AI 音乐生成次数',
+    body: `AI 音乐 ${AI_MUSIC_PACKAGE_CREDITS} 次生成`,
+    notifyUrl: `${baseUrl}/api/ai-music/credits/notify`,
+    returnUrl: `${baseUrl}/ai-music/`,
+    openId: String(session.openId || '').trim(),
+    sessionKey: String(session.sessionKey || '').trim()
+  });
+
+  const response = await postConfiguredNexaJson('/partner/api/openapi/payment/create', payload, {
+    source: 'ai-music-payment-create'
+  });
+  const data = unwrapNexaResult(response, 'AI 音乐支付订单创建失败');
+  const nexaOrderId = String(
+    data.orderId ||
+      data.order_id ||
+      data.tradeNo ||
+      data.trade_no ||
+      data.paymentId ||
+      data.payment_id ||
+      ''
+  ).trim();
+
+  insertAiMusicOrderStmt.run(
+    Number(user.id),
+    orderNo,
+    nexaOrderId,
+    AI_MUSIC_PACKAGE_AMOUNT,
+    AI_MUSIC_CURRENCY,
+    AI_MUSIC_PACKAGE_CREDITS,
+    'pending'
+  );
+
+  return {
+    order: formatAiMusicOrder(selectAiMusicOrderByOrderNoStmt.get(orderNo)),
+    payment: data
   };
 }
 
@@ -1505,6 +1597,241 @@ function requireNchatSession(req) {
   }
   return session;
 }
+
+function requireAiMusicSession(req) {
+  const session = decodeAiMusicSessionCookie(req.cookies?.[AI_MUSIC_SESSION_COOKIE_NAME]);
+  if (!session) {
+    const error = new Error('UNAUTHORIZED');
+    error.statusCode = 401;
+    throw error;
+  }
+  return session;
+}
+
+function getAiMusicPackage() {
+  return {
+    amount: AI_MUSIC_PACKAGE_AMOUNT,
+    currency: AI_MUSIC_CURRENCY,
+    credits: AI_MUSIC_PACKAGE_CREDITS
+  };
+}
+
+function formatAiMusicSession(session) {
+  return {
+    openId: String(session?.openId || '').trim(),
+    sessionKey: String(session?.sessionKey || '').trim(),
+    nickname: String(session?.nickname || 'Nexa User').trim() || 'Nexa User',
+    avatar: String(session?.avatar || '').trim(),
+    savedAt: Number(session?.savedAt || 0) || Date.now(),
+    expiresAt: (Number(session?.savedAt || 0) || Date.now()) + AI_MUSIC_SESSION_MAX_AGE_MS
+  };
+}
+
+function formatAiMusicUser(row) {
+  return {
+    id: Number(row?.id || 0) || 0,
+    openId: String(row?.open_id || '').trim(),
+    nickname: String(row?.nickname || '').trim(),
+    avatar: String(row?.avatar || '').trim()
+  };
+}
+
+function ensureAiMusicUserAccount(session) {
+  const openId = String(session?.openId || '').trim();
+  if (!openId) {
+    const error = new Error('UNAUTHORIZED');
+    error.statusCode = 401;
+    throw error;
+  }
+
+  let row = selectAiMusicUserByOpenIdStmt.get(openId);
+  if (!row) {
+    insertAiMusicUserStmt.run(
+      openId,
+      String(session?.nickname || 'Nexa User').trim() || 'Nexa User',
+      String(session?.avatar || '').trim()
+    );
+    row = selectAiMusicUserByOpenIdStmt.get(openId);
+  } else if (
+    (String(session?.nickname || '').trim() && String(row.nickname || '').trim() !== String(session.nickname || '').trim()) ||
+    (String(session?.avatar || '').trim() && String(row.avatar || '').trim() !== String(session.avatar || '').trim())
+  ) {
+    updateAiMusicUserIdentityStmt.run(
+      String(session?.nickname || 'Nexa User').trim() || 'Nexa User',
+      String(session?.avatar || '').trim(),
+      Number(row.id)
+    );
+    row = selectAiMusicUserByOpenIdStmt.get(openId);
+  }
+
+  ensureAiMusicCreditAccountStmt.run(Number(row.id));
+  return formatAiMusicUser(row);
+}
+
+function getAiMusicCreditSummary(userId) {
+  ensureAiMusicCreditAccountStmt.run(Number(userId));
+  const row = selectAiMusicCreditAccountStmt.get(Number(userId)) || {};
+  return {
+    availableCredits: Number(row.available_credits || 0) || 0,
+    totalPurchasedCredits: Number(row.total_purchased_credits || 0) || 0,
+    totalUsedCredits: Number(row.total_used_credits || 0) || 0
+  };
+}
+
+function buildAiMusicBootstrapPayload(session) {
+  const user = ensureAiMusicUserAccount(session);
+  return {
+    user,
+    credits: getAiMusicCreditSummary(user.id),
+    package: getAiMusicPackage()
+  };
+}
+
+const grantAiMusicCreditsForOrderTx = db.transaction((orderNo) => {
+  const order = selectAiMusicOrderByOrderNoStmt.get(String(orderNo || '').trim());
+  if (!order) {
+    const error = new Error('ORDER_NOT_FOUND');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (String(order.status || '').trim() !== 'paid') {
+    return {
+      order,
+      credits: getAiMusicCreditSummary(order.user_id)
+    };
+  }
+
+  const existingLedger = selectAiMusicCreditLedgerByReferenceStmt.get(
+    Number(order.user_id),
+    'purchase',
+    'ai_music_order',
+    String(order.order_no || '').trim()
+  );
+  if (!existingLedger) {
+    const credits = Math.max(0, Number(order.credits || 0) || 0);
+    incrementAiMusicCreditsStmt.run(credits, credits, Number(order.user_id));
+    const summary = getAiMusicCreditSummary(order.user_id);
+    insertAiMusicCreditLedgerStmt.run(
+      Number(order.user_id),
+      'purchase',
+      credits,
+      summary.availableCredits,
+      'ai_music_order',
+      String(order.order_no || '').trim(),
+      `${String(order.amount || '')} ${String(order.currency || AI_MUSIC_CURRENCY)}`
+    );
+    return {
+      order: selectAiMusicOrderByOrderNoStmt.get(String(orderNo || '').trim()),
+      credits: summary
+    };
+  }
+
+  return {
+    order,
+    credits: getAiMusicCreditSummary(order.user_id)
+  };
+});
+
+function formatAiMusicOrder(row) {
+  return {
+    orderNo: String(row?.order_no || '').trim(),
+    nexaOrderId: String(row?.nexa_order_id || '').trim(),
+    amount: String(row?.amount || '').trim(),
+    currency: String(row?.currency || AI_MUSIC_CURRENCY).trim() || AI_MUSIC_CURRENCY,
+    credits: Number(row?.credits || 0) || 0,
+    status: String(row?.status || 'pending').trim() || 'pending',
+    paidAt: String(row?.paid_at || '').trim()
+  };
+}
+
+function getAiMusicConfig() {
+  const apiKey = String(process.env.HH_API_KEY || '').trim();
+  if (!apiKey) {
+    const error = new Error('AI 音乐服务未配置');
+    error.statusCode = 503;
+    throw error;
+  }
+  return {
+    upstream: String(process.env.HH_UPSTREAM || 'https://ai6666.com').trim().replace(/\/+$/, ''),
+    apiKey
+  };
+}
+
+function extractAiMusicTaskId(data = {}) {
+  return String(
+    data.task_id ||
+      data.taskId ||
+      data.generation_id ||
+      data.generationId ||
+      data.id ||
+      data.data?.task_id ||
+      data.data?.taskId ||
+      data.data?.id ||
+      ''
+  ).trim();
+}
+
+async function forwardAiMusicRequest(req, upstreamPath) {
+  const { upstream, apiKey } = getAiMusicConfig();
+  const query = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
+  const url = `${upstream}/ai6api/music${upstreamPath}${query}`;
+  const headers = {
+    Authorization: `Bearer ${apiKey}`
+  };
+  const init = {
+    method: String(req.method || 'GET').toUpperCase(),
+    headers
+  };
+  if (!['GET', 'HEAD'].includes(init.method) && req.body !== undefined) {
+    headers['Content-Type'] = 'application/json';
+    init.body = JSON.stringify(req.body || {});
+  }
+
+  const response = await fetch(url, init);
+  const text = await response.text();
+  let data = {};
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { raw: text };
+    }
+  }
+  return {
+    status: response.status,
+    ok: response.ok,
+    data,
+    text
+  };
+}
+
+const debitAiMusicGenerationCreditTx = db.transaction(({ userId, taskId, requestPayload }) => {
+  const result = debitAiMusicGenerationCreditStmt.run(Number(userId));
+  if (result.changes < 1) {
+    const error = new Error('INSUFFICIENT_CREDITS');
+    error.statusCode = 402;
+    throw error;
+  }
+  insertAiMusicGenerationStmt.run(
+    Number(userId),
+    String(taskId || '').trim(),
+    JSON.stringify(requestPayload || {}),
+    'submitted',
+    1
+  );
+  const summary = getAiMusicCreditSummary(userId);
+  insertAiMusicCreditLedgerStmt.run(
+    Number(userId),
+    'generation_debit',
+    -1,
+    summary.availableCredits,
+    'ai_music_generation',
+    String(taskId || '').trim(),
+    'AI music generation'
+  );
+  return summary;
+});
 
 function createNchatChatId() {
   for (let attempt = 0; attempt < 80; attempt += 1) {
@@ -7436,6 +7763,207 @@ app.get('/api/nexa/public-config', (_req, res) => {
   }
 });
 
+app.post('/api/ai-music/session', (req, res) => {
+  try {
+    const session = buildAiMusicCookieSession(req.body || {});
+    if (!session.openId || !session.sessionKey) {
+      return res.status(400).json({ ok: false, error: 'openId 和 sessionKey 必填' });
+    }
+
+    const bootstrap = buildAiMusicBootstrapPayload(session);
+    res.cookie(AI_MUSIC_SESSION_COOKIE_NAME, encodeAiMusicSessionCookie(session), {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: COOKIE_SECURE,
+      path: '/',
+      maxAge: AI_MUSIC_SESSION_MAX_AGE_MS
+    });
+
+    return res.json({
+      ok: true,
+      session: formatAiMusicSession(session),
+      ...bootstrap
+    });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 400) || 400;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_SESSION_SYNC_FAILED') });
+  }
+});
+
+app.get('/api/ai-music/session', (req, res) => {
+  try {
+    const session = requireAiMusicSession(req);
+    return res.json({
+      ok: true,
+      session: formatAiMusicSession(session),
+      ...buildAiMusicBootstrapPayload(session)
+    });
+  } catch (error) {
+    return res.status(Number(error?.statusCode || 401)).json({ ok: false, error: String(error?.message || 'UNAUTHORIZED') });
+  }
+});
+
+app.post('/api/ai-music/session/logout', (_req, res) => {
+  res.clearCookie(AI_MUSIC_SESSION_COOKIE_NAME, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: COOKIE_SECURE,
+    path: '/'
+  });
+  return res.json({ ok: true });
+});
+
+app.get('/api/ai-music/credits', (req, res) => {
+  try {
+    const session = requireAiMusicSession(req);
+    const user = ensureAiMusicUserAccount(session);
+    return res.json({
+      ok: true,
+      credits: getAiMusicCreditSummary(user.id),
+      package: getAiMusicPackage()
+    });
+  } catch (error) {
+    return res.status(Number(error?.statusCode || 401)).json({ ok: false, error: String(error?.message || 'UNAUTHORIZED') });
+  }
+});
+
+app.post('/api/ai-music/credits/order', async (req, res) => {
+  try {
+    const session = requireAiMusicSession(req);
+    const user = ensureAiMusicUserAccount(session);
+    const created = await createAiMusicCreditOrder({ req, session, user });
+    return res.json({
+      ok: true,
+      ...created,
+      credits: getAiMusicCreditSummary(user.id),
+      package: getAiMusicPackage()
+    });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 500) || 500;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_ORDER_CREATE_FAILED') });
+  }
+});
+
+app.get('/api/ai-music/credits/order/:orderNo', (req, res) => {
+  try {
+    const session = requireAiMusicSession(req);
+    const user = ensureAiMusicUserAccount(session);
+    const orderNo = String(req.params?.orderNo || '').trim();
+    const order = selectAiMusicOrderByOrderNoStmt.get(orderNo);
+    if (!order || Number(order.user_id) !== Number(user.id)) {
+      return res.status(404).json({ ok: false, error: 'ORDER_NOT_FOUND' });
+    }
+    const result = grantAiMusicCreditsForOrderTx(orderNo);
+    return res.json({
+      ok: true,
+      order: formatAiMusicOrder(result.order),
+      credits: result.credits,
+      package: getAiMusicPackage()
+    });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 500) || 500;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_ORDER_STATUS_FAILED') });
+  }
+});
+
+app.post('/api/ai-music/credits/order/:orderNo/refresh', (req, res) => {
+  try {
+    const session = requireAiMusicSession(req);
+    const user = ensureAiMusicUserAccount(session);
+    const orderNo = String(req.params?.orderNo || '').trim();
+    const order = selectAiMusicOrderByOrderNoStmt.get(orderNo);
+    if (!order || Number(order.user_id) !== Number(user.id)) {
+      return res.status(404).json({ ok: false, error: 'ORDER_NOT_FOUND' });
+    }
+    const result = grantAiMusicCreditsForOrderTx(orderNo);
+    return res.json({
+      ok: true,
+      order: formatAiMusicOrder(result.order),
+      credits: result.credits,
+      package: getAiMusicPackage()
+    });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 500) || 500;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_ORDER_REFRESH_FAILED') });
+  }
+});
+
+app.all('/api/ai-music/music/*', async (req, res) => {
+  try {
+    const session = requireAiMusicSession(req);
+    const user = ensureAiMusicUserAccount(session);
+    const upstreamPath = `/${String(req.params?.[0] || '').replace(/^\/+/, '')}`;
+    const isGenerate =
+      String(req.method || '').toUpperCase() === 'POST' &&
+      upstreamPath === '/generate';
+
+    getAiMusicConfig();
+
+    if (isGenerate) {
+      const credits = getAiMusicCreditSummary(user.id);
+      if (credits.availableCredits < 1) {
+        return res.status(402).json({
+          ok: false,
+          error: 'INSUFFICIENT_CREDITS',
+          credits,
+          package: getAiMusicPackage()
+        });
+      }
+    }
+
+    const upstreamResponse = await forwardAiMusicRequest(req, upstreamPath);
+    if (!upstreamResponse.ok) {
+      return res.status(upstreamResponse.status || 502).json(upstreamResponse.data || { ok: false, error: 'AI_MUSIC_UPSTREAM_FAILED' });
+    }
+
+    if (!isGenerate) {
+      return res.status(upstreamResponse.status || 200).json(upstreamResponse.data);
+    }
+
+    const taskId = extractAiMusicTaskId(upstreamResponse.data);
+    if (!taskId) {
+      return res.status(502).json({ ok: false, error: 'AI_MUSIC_TASK_ID_MISSING' });
+    }
+
+    const credits = debitAiMusicGenerationCreditTx({
+      userId: user.id,
+      taskId,
+      requestPayload: req.body || {}
+    });
+
+    return res.status(upstreamResponse.status || 200).json({
+      ...upstreamResponse.data,
+      credits
+    });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 500) || 500;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_PROXY_FAILED') });
+  }
+});
+
+app.get('/api/ai-music/media', async (req, res) => {
+  try {
+    requireAiMusicSession(req);
+    getAiMusicConfig();
+    const rawUrl = String(req.query?.u || '').trim();
+    if (!/^https?:\/\//i.test(rawUrl)) {
+      return res.status(400).json({ ok: false, error: 'INVALID_MEDIA_URL' });
+    }
+    const response = await fetch(rawUrl, {
+      headers: {
+        Authorization: `Bearer ${String(process.env.HH_API_KEY || '').trim()}`
+      }
+    });
+    const contentType = response.headers?.get?.('content-type');
+    if (contentType) res.setHeader('Content-Type', contentType);
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return res.status(response.status).send(buffer);
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 500) || 500;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_MEDIA_PROXY_FAILED') });
+  }
+});
+
 app.post('/api/nchat/session', (req, res) => {
   try {
     const session = buildNchatCookieSession(req.body || {});
@@ -8839,6 +9367,57 @@ const updateNchatUserProfileStmt = db.prepare(
 const updateNchatUserIdentityHintsStmt = db.prepare(
   'UPDATE nchat_users SET nickname = CASE WHEN TRIM(COALESCE(nickname, \'\')) = \'\' THEN ? ELSE nickname END, avatar_url = CASE WHEN TRIM(COALESCE(avatar_url, \'\')) = \'\' THEN ? ELSE avatar_url END, updated_at = datetime(\'now\') WHERE id = ?'
 );
+const selectAiMusicUserByOpenIdStmt = db.prepare(
+  'SELECT id, open_id, nickname, avatar, created_at, updated_at FROM ai_music_users WHERE open_id = ?'
+);
+const insertAiMusicUserStmt = db.prepare(
+  'INSERT INTO ai_music_users (open_id, nickname, avatar) VALUES (?, ?, ?)'
+);
+const updateAiMusicUserIdentityStmt = db.prepare(
+  'UPDATE ai_music_users SET nickname = ?, avatar = ?, updated_at = datetime(\'now\') WHERE id = ?'
+);
+const ensureAiMusicCreditAccountStmt = db.prepare(
+  'INSERT OR IGNORE INTO ai_music_credit_accounts (user_id) VALUES (?)'
+);
+const selectAiMusicCreditAccountStmt = db.prepare(
+  'SELECT user_id, available_credits, total_purchased_credits, total_used_credits FROM ai_music_credit_accounts WHERE user_id = ?'
+);
+const insertAiMusicOrderStmt = db.prepare(`
+  INSERT INTO ai_music_orders (user_id, order_no, nexa_order_id, amount, currency, credits, status)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
+`);
+const selectAiMusicOrderByOrderNoStmt = db.prepare(
+  'SELECT id, user_id, order_no, nexa_order_id, amount, currency, credits, status, created_at, paid_at, updated_at FROM ai_music_orders WHERE order_no = ?'
+);
+const markAiMusicOrderPaidStmt = db.prepare(
+  'UPDATE ai_music_orders SET status = ?, paid_at = CASE WHEN paid_at = \'\' THEN datetime(\'now\') ELSE paid_at END, updated_at = datetime(\'now\') WHERE id = ?'
+);
+const incrementAiMusicCreditsStmt = db.prepare(`
+  UPDATE ai_music_credit_accounts
+  SET available_credits = available_credits + ?,
+      total_purchased_credits = total_purchased_credits + ?,
+      updated_at = datetime('now')
+  WHERE user_id = ?
+`);
+const debitAiMusicGenerationCreditStmt = db.prepare(`
+  UPDATE ai_music_credit_accounts
+  SET available_credits = available_credits - 1,
+      total_used_credits = total_used_credits + 1,
+      updated_at = datetime('now')
+  WHERE user_id = ?
+    AND available_credits >= 1
+`);
+const insertAiMusicCreditLedgerStmt = db.prepare(`
+  INSERT INTO ai_music_credit_ledger (user_id, type, credits, balance_after, reference_type, reference_id, note)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
+`);
+const selectAiMusicCreditLedgerByReferenceStmt = db.prepare(
+  'SELECT id FROM ai_music_credit_ledger WHERE user_id = ? AND type = ? AND reference_type = ? AND reference_id = ? LIMIT 1'
+);
+const insertAiMusicGenerationStmt = db.prepare(`
+  INSERT INTO ai_music_generations (user_id, upstream_task_id, request_payload_json, status, credits_charged)
+  VALUES (?, ?, ?, ?, ?)
+`);
 const searchNchatUsersByKeywordStmt = db.prepare(`
   SELECT id, openid, chat_id, nickname, avatar_url, created_at, updated_at
   FROM nchat_users
