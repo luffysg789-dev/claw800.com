@@ -113,6 +113,13 @@ const adminNexaEscrowUsersSection = document.getElementById('adminNexaEscrowUser
 const adminNexaEscrowWithdrawalsSection = document.getElementById('adminNexaEscrowWithdrawalsSection');
 const adminXiangqiDepositsSection = document.getElementById('adminXiangqiDepositsSection');
 const adminXiangqiWithdrawalsSection = document.getElementById('adminXiangqiWithdrawalsSection');
+const adminAiMusicOrdersSection = document.getElementById('adminAiMusicOrdersSection');
+const aiMusicOrdersMessage = document.getElementById('aiMusicOrdersMessage');
+const aiMusicOrdersList = document.getElementById('aiMusicOrdersList');
+const adminAiMusicCallbackLogsSection = document.getElementById('adminAiMusicCallbackLogsSection');
+const aiMusicCallbackLogsRefreshBtn = document.getElementById('aiMusicCallbackLogsRefreshBtn');
+const aiMusicCallbackLogsMessage = document.getElementById('aiMusicCallbackLogsMessage');
+const aiMusicCallbackLogsList = document.getElementById('aiMusicCallbackLogsList');
 const adminSkillsCreateForm = document.getElementById('adminSkillsCreateForm');
 const adminSkillsCategoryOptions = document.getElementById('adminSkillsCategoryOptions');
 const skillsCreateMessage = document.getElementById('skillsCreateMessage');
@@ -232,6 +239,7 @@ const CATEGORY_EN = {
 const TUTORIAL_MAX_BYTES = 5000000;
 const TUTORIAL_UPLOAD_CHUNK_SIZE = 100000;
 const SAVED_NEXA_SECRET_MASK = '••••••••已保存';
+const SAVED_AI_MUSIC_API_KEY_MASK = '••••••••已保存';
 const SAVED_U_CARD_UPAL_PRIVATE_KEY_MASK = '••••••••私钥已保存';
 const SAVED_U_CARD_UPAL_API_KEY_MASK = '••••••••API Key 已保存';
 const SAVED_PREDICT_MASTER_PRIVATE_KEY_MASK = '••••••••私钥已保存';
@@ -266,11 +274,15 @@ const DEFAULT_SITE_CONFIG = {
   nexaApiKey: '',
   nexaAppSecret: '',
   hasNexaAppSecret: false,
+  aiMusicApiBaseUrl: 'https://ai6666.com',
+  aiMusicApiKey: '',
+  hasAiMusicApiKey: false,
   nexaEscrowMinAmount: '1.00',
   nexaEscrowMaxAmount: '100000.00',
   nexaEscrowFeePermille: '0'
 };
 const GAME_ROUTE_MAP = {
+  'ai-music': '/ai-music/',
   'u-card-query': '/u-card-query/',
   'u-card': '/u',
   minesweeper: '/minesweeper.html',
@@ -567,6 +579,8 @@ const texts = {
     ordersNexaEscrowWithdrawalsBtn: '担保提现记录',
     ordersXiangqiDepositsBtn: '象棋充值订单',
     ordersXiangqiWithdrawalsBtn: '象棋提现审核',
+    ordersAiMusicBtn: 'AI 音乐订单',
+    ordersAiMusicCallbackLogsBtn: 'AI 音乐回调日志',
     pMiningOrdersTitle: '挖矿算力订单',
     nexaTipOrdersTitle: '打赏订单',
     nchatUsersTitle: '聊天用户',
@@ -588,6 +602,10 @@ const texts = {
     nexaEscrowWithdrawalsRejected: '担保提现已驳回，金额已退回担保钱包。',
     pMiningOrdersEmpty: '当前没有挖矿算力订单。',
     nexaTipOrdersEmpty: '当前没有打赏订单。',
+    aiMusicOrdersEmpty: '当前没有 AI 音乐订单。',
+    aiMusicCallbackLogsEmpty: '当前没有 AI 音乐回调日志。',
+    aiMusicOrdersLoadFailed: 'AI 音乐订单加载失败。',
+    aiMusicCallbackLogsLoadFailed: 'AI 音乐回调日志加载失败。',
     nchatUsersEmpty: '当前还没有聊天用户。',
     xiangqiDepositsEmpty: '当前没有象棋充值订单。',
     xiangqiWithdrawalsTitle: '象棋提现审核',
@@ -999,6 +1017,8 @@ const texts = {
     ordersNexaEscrowWithdrawalsBtn: 'Escrow Withdrawals',
     ordersXiangqiDepositsBtn: 'Xiangqi Deposits',
     ordersXiangqiWithdrawalsBtn: 'Xiangqi Withdrawals',
+    ordersAiMusicBtn: 'AI Music Orders',
+    ordersAiMusicCallbackLogsBtn: 'AI Music Callback Logs',
     pMiningOrdersTitle: 'P-Mining Power Orders',
     nexaTipOrdersTitle: 'Game Tip Orders',
     nchatUsersTitle: 'Chat Users',
@@ -1020,6 +1040,10 @@ const texts = {
     nexaEscrowWithdrawalsRejected: 'Escrow withdrawal rejected and refunded.',
     pMiningOrdersEmpty: 'No P-Mining power orders yet.',
     nexaTipOrdersEmpty: 'No tip orders yet.',
+    aiMusicOrdersEmpty: 'No AI music orders yet.',
+    aiMusicCallbackLogsEmpty: 'No AI music callback logs yet.',
+    aiMusicOrdersLoadFailed: 'Failed to load AI music orders.',
+    aiMusicCallbackLogsLoadFailed: 'Failed to load AI music callback logs.',
     nchatUsersEmpty: 'No chat users yet.',
     xiangqiDepositsEmpty: 'No Xiangqi deposit orders yet.',
     xiangqiWithdrawalsTitle: 'Xiangqi Withdrawals',
@@ -1576,6 +1600,8 @@ function applyLanguage() {
   document.getElementById('ordersNexaEscrowWithdrawalsBtn').textContent = dict.ordersNexaEscrowWithdrawalsBtn;
   document.getElementById('ordersXiangqiDepositsBtn').textContent = dict.ordersXiangqiDepositsBtn;
   document.getElementById('ordersXiangqiWithdrawalsBtn').textContent = dict.ordersXiangqiWithdrawalsBtn;
+  document.getElementById('ordersAiMusicBtn').textContent = dict.ordersAiMusicBtn;
+  document.getElementById('ordersAiMusicCallbackLogsBtn').textContent = dict.ordersAiMusicCallbackLogsBtn;
   document.getElementById('pMiningOrdersTitle').textContent = dict.pMiningOrdersTitle;
   document.getElementById('nexaTipOrdersTitle').textContent = dict.nexaTipOrdersTitle;
   document.getElementById('nchatUsersTitle').textContent = dict.nchatUsersTitle;
@@ -1713,7 +1739,7 @@ function applyLanguage() {
 
 function setView(view) {
   currentView = view;
-  const orderViews = ['orders', 'p-mining-orders', 'nexa-tip-orders', 'nexa-escrow-orders', 'nexa-escrow-withdrawals', 'xiangqi-deposits', 'xiangqi-withdrawals'];
+  const orderViews = ['orders', 'p-mining-orders', 'nexa-tip-orders', 'nexa-escrow-orders', 'nexa-escrow-withdrawals', 'xiangqi-deposits', 'xiangqi-withdrawals', 'ai-music-orders', 'ai-music-callback-logs'];
   adminAddSection.classList.toggle('hidden', view !== 'add');
   adminVisitStatsSection.classList.toggle('hidden', view !== 'visit-stats');
   adminSiteConfigSection.classList.toggle('hidden', view !== 'site-config');
@@ -1751,6 +1777,8 @@ function setView(view) {
   adminNexaEscrowWithdrawalsSection.classList.toggle('hidden', view !== 'nexa-escrow-withdrawals');
   adminXiangqiDepositsSection.classList.toggle('hidden', view !== 'xiangqi-deposits');
   adminXiangqiWithdrawalsSection.classList.toggle('hidden', view !== 'xiangqi-withdrawals');
+  adminAiMusicOrdersSection.classList.toggle('hidden', view !== 'ai-music-orders');
+  adminAiMusicCallbackLogsSection.classList.toggle('hidden', view !== 'ai-music-callback-logs');
   adminPasswordSection.classList.toggle('hidden', view !== 'password');
   adminListSection.classList.toggle('hidden', view !== 'pending' && view !== 'approved');
   adminSearchToolbar.classList.toggle('hidden', view !== 'approved');
@@ -1852,6 +1880,12 @@ function setView(view) {
   }
   if (view === 'xiangqi-withdrawals') {
     loadXiangqiWithdrawalsList();
+  }
+  if (view === 'ai-music-orders') {
+    loadAiMusicOrdersList();
+  }
+  if (view === 'ai-music-callback-logs') {
+    loadAiMusicCallbackLogs();
   }
 
   if (view === 'pending') {
@@ -2012,6 +2046,116 @@ async function loadNexaTipOrdersList() {
     return;
   }
   renderNexaTipOrdersList(result.data?.items || []);
+}
+
+function renderAiMusicOrdersList(items) {
+  if (!aiMusicOrdersList) return;
+  if (!Array.isArray(items) || !items.length) {
+    aiMusicOrdersList.innerHTML = `<p class="empty">${escapeHtml(t('aiMusicOrdersEmpty'))}</p>`;
+    return;
+  }
+
+  aiMusicOrdersList.innerHTML = items
+    .map((item) => {
+      const orderNo = String(item.orderNo || '').trim();
+      const nexaOrderId = String(item.nexaOrderId || '').trim();
+      const openId = String(item.openId || '').trim();
+      const nickname = String(item.nickname || '').trim();
+      const amount = String(item.amount || '0.00').trim();
+      const currency = String(item.currency || 'USDT').trim();
+      const credits = Number(item.credits || 0) || 0;
+      const status = String(item.status || '').trim();
+      const notifyJson = JSON.stringify(item.notifyPayload || {}, null, 2);
+      return `
+        <article class="review-card">
+          <h3>${escapeHtml(orderNo || 'AI 音乐订单')} · ${escapeHtml(status || '-')}</h3>
+          <p class="small">Nexa 订单号: ${escapeHtml(nexaOrderId || '-')}</p>
+          <p class="small">OpenID: ${escapeHtml(openId || '-')} · 昵称: ${escapeHtml(nickname || '-')}</p>
+          <p class="small">金额: ${escapeHtml(amount)} ${escapeHtml(currency)} · 次数: ${escapeHtml(String(credits))}</p>
+          <p class="small">创建: ${escapeHtml(formatAdminLocalDateTime(item.createdAt))} · 支付: ${escapeHtml(formatAdminLocalDateTime(item.paidAt) || '-')} · 更新: ${escapeHtml(formatAdminLocalDateTime(item.updatedAt) || '-')}</p>
+          <details>
+            <summary>回调内容</summary>
+            <pre class="small">${escapeHtml(notifyJson)}</pre>
+          </details>
+        </article>
+      `;
+    })
+    .join('');
+}
+
+async function loadAiMusicOrdersList() {
+  if (!aiMusicOrdersList || !aiMusicOrdersMessage) return;
+  aiMusicOrdersMessage.textContent = '';
+  aiMusicOrdersMessage.className = 'message';
+  const result = await requestTutorialJson(['/api/admin/ai-music-orders'], { method: 'GET' });
+  if (!result.res) {
+    aiMusicOrdersMessage.textContent = t('aiMusicOrdersLoadFailed');
+    aiMusicOrdersMessage.className = 'message error';
+    return;
+  }
+  if (result.res.status === 401) {
+    showLogin();
+    return;
+  }
+  if (!result.res.ok) {
+    aiMusicOrdersMessage.textContent = localizeApiError(result.data?.error || t('aiMusicOrdersLoadFailed'));
+    aiMusicOrdersMessage.className = 'message error';
+    return;
+  }
+  renderAiMusicOrdersList(result.data?.items || []);
+}
+
+function renderAiMusicCallbackLogs(items = []) {
+  if (!aiMusicCallbackLogsList) return;
+  if (!Array.isArray(items) || !items.length) {
+    aiMusicCallbackLogsList.innerHTML = `<p class="empty">${escapeHtml(t('aiMusicCallbackLogsEmpty'))}</p>`;
+    return;
+  }
+
+  aiMusicCallbackLogsList.innerHTML = items
+    .map((item) => {
+      const success = Boolean(item.success);
+      const statusClass = success ? 'message success' : 'message error';
+      const bodyJson = JSON.stringify(item.body || {}, null, 2);
+      const queryJson = JSON.stringify(item.query || {}, null, 2);
+      const errorMessage = String(item.errorMessage || '').trim();
+      return `
+        <article class="review-card">
+          <h3>${escapeHtml(item.requestMethod || 'POST')} ${escapeHtml(item.requestPath || '-')}</h3>
+          <p class="${statusClass}">${escapeHtml(success ? '成功' : '失败')} · ${escapeHtml(item.orderNo || '-')} · ${escapeHtml(item.status || '-')}</p>
+          <p class="small">HTTP: ${escapeHtml(String(item.httpStatus || '-'))} · code: ${escapeHtml(item.responseCode || '-')} · msg: ${escapeHtml(item.responseMsg || '-')}</p>
+          <p class="small">时间: ${escapeHtml(formatAdminLocalDateTime(item.createdAt))}</p>
+          ${errorMessage ? `<p class="small">错误原因: ${escapeHtml(errorMessage)}</p>` : ''}
+          <details>
+            <summary>请求内容</summary>
+            <pre class="small">${escapeHtml(bodyJson)}</pre>
+            <pre class="small">${escapeHtml(queryJson)}</pre>
+          </details>
+        </article>
+      `;
+    })
+    .join('');
+}
+
+async function loadAiMusicCallbackLogs() {
+  if (!aiMusicCallbackLogsList) return;
+  if (aiMusicCallbackLogsMessage) {
+    aiMusicCallbackLogsMessage.textContent = '';
+    aiMusicCallbackLogsMessage.className = 'message';
+  }
+  const result = await requestTutorialJson(['/api/admin/ai-music-callback-logs'], { method: 'GET' });
+  if (result.res?.status === 401) {
+    showLogin();
+    return;
+  }
+  if (!result.res || !result.res.ok) {
+    if (aiMusicCallbackLogsMessage) {
+      aiMusicCallbackLogsMessage.textContent = localizeApiError(result.data?.error || t('aiMusicCallbackLogsLoadFailed'));
+      aiMusicCallbackLogsMessage.className = 'message error';
+    }
+    return;
+  }
+  renderAiMusicCallbackLogs(result.data?.items || []);
 }
 
 function renderNchatUsersList(items) {
@@ -4762,6 +4906,9 @@ function mergeSiteConfigWithDefaults(raw) {
     footerContactEn: String(input.footerContactEn || '').trim(),
     nexaApiBaseUrl: String(input.nexaApiBaseUrl || '').trim() || DEFAULT_SITE_CONFIG.nexaApiBaseUrl,
     nexaApiKey: String(input.nexaApiKey || '').trim(),
+    aiMusicApiBaseUrl: String(input.aiMusicApiBaseUrl || '').trim() || DEFAULT_SITE_CONFIG.aiMusicApiBaseUrl,
+    aiMusicApiKey: Boolean(input.hasAiMusicApiKey) ? SAVED_AI_MUSIC_API_KEY_MASK : String(input.aiMusicApiKey || '').trim(),
+    hasAiMusicApiKey: Boolean(input.hasAiMusicApiKey),
     nexaEscrowMinAmount: String(input.nexaEscrowMinAmount || '').trim() || DEFAULT_SITE_CONFIG.nexaEscrowMinAmount,
     nexaEscrowMaxAmount: String(input.nexaEscrowMaxAmount || '').trim() || DEFAULT_SITE_CONFIG.nexaEscrowMaxAmount,
     nexaEscrowFeePermille: String(input.nexaEscrowFeePermille || '').trim() || DEFAULT_SITE_CONFIG.nexaEscrowFeePermille,
@@ -4816,6 +4963,8 @@ async function loadSiteConfig() {
       const contactEnEl = getSiteConfigControl('footerContactEn');
       const nexaApiBaseUrlEl = getSiteConfigControl('nexaApiBaseUrl');
       const nexaApiKeyEl = getSiteConfigControl('nexaApiKey');
+      const aiMusicApiBaseUrlEl = getSiteConfigControl('aiMusicApiBaseUrl');
+      const aiMusicApiKeyEl = getSiteConfigControl('aiMusicApiKey');
       const nexaEscrowMinAmountEl = getSiteConfigControl('nexaEscrowMinAmount');
       const nexaEscrowMaxAmountEl = getSiteConfigControl('nexaEscrowMaxAmount');
       const nexaEscrowFeePermilleEl = getSiteConfigControl('nexaEscrowFeePermille');
@@ -4846,6 +4995,8 @@ async function loadSiteConfig() {
       if (contactEnEl) contactEnEl.value = String(siteConfigCache.footerContactEn || '');
       if (nexaApiBaseUrlEl) nexaApiBaseUrlEl.value = String(siteConfigCache.nexaApiBaseUrl || '');
       if (nexaApiKeyEl) nexaApiKeyEl.value = String(siteConfigCache.nexaApiKey || '');
+      if (aiMusicApiBaseUrlEl) aiMusicApiBaseUrlEl.value = String(siteConfigCache.aiMusicApiBaseUrl || '');
+      if (aiMusicApiKeyEl) aiMusicApiKeyEl.value = String(siteConfigCache.aiMusicApiKey || '');
       if (nexaEscrowMinAmountEl) nexaEscrowMinAmountEl.value = String(siteConfigCache.nexaEscrowMinAmount || '');
       if (nexaEscrowMaxAmountEl) nexaEscrowMaxAmountEl.value = String(siteConfigCache.nexaEscrowMaxAmount || '');
       if (nexaEscrowFeePermilleEl) nexaEscrowFeePermilleEl.value = String(siteConfigCache.nexaEscrowFeePermille || '');
@@ -5982,6 +6133,9 @@ if (siteConfigForm) {
       footerContactEn: String(payload.footerContactEn || '').trim(),
       nexaApiBaseUrl: String(payload.nexaApiBaseUrl || '').trim(),
       nexaApiKey: String(payload.nexaApiKey || '').trim(),
+      aiMusicApiBaseUrl: String(payload.aiMusicApiBaseUrl || '').trim(),
+      aiMusicApiKey: String(payload.aiMusicApiKey || '').trim(),
+      keepAiMusicApiKey: String(payload.aiMusicApiKey || '').trim() === SAVED_AI_MUSIC_API_KEY_MASK,
       nexaEscrowMinAmount: String(payload.nexaEscrowMinAmount || '').trim(),
       nexaEscrowMaxAmount: String(payload.nexaEscrowMaxAmount || '').trim(),
       nexaEscrowFeePermille: String(payload.nexaEscrowFeePermille || '').trim(),
@@ -6007,6 +6161,8 @@ if (siteConfigForm) {
       siteConfigCache = {
         ...siteConfigCache,
         ...body,
+        aiMusicApiKey: body.keepAiMusicApiKey || body.aiMusicApiKey ? SAVED_AI_MUSIC_API_KEY_MASK : '',
+        hasAiMusicApiKey: Boolean(body.keepAiMusicApiKey || body.aiMusicApiKey),
         nexaAppSecret: body.keepNexaAppSecret || body.nexaAppSecret ? SAVED_NEXA_SECRET_MASK : '',
         hasNexaAppSecret: Boolean(body.keepNexaAppSecret || body.nexaAppSecret)
       };
@@ -6069,6 +6225,8 @@ document.getElementById('ordersNexaEscrowBtn').addEventListener('click', () => s
 document.getElementById('ordersNexaEscrowWithdrawalsBtn').addEventListener('click', () => setView('nexa-escrow-withdrawals'));
 document.getElementById('ordersXiangqiDepositsBtn').addEventListener('click', () => setView('xiangqi-deposits'));
 document.getElementById('ordersXiangqiWithdrawalsBtn').addEventListener('click', () => setView('xiangqi-withdrawals'));
+document.getElementById('ordersAiMusicBtn').addEventListener('click', () => setView('ai-music-orders'));
+document.getElementById('ordersAiMusicCallbackLogsBtn').addEventListener('click', () => setView('ai-music-callback-logs'));
 document.getElementById('navNchatUsers').addEventListener('click', () => setView('nchat-users'));
 document.getElementById('navNexaEscrowUsers').addEventListener('click', () => setView('nexa-escrow-users'));
 document.getElementById('navNexaEscrowWithdrawals').addEventListener('click', () => setView('nexa-escrow-withdrawals'));
@@ -6090,6 +6248,9 @@ if (predictMasterClientErrorLogsRefreshBtn) {
 }
 if (nexaPaymentUpstreamLogsRefreshBtn) {
   nexaPaymentUpstreamLogsRefreshBtn.addEventListener('click', () => loadNexaPaymentUpstreamLogs());
+}
+if (aiMusicCallbackLogsRefreshBtn) {
+  aiMusicCallbackLogsRefreshBtn.addEventListener('click', () => loadAiMusicCallbackLogs());
 }
 if (predictMasterOrdersRefreshBtn) {
   predictMasterOrdersRefreshBtn.addEventListener('click', () => loadPredictMasterOrders());

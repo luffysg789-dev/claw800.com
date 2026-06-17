@@ -156,6 +156,8 @@
                 <label id="siteNexaApiBaseUrlLabel">Nexa API Base URL<input name="nexaApiBaseUrl" placeholder="https://merchantapi.nexaexworth.com" autocomplete="off" spellcheck="false" /></label>
                 <label id="siteNexaApiKeyLabel">Nexa API Key<input name="nexaApiKey" autocomplete="off" spellcheck="false" /></label>
                 <label id="siteNexaAppSecretLabel">Nexa App Secret<input name="nexaAppSecret" type="password" autocomplete="new-password" spellcheck="false" /></label>
+                <label id="siteAiMusicApiBaseUrlLabel">AI 音乐 API Base URL<input name="aiMusicApiBaseUrl" placeholder="https://ai6666.com" autocomplete="off" spellcheck="false" /></label>
+                <label id="siteAiMusicApiKeyLabel">AI 音乐 API Key<input name="aiMusicApiKey" type="password" autocomplete="new-password" spellcheck="false" /></label>
                 <label id="siteEscrowMinAmountLabel">担保最低金额 (USDT)<input name="nexaEscrowMinAmount" type="number" min="1" step="0.01" inputmode="decimal" /></label>
                 <label id="siteEscrowMaxAmountLabel">担保最高金额 (USDT)<input name="nexaEscrowMaxAmount" type="number" min="1" max="100000" step="0.01" inputmode="decimal" /></label>
                 <label id="siteEscrowFeePermilleLabel">担保手续费 (千分之)<input name="nexaEscrowFeePermille" type="number" min="0" max="999" step="0.01" inputmode="decimal" /></label>
@@ -578,6 +580,8 @@
                 <button id="ordersNexaEscrowWithdrawalsBtn" type="button">担保提现记录</button>
                 <button id="ordersXiangqiDepositsBtn" type="button">象棋充值订单</button>
                 <button id="ordersXiangqiWithdrawalsBtn" type="button">象棋提现审核</button>
+                <button id="ordersAiMusicBtn" type="button">AI 音乐订单</button>
+                <button id="ordersAiMusicCallbackLogsBtn" type="button">AI 音乐回调日志</button>
               </div>
             </div>
 
@@ -627,6 +631,21 @@
               <h2 id="xiangqiWithdrawalsTitle">象棋提现审核</h2>
               <p id="xiangqiWithdrawalsMessage" class="message"></p>
               <div id="xiangqiWithdrawalsList" class="admin-list"></div>
+            </div>
+
+            <div id="adminAiMusicOrdersSection" class="hidden">
+              <h2 id="aiMusicOrdersTitle">AI 音乐订单</h2>
+              <p id="aiMusicOrdersMessage" class="message"></p>
+              <div id="aiMusicOrdersList" class="admin-list"></div>
+            </div>
+
+            <div id="adminAiMusicCallbackLogsSection" class="hidden">
+              <div class="admin-section-title-row">
+                <h2 id="aiMusicCallbackLogsTitle">AI 音乐回调日志</h2>
+                <button id="aiMusicCallbackLogsRefreshBtn" type="button">刷新</button>
+              </div>
+              <p id="aiMusicCallbackLogsMessage" class="message"></p>
+              <div id="aiMusicCallbackLogsList" class="admin-list"></div>
             </div>
 
             <div id="adminPasswordSection" class="hidden">

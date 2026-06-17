@@ -39,4 +39,21 @@ test('ai music is listed in games hub and served by express route', () => {
   assert.match(gamesConfig, /actionText:\s*'生成音乐'/);
   assert.match(dbJs, /slug:\s*'ai-music'/);
   assert.match(serverJs, /app\.get\(\['\/ai-music',\s*'\/ai-music\/'\]/);
+  assert.match(serverJs, /'ai-music':\s*'\/ai-music\/'/);
+});
+
+test('admin exposes ai music key, orders, and callback log management', () => {
+  const adminHtml = fs.readFileSync(path.join(rootDir, 'public', 'admin.html'), 'utf8');
+  const adminJs = fs.readFileSync(path.join(rootDir, 'public', 'admin.js'), 'utf8');
+  const serverJs = fs.readFileSync(path.join(rootDir, 'src', 'server.js'), 'utf8');
+
+  assert.match(adminHtml, /name="aiMusicApiBaseUrl"/);
+  assert.match(adminHtml, /name="aiMusicApiKey"/);
+  assert.match(adminHtml, /id="ordersAiMusicBtn"/);
+  assert.match(adminHtml, /id="ordersAiMusicCallbackLogsBtn"/);
+  assert.match(adminJs, /SAVED_AI_MUSIC_API_KEY_MASK/);
+  assert.match(adminJs, /\/api\/admin\/ai-music-orders/);
+  assert.match(adminJs, /\/api\/admin\/ai-music-callback-logs/);
+  assert.match(serverJs, /\/api\/admin\/ai-music-orders/);
+  assert.match(serverJs, /\/api\/admin\/ai-music-callback-logs/);
 });

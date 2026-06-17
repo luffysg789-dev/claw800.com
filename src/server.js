@@ -1735,25 +1735,50 @@ const grantAiMusicCreditsForOrderTx = db.transaction((orderNo) => {
 
 function formatAiMusicOrder(row) {
   return {
+    id: Number(row?.id || 0) || 0,
+    userId: Number(row?.user_id || 0) || 0,
     orderNo: String(row?.order_no || '').trim(),
     nexaOrderId: String(row?.nexa_order_id || '').trim(),
     amount: String(row?.amount || '').trim(),
     currency: String(row?.currency || AI_MUSIC_CURRENCY).trim() || AI_MUSIC_CURRENCY,
     credits: Number(row?.credits || 0) || 0,
     status: String(row?.status || 'pending').trim() || 'pending',
-    paidAt: String(row?.paid_at || '').trim()
+    openId: String(row?.open_id || '').trim(),
+    nickname: String(row?.nickname || '').trim(),
+    notifyPayload: parseSerializedPayload(row?.notify_payload),
+    createdAt: String(row?.created_at || '').trim(),
+    paidAt: String(row?.paid_at || '').trim(),
+    updatedAt: String(row?.updated_at || '').trim()
+  };
+}
+
+function formatAiMusicCallbackLog(row) {
+  return {
+    id: Number(row?.id || 0) || 0,
+    orderNo: String(row?.order_no || '').trim(),
+    status: String(row?.status || '').trim(),
+    success: Number(row?.success || 0) === 1,
+    requestPath: String(row?.request_path || '').trim(),
+    requestMethod: String(row?.request_method || '').trim(),
+    body: parseSerializedPayload(row?.body_json),
+    query: parseSerializedPayload(row?.query_json),
+    responseCode: String(row?.response_code || '').trim(),
+    responseMsg: String(row?.response_msg || '').trim(),
+    httpStatus: Number(row?.http_status || 0) || 0,
+    errorMessage: String(row?.error_message || '').trim(),
+    createdAt: String(row?.created_at || '').trim()
   };
 }
 
 function getAiMusicConfig() {
-  const apiKey = String(process.env.HH_API_KEY || '').trim();
+  const apiKey = String(getSetting('ai_music_api_key', '') || process.env.HH_API_KEY || '').trim();
   if (!apiKey) {
     const error = new Error('AI 音乐服务未配置');
     error.statusCode = 503;
     throw error;
   }
   return {
-    upstream: String(process.env.HH_UPSTREAM || 'https://ai6666.com').trim().replace(/\/+$/, ''),
+    upstream: String(getSetting('ai_music_api_base_url', '') || process.env.HH_UPSTREAM || 'https://ai6666.com').trim().replace(/\/+$/, ''),
     apiKey
   };
 }
@@ -3880,6 +3905,7 @@ const GAME_ROUTE_MAP = {
   'predict-master-spread': '/predict-master/?type=spread',
   'predict-master-tap-trading': '/predict-master/?type=tap-trading&productPath=trade-center%2Ftap-trading',
   'predict-master-football-worldcup': '/predict-master/?type=predict&activity=football-worldcup&productPath=dashboard%2Fpredict%2Fsports',
+  'ai-music': '/ai-music/',
   'u-card-query': '/u-card-query/',
   'u-card': '/u',
   'nchat': '/nchat/',
@@ -4487,6 +4513,8 @@ app.get('/api/admin/site-config', requireAdmin, (_req, res) => {
   const nexaApiBaseUrl = normalizeNexaBaseUrl(getSetting('nexa_api_base_url', '') || DEFAULT_NEXA_API_BASE_URL);
   const nexaApiKey = getSetting('nexa_api_key', '');
   const hasNexaAppSecret = Boolean(String(getSetting('nexa_app_secret', '') || '').trim());
+  const aiMusicApiBaseUrl = String(getSetting('ai_music_api_base_url', '') || process.env.HH_UPSTREAM || 'https://ai6666.com').trim();
+  const hasAiMusicApiKey = Boolean(String(getSetting('ai_music_api_key', '') || process.env.HH_API_KEY || '').trim());
   const footerLinks = parseFooterLinks(footerLinksRaw);
   const escrowSettings = getNexaEscrowSettings();
   res.json({
@@ -4516,6 +4544,9 @@ app.get('/api/admin/site-config', requireAdmin, (_req, res) => {
     nexaApiKey,
     nexaAppSecret: '',
     hasNexaAppSecret,
+    aiMusicApiBaseUrl,
+    aiMusicApiKey: '',
+    hasAiMusicApiKey,
     nexaEscrowMinAmount: escrowSettings.minAmount,
     nexaEscrowMaxAmount: escrowSettings.maxAmount,
     nexaEscrowFeePermille: escrowSettings.feePermille,
@@ -4549,6 +4580,9 @@ app.put('/api/admin/site-config', requireAdmin, (req, res) => {
   const footerLinksRaw = String(req.body.footerLinksRaw || req.body.footerLinks || '').trim();
   const nexaApiBaseUrl = String(req.body.nexaApiBaseUrl || '').trim();
   const nexaApiKey = String(req.body.nexaApiKey || '').trim();
+  const aiMusicApiBaseUrl = String(req.body.aiMusicApiBaseUrl || '').trim();
+  const aiMusicApiKey = String(req.body.aiMusicApiKey || '').trim();
+  const keepAiMusicApiKey = req.body.keepAiMusicApiKey === true || String(req.body.keepAiMusicApiKey || '').trim() === 'true';
   const nexaEscrowMinAmount = String(req.body.nexaEscrowMinAmount || '').trim();
   const nexaEscrowMaxAmount = String(req.body.nexaEscrowMaxAmount || '').trim();
   const nexaEscrowFeePermille = String(req.body.nexaEscrowFeePermille || '').trim();
@@ -4580,6 +4614,8 @@ app.put('/api/admin/site-config', requireAdmin, (req, res) => {
   if (Buffer.byteLength(footerLinksRaw, 'utf8') > 50000) return res.status(413).json({ error: '友情链接太长' });
   if (Buffer.byteLength(nexaApiBaseUrl, 'utf8') > 500) return res.status(413).json({ error: 'Nexa API Base URL 太长' });
   if (Buffer.byteLength(nexaApiKey, 'utf8') > 500) return res.status(413).json({ error: 'Nexa API Key 太长' });
+  if (Buffer.byteLength(aiMusicApiBaseUrl, 'utf8') > 500) return res.status(413).json({ error: 'AI 音乐 API Base URL 太长' });
+  if (Buffer.byteLength(aiMusicApiKey, 'utf8') > 1000) return res.status(413).json({ error: 'AI 音乐 API Key 太长' });
   if (Buffer.byteLength(nexaEscrowMinAmount, 'utf8') > 50) return res.status(413).json({ error: '担保最低金额太长' });
   if (Buffer.byteLength(nexaEscrowMaxAmount, 'utf8') > 50) return res.status(413).json({ error: '担保最高金额太长' });
   if (Buffer.byteLength(nexaEscrowFeePermille, 'utf8') > 50) return res.status(413).json({ error: '担保手续费太长' });
@@ -4594,9 +4630,13 @@ app.put('/api/admin/site-config', requireAdmin, (req, res) => {
   if (nexaApiBaseUrl && !isProbablyAbsoluteUrl(nexaApiBaseUrl)) {
     return res.status(400).json({ error: 'Nexa API Base URL 必须是 http(s) 链接' });
   }
+  if (aiMusicApiBaseUrl && !isProbablyAbsoluteUrl(aiMusicApiBaseUrl)) {
+    return res.status(400).json({ error: 'AI 音乐 API Base URL 必须是 http(s) 链接' });
+  }
 
   try {
     const normalizedNexaApiBaseUrl = normalizeNexaBaseUrl(nexaApiBaseUrl || DEFAULT_NEXA_API_BASE_URL);
+    const normalizedAiMusicApiBaseUrl = String(aiMusicApiBaseUrl || 'https://ai6666.com').trim().replace(/\/+$/, '');
     const normalizedMinAmount = normalizeEscrowConfigMoney(nexaEscrowMinAmount, NEXA_ESCROW_DEFAULT_MIN_AMOUNT);
     const normalizedMaxAmount = normalizeEscrowConfigMoney(nexaEscrowMaxAmount, NEXA_ESCROW_DEFAULT_MAX_AMOUNT);
     const normalizedFeePermille = normalizeEscrowFeePermille(nexaEscrowFeePermille, NEXA_ESCROW_DEFAULT_FEE_PERMILLE);
@@ -4639,6 +4679,10 @@ app.put('/api/admin/site-config', requireAdmin, (req, res) => {
     upsertSettingStmt.run('site_footer_links', stringifyFooterLinks(footerLinks));
     upsertSettingStmt.run('nexa_api_base_url', normalizedNexaApiBaseUrl);
     upsertSettingStmt.run('nexa_api_key', nexaApiKey);
+    upsertSettingStmt.run('ai_music_api_base_url', normalizedAiMusicApiBaseUrl);
+    if (!keepAiMusicApiKey || aiMusicApiKey) {
+      upsertSettingStmt.run('ai_music_api_key', aiMusicApiKey);
+    }
     upsertSettingStmt.run('nexa_escrow_min_amount', normalizedMinAmount);
     upsertSettingStmt.run('nexa_escrow_max_amount', normalizedMaxAmount);
     upsertSettingStmt.run('nexa_escrow_fee_permille', normalizedFeePermille);
@@ -7888,6 +7932,75 @@ app.post('/api/ai-music/credits/order/:orderNo/refresh', (req, res) => {
   }
 });
 
+app.post('/api/ai-music/credits/notify', (req, res) => {
+  const orderNo = String(req.body?.orderNo || req.body?.data?.orderNo || req.body?.partnerOrderNo || req.body?.data?.partnerOrderNo || '').trim();
+  const upstreamStatus = String(req.body?.status || req.body?.data?.status || '').trim().toUpperCase();
+  const nexaOrderId = String(
+    req.body?.nexaOrderId ||
+      req.body?.data?.nexaOrderId ||
+      req.body?.orderId ||
+      req.body?.data?.orderId ||
+      req.body?.tradeNo ||
+      req.body?.data?.tradeNo ||
+      ''
+  ).trim();
+  const paidTime = String(req.body?.paidTime || req.body?.data?.paidTime || '').trim();
+  const success = upstreamStatus === 'SUCCESS' || upstreamStatus === 'PAID' || upstreamStatus === 'PAY_SUCCESS';
+  const localStatus = success ? 'paid' : (upstreamStatus.toLowerCase() || 'pending');
+  let responseCode = '0';
+  let responseMsg = 'success';
+  let httpStatus = 200;
+  let errorMessage = '';
+
+  try {
+    if (!orderNo) {
+      responseCode = '400';
+      responseMsg = 'orderNo required';
+      httpStatus = 400;
+      errorMessage = 'ORDER_NO_REQUIRED';
+    } else {
+      updateAiMusicOrderNotifyStmt.run(
+        localStatus,
+        nexaOrderId,
+        nexaOrderId,
+        serializeNotifyPayload(req.body),
+        paidTime,
+        paidTime,
+        orderNo
+      );
+      if (success) {
+        grantAiMusicCreditsForOrderTx(orderNo);
+      }
+    }
+  } catch (error) {
+    responseCode = '500';
+    responseMsg = 'failed';
+    httpStatus = 500;
+    errorMessage = String(error?.message || 'AI_MUSIC_NOTIFY_FAILED');
+    console.error('[ai-music-notify] settle failed', error);
+  }
+
+  try {
+    insertAiMusicCallbackLogStmt.run(
+      orderNo,
+      localStatus,
+      success && !errorMessage ? 1 : 0,
+      String(req.path || '/api/ai-music/credits/notify'),
+      String(req.method || 'POST'),
+      serializeNotifyPayload(req.body),
+      serializeNotifyPayload(req.query || {}),
+      responseCode,
+      responseMsg,
+      httpStatus,
+      errorMessage
+    );
+  } catch (error) {
+    console.error('[ai-music-notify-log] write failed', error);
+  }
+
+  return res.status(httpStatus === 400 ? 400 : 200).json({ code: responseCode, msg: responseMsg });
+});
+
 app.all('/api/ai-music/music/*', async (req, res) => {
   try {
     const session = requireAiMusicSession(req);
@@ -7944,14 +8057,14 @@ app.all('/api/ai-music/music/*', async (req, res) => {
 app.get('/api/ai-music/media', async (req, res) => {
   try {
     requireAiMusicSession(req);
-    getAiMusicConfig();
+    const config = getAiMusicConfig();
     const rawUrl = String(req.query?.u || '').trim();
     if (!/^https?:\/\//i.test(rawUrl)) {
       return res.status(400).json({ ok: false, error: 'INVALID_MEDIA_URL' });
     }
     const response = await fetch(rawUrl, {
       headers: {
-        Authorization: `Bearer ${String(process.env.HH_API_KEY || '').trim()}`
+        Authorization: `Bearer ${config.apiKey}`
       }
     });
     const contentType = response.headers?.get?.('content-type');
@@ -9387,11 +9500,52 @@ const insertAiMusicOrderStmt = db.prepare(`
   VALUES (?, ?, ?, ?, ?, ?, ?)
 `);
 const selectAiMusicOrderByOrderNoStmt = db.prepare(
-  'SELECT id, user_id, order_no, nexa_order_id, amount, currency, credits, status, created_at, paid_at, updated_at FROM ai_music_orders WHERE order_no = ?'
+  'SELECT id, user_id, order_no, nexa_order_id, amount, currency, credits, status, notify_payload, created_at, paid_at, updated_at FROM ai_music_orders WHERE order_no = ?'
 );
 const markAiMusicOrderPaidStmt = db.prepare(
   'UPDATE ai_music_orders SET status = ?, paid_at = CASE WHEN paid_at = \'\' THEN datetime(\'now\') ELSE paid_at END, updated_at = datetime(\'now\') WHERE id = ?'
 );
+const updateAiMusicOrderNotifyStmt = db.prepare(`
+  UPDATE ai_music_orders
+  SET status = ?,
+      nexa_order_id = CASE WHEN ? <> '' THEN ? ELSE nexa_order_id END,
+      notify_payload = ?,
+      paid_at = CASE WHEN ? <> '' THEN ? ELSE paid_at END,
+      updated_at = datetime('now')
+  WHERE order_no = ?
+`);
+const listAiMusicOrdersStmt = db.prepare(`
+  SELECT
+    o.id,
+    o.user_id,
+    o.order_no,
+    o.nexa_order_id,
+    o.amount,
+    o.currency,
+    o.credits,
+    o.status,
+    o.notify_payload,
+    o.created_at,
+    o.paid_at,
+    o.updated_at,
+    u.open_id,
+    u.nickname
+  FROM ai_music_orders o
+  LEFT JOIN ai_music_users u ON u.id = o.user_id
+  ORDER BY o.created_at DESC, o.id DESC
+  LIMIT ?
+`);
+const insertAiMusicCallbackLogStmt = db.prepare(`
+  INSERT INTO ai_music_callback_logs (
+    order_no, status, success, request_path, request_method, body_json, query_json, response_code, response_msg, http_status, error_message
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`);
+const listAiMusicCallbackLogsStmt = db.prepare(`
+  SELECT id, order_no, status, success, request_path, request_method, body_json, query_json, response_code, response_msg, http_status, error_message, created_at
+  FROM ai_music_callback_logs
+  ORDER BY created_at DESC, id DESC
+  LIMIT ?
+`);
 const incrementAiMusicCreditsStmt = db.prepare(`
   UPDATE ai_music_credit_accounts
   SET available_credits = available_credits + ?,
@@ -14163,6 +14317,20 @@ app.get('/api/admin/predict-master-recharge-orders', requireAdmin, (req, res) =>
   const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
   expirePendingPredictMasterRechargeOrders();
   const items = listDetradeRechargeOrdersStmt.all(limit).map(formatPredictMasterRechargeOrder);
+  res.json({ ok: true, items });
+});
+
+app.get('/api/admin/ai-music-orders', requireAdmin, (req, res) => {
+  const limitRaw = Number(req.query?.limit || 100);
+  const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
+  const items = listAiMusicOrdersStmt.all(limit).map(formatAiMusicOrder);
+  res.json({ ok: true, items });
+});
+
+app.get('/api/admin/ai-music-callback-logs', requireAdmin, (req, res) => {
+  const limitRaw = Number(req.query?.limit || 100);
+  const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
+  const items = listAiMusicCallbackLogsStmt.all(limit).map(formatAiMusicCallbackLog);
   res.json({ ok: true, items });
 });
 

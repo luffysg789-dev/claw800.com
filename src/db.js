@@ -277,11 +277,40 @@ db.exec(`
     currency TEXT NOT NULL DEFAULT 'USDT',
     credits INTEGER NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending',
+    notify_payload TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     paid_at TEXT NOT NULL DEFAULT '',
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY(user_id) REFERENCES ai_music_users(id)
   );
+`);
+
+const hasAiMusicOrderNotifyPayload = db.prepare("SELECT 1 FROM pragma_table_info('ai_music_orders') WHERE name = 'notify_payload'").get();
+if (!hasAiMusicOrderNotifyPayload) {
+  db.exec("ALTER TABLE ai_music_orders ADD COLUMN notify_payload TEXT NOT NULL DEFAULT ''");
+}
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ai_music_callback_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_no TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT '',
+    success INTEGER NOT NULL DEFAULT 0,
+    request_path TEXT NOT NULL DEFAULT '',
+    request_method TEXT NOT NULL DEFAULT '',
+    body_json TEXT NOT NULL DEFAULT '{}',
+    query_json TEXT NOT NULL DEFAULT '{}',
+    response_code TEXT NOT NULL DEFAULT '',
+    response_msg TEXT NOT NULL DEFAULT '',
+    http_status INTEGER NOT NULL DEFAULT 200,
+    error_message TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_ai_music_callback_logs_created
+  ON ai_music_callback_logs(created_at DESC, id DESC);
 `);
 
 db.exec(`

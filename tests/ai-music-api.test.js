@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const EventEmitter = require('node:events');
+const crypto = require('node:crypto');
 
 const dbModulePath = path.join(__dirname, '..', 'src', 'db.js');
 const serverModulePath = path.join(__dirname, '..', 'src', 'server.js');
@@ -118,6 +119,12 @@ function extractCookie(syncResponse) {
   return { [serialized.name]: serialized.value };
 }
 
+function adminCookies(password = '123456') {
+  return {
+    admin_token: crypto.createHash('sha256').update(String(password)).digest('hex')
+  };
+}
+
 async function createAiMusicSession(harness, openId = 'ai-music-open-id-1') {
   const response = await harness.request('POST', '/api/ai-music/session', {
     openId,
@@ -140,6 +147,7 @@ test('ai music schema is created for fresh databases', () => {
       .map((row) => row.name);
 
     assert.deepEqual(tableNames, [
+      'ai_music_callback_logs',
       'ai_music_credit_accounts',
       'ai_music_credit_ledger',
       'ai_music_generations',
@@ -231,6 +239,125 @@ test('ai music paid credit order grants three credits exactly once', async () =>
     assert.equal(account.total_purchased_credits, 3);
     const ledgerRows = harness.db.prepare('SELECT COUNT(*) AS count FROM ai_music_credit_ledger WHERE reference_id = ?').get('ai_music_test_order_once');
     assert.equal(ledgerRows.count, 1);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('admin site config stores ai music api settings without echoing the key', async () => {
+  const harness = createHarness();
+  try {
+    const cookies = adminCookies();
+    const update = await harness.request('PUT', '/api/admin/site-config', {
+      title: 'claw800.com',
+      aiMusicApiBaseUrl: 'https://ai6666.com/',
+      aiMusicApiKey: 'hh_admin_saved_key'
+    }, { cookies });
+
+    assert.equal(update.statusCode, 200);
+    assert.equal(update.body.ok, true);
+
+    const config = await harness.request('GET', '/api/admin/site-config', null, { cookies });
+    assert.equal(config.statusCode, 200);
+    assert.equal(config.body.aiMusicApiBaseUrl, 'https://ai6666.com');
+    assert.equal(config.body.aiMusicApiKey, '');
+    assert.equal(config.body.hasAiMusicApiKey, true);
+
+    const { cookies: musicCookies } = await createAiMusicSession(harness, 'ai-music-open-id-admin-key');
+    const user = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-admin-key');
+    harness.db.prepare(`
+      UPDATE ai_music_credit_accounts
+      SET available_credits = 1, total_purchased_credits = 1
+      WHERE user_id = ?
+    `).run(user.id);
+    let capturedAuth = '';
+    harness.setFetch(async (_url, init = {}) => {
+      capturedAuth = String(init.headers?.Authorization || '');
+      return new Response(JSON.stringify({ generation_id: 'admin-key-task' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' }
+      });
+    });
+
+    const generate = await harness.request('POST', '/api/ai-music/music/generate', { prompt: 'piano' }, { cookies: musicCookies });
+    assert.equal(generate.statusCode, 200);
+    assert.equal(capturedAuth, 'Bearer hh_admin_saved_key');
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('ai music payment notify marks paid, grants credits, and writes callback logs', async () => {
+  const harness = createHarness();
+  try {
+    const { cookies } = await createAiMusicSession(harness, 'ai-music-open-id-notify');
+    const user = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-notify');
+    harness.db.prepare(`
+      INSERT INTO ai_music_orders (user_id, order_no, nexa_order_id, amount, currency, credits, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(user.id, 'ai_music_notify_order', '', '1.00', 'USDT', 3, 'pending');
+
+    const notify = await harness.request('POST', '/api/ai-music/credits/notify', {
+      orderNo: 'ai_music_notify_order',
+      status: 'SUCCESS',
+      orderId: 'nexa-order-paid',
+      paidTime: '2026-06-17 10:00:00'
+    });
+
+    assert.equal(notify.statusCode, 200);
+    assert.deepEqual(notify.body, { code: '0', msg: 'success' });
+
+    const credits = await harness.request('GET', '/api/ai-music/credits/order/ai_music_notify_order', null, { cookies });
+    assert.equal(credits.body.order.status, 'paid');
+    assert.equal(credits.body.credits.availableCredits, 3);
+    const log = harness.db.prepare('SELECT * FROM ai_music_callback_logs WHERE order_no = ?').get('ai_music_notify_order');
+    assert.equal(log.success, 1);
+    assert.match(log.body_json, /nexa-order-paid/);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('admin can list ai music orders and callback logs', async () => {
+  const harness = createHarness();
+  try {
+    const cookies = adminCookies();
+    const { cookies: musicCookies } = await createAiMusicSession(harness, 'ai-music-open-id-admin-list');
+    const user = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-admin-list');
+    harness.db.prepare(`
+      INSERT INTO ai_music_orders (user_id, order_no, nexa_order_id, amount, currency, credits, status, notify_payload)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(user.id, 'ai_music_admin_order', 'nexa-admin-order', '1.00', 'USDT', 3, 'paid', JSON.stringify({ status: 'SUCCESS' }));
+    await harness.request('POST', '/api/ai-music/credits/notify', {
+      orderNo: 'ai_music_admin_order',
+      status: 'SUCCESS'
+    }, { cookies: musicCookies });
+
+    const orders = await harness.request('GET', '/api/admin/ai-music-orders', null, { cookies });
+    assert.equal(orders.statusCode, 200);
+    assert.equal(orders.body.ok, true);
+    assert.equal(orders.body.items[0].orderNo, 'ai_music_admin_order');
+    assert.equal(orders.body.items[0].openId, 'ai-music-open-id-admin-list');
+
+    const logs = await harness.request('GET', '/api/admin/ai-music-callback-logs', null, { cookies });
+    assert.equal(logs.statusCode, 200);
+    assert.equal(logs.body.ok, true);
+    assert.equal(logs.body.items[0].orderNo, 'ai_music_admin_order');
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('games api exposes ai music card with direct route', async () => {
+  const harness = createHarness();
+  try {
+    const response = await harness.request('GET', '/api/games');
+
+    assert.equal(response.statusCode, 200);
+    const item = response.body.items.find((game) => game.slug === 'ai-music');
+    assert.equal(item.name, 'AI 音乐');
+    assert.equal(item.route, '/ai-music/');
+    assert.equal(item.is_enabled, 1);
   } finally {
     harness.cleanup();
   }
