@@ -5,6 +5,7 @@ import { renderGenerate } from './generate.js?v=20260617-ai-music-payment-refres
 import { renderLibrary } from './library.js?v=20260617-ai-music-payment-refresh';
 import { renderStemLab } from './stemlab.js?v=20260617-ai-music-payment-refresh';
 import { renderStudio } from './studio.js?v=20260617-ai-music-payment-refresh';
+import { initGlobalPlayer } from './player.js?v=20260617-ai-music-payment-refresh';
 
 const app = document.getElementById('app');
 
@@ -39,6 +40,7 @@ function renderShell() {
 
   app.appendChild(nav);
   app.appendChild(main);
+  initGlobalPlayer();
 
   mount(active);
   refreshCreditsChip();

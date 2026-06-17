@@ -122,3 +122,21 @@ test('ai music shell and assets avoid stale Nexa webview caches', () => {
   assert.match(serverJs, /app\.get\(\['\/ai-music', '\/ai-music\/'\][\s\S]*Cache-Control', 'no-store/);
   assert.match(serverJs, /filePath\.includes\(path\.join\('public', 'ai-music'\)\)[\s\S]*Cache-Control', 'no-store/);
 });
+
+test('ai music uses persistent bottom player with scrolling lyrics', () => {
+  const appJs = readPublicAiMusicFile('assets/app.js');
+  const generateJs = readPublicAiMusicFile('assets/generate.js');
+  const libraryJs = readPublicAiMusicFile('assets/library.js');
+  const playerJs = readPublicAiMusicFile('assets/player.js');
+  const styles = readPublicAiMusicFile('assets/styles.css');
+
+  assert.match(appJs, /initGlobalPlayer/);
+  assert.match(generateJs, /toggleGlobalSong/);
+  assert.match(libraryJs, /toggleGlobalSong/);
+  assert.match(playerJs, /id:\s*'gm-mini-player'/);
+  assert.match(playerJs, /class:\s*'gm-mini-lyric'/);
+  assert.match(playerJs, /new Audio/);
+  assert.match(styles, /\.gm-mini-player/);
+  assert.match(styles, /\.gm-mini-lyric-track/);
+  assert.match(styles, /@keyframes\s+gmMiniLyricScroll/);
+});

@@ -118,6 +118,46 @@ textarea.gm-input{resize:vertical;line-height:1.6;font-family:inherit;}
 .gm-toast.error{background:#b91c1c;}
 .gm-toast.warn{background:#b45309;}
 
+/* —— 底部全局播放器 —— */
+body.gm-has-mini-player .gm-main{padding-bottom:132px;}
+.gm-mini-player{position:fixed;left:50%;bottom:0;z-index:45;width:min(100%,1040px);transform:translateX(-50%);
+  background:#fff;border:1px solid #fbcfe8;border-bottom:0;border-radius:22px 22px 0 0;box-shadow:0 -18px 44px -30px rgba(15,23,42,.45);overflow:hidden;}
+.gm-mini-player[hidden]{display:none;}
+.gm-mini-lyric{height:42px;display:flex;align-items:center;justify-content:center;background:#fff7fb;border-bottom:1px solid #fbcfe8;overflow:hidden;padding:0 18px;}
+.gm-mini-lyric-track{display:inline-block;min-width:100%;white-space:nowrap;text-align:center;color:#be185d;font-size:18px;font-weight:900;letter-spacing:0;}
+.gm-mini-player.is-playing .gm-mini-lyric-track{animation:gmMiniLyricScroll 9s linear infinite;}
+@keyframes gmMiniLyricScroll{
+  0%{transform:translateX(55%);}
+  100%{transform:translateX(-55%);}
+}
+.gm-mini-shell{display:grid;grid-template-columns:64px minmax(0,1fr) 74px minmax(120px,1fr) 46px;align-items:center;gap:14px;padding:16px 20px;}
+.gm-mini-cover{width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#f43f5e,#ec4899,#f97316) center/cover no-repeat;box-shadow:0 8px 24px -16px rgba(15,23,42,.55);flex-shrink:0;}
+.gm-mini-info{min-width:0;}
+.gm-mini-title{font-size:17px;font-weight:900;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.gm-mini-time{margin-top:4px;font-size:12px;font-weight:700;color:#94a3b8;}
+.gm-mini-play{height:54px;width:54px;border:0;border-radius:999px;background:var(--grad);color:#fff;font-size:0;font-weight:900;cursor:pointer;box-shadow:0 12px 26px -16px rgba(236,72,153,.85);position:relative;}
+.gm-mini-play::before{content:'';position:absolute;left:21px;top:17px;border-left:16px solid #fff;border-top:10px solid transparent;border-bottom:10px solid transparent;}
+.gm-mini-player.is-playing .gm-mini-play::before{left:18px;top:16px;width:6px;height:22px;border:0;background:#fff;box-shadow:12px 0 0 #fff;}
+.gm-mini-progress{height:8px;border-radius:999px;background:#f1f5f9;overflow:hidden;cursor:pointer;}
+.gm-mini-progress-fill{display:block;height:100%;width:0;border-radius:999px;background:var(--grad);transition:width .12s linear;}
+.gm-mini-close{width:42px;height:42px;border:0;border-radius:999px;background:#f1f5f9;color:#64748b;font-size:24px;font-weight:900;cursor:pointer;line-height:1;}
+.gm-mini-close:hover{background:#e2e8f0;color:#334155;}
+@media(max-width:680px){
+  body.gm-has-mini-player .gm-main{padding-bottom:124px;}
+  .gm-mini-player{border-radius:18px 18px 0 0;}
+  .gm-mini-lyric{height:34px;padding:0 12px;}
+  .gm-mini-lyric-track{font-size:14px;}
+  .gm-mini-shell{grid-template-columns:46px minmax(0,1fr) 52px 34px;gap:9px;padding:11px 12px;}
+  .gm-mini-cover{width:44px;height:44px;border-radius:11px;}
+  .gm-mini-title{font-size:14px;}
+  .gm-mini-time{font-size:11px;}
+  .gm-mini-play{width:46px;height:46px;}
+  .gm-mini-play::before{left:18px;top:14px;border-left-width:14px;border-top-width:9px;border-bottom-width:9px;}
+  .gm-mini-player.is-playing .gm-mini-play::before{left:15px;top:13px;height:20px;box-shadow:11px 0 0 #fff;}
+  .gm-mini-progress{grid-column:1 / -1;height:5px;}
+  .gm-mini-close{width:34px;height:34px;font-size:20px;}
+}
+
 /* ============ 我的音乐：暗紫播放器卡片（对齐 /music/my/） ============ */
 .gm-pl-card{background:linear-gradient(135deg,#0f0f1e 0%,#1a0f2e 40%,#2a1a4e 100%);border:1px solid rgba(168,85,247,.25);border-radius:20px;padding:16px;margin-bottom:14px;color:#f5f3ff;position:relative;overflow:hidden;box-shadow:0 10px 30px -10px rgba(99,102,241,.35);transition:transform .2s,box-shadow .2s;}
 .gm-pl-card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 20% 0%,rgba(236,72,153,.18) 0%,transparent 50%),radial-gradient(circle at 80% 100%,rgba(99,102,241,.2) 0%,transparent 55%);pointer-events:none;}

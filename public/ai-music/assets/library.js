@@ -3,6 +3,7 @@
 // JS 取数 + /ai6api 调接口；播放走本地单实例 Audio（gmw 无主站常驻迷你播放器）。
 import { api, poll, ApiError, authedDownload } from './api.js?v=20260617-ai-music-payment-refresh';
 import { el, clear, toast, fmtDuration, mediaUrl } from './ui.js?v=20260617-ai-music-payment-refresh';
+import { toggleGlobalSong } from './player.js?v=20260617-ai-music-payment-refresh';
 
 let state = { tab: 'mine', page: 1, page_size: 20, q: '' };
 let globalBound = false;
@@ -184,33 +185,8 @@ function wireCard(card, s) {
 }
 
 function togglePlay(s, card) {
-  const player = card.querySelector('.hh-music-player');
-  const fill = card.querySelector('.hh-music-progress-fill');
-  const knob = card.querySelector('.hh-music-progress-knob');
-  const curEl = card.querySelector('.hh-music-cur');
-  const totEl = card.querySelector('.hh-music-total');
-
-  if (cur.player === player && cur.audio) {
-    if (cur.audio.paused) { cur.audio.play(); player.classList.add('hh-music-playing'); }
-    else { cur.audio.pause(); player.classList.remove('hh-music-playing'); }
-    return;
-  }
-  stopCurrent();
-  const url = mediaUrl(s.playable_url);
-  if (!url) { toast('音频还没准备好', 'warn'); return; }
-  const audio = new Audio(url);
-  cur = { audio, player };
-  player.classList.add('hh-music-playing');
-  audio.play().catch(() => { toast('播放失败', 'error'); player.classList.remove('hh-music-playing'); });
-  audio.ontimeupdate = () => {
-    if (!audio.duration) return;
-    const pct = audio.currentTime / audio.duration * 100;
-    fill.style.width = pct + '%';
-    if (knob) knob.style.left = pct + '%';
-    curEl.textContent = fmtDuration(audio.currentTime);
-    totEl.textContent = fmtDuration(audio.duration);
-  };
-  audio.onended = () => { player.classList.remove('hh-music-playing'); fill.style.width = '0'; if (knob) knob.style.left = '0'; curEl.textContent = '0:00'; };
+  toggleGlobalSong(s);
+  card.querySelector('.hh-music-player')?.classList.add('hh-music-playing');
 }
 function seek(e, card) {
   const player = card.querySelector('.hh-music-player');
@@ -347,6 +323,13 @@ function bindGlobalOnce() {
   if (globalBound) return;
   globalBound = true;
   document.addEventListener('click', (e) => { if (!(e.target.closest && e.target.closest('.hh-cat'))) closeAllCat(); });
+  window.addEventListener('gm-global-player-state', (event) => {
+    const songId = String(event.detail?.songId || '');
+    const playing = !!event.detail?.playing;
+    document.querySelectorAll('.hh-music-player[data-song-id]').forEach((player) => {
+      player.classList.toggle('hh-music-playing', playing && String(player.dataset.songId || '') === songId);
+    });
+  });
   let t;
   window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(() => { const f = document.getElementById('myMusicFeed'); if (f) layoutBars(f); }, 150); });
 }

@@ -6,7 +6,8 @@
 // 其余傻瓜/专业内部交互与主站一致。
 import { api, poll, ApiError, getApiKey } from './api.js?v=20260617-ai-music-payment-refresh';
 import { ensureKey } from './auth.js?v=20260617-ai-music-payment-refresh';
-import { el, clear, toast, playToggle, fmtDuration, mediaUrl } from './ui.js?v=20260617-ai-music-payment-refresh';
+import { el, clear, toast, fmtDuration, mediaUrl } from './ui.js?v=20260617-ai-music-payment-refresh';
+import { toggleGlobalSong } from './player.js?v=20260617-ai-music-payment-refresh';
 
 // 风格标签库 — 逐字搬自 create.html 各 tagGroup 的 data-tag 集合（中文 label 对齐）。
 const STYLE_GROUPS = {
@@ -964,7 +965,7 @@ function renderSongs(container, songs) {
 }
 function songCard(s) {
   const cover = el('div', { class: 'gm-cover', style: s.image_url ? `background-image:url('${mediaUrl(s.image_url)}')` : '' });
-  const playBtn = el('button', { class: 'gm-btn-play', text: '▶ 播放', onclick: (e) => playToggle(mediaUrl(s.playable_url), e.currentTarget) });
+  const playBtn = el('button', { class: 'gm-btn-play', text: '▶ 播放', onclick: () => toggleGlobalSong(s) });
   const lyricsBox = el('pre', { class: 'gm-lyrics', text: s.lyrics || '（无歌词）', style: 'display:none' });
   const lyricsBtn = el('button', { class: 'gm-btn-ghost', text: '歌词', onclick: () => { lyricsBox.style.display = lyricsBox.style.display === 'none' ? 'block' : 'none'; } });
   return el('div', { class: 'gm-song-card' }, [cover, el('div', { class: 'gm-song-body' }, [
