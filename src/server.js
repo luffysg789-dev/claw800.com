@@ -2132,10 +2132,12 @@ function formatAdminAiMusicWithdrawal(row = {}) {
     currency: String(row.currency || AI_MUSIC_CURRENCY).trim() || AI_MUSIC_CURRENCY,
     status: String(row.status || '').trim(),
     referenceId: String(row.reference_id || '').trim(),
+    nexaOrderNo: String(row.nexa_order_no || '').trim(),
     note: String(row.note || '').trim(),
     reviewNote: String(row.review_note || '').trim(),
     reviewedBy: String(row.reviewed_by || '').trim(),
     reviewedAt: String(row.reviewed_at || '').trim(),
+    notifyPayload: parseSerializedPayload(row.notify_payload),
     createdAt: String(row.created_at || '').trim()
   };
 }
@@ -2484,7 +2486,7 @@ function createAiMusicWithdrawRequest(userId, amount) {
   return getAiMusicAssetSummary(normalizedUserId);
 }
 
-const approveAiMusicWithdrawalReview = db.transaction(({ id, note = '', reviewer = 'admin' } = {}) => {
+const approveAiMusicWithdrawalReview = db.transaction(({ id, note = '', reviewer = 'admin', nexaOrderNo = '', notifyPayload = {} } = {}) => {
   const withdrawalId = Number(id || 0);
   const withdrawal = selectAiMusicWithdrawalByIdStmt.get(withdrawalId);
   if (!withdrawal) return { kind: 'not_found' };
@@ -2495,6 +2497,10 @@ const approveAiMusicWithdrawalReview = db.transaction(({ id, note = '', reviewer
     'completed',
     String(note || '').trim(),
     String(reviewer || 'admin').trim() || 'admin',
+    String(nexaOrderNo || '').trim(),
+    String(nexaOrderNo || '').trim(),
+    serializeNotifyPayload(notifyPayload),
+    serializeNotifyPayload(notifyPayload),
     withdrawalId
   );
   if (!result.changes) return { kind: 'already_reviewed', withdrawal };
@@ -2529,6 +2535,10 @@ const rejectAiMusicWithdrawalReview = db.transaction(({ id, note = '', reviewer 
     'rejected',
     String(note || '').trim(),
     String(reviewer || 'admin').trim() || 'admin',
+    '',
+    '',
+    '',
+    '',
     withdrawalId
   );
   if (!result.changes) return { kind: 'already_reviewed', withdrawal };
@@ -11059,6 +11069,8 @@ const listAdminAiMusicWithdrawalsStmt = db.prepare(`
     l.review_note,
     l.reviewed_by,
     l.reviewed_at,
+    l.nexa_order_no,
+    l.notify_payload,
     l.created_at,
     u.open_id,
     u.nickname
@@ -11084,6 +11096,8 @@ const selectAiMusicWithdrawalByIdStmt = db.prepare(`
     l.review_note,
     l.reviewed_by,
     l.reviewed_at,
+    l.nexa_order_no,
+    l.notify_payload,
     l.created_at,
     u.open_id,
     u.nickname
@@ -11098,7 +11112,9 @@ const updateAiMusicWithdrawalReviewStmt = db.prepare(`
   SET status = ?,
       review_note = ?,
       reviewed_by = ?,
-      reviewed_at = datetime('now')
+      reviewed_at = datetime('now'),
+      nexa_order_no = CASE WHEN ? = '' THEN nexa_order_no ELSE ? END,
+      notify_payload = CASE WHEN ? = '' THEN notify_payload ELSE ? END
   WHERE id = ?
     AND type = 'withdraw_pending'
     AND status = 'pending'
@@ -16247,17 +16263,44 @@ app.get('/api/admin/ai-music-withdrawals', requireAdmin, (req, res) => {
   res.json({ ok: true, items });
 });
 
-app.post('/api/admin/ai-music-withdrawals/:id/approve', requireAdmin, (req, res) => {
+app.post('/api/admin/ai-music-withdrawals/:id/approve', requireAdmin, async (req, res) => {
   const id = Number(req.params.id || 0);
   if (!id) return res.status(400).json({ ok: false, error: '提现记录不存在' });
-  const result = approveAiMusicWithdrawalReview({
-    id,
-    note: req.body?.note,
-    reviewer: req.session?.adminUser || 'admin'
-  });
-  if (result.kind === 'not_found') return res.status(404).json({ ok: false, error: '提现记录不存在' });
-  if (result.kind === 'already_reviewed') return res.status(409).json({ ok: false, error: '该提现已审核' });
-  return res.json({ ok: true, item: formatAdminAiMusicWithdrawal(result.withdrawal) });
+  const withdrawal = selectAiMusicWithdrawalByIdStmt.get(id);
+  if (!withdrawal) return res.status(404).json({ ok: false, error: '提现记录不存在' });
+  if (String(withdrawal.status || '').toLowerCase() !== 'pending') {
+    return res.status(409).json({ ok: false, error: '该提现已审核' });
+  }
+  if (!String(withdrawal.open_id || '').trim()) {
+    return res.status(400).json({ ok: false, error: '用户 Nexa openId 缺失，无法提现' });
+  }
+  try {
+    const nexaResult = await requestNexaWithdrawal({
+      req,
+      withdrawal: {
+        partner_order_no: String(withdrawal.reference_id || `ai_music_withdraw_${id}`).trim(),
+        amount: String(withdrawal.amount || '0.00').trim(),
+        currency: String(withdrawal.currency || AI_MUSIC_CURRENCY).trim() || AI_MUSIC_CURRENCY,
+        openid: String(withdrawal.open_id || '').trim()
+      },
+      reviewNote: req.body?.note,
+      notifyPath: '/api/ai-music/assets/withdraw/notify',
+      remarkPrefix: 'AI音乐提现'
+    });
+    const result = approveAiMusicWithdrawalReview({
+      id,
+      note: req.body?.note,
+      reviewer: req.session?.adminUser || 'admin',
+      nexaOrderNo: nexaResult.orderNo,
+      notifyPayload: nexaResult.rawBody
+    });
+    if (result.kind === 'not_found') return res.status(404).json({ ok: false, error: '提现记录不存在' });
+    if (result.kind === 'already_reviewed') return res.status(409).json({ ok: false, error: '该提现已审核' });
+    return res.json({ ok: true, item: formatAdminAiMusicWithdrawal(result.withdrawal), nexa: nexaResult });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 502) || 502;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'Nexa 提现申请失败') });
+  }
 });
 
 app.post('/api/admin/ai-music-withdrawals/:id/reject', requireAdmin, (req, res) => {

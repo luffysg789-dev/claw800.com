@@ -540,10 +540,41 @@ test('admin can list ai music recharge orders, market orders, withdrawals, and c
     const withdrawalB = withdrawals.body.items.find((item) => item.amount === '3.00');
     assert.ok(withdrawalA);
     assert.ok(withdrawalB);
+    let capturedWithdrawUrl = '';
+    let capturedWithdrawRequest = null;
+    const config = await harness.request('PUT', '/api/admin/site-config', {
+      title: 'claw800.com',
+      nexaApiBaseUrl: 'https://merchantapi.nexaexworth.com',
+      nexaApiKey: 'ai-music-withdraw-nexa-key',
+      nexaAppSecret: 'ai-music-withdraw-nexa-secret'
+    }, { cookies });
+    assert.equal(config.statusCode, 200);
+    harness.setFetch(async (url, init = {}) => {
+      capturedWithdrawUrl = String(url);
+      capturedWithdrawRequest = JSON.parse(String(init.body || '{}'));
+      return new Response(JSON.stringify({
+        code: 0,
+        data: {
+          orderNo: 'nexa-ai-music-withdraw-order',
+          status: 'SUCCESS'
+        }
+      }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' }
+      });
+    });
     const approve = await harness.request('POST', `/api/admin/ai-music-withdrawals/${withdrawalA.id}/approve`, { note: 'ok' }, { cookies });
     const reject = await harness.request('POST', `/api/admin/ai-music-withdrawals/${withdrawalB.id}/reject`, { note: 'bad' }, { cookies });
     assert.equal(approve.statusCode, 200);
     assert.equal(approve.body.item.status, 'completed');
+    assert.equal(approve.body.item.nexaOrderNo, 'nexa-ai-music-withdraw-order');
+    assert.equal(capturedWithdrawUrl, 'https://merchantapi.nexaexworth.com/partner/api/openapi/account/withdraw');
+    assert.equal(capturedWithdrawRequest.apiKey, 'ai-music-withdraw-nexa-key');
+    assert.equal(capturedWithdrawRequest.orderNo, withdrawalA.referenceId);
+    assert.equal(capturedWithdrawRequest.amount, '2.00');
+    assert.equal(capturedWithdrawRequest.currency, 'USDT');
+    assert.equal(capturedWithdrawRequest.openid, 'ai-music-open-id-admin-list');
+    assert.match(capturedWithdrawRequest.notifyUrl, /\/api\/ai-music\/assets\/withdraw\/notify$/);
     assert.equal(reject.statusCode, 200);
     assert.equal(reject.body.item.status, 'rejected');
     const wallet = harness.db.prepare('SELECT balance FROM ai_music_wallets WHERE user_id = ?').get(user.id);
