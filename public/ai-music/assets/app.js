@@ -3,6 +3,8 @@ import { el, clear, toast } from './ui.js?v=20260617-ai-music-payment-refresh';
 import { openKeyModal, renderInlineKeyPrompt, handleNexaAuthCallback, refreshPendingCreditOrder, ensureProfileComplete } from './auth.js?v=20260617-ai-music-payment-refresh';
 import { renderGenerate } from './generate.js?v=20260617-ai-music-payment-refresh';
 import { renderLibrary } from './library.js?v=20260617-ai-music-payment-refresh';
+import { renderAssets } from './assets.js?v=20260617-ai-music-payment-refresh';
+import { renderMarket, refreshPendingMarketOrder } from './market.js?v=20260617-ai-music-payment-refresh';
 import { renderSquare } from './square.js?v=20260617-ai-music-payment-refresh';
 import { renderPublicSong, publicSongIdFromPath } from './public-song.js?v=20260617-ai-music-payment-refresh';
 import { renderStemLab } from './stemlab.js?v=20260617-ai-music-payment-refresh';
@@ -13,13 +15,15 @@ const app = document.getElementById('app');
 
 const SCREENS = [
   { key: 'generate', label: '生成音乐', render: renderGenerate, needsKey: true },
+  { key: 'market', label: '市场', render: renderMarket, needsKey: false },
   { key: 'square', label: '广场', render: renderSquare, needsKey: false },
   { key: 'library', label: '我的音乐', render: renderLibrary, needsKey: true },
+  { key: 'assets', label: '资产', render: renderAssets, needsKey: true },
   { key: 'stemlab', label: '分轨', render: renderStemLab, needsKey: true },
   { key: 'studio', label: '编曲房', render: renderStudio, needsKey: true },
   { key: 'public-song', label: '歌曲', render: renderPublicSong, needsKey: false, hidden: true },
 ];
-const ALWAYS_RERENDER = new Set(['library', 'stemlab', 'studio', 'square', 'public-song']);
+const ALWAYS_RERENDER = new Set(['library', 'assets', 'stemlab', 'studio', 'market', 'square', 'public-song']);
 let active = 'generate';
 let mounted = new Set();
 let pendingPaymentRefreshTimer = null;
@@ -52,6 +56,11 @@ function renderShell() {
 }
 
 function authControl() {
+  const marketLink = el('a', {
+    class: 'gm-btn-ghost sm gm-market-top',
+    href: '/ai-music/#market',
+    text: '市场'
+  });
   const squareLink = el('a', {
     class: 'gm-btn-ghost sm gm-square-top',
     href: '/ai-music/#square',
@@ -59,15 +68,22 @@ function authControl() {
   });
   if (getApiKey()) {
     return el('div', { class: 'gm-auth' }, [
+      marketLink,
       squareLink,
       el('a', {
         class: 'gm-btn-ghost sm',
         href: '/ai-music/#library',
         text: '我的音乐'
+      }),
+      el('a', {
+        class: 'gm-btn-ghost sm',
+        href: '/ai-music/#assets',
+        text: '资产'
       })
     ]);
   }
   return el('div', { class: 'gm-auth' }, [
+    marketLink,
     squareLink,
     el('button', { class: 'gm-btn-ghost sm', text: 'Nexa 登录', onclick: () => openKeyModal({}) })
   ]);
@@ -93,6 +109,7 @@ function schedulePendingPaymentRefresh(reason = 'page-return') {
     pendingPaymentRefreshTimer = null;
     try {
       const payload = await refreshPendingCreditOrder({ silent: reason !== 'manual' });
+      await refreshPendingMarketOrder({ silent: reason !== 'manual' }).catch(() => null);
       if (payload?.credits) window.dispatchEvent(new CustomEvent('gm-credits-changed', { detail: payload }));
     } catch {
       refreshCreditsChip();

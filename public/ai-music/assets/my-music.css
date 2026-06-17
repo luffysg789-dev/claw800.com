@@ -2051,3 +2051,20 @@ details[open] .lyrics-arrow { transform: rotate(90deg); }
     50%      { background:#ede9fe; color:#5b21b6; box-shadow:0 0 0 8px rgba(124,58,237,.25); transform:scale(1.08); }
 }
 .hh-stem-demo-flash { animation: hhStemFlash 0.7s ease-in-out 4; border-color:#a78bfa !important; }
+
+.hh-btn-sell {
+    border: 1px solid #fbcfe8;
+    background: #fff;
+    color: #be185d;
+    border-radius: 999px;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1.1;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(190, 24, 93, 0.08);
+}
+.hh-btn-sell:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}

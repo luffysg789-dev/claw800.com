@@ -2,6 +2,8 @@ const SESSION_STORAGE = 'claw800:ai-music:nexa-session';
 const MUSIC_API_BASE = '/api/ai-music/music';
 const MEDIA_API_BASE = '/api/ai-music/media';
 const PUBLIC_API_BASE = '/api/ai-music/public';
+const MARKET_API_BASE = '/api/ai-music/market';
+const ASSET_API_BASE = '/api/ai-music/assets';
 
 let cachedSession = null;
 let cachedUser = null;
@@ -150,6 +152,10 @@ export async function refreshCreditOrder(orderNo) {
   return applyBootstrap(payload);
 }
 
+export async function refreshMarketOrder(orderNo) {
+  return appRequest('POST', `${MARKET_API_BASE}/order/${encodeURIComponent(orderNo)}/refresh`, { body: {} });
+}
+
 export const api = {
   updateProfile: ({ nickname } = {}) =>
     appRequest('POST', '/api/ai-music/profile', { body: { nickname } }).then(applyBootstrap),
@@ -179,6 +185,14 @@ export const api = {
   publicSong: (id) => appRequest('GET', `${PUBLIC_API_BASE}/songs/${encodeURIComponent(id)}`),
   publicSongLyrics: (id) => appRequest('GET', `${PUBLIC_API_BASE}/songs/${encodeURIComponent(id)}/lyrics`),
   recordPublicPlay: (id) => appRequest('POST', `${PUBLIC_API_BASE}/songs/${encodeURIComponent(id)}/play`, { body: {} }),
+  marketListings: ({ page = 1, page_size = 20, q = '' } = {}) =>
+    appRequest('GET', `${MARKET_API_BASE}/listings`, { query: { page, page_size, q } }),
+  createMarketOrder: (listingId) =>
+    appRequest('POST', `${MARKET_API_BASE}/listings/${encodeURIComponent(listingId)}/order`, { body: {} }),
+  refreshMarketOrder,
+  assets: () => appRequest('GET', ASSET_API_BASE),
+  withdrawAssets: (amount) => appRequest('POST', `${ASSET_API_BASE}/withdraw`, { body: { amount } }),
+  listSong: (id, price) => request('POST', `/song/${id}/list`, { body: { price } }),
   songDetail: (id) => request('GET', `/song/${id}`),
   songLyrics: (id) => request('GET', `/song/${id}/lyrics`),
   songLrc: (id) => request('GET', `/song/${id}/download-lrc`),

@@ -57,6 +57,38 @@ export function savePendingCreditOrder(orderNo) {
   } catch {}
 }
 
+export function launchNexaPayment(payload = {}, { pendingKey = '' } = {}) {
+  const order = payload.order || {};
+  const payment = payload.payment || {};
+  const orderNo = String(payment.orderNo || order.orderNo || '').trim();
+  if (pendingKey && orderNo) {
+    try {
+      sessionStorage.setItem(pendingKey, JSON.stringify({ orderNo, savedAt: Date.now() }));
+    } catch {}
+  }
+  const orderUrl = String(payment.orderUrl || payment.order_url || payment.payUrl || payment.pay_url || payment.url || '').trim();
+  if (orderUrl) {
+    window.location.href = orderUrl;
+    return true;
+  }
+  const paySign = String(payment.paySign || payment.pay_sign || '').trim();
+  const apiKey = String(payment.apiKey || payment.api_key || '').trim();
+  if (orderNo && paySign && apiKey) {
+    const params = new URLSearchParams({
+      orderNo,
+      paySign,
+      signType: String(payment.signType || payment.sign_type || 'MD5').trim(),
+      apiKey,
+      nonce: String(payment.nonce || '').trim(),
+      timestamp: String(payment.timestamp || '').trim(),
+      redirectUrl: `${window.location.origin}${window.location.pathname}`
+    });
+    window.location.href = `${NEXA_PROTOCOL_ORDER_BASE}?${params.toString()}`;
+    return true;
+  }
+  return false;
+}
+
 function notifyCreditsChanged(payload = {}) {
   window.dispatchEvent(new CustomEvent('gm-credits-changed', { detail: payload }));
 }
@@ -112,27 +144,7 @@ export async function buyCredits(tier = '1u') {
   const order = payload.order || {};
   const payment = payload.payment || {};
   savePendingCreditOrder(payment.orderNo || order.orderNo);
-  const orderUrl = String(payment.orderUrl || payment.order_url || payment.payUrl || payment.pay_url || payment.url || '').trim();
-  if (orderUrl) {
-    window.location.href = orderUrl;
-    return payload;
-  }
-  const paymentOrderNo = String(payment.orderNo || order.orderNo || '').trim();
-  const paySign = String(payment.paySign || payment.pay_sign || '').trim();
-  const apiKey = String(payment.apiKey || payment.api_key || '').trim();
-  if (paymentOrderNo && paySign && apiKey) {
-    const params = new URLSearchParams({
-      orderNo: paymentOrderNo,
-      paySign,
-      signType: String(payment.signType || payment.sign_type || 'MD5').trim(),
-      apiKey,
-      nonce: String(payment.nonce || '').trim(),
-      timestamp: String(payment.timestamp || '').trim(),
-      redirectUrl: `${window.location.origin}${window.location.pathname}`
-    });
-    window.location.href = `${NEXA_PROTOCOL_ORDER_BASE}?${params.toString()}`;
-    return payload;
-  }
+  if (launchNexaPayment(payload)) return payload;
   toast(`订单已创建：${order.orderNo || ''}`, 'success');
   return payload;
 }

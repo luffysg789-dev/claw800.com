@@ -268,6 +268,32 @@ db.exec(`
 `);
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS ai_music_wallets (
+    user_id INTEGER PRIMARY KEY,
+    balance TEXT NOT NULL DEFAULT '0.00',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY(user_id) REFERENCES ai_music_users(id)
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ai_music_asset_ledger (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    amount TEXT NOT NULL,
+    balance_after TEXT NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'USDT',
+    status TEXT NOT NULL DEFAULT 'completed',
+    reference_type TEXT NOT NULL DEFAULT '',
+    reference_id TEXT NOT NULL DEFAULT '',
+    note TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY(user_id) REFERENCES ai_music_users(id)
+  );
+`);
+
+db.exec(`
   CREATE TABLE IF NOT EXISTS ai_music_orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
@@ -332,6 +358,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS ai_music_songs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
+    copyright_user_id INTEGER,
     generation_id INTEGER,
     upstream_song_id TEXT NOT NULL DEFAULT '',
     title TEXT NOT NULL DEFAULT '',
@@ -342,7 +369,57 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY(user_id) REFERENCES ai_music_users(id),
+    FOREIGN KEY(copyright_user_id) REFERENCES ai_music_users(id),
     FOREIGN KEY(generation_id) REFERENCES ai_music_generations(id)
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ai_music_market_listings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    upstream_song_id TEXT NOT NULL,
+    seller_user_id INTEGER NOT NULL,
+    price TEXT NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'USDT',
+    status TEXT NOT NULL DEFAULT 'active',
+    buyer_user_id INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    sold_at TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY(seller_user_id) REFERENCES ai_music_users(id),
+    FOREIGN KEY(buyer_user_id) REFERENCES ai_music_users(id)
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ai_music_market_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_no TEXT NOT NULL UNIQUE,
+    nexa_order_id TEXT NOT NULL DEFAULT '',
+    listing_id INTEGER NOT NULL,
+    upstream_song_id TEXT NOT NULL,
+    buyer_user_id INTEGER NOT NULL,
+    seller_user_id INTEGER NOT NULL,
+    amount TEXT NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'USDT',
+    status TEXT NOT NULL DEFAULT 'pending',
+    notify_payload TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    paid_at TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY(listing_id) REFERENCES ai_music_market_listings(id),
+    FOREIGN KEY(buyer_user_id) REFERENCES ai_music_users(id),
+    FOREIGN KEY(seller_user_id) REFERENCES ai_music_users(id)
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ai_music_favorites (
+    user_id INTEGER NOT NULL,
+    upstream_song_id TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY(user_id, upstream_song_id),
+    FOREIGN KEY(user_id) REFERENCES ai_music_users(id)
   );
 `);
 
@@ -362,6 +439,17 @@ const hasAiMusicSongPlayCount = db.prepare("SELECT 1 FROM pragma_table_info('ai_
 if (!hasAiMusicSongPlayCount) {
   db.exec('ALTER TABLE ai_music_songs ADD COLUMN play_count INTEGER NOT NULL DEFAULT 0');
 }
+
+const hasAiMusicSongCopyrightUserId = db.prepare("SELECT 1 FROM pragma_table_info('ai_music_songs') WHERE name = 'copyright_user_id'").get();
+if (!hasAiMusicSongCopyrightUserId) {
+  db.exec('ALTER TABLE ai_music_songs ADD COLUMN copyright_user_id INTEGER DEFAULT NULL');
+}
+
+db.exec(`
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_music_market_active_song
+  ON ai_music_market_listings(upstream_song_id)
+  WHERE status = 'active';
+`);
 
 const hasGameUserEscrowCode = db.prepare("SELECT 1 FROM pragma_table_info('game_users') WHERE name = 'escrow_code'").get();
 if (!hasGameUserEscrowCode) {
@@ -1184,6 +1272,17 @@ db.exec(`
 
 const DEFAULT_GAMES_CATALOG = [
   {
+    slug: 'ai-music',
+    name: 'AI 音乐',
+    description: 'Nexa 授权登录后，用 USDT 购买生成次数，创作 AI 歌曲和分轨素材。',
+    cover_image: '',
+    secondary_image: '',
+    sound_file: '',
+    background_music_file: '',
+    is_enabled: 1,
+    sort_order: 100
+  },
+  {
     slug: 'predict-master',
     name: '高低期权',
     description: 'Detrade 高低期权交易页，授权后直接下单交易。',
@@ -1248,17 +1347,6 @@ const DEFAULT_GAMES_CATALOG = [
     background_music_file: '',
     is_enabled: 1,
     sort_order: 60
-  },
-  {
-    slug: 'ai-music',
-    name: 'AI 音乐',
-    description: 'Nexa 授权登录后，用 USDT 购买生成次数，创作 AI 歌曲和分轨素材。',
-    cover_image: '',
-    secondary_image: '',
-    sound_file: '',
-    background_music_file: '',
-    is_enabled: 1,
-    sort_order: 59
   },
   {
     slug: 'u-card-query',
@@ -1463,6 +1551,14 @@ function ensureDefaultGamesCatalog() {
 }
 
 ensureDefaultGamesCatalog();
+
+db.prepare(`
+  UPDATE games_catalog
+  SET sort_order = 100,
+      updated_at = datetime('now')
+  WHERE slug = 'ai-music'
+    AND sort_order < 100
+`).run();
 
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_partners_enabled_sort

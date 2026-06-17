@@ -1,5 +1,20 @@
 const DEFAULT_GAMES = [
   {
+    slug: 'ai-music',
+    name: 'AI 音乐',
+    description: 'Nexa 授权登录后，用 USDT 购买生成次数，创作 AI 歌曲和分轨素材。',
+    cover_image: '',
+    secondary_image: '',
+    sound_file: '',
+    background_music_file: '',
+    is_enabled: 1,
+    showInGamesHub: 1,
+    sort_order: 100,
+    route: '/ai-music/',
+    icon: '🎵',
+    actionText: '生成音乐'
+  },
+  {
     slug: 'predict-master',
     name: '高低期权',
     description: '进入 Detrade 高低期权交易页，授权后直接下单交易。',
@@ -94,21 +109,6 @@ const DEFAULT_GAMES = [
     predictType: 'predict',
     icon: 'UPAL',
     actionText: '进入预测'
-  },
-  {
-    slug: 'ai-music',
-    name: 'AI 音乐',
-    description: 'Nexa 授权登录后，用 USDT 购买生成次数，创作 AI 歌曲和分轨素材。',
-    cover_image: '',
-    secondary_image: '',
-    sound_file: '',
-    background_music_file: '',
-    is_enabled: 1,
-    showInGamesHub: 1,
-    sort_order: 59,
-    route: '/ai-music/',
-    icon: '🎵',
-    actionText: '生成音乐'
   },
   {
     slug: 'lucky-star',
@@ -594,7 +594,10 @@ function getVisibleGames(items) {
 }
 
 function renderGamesGrid(items) {
-  return getVisibleGames(items).map(gameCardMarkup).join('');
+  return getVisibleGames(items)
+    .sort((a, b) => (Number(b.sort_order) || 0) - (Number(a.sort_order) || 0))
+    .map(gameCardMarkup)
+    .join('');
 }
 
 function applyGamePageConfig(item) {

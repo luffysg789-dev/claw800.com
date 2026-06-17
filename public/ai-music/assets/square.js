@@ -1,10 +1,12 @@
-import { api, ApiError } from './api.js?v=20260617-ai-music-payment-refresh';
+import { api, ApiError, getApiKey } from './api.js?v=20260617-ai-music-payment-refresh';
+import { openKeyModal } from './auth.js?v=20260617-ai-music-payment-refresh';
 import { el, clear, toast, mediaUrl } from './ui.js?v=20260617-ai-music-payment-refresh';
 import { toggleGlobalSong } from './player.js?v=20260617-ai-music-payment-refresh';
 
 let state = { page: 1, page_size: 20, q: '', loading: false, hasMore: true };
 let squareObserver = null;
 let searchTimer = null;
+let squareStateBound = false;
 
 export function renderSquare(root) {
   clear(root);
@@ -25,6 +27,7 @@ export function renderSquare(root) {
     el('button', { type: 'button', id: 'gm-square-sentinel', class: 'gm-square-sentinel', text: '上拉加载更多', onclick: () => loadMore(root) })
   ]);
   root.appendChild(wrap);
+  bindSquarePlayerState();
   setupAutoLoad(root);
   load(root);
 }
@@ -104,6 +107,14 @@ function squareCard(song) {
   const author = String(song.author_nickname || song.authorNickname || '').trim();
   const cover = mediaUrl(song.image_url || song.cover_url || '');
   const plays = el('div', { class: 'gm-square-plays', text: formatPlayCount(song) });
+  const favoriteBtn = el('button', {
+    type: 'button',
+    class: 'gm-square-favorite' + (song.user_favorited ? ' active' : ''),
+    title: song.user_favorited ? '取消收藏' : '收藏',
+    'aria-label': song.user_favorited ? '取消收藏' : '收藏',
+    html: '♥',
+    onclick: (event) => { event.preventDefault(); event.stopPropagation(); toggleFavorite(song, favoriteBtn); }
+  });
   const coverChildren = [
     cover ? el('img', {
       class: 'gm-square-cover-img',
@@ -118,13 +129,14 @@ function squareCard(song) {
     el('button', {
       type: 'button',
       class: 'gm-square-cover',
+      'data-song-id': String(song.id || ''),
       'aria-label': '播放 ' + title,
       onclick: () => playPublicSong(song, plays)
     }, coverChildren),
     el('div', { class: 'gm-square-info' }, [
       el('div', { class: 'gm-square-title-row' }, [
         el('a', { class: 'gm-square-title', href: `/ai-music/song/${encodeURIComponent(String(song.id || ''))}`, text: title }),
-        plays
+        el('div', { class: 'gm-square-title-side' }, [plays, favoriteBtn])
       ]),
       el('div', { class: 'gm-square-author-row' }, [
         el('div', { class: 'gm-square-author', text: author ? `作者：${author}` : '作者：匿名' }),
@@ -138,6 +150,27 @@ function squareCard(song) {
   return card;
 }
 
+async function toggleFavorite(song, btn) {
+  if (!song?.id) return;
+  if (!getApiKey()) {
+    openKeyModal({});
+    return;
+  }
+  btn.disabled = true;
+  try {
+    const payload = await api.favorite(song.id);
+    song.user_favorited = !!payload.user_favorited;
+    btn.classList.toggle('active', song.user_favorited);
+    btn.title = song.user_favorited ? '取消收藏' : '收藏';
+    btn.setAttribute('aria-label', btn.title);
+    toast(song.user_favorited ? '已收藏' : '已取消收藏', 'success');
+  } catch (error) {
+    toast(error instanceof ApiError ? error.message : '收藏失败', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 function getPlayCount(song = {}) {
   return Math.max(0, Number(song.play_count ?? song.playCount ?? 0) || 0);
 }
@@ -149,6 +182,7 @@ function formatPlayCount(song = {}) {
 async function playPublicSong(song, countEl) {
   const started = toggleGlobalSong(song);
   if (!started || !song?.id) return;
+  setSquarePlaying(song.id, true);
   try {
     const payload = await api.recordPublicPlay(song.id);
     const next = Math.max(0, Number(payload.play_count ?? payload.playCount ?? getPlayCount(song) + 1) || 0);
@@ -160,26 +194,80 @@ async function playPublicSong(song, countEl) {
   }
 }
 
+function setSquarePlaying(songId, playing) {
+  const id = String(songId || '');
+  document.querySelectorAll('.gm-square-cover[data-song-id]').forEach((btn) => {
+    const active = !!playing && String(btn.dataset.songId || '') === id;
+    btn.classList.toggle('gm-square-playing', active);
+    btn.setAttribute('aria-label', active ? '暂停' : '播放');
+    const icon = btn.querySelector('.gm-square-play');
+    if (icon) icon.textContent = active ? 'Ⅱ' : '▶';
+  });
+}
+
+function bindSquarePlayerState() {
+  if (squareStateBound) return;
+  squareStateBound = true;
+  window.addEventListener('gm-global-player-state', (event) => {
+    setSquarePlaying(event.detail?.songId, !!event.detail?.playing);
+  });
+}
+
 function extractLyricsPayload(payload) {
-  if (!payload) return '';
-  if (typeof payload === 'string') return payload.trim();
-  const candidates = [
-    payload.lyrics,
-    payload.lyric,
-    payload.text,
-    payload.lrc,
-    payload.raw,
-    payload.data?.lyrics,
-    payload.data?.lyric,
-    payload.data?.text,
-    payload.data?.lrc,
-    payload.data?.raw,
-    payload.song?.lyrics,
-    payload.song?.lyric,
-    payload.song?.text,
-    payload.song?.lrc
-  ];
-  return String(candidates.find((value) => value != null && String(value).trim()) || '').trim();
+  return normalizeLyricsValue(payload);
+}
+
+function cleanLyricsText(text) {
+  const value = String(text || '').trim();
+  if (!value) return '';
+  if (/^\s*[{[]/.test(value) || /^\s*</.test(value)) return '';
+  if (/(function\s*\(|=>|const\s+|let\s+|var\s+|class=|style=|<\/?[a-z][\s>]|;\s*})/i.test(value)) return '';
+  return /[\p{L}\p{N}\u4e00-\u9fff]/u.test(value) ? value : '';
+}
+
+function normalizeLyricsValue(value) {
+  if (value == null) return '';
+  if (typeof value === 'string') return cleanLyricsText(value);
+  if (Array.isArray(value)) {
+    return value.map((item) => {
+      if (typeof item === 'string') return cleanLyricsText(item);
+      const text = cleanLyricsText(item?.text || item?.lyric || item?.line || item?.content || item?.words || item?.sentence);
+      if (!text) return '';
+      const rawTime = item?.time ?? item?.start ?? item?.startTime ?? item?.timestamp;
+      const numericTime = typeof rawTime === 'number' ? rawTime : Number(rawTime);
+      if (Number.isFinite(numericTime)) {
+        const seconds = numericTime >= 1000 ? numericTime / 1000 : numericTime;
+        const minutes = Math.floor(seconds / 60);
+        const rest = (seconds - minutes * 60).toFixed(2).padStart(5, '0');
+        return `[${minutes}:${rest}]${text}`;
+      }
+      return text;
+    }).filter(Boolean).join('\n');
+  }
+  if (typeof value === 'object') {
+    const candidates = [
+      value.lyrics,
+      value.lyric,
+      value.lrc,
+      value.lrcText,
+      value.lrc_text,
+      value.syncedLyrics,
+      value.synced_lyrics,
+      value.text,
+      value.content,
+      value.raw,
+      value.lines,
+      value.items,
+      value.song,
+      value.result,
+      value.data
+    ];
+    for (const candidate of candidates) {
+      const text = normalizeLyricsValue(candidate);
+      if (text) return text;
+    }
+  }
+  return '';
 }
 
 function fallbackCopy(text, done) {
@@ -288,6 +376,6 @@ function setupAutoLoad(root) {
 function shareSong(song) {
   const title = song.title || 'AI 歌曲';
   const url = `${location.origin}/ai-music/song/${encodeURIComponent(String(song.id || ''))}`;
-  const text = `我在 claw800.com 用 AI 1 分钟做了首歌《${title}》, 你也来做一首: ${url}`;
+  const text = `我在 https://claw800.com/ai-music/ 发现了一首歌《${title}》, 你也来听听: ${url}`;
   navigator.clipboard?.writeText(text).then(() => toast('已复制', 'success')).catch(() => toast(text, 'info'));
 }

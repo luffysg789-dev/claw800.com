@@ -75,6 +75,6 @@ async function playPublicSong(song, countEl) {
 function shareSong(song) {
   const title = song.title || 'AI 歌曲';
   const url = `${location.origin}/ai-music/song/${encodeURIComponent(String(song.id || ''))}`;
-  const text = `我在 claw800.com 用 AI 1 分钟做了首歌《${title}》, 你也来做一首: ${url}`;
+  const text = `我在 https://claw800.com/ai-music/ 用 AI 1 分钟做了首歌《${title}》, 你也来做一首: ${url}`;
   navigator.clipboard?.writeText(text).then(() => toast('已复制', 'success')).catch(() => toast(text, 'info'));
 }

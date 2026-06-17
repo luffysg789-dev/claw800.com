@@ -1147,6 +1147,165 @@ async function createAiMusicCreditOrder({ req, session, user, packageTier = '1u'
   };
 }
 
+async function createAiMusicMarketOrder({ req, session, user, listingId }) {
+  const listing = selectAiMusicMarketListingByIdStmt.get(Number(listingId || 0));
+  if (!listing || String(listing.listing_status || '').toLowerCase() !== 'active') {
+    const error = new Error('歌曲已下架或不存在');
+    error.statusCode = 404;
+    throw error;
+  }
+  const buyerId = Number(user.id);
+  const copyrightOwnerId = Number(listing.copyright_user_id || listing.user_id || 0);
+  if (buyerId === copyrightOwnerId || buyerId === Number(listing.seller_user_id || 0)) {
+    const error = new Error('不能购买自己的歌曲');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const { apiKey, appSecret } = ensureNexaCredentialsConfigured();
+  const baseUrl = getPublicBaseUrl(req);
+  const amount = normalizeAiMusicMarketPrice(listing.price);
+  const partnerOrderNo = `ai_music_market_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+  const notifyUrl = `${baseUrl}/api/ai-music/market/notify`;
+  const returnUrl = `${baseUrl}/ai-music/#market`;
+  const subject = 'AI 音乐版权购买';
+  const body = `购买《${String(listing.title || 'AI 音乐').trim() || 'AI 音乐'}》版权`;
+  const legacyPayload = buildNexaLegacyPaymentCreatePayload({
+    apiKey,
+    appSecret,
+    amount,
+    currency: 'USDT',
+    subject,
+    body,
+    notifyUrl,
+    returnUrl,
+    openId: String(session.openId || '').trim(),
+    sessionKey: String(session.sessionKey || '').trim()
+  });
+  const fallbackVariants = prioritizeNexaPaymentCreateVariants(
+    buildNexaPaymentCreatePayloadVariants({
+      apiKey,
+      appSecret,
+      orderNo: partnerOrderNo,
+      amount,
+      currency: 'USDT',
+      callbackUrl: returnUrl,
+      subject,
+      body,
+      notifyUrl,
+      returnUrl,
+      openId: String(session.openId || '').trim(),
+      sessionKey: String(session.sessionKey || '').trim()
+    }),
+    preferredNexaPaymentVariantName
+  ).slice(0, 1);
+
+  let response = null;
+  let lastSignatureResponse = null;
+  try {
+    response = await postConfiguredNexaJson('/partner/api/openapi/payment/create', legacyPayload, {
+      source: 'ai-music-market-payment-create-legacy'
+    });
+  } catch (error) {
+    if (isNexaRateLimitError(error)) {
+      const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
+      rateLimitError.statusCode = 429;
+      throw rateLimitError;
+    }
+    if (shouldRetryNexaDocumentedPaymentPayload(error)) {
+      response = null;
+    } else {
+      throw error;
+    }
+  }
+
+  if (isNexaRateLimitError(response)) {
+    const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
+    rateLimitError.statusCode = 429;
+    throw rateLimitError;
+  }
+
+  if (isNexaSignatureError(response)) {
+    lastSignatureResponse = response;
+    response = null;
+  }
+
+  if (!response) {
+    for (const variant of fallbackVariants) {
+      try {
+        response = await postConfiguredNexaJson('/partner/api/openapi/payment/create', variant.payload, {
+          source: `ai-music-market-payment-create-${variant.name}`
+        });
+      } catch (error) {
+        if (isNexaRateLimitError(error)) {
+          const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
+          rateLimitError.statusCode = 429;
+          throw rateLimitError;
+        }
+        throw error;
+      }
+
+      if (isNexaRateLimitError(response)) {
+        const rateLimitError = new Error('Nexa 支付请求过于频繁，请稍后再试。');
+        rateLimitError.statusCode = 429;
+        throw rateLimitError;
+      }
+
+      if (isNexaSignatureError(response)) {
+        lastSignatureResponse = response;
+        response = null;
+        continue;
+      }
+
+      preferredNexaPaymentVariantName = variant.name;
+      break;
+    }
+  }
+
+  if (!response) {
+    if (lastSignatureResponse) throw new Error(String(lastSignatureResponse?.message || 'AI 音乐版权订单创建失败'));
+    throw new Error('AI 音乐版权订单创建失败');
+  }
+
+  const data = unwrapNexaResult(response, 'AI 音乐版权订单创建失败');
+  const orderNo = String(data.orderNo || partnerOrderNo).trim();
+  const nexaOrderId = String(
+    data.orderId ||
+      data.order_id ||
+      data.tradeNo ||
+      data.trade_no ||
+      data.paymentId ||
+      data.payment_id ||
+      ''
+  ).trim();
+
+  insertAiMusicMarketOrderStmt.run(
+    orderNo,
+    nexaOrderId,
+    Number(listing.listing_id),
+    String(listing.upstream_song_id || '').trim(),
+    buyerId,
+    Number(listing.seller_user_id),
+    amount,
+    'USDT',
+    'pending'
+  );
+
+  return {
+    order: formatAiMusicMarketOrder(selectAiMusicMarketOrderByOrderNoStmt.get(orderNo)),
+    listing: formatAiMusicMarketListing(listing),
+    payment: {
+      ...data,
+      timestamp: String(data.timestamp || '').trim(),
+      nonce: String(data.nonce || '').trim(),
+      signType: String(data.signType || 'MD5').trim(),
+      paySign: String(data.paySign || '').trim(),
+      apiKey: String(data.apiKey || apiKey).trim(),
+      orderNo: String(data.orderNo || orderNo).trim()
+    }
+  };
+}
+
 async function queryNexaTipOrder(orderNo) {
   const { apiKey, appSecret } = ensureNexaCredentialsConfigured();
   const payload = buildNexaPaymentQueryPayload({
@@ -1811,6 +1970,7 @@ function ensureAiMusicUserAccount(session) {
   }
 
   ensureAiMusicCreditAccountStmt.run(Number(row.id));
+  ensureAiMusicWalletStmt.run(Number(row.id));
   return formatAiMusicUser(row);
 }
 
@@ -1881,6 +2041,43 @@ const grantAiMusicCreditsForOrderTx = db.transaction((orderNo) => {
   };
 });
 
+const settleAiMusicMarketOrderTx = db.transaction((orderNo) => {
+  const order = selectAiMusicMarketOrderByOrderNoStmt.get(String(orderNo || '').trim());
+  if (!order) {
+    const error = new Error('ORDER_NOT_FOUND');
+    error.statusCode = 404;
+    throw error;
+  }
+  if (String(order.status || '').trim() !== 'paid') {
+    return {
+      order,
+      listing: selectAiMusicMarketListingByIdStmt.get(Number(order.listing_id || 0))
+    };
+  }
+
+  const listing = selectAiMusicMarketListingByIdStmt.get(Number(order.listing_id || 0));
+  if (!listing) {
+    const error = new Error('LISTING_NOT_FOUND');
+    error.statusCode = 404;
+    throw error;
+  }
+  if (String(listing.listing_status || '').trim() === 'active') {
+    markAiMusicMarketListingSoldStmt.run(Number(order.buyer_user_id), Number(order.listing_id));
+    updateAiMusicSongCopyrightOwnerStmt.run(Number(order.buyer_user_id), String(order.upstream_song_id || '').trim());
+    creditAiMusicSellerAsset({
+      sellerUserId: Number(order.seller_user_id),
+      amount: String(order.amount || '0.00').trim(),
+      orderNo: String(order.order_no || '').trim(),
+      songTitle: String(listing.title || '').trim()
+    });
+  }
+  markAiMusicMarketOrderPaidStmt.run(Number(order.id));
+  return {
+    order: selectAiMusicMarketOrderByOrderNoStmt.get(String(orderNo || '').trim()),
+    listing: selectAiMusicMarketListingByIdStmt.get(Number(order.listing_id || 0))
+  };
+});
+
 function formatAiMusicOrder(row) {
   return {
     id: Number(row?.id || 0) || 0,
@@ -1893,6 +2090,25 @@ function formatAiMusicOrder(row) {
     status: String(row?.status || 'pending').trim() || 'pending',
     openId: String(row?.open_id || '').trim(),
     nickname: String(row?.nickname || '').trim(),
+    notifyPayload: parseSerializedPayload(row?.notify_payload),
+    createdAt: String(row?.created_at || '').trim(),
+    paidAt: String(row?.paid_at || '').trim(),
+    updatedAt: String(row?.updated_at || '').trim()
+  };
+}
+
+function formatAiMusicMarketOrder(row) {
+  return {
+    id: Number(row?.id || 0) || 0,
+    orderNo: String(row?.order_no || '').trim(),
+    nexaOrderId: String(row?.nexa_order_id || '').trim(),
+    listingId: Number(row?.listing_id || 0) || 0,
+    songId: String(row?.upstream_song_id || '').trim(),
+    buyerUserId: Number(row?.buyer_user_id || 0) || 0,
+    sellerUserId: Number(row?.seller_user_id || 0) || 0,
+    amount: String(row?.amount || '').trim(),
+    currency: String(row?.currency || AI_MUSIC_CURRENCY).trim() || AI_MUSIC_CURRENCY,
+    status: String(row?.status || 'pending').trim() || 'pending',
     notifyPayload: parseSerializedPayload(row?.notify_payload),
     createdAt: String(row?.created_at || '').trim(),
     paidAt: String(row?.paid_at || '').trim(),
@@ -1994,29 +2210,60 @@ function extractAiMusicSongDetail(data = {}) {
 }
 
 function extractAiMusicLyricsPayload(payload = {}) {
-  if (!payload) return '';
-  if (typeof payload === 'string') return payload.trim();
-  const candidates = [
-    payload.lyrics,
-    payload.lyric,
-    payload.text,
-    payload.lrc,
-    payload.raw,
-    payload.data?.lyrics,
-    payload.data?.lyric,
-    payload.data?.text,
-    payload.data?.lrc,
-    payload.data?.raw,
-    payload.song?.lyrics,
-    payload.song?.lyric,
-    payload.song?.text,
-    payload.song?.lrc,
-    payload.result?.lyrics,
-    payload.result?.lyric,
-    payload.result?.text,
-    payload.result?.lrc
-  ];
-  return String(candidates.find((value) => value != null && String(value).trim()) || '').trim();
+  return normalizeAiMusicLyricsValue(payload);
+}
+
+function cleanAiMusicLyricsText(text) {
+  const value = String(text || '').trim();
+  if (!value) return '';
+  if (/^\s*[{[]/.test(value) || /^\s*</.test(value)) return '';
+  if (/(function\s*\(|=>|const\s+|let\s+|var\s+|class=|style=|<\/?[a-z][\s>]|;\s*})/i.test(value)) return '';
+  return /[\p{L}\p{N}\u4e00-\u9fff]/u.test(value) ? value : '';
+}
+
+function normalizeAiMusicLyricsValue(value) {
+  if (value == null) return '';
+  if (typeof value === 'string') return cleanAiMusicLyricsText(value);
+  if (Array.isArray(value)) {
+    return value.map((item) => {
+      if (typeof item === 'string') return cleanAiMusicLyricsText(item);
+      const text = cleanAiMusicLyricsText(item?.text || item?.lyric || item?.line || item?.content || item?.words || item?.sentence);
+      if (!text) return '';
+      const rawTime = item?.time ?? item?.start ?? item?.startTime ?? item?.timestamp;
+      const numericTime = typeof rawTime === 'number' ? rawTime : Number(rawTime);
+      if (Number.isFinite(numericTime)) {
+        const seconds = numericTime >= 1000 ? numericTime / 1000 : numericTime;
+        const minutes = Math.floor(seconds / 60);
+        const rest = (seconds - minutes * 60).toFixed(2).padStart(5, '0');
+        return `[${minutes}:${rest}]${text}`;
+      }
+      return text;
+    }).filter(Boolean).join('\n');
+  }
+  if (typeof value === 'object') {
+    const candidates = [
+      value.lyrics,
+      value.lyric,
+      value.lrc,
+      value.lrcText,
+      value.lrc_text,
+      value.syncedLyrics,
+      value.synced_lyrics,
+      value.text,
+      value.content,
+      value.raw,
+      value.lines,
+      value.items,
+      value.song,
+      value.result,
+      value.data
+    ];
+    for (const candidate of candidates) {
+      const text = normalizeAiMusicLyricsValue(candidate);
+      if (text) return text;
+    }
+  }
+  return '';
 }
 
 function isAiMusicCompleteStatus(status) {
@@ -2044,6 +2291,9 @@ function stableAiMusicMediaPath(songId, type) {
 function formatLocalAiMusicSong(row = {}) {
   const upstreamSongId = String(row.upstream_song_id || row.id || '').trim();
   const authorNickname = String(row.author_nickname || row.nickname || '').trim();
+  const copyrightNickname = String(row.copyright_nickname || authorNickname || '').trim();
+  const copyrightUserId = Number(row.copyright_user_id || row.user_id || 0) || 0;
+  const marketListingId = Number(row.market_listing_id || 0) || 0;
   return {
     id: upstreamSongId || String(row.id || '').trim(),
     title: String(row.title || '').trim() || '未命名',
@@ -2056,6 +2306,14 @@ function formatLocalAiMusicSong(row = {}) {
     playCount: Math.max(0, Number(row.play_count || 0) || 0),
     author_nickname: authorNickname,
     authorNickname,
+    author_user_id: Number(row.user_id || 0) || 0,
+    copyright_user_id: copyrightUserId,
+    copyright_nickname: copyrightNickname,
+    copyrightNickname,
+    market_listing_id: marketListingId || null,
+    market_price: String(row.market_price || '').trim(),
+    can_sell: Boolean(row.can_sell ?? true),
+    user_favorited: Number(row.user_favorited || 0) === 1,
     created_at: String(row.created_at || '').trim(),
     updated_at: String(row.updated_at || '').trim()
   };
@@ -2079,6 +2337,150 @@ function formatPublicAiMusicSong(row = {}) {
     audio_url: publicAiMusicMediaPath(row.audio_url || song.audio_url),
     share_url: `/ai-music/song/${encodeURIComponent(id)}`
   };
+}
+
+function formatAiMusicMarketListing(row = {}) {
+  const listingId = Number(row.listing_id || row.id || 0) || 0;
+  return {
+    id: listingId,
+    listing_id: listingId,
+    price: String(row.price || '0.00').trim(),
+    currency: String(row.currency || 'USDT').trim() || 'USDT',
+    status: String(row.listing_status || row.status || 'active').trim(),
+    seller_user_id: Number(row.seller_user_id || 0) || 0,
+    seller_nickname: String(row.seller_nickname || '').trim(),
+    buyer_user_id: Number(row.buyer_user_id || 0) || 0,
+    song: formatPublicAiMusicSong(row),
+    created_at: String(row.listing_created_at || row.created_at || '').trim(),
+    sold_at: String(row.sold_at || '').trim()
+  };
+}
+
+function normalizeAiMusicMarketPrice(value) {
+  const n = Number(String(value ?? '').trim());
+  if (!Number.isFinite(n) || n <= 0) {
+    const error = new Error('请输入有效价格');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (n > 100000) {
+    const error = new Error('价格不能超过 100000 USDT');
+    error.statusCode = 400;
+    throw error;
+  }
+  return n.toFixed(2);
+}
+
+function aiMusicAmountToCents(value) {
+  const n = Number(String(value ?? '').trim());
+  if (!Number.isFinite(n) || n < 0) {
+    const error = new Error('请输入有效金额');
+    error.statusCode = 400;
+    throw error;
+  }
+  return Math.round(n * 100);
+}
+
+function aiMusicCentsToAmount(cents) {
+  return (Math.max(0, Number(cents || 0) || 0) / 100).toFixed(2);
+}
+
+function getAiMusicAssetSummary(userId) {
+  const normalizedUserId = Number(userId || 0);
+  ensureAiMusicWalletStmt.run(normalizedUserId);
+  const wallet = selectAiMusicWalletStmt.get(normalizedUserId) || {};
+  const rows = listAiMusicAssetLedgerStmt.all(normalizedUserId, 50);
+  return {
+    balance: String(wallet.balance || '0.00').trim() || '0.00',
+    currency: AI_MUSIC_CURRENCY,
+    entries: rows.map(formatAiMusicAssetLedger)
+  };
+}
+
+function formatAiMusicAssetLedger(row = {}) {
+  return {
+    id: Number(row.id || 0) || 0,
+    type: String(row.type || '').trim(),
+    amount: String(row.amount || '0.00').trim() || '0.00',
+    balanceAfter: String(row.balance_after || '0.00').trim() || '0.00',
+    currency: String(row.currency || AI_MUSIC_CURRENCY).trim() || AI_MUSIC_CURRENCY,
+    status: String(row.status || '').trim(),
+    referenceType: String(row.reference_type || '').trim(),
+    referenceId: String(row.reference_id || '').trim(),
+    note: String(row.note || '').trim(),
+    createdAt: String(row.created_at || '').trim()
+  };
+}
+
+function creditAiMusicSellerAsset({ sellerUserId, amount, orderNo, songTitle }) {
+  const normalizedUserId = Number(sellerUserId || 0);
+  if (!normalizedUserId) return;
+  ensureAiMusicWalletStmt.run(normalizedUserId);
+  const wallet = selectAiMusicWalletStmt.get(normalizedUserId) || {};
+  const nextBalance = aiMusicCentsToAmount(aiMusicAmountToCents(wallet.balance || '0.00') + aiMusicAmountToCents(amount));
+  updateAiMusicWalletBalanceStmt.run(nextBalance, normalizedUserId);
+  insertAiMusicAssetLedgerStmt.run(
+    normalizedUserId,
+    'sale_income',
+    normalizeAiMusicMarketPrice(amount),
+    nextBalance,
+    AI_MUSIC_CURRENCY,
+    'completed',
+    'market_order',
+    String(orderNo || '').trim(),
+    `歌曲销售收入：${String(songTitle || 'AI 音乐').trim() || 'AI 音乐'}`
+  );
+}
+
+function createAiMusicWithdrawRequest(userId, amount) {
+  const normalizedUserId = Number(userId || 0);
+  const normalizedAmount = normalizeAiMusicMarketPrice(amount);
+  ensureAiMusicWalletStmt.run(normalizedUserId);
+  const wallet = selectAiMusicWalletStmt.get(normalizedUserId) || {};
+  const balanceCents = aiMusicAmountToCents(wallet.balance || '0.00');
+  const amountCents = aiMusicAmountToCents(normalizedAmount);
+  if (amountCents > balanceCents) {
+    const error = new Error('提现金额不能大于余额');
+    error.statusCode = 400;
+    throw error;
+  }
+  const nextBalance = aiMusicCentsToAmount(balanceCents - amountCents);
+  updateAiMusicWalletBalanceStmt.run(nextBalance, normalizedUserId);
+  insertAiMusicAssetLedgerStmt.run(
+    normalizedUserId,
+    'withdraw_pending',
+    normalizedAmount,
+    nextBalance,
+    AI_MUSIC_CURRENCY,
+    'pending',
+    'withdraw',
+    `ai_music_withdraw_${Date.now()}`,
+    '提现申请已提交，T+1 到账'
+  );
+  return getAiMusicAssetSummary(normalizedUserId);
+}
+
+function toggleAiMusicFavorite(userId, songId) {
+  const normalizedSongId = String(songId || '').trim();
+  if (!normalizedSongId) {
+    const error = new Error('SONG_ID_REQUIRED');
+    error.statusCode = 400;
+    throw error;
+  }
+  const song = selectAiMusicSongByUpstreamIdStmt.get(normalizedSongId);
+  if (!song) {
+    const error = new Error('SONG_NOT_FOUND');
+    error.statusCode = 404;
+    throw error;
+  }
+  const uid = Number(userId || 0);
+  const existing = selectAiMusicFavoriteStmt.get(uid, normalizedSongId);
+  if (existing) {
+    deleteAiMusicFavoriteStmt.run(uid, normalizedSongId);
+    return { song, user_favorited: false };
+  }
+  insertAiMusicFavoriteStmt.run(uid, normalizedSongId);
+  return { song, user_favorited: true };
 }
 
 function normalizeAiMusicSong(input = {}) {
@@ -2114,24 +2516,33 @@ function normalizeAiMusicSong(input = {}) {
 
 async function listLocalAiMusicSongsForUser(userId, { page = 1, pageSize = 20, q = '', tab = 'mine' } = {}) {
   const normalizedTab = String(tab || 'mine').trim();
-  if (normalizedTab === 'favorites') {
-    return { ok: true, songs: [], total: 0, page, page_size: pageSize };
-  }
   const normalizedPage = Math.max(1, Number(page || 1) || 1);
   const normalizedPageSize = Math.min(50, Math.max(1, Number(pageSize || 20) || 20));
   const keyword = String(q || '').trim();
-  const where = ['user_id = ?'];
-  const params = [Number(userId)];
+  const where = normalizedTab === 'favorites'
+    ? ['fav.user_id = ?']
+    : ['(s.user_id = ? OR COALESCE(s.copyright_user_id, s.user_id) = ?)'];
+  const params = normalizedTab === 'favorites'
+    ? [Number(userId)]
+    : [Number(userId), Number(userId)];
   if (keyword) {
-    where.push('title LIKE ?');
+    where.push('s.title LIKE ?');
     params.push(`%${keyword}%`);
   }
   const whereSql = where.join(' AND ');
-  const total = db.prepare(`SELECT COUNT(*) AS count FROM ai_music_songs WHERE ${whereSql}`).get(...params)?.count || 0;
+  const favoriteJoin = normalizedTab === 'favorites'
+    ? 'JOIN ai_music_favorites fav ON fav.upstream_song_id = s.upstream_song_id'
+    : 'LEFT JOIN ai_music_favorites fav ON fav.upstream_song_id = s.upstream_song_id AND fav.user_id = ?';
+  const totalParams = normalizedTab === 'favorites' ? params : [Number(userId), ...params];
+  const total = db.prepare(`SELECT COUNT(*) AS count FROM ai_music_songs s ${favoriteJoin} WHERE ${whereSql}`).get(...totalParams)?.count || 0;
+  const rowParams = normalizedTab === 'favorites'
+    ? [Number(userId), ...params]
+    : [Number(userId), Number(userId), ...params];
   const rows = db.prepare(`
     SELECT
       s.id,
       s.user_id,
+      COALESCE(s.copyright_user_id, s.user_id) AS copyright_user_id,
       s.generation_id,
       s.upstream_song_id,
       s.title,
@@ -2141,13 +2552,21 @@ async function listLocalAiMusicSongsForUser(userId, { page = 1, pageSize = 20, q
       s.play_count,
       s.created_at,
       s.updated_at,
-      u.nickname AS author_nickname
+      u.nickname AS author_nickname,
+      cu.nickname AS copyright_nickname,
+      ml.id AS market_listing_id,
+      ml.price AS market_price,
+      CASE WHEN fav.user_id IS NULL THEN 0 ELSE 1 END AS user_favorited,
+      CASE WHEN COALESCE(s.copyright_user_id, s.user_id) = ? THEN 1 ELSE 0 END AS can_sell
     FROM ai_music_songs s
+    ${favoriteJoin}
     LEFT JOIN ai_music_users u ON u.id = s.user_id
-    WHERE ${whereSql.replaceAll('audio_url', 's.audio_url').replaceAll('title', 's.title')}
-    ORDER BY datetime(s.created_at) DESC, s.id DESC
+    LEFT JOIN ai_music_users cu ON cu.id = COALESCE(s.copyright_user_id, s.user_id)
+    LEFT JOIN ai_music_market_listings ml ON ml.upstream_song_id = s.upstream_song_id AND ml.status = 'active'
+    WHERE ${whereSql}
+    ORDER BY ${normalizedTab === 'favorites' ? 'datetime(fav.created_at)' : 'datetime(s.created_at)'} DESC, s.id DESC
     LIMIT ? OFFSET ?
-  `).all(...params, normalizedPageSize, (normalizedPage - 1) * normalizedPageSize);
+  `).all(...rowParams, normalizedPageSize, (normalizedPage - 1) * normalizedPageSize);
   await syncMissingAiMusicSongMedia(rows);
   return {
     ok: true,
@@ -2158,7 +2577,7 @@ async function listLocalAiMusicSongsForUser(userId, { page = 1, pageSize = 20, q
   };
 }
 
-async function listPublicAiMusicSongs({ page = 1, pageSize = 20, q = '' } = {}) {
+async function listPublicAiMusicSongs({ page = 1, pageSize = 20, q = '', userId = 0 } = {}) {
   const normalizedPage = Math.max(1, Number(page || 1) || 1);
   const normalizedPageSize = Math.min(50, Math.max(1, Number(pageSize || 20) || 20));
   const keyword = String(q || '').trim();
@@ -2174,6 +2593,7 @@ async function listPublicAiMusicSongs({ page = 1, pageSize = 20, q = '' } = {}) 
     SELECT
       s.id,
       s.user_id,
+      COALESCE(s.copyright_user_id, s.user_id) AS copyright_user_id,
       s.generation_id,
       s.upstream_song_id,
       s.title,
@@ -2183,17 +2603,45 @@ async function listPublicAiMusicSongs({ page = 1, pageSize = 20, q = '' } = {}) 
       s.play_count,
       s.created_at,
       s.updated_at,
-      u.nickname AS author_nickname
+      u.nickname AS author_nickname,
+      cu.nickname AS copyright_nickname,
+      CASE WHEN fav.user_id IS NULL THEN 0 ELSE 1 END AS user_favorited
     FROM ai_music_songs s
     LEFT JOIN ai_music_users u ON u.id = s.user_id
+    LEFT JOIN ai_music_users cu ON cu.id = COALESCE(s.copyright_user_id, s.user_id)
+    LEFT JOIN ai_music_favorites fav ON fav.upstream_song_id = s.upstream_song_id AND fav.user_id = ?
     WHERE ${whereSql}
     ORDER BY datetime(s.created_at) DESC, s.id DESC
     LIMIT ? OFFSET ?
-  `).all(...params, normalizedPageSize, (normalizedPage - 1) * normalizedPageSize);
+  `).all(Number(userId || 0), ...params, normalizedPageSize, (normalizedPage - 1) * normalizedPageSize);
   await syncMissingAiMusicSongMedia(rows);
   return {
     ok: true,
     songs: rows.map(formatPublicAiMusicSong),
+    total: Number(total || 0) || 0,
+    page: normalizedPage,
+    page_size: normalizedPageSize
+  };
+}
+
+async function listAiMusicMarketListings({ page = 1, pageSize = 20, q = '' } = {}) {
+  const normalizedPage = Math.max(1, Number(page || 1) || 1);
+  const normalizedPageSize = Math.min(50, Math.max(1, Number(pageSize || 20) || 20));
+  const keyword = String(q || '').trim();
+  const like = keyword ? `%${keyword}%` : '';
+  const total = countAiMusicMarketListingsStmt.get(keyword, like, like, like)?.count || 0;
+  const rows = listAiMusicMarketListingsStmt.all(
+    keyword,
+    like,
+    like,
+    like,
+    normalizedPageSize,
+    (normalizedPage - 1) * normalizedPageSize
+  );
+  await syncMissingAiMusicSongMedia(rows);
+  return {
+    ok: true,
+    listings: rows.map(formatAiMusicMarketListing),
     total: Number(total || 0) || 0,
     page: normalizedPage,
     page_size: normalizedPageSize
@@ -8625,16 +9073,186 @@ app.post('/api/ai-music/credits/notify', (req, res) => {
   return res.status(httpStatus === 400 ? 400 : 200).json({ code: responseCode, msg: responseMsg });
 });
 
-app.get('/api/ai-music/public/songs', async (req, res) => {
+app.get('/api/ai-music/market/listings', async (req, res) => {
   try {
-    return res.json(await listPublicAiMusicSongs({
+    return res.json(await listAiMusicMarketListings({
       page: req.query?.page,
       pageSize: req.query?.page_size,
       q: req.query?.q
     }));
   } catch (error) {
     const statusCode = Number(error?.statusCode || 500) || 500;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_MARKET_LIST_FAILED') });
+  }
+});
+
+app.post('/api/ai-music/market/listings/:listingId/order', async (req, res) => {
+  try {
+    const session = requireAiMusicSession(req);
+    const user = ensureAiMusicUserAccount(session);
+    const created = await createAiMusicMarketOrder({
+      req,
+      session,
+      user,
+      listingId: req.params?.listingId
+    });
+    return res.json({ ok: true, ...created });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 500) || 500;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_MARKET_ORDER_CREATE_FAILED') });
+  }
+});
+
+app.post('/api/ai-music/market/order/:orderNo/refresh', (req, res) => {
+  try {
+    const session = requireAiMusicSession(req);
+    const user = ensureAiMusicUserAccount(session);
+    const orderNo = String(req.params?.orderNo || '').trim();
+    const order = selectAiMusicMarketOrderByOrderNoStmt.get(orderNo);
+    if (!order || Number(order.buyer_user_id) !== Number(user.id)) {
+      return res.status(404).json({ ok: false, error: 'ORDER_NOT_FOUND' });
+    }
+    const result = settleAiMusicMarketOrderTx(orderNo);
+    return res.json({
+      ok: true,
+      order: formatAiMusicMarketOrder(result.order),
+      listing: result.listing ? formatAiMusicMarketListing(result.listing) : null
+    });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 500) || 500;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_MARKET_ORDER_REFRESH_FAILED') });
+  }
+});
+
+app.post('/api/ai-music/market/notify', (req, res) => {
+  const orderNo = String(req.body?.orderNo || req.body?.data?.orderNo || req.body?.partnerOrderNo || req.body?.data?.partnerOrderNo || '').trim();
+  const upstreamStatus = String(req.body?.status || req.body?.data?.status || '').trim().toUpperCase();
+  const nexaOrderId = String(
+    req.body?.nexaOrderId ||
+      req.body?.data?.nexaOrderId ||
+      req.body?.orderId ||
+      req.body?.data?.orderId ||
+      req.body?.tradeNo ||
+      req.body?.data?.tradeNo ||
+      ''
+  ).trim();
+  const paidTime = String(req.body?.paidTime || req.body?.data?.paidTime || '').trim();
+  const success = upstreamStatus === 'SUCCESS' || upstreamStatus === 'PAID' || upstreamStatus === 'PAY_SUCCESS';
+  const localStatus = success ? 'paid' : (upstreamStatus.toLowerCase() || 'pending');
+  let responseCode = '0';
+  let responseMsg = 'success';
+  let httpStatus = 200;
+  let errorMessage = '';
+
+  try {
+    if (!orderNo) {
+      responseCode = '400';
+      responseMsg = 'orderNo required';
+      httpStatus = 400;
+      errorMessage = 'ORDER_NO_REQUIRED';
+    } else {
+      updateAiMusicMarketOrderNotifyStmt.run(
+        localStatus,
+        nexaOrderId,
+        nexaOrderId,
+        serializeNotifyPayload(req.body),
+        paidTime,
+        paidTime,
+        orderNo
+      );
+      if (success) {
+        settleAiMusicMarketOrderTx(orderNo);
+      }
+    }
+  } catch (error) {
+    responseCode = '500';
+    responseMsg = 'failed';
+    httpStatus = 500;
+    errorMessage = String(error?.message || 'AI_MUSIC_MARKET_NOTIFY_FAILED');
+    console.error('[ai-music-market-notify] settle failed', error);
+  }
+
+  try {
+    insertAiMusicCallbackLogStmt.run(
+      orderNo,
+      localStatus,
+      success && !errorMessage ? 1 : 0,
+      String(req.path || '/api/ai-music/market/notify'),
+      String(req.method || 'POST'),
+      serializeNotifyPayload(req.body),
+      serializeNotifyPayload(req.query || {}),
+      responseCode,
+      responseMsg,
+      httpStatus,
+      errorMessage
+    );
+  } catch (error) {
+    console.error('[ai-music-market-notify-log] write failed', error);
+  }
+
+  return res.status(httpStatus === 400 ? 400 : 200).json({ code: responseCode, msg: responseMsg });
+});
+
+app.get('/api/ai-music/assets', (req, res) => {
+  try {
+    const session = requireAiMusicSession(req);
+    const user = ensureAiMusicUserAccount(session);
+    return res.json({ ok: true, assets: getAiMusicAssetSummary(user.id) });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 500) || 500;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_ASSETS_FAILED') });
+  }
+});
+
+app.post('/api/ai-music/assets/withdraw', (req, res) => {
+  try {
+    const session = requireAiMusicSession(req);
+    const user = ensureAiMusicUserAccount(session);
+    const assets = createAiMusicWithdrawRequest(user.id, req.body?.amount);
+    return res.json({ ok: true, assets, message: '提现申请已提交，T+1 到账' });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 500) || 500;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_WITHDRAW_FAILED') });
+  }
+});
+
+app.get('/api/ai-music/public/songs', async (req, res) => {
+  try {
+    let userId = 0;
+    try {
+      const session = decodeAiMusicSessionCookie(req.cookies?.[AI_MUSIC_SESSION_COOKIE_NAME]);
+      if (session) userId = ensureAiMusicUserAccount(session).id;
+    } catch {
+      userId = 0;
+    }
+    return res.json(await listPublicAiMusicSongs({
+      page: req.query?.page,
+      pageSize: req.query?.page_size,
+      q: req.query?.q,
+      userId
+    }));
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 500) || 500;
     return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_PUBLIC_SONGS_FAILED') });
+  }
+});
+
+app.post('/api/ai-music/public/songs/:songId/favorite', (req, res) => {
+  try {
+    const session = requireAiMusicSession(req);
+    const user = ensureAiMusicUserAccount(session);
+    const result = toggleAiMusicFavorite(user.id, req.params?.songId);
+    return res.json({
+      ok: true,
+      user_favorited: result.user_favorited,
+      song: formatPublicAiMusicSong({
+        ...result.song,
+        user_favorited: result.user_favorited ? 1 : 0
+      })
+    });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 500) || 500;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_FAVORITE_FAILED') });
   }
 });
 
@@ -8728,6 +9346,75 @@ app.get('/api/ai-music/public/media', async (req, res) => {
   } catch (error) {
     const statusCode = Number(error?.statusCode || 500) || 500;
     return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_PUBLIC_MEDIA_FAILED') });
+  }
+});
+
+app.post('/api/ai-music/music/song/:songId/list', (req, res) => {
+  try {
+    const session = requireAiMusicSession(req);
+    const user = ensureAiMusicUserAccount(session);
+    const songId = String(req.params?.songId || '').trim();
+    const row = selectAiMusicSongByUpstreamIdStmt.get(songId);
+    if (!row) return res.status(404).json({ ok: false, error: 'SONG_NOT_FOUND' });
+    const ownerId = Number(row.copyright_user_id || row.user_id || 0);
+    if (ownerId !== Number(user.id)) {
+      return res.status(403).json({ ok: false, error: '只有当前版权人可以出售这首歌' });
+    }
+    const price = normalizeAiMusicMarketPrice(req.body?.price);
+    deactivateAiMusicSongActiveListingsStmt.run(songId);
+    const result = insertAiMusicMarketListingStmt.run(songId, Number(user.id), price);
+    const listing = selectAiMusicMarketListingByIdStmt.get(Number(result.lastInsertRowid || 0));
+    return res.json({
+      ok: true,
+      song: formatLocalAiMusicSong(selectAiMusicSongByUpstreamIdStmt.get(songId)),
+      listing: formatAiMusicMarketListing(listing)
+    });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 500) || 500;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_SONG_LIST_FAILED') });
+  }
+});
+
+app.post('/api/ai-music/music/song/:songId/rename', (req, res) => {
+  try {
+    const session = requireAiMusicSession(req);
+    const user = ensureAiMusicUserAccount(session);
+    const songId = String(req.params?.songId || '').trim();
+    const title = String(req.body?.title || req.body?.name || '').trim();
+    if (!songId) return res.status(400).json({ ok: false, error: 'SONG_ID_REQUIRED' });
+    if (!title) return res.status(400).json({ ok: false, error: '歌曲名称不能为空' });
+    if (title.length > 200) return res.status(400).json({ ok: false, error: '歌曲名称最多 200 个字符' });
+    const result = updateAiMusicSongTitleByUpstreamIdStmt.run(title, songId, Number(user.id), Number(user.id));
+    if (!result.changes) return res.status(404).json({ ok: false, error: 'SONG_NOT_FOUND' });
+    const row = selectAiMusicSongByUpstreamIdStmt.get(songId);
+    return res.json({
+      ok: true,
+      id: songId,
+      title,
+      song: row ? formatLocalAiMusicSong(row) : null
+    });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 500) || 500;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_RENAME_FAILED') });
+  }
+});
+
+app.post('/api/ai-music/music/song/:songId/favorite', (req, res) => {
+  try {
+    const session = requireAiMusicSession(req);
+    const user = ensureAiMusicUserAccount(session);
+    const result = toggleAiMusicFavorite(user.id, req.params?.songId);
+    return res.json({
+      ok: true,
+      user_favorited: result.user_favorited,
+      song: formatLocalAiMusicSong({
+        ...selectAiMusicSongByUpstreamIdStmt.get(String(req.params?.songId || '').trim()),
+        user_favorited: result.user_favorited ? 1 : 0
+      })
+    });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 500) || 500;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_FAVORITE_FAILED') });
   }
 });
 
@@ -10245,9 +10932,30 @@ const updateAiMusicUserProfileStmt = db.prepare(
 const ensureAiMusicCreditAccountStmt = db.prepare(
   'INSERT OR IGNORE INTO ai_music_credit_accounts (user_id) VALUES (?)'
 );
+const ensureAiMusicWalletStmt = db.prepare(
+  'INSERT OR IGNORE INTO ai_music_wallets (user_id) VALUES (?)'
+);
 const selectAiMusicCreditAccountStmt = db.prepare(
   'SELECT user_id, available_credits, total_purchased_credits, total_used_credits FROM ai_music_credit_accounts WHERE user_id = ?'
 );
+const selectAiMusicWalletStmt = db.prepare(
+  'SELECT user_id, balance, updated_at FROM ai_music_wallets WHERE user_id = ?'
+);
+const updateAiMusicWalletBalanceStmt = db.prepare(
+  'UPDATE ai_music_wallets SET balance = ?, updated_at = datetime(\'now\') WHERE user_id = ?'
+);
+const insertAiMusicAssetLedgerStmt = db.prepare(`
+  INSERT INTO ai_music_asset_ledger (
+    user_id, type, amount, balance_after, currency, status, reference_type, reference_id, note
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+`);
+const listAiMusicAssetLedgerStmt = db.prepare(`
+  SELECT id, user_id, type, amount, balance_after, currency, status, reference_type, reference_id, note, created_at
+  FROM ai_music_asset_ledger
+  WHERE user_id = ?
+  ORDER BY created_at DESC, id DESC
+  LIMIT ?
+`);
 const insertAiMusicOrderStmt = db.prepare(`
   INSERT INTO ai_music_orders (user_id, order_no, nexa_order_id, amount, currency, credits, status)
   VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -10267,6 +10975,113 @@ const updateAiMusicOrderNotifyStmt = db.prepare(`
       updated_at = datetime('now')
   WHERE order_no = ?
 `);
+const insertAiMusicMarketOrderStmt = db.prepare(`
+  INSERT INTO ai_music_market_orders (
+    order_no, nexa_order_id, listing_id, upstream_song_id, buyer_user_id, seller_user_id, amount, currency, status
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+`);
+const selectAiMusicMarketOrderByOrderNoStmt = db.prepare(`
+  SELECT
+    o.id,
+    o.order_no,
+    o.nexa_order_id,
+    o.listing_id,
+    o.upstream_song_id,
+    o.buyer_user_id,
+    o.seller_user_id,
+    o.amount,
+    o.currency,
+    o.status,
+    o.notify_payload,
+    o.created_at,
+    o.paid_at,
+    o.updated_at
+  FROM ai_music_market_orders o
+  WHERE o.order_no = ?
+`);
+const updateAiMusicMarketOrderNotifyStmt = db.prepare(`
+  UPDATE ai_music_market_orders
+  SET status = ?,
+      nexa_order_id = CASE WHEN ? <> '' THEN ? ELSE nexa_order_id END,
+      notify_payload = ?,
+      paid_at = CASE WHEN ? <> '' THEN ? ELSE paid_at END,
+      updated_at = datetime('now')
+  WHERE order_no = ?
+`);
+const markAiMusicMarketOrderPaidStmt = db.prepare(`
+  UPDATE ai_music_market_orders
+  SET status = 'paid',
+      paid_at = CASE WHEN paid_at = '' THEN datetime('now') ELSE paid_at END,
+      updated_at = datetime('now')
+  WHERE id = ?
+`);
+const selectAiMusicMarketListingByIdStmt = db.prepare(`
+  SELECT
+    ml.id AS listing_id,
+    ml.upstream_song_id,
+    ml.seller_user_id,
+    ml.price,
+    ml.currency,
+    ml.status AS listing_status,
+    ml.buyer_user_id,
+    ml.created_at AS listing_created_at,
+    ml.sold_at,
+    s.id,
+    s.user_id,
+    COALESCE(s.copyright_user_id, s.user_id) AS copyright_user_id,
+    s.generation_id,
+    s.title,
+    s.status,
+    s.cover_url,
+    s.audio_url,
+    s.play_count,
+    s.created_at,
+    s.updated_at,
+    au.nickname AS author_nickname,
+    cu.nickname AS copyright_nickname,
+    su.nickname AS seller_nickname
+  FROM ai_music_market_listings ml
+  JOIN ai_music_songs s ON s.upstream_song_id = ml.upstream_song_id
+  LEFT JOIN ai_music_users au ON au.id = s.user_id
+  LEFT JOIN ai_music_users cu ON cu.id = COALESCE(s.copyright_user_id, s.user_id)
+  LEFT JOIN ai_music_users su ON su.id = ml.seller_user_id
+  WHERE ml.id = ?
+  LIMIT 1
+`);
+const deactivateAiMusicSongActiveListingsStmt = db.prepare(`
+  UPDATE ai_music_market_listings
+  SET status = 'cancelled', updated_at = datetime('now')
+  WHERE upstream_song_id = ?
+    AND status = 'active'
+`);
+const insertAiMusicMarketListingStmt = db.prepare(`
+  INSERT INTO ai_music_market_listings (upstream_song_id, seller_user_id, price, currency, status)
+  VALUES (?, ?, ?, 'USDT', 'active')
+`);
+const markAiMusicMarketListingSoldStmt = db.prepare(`
+  UPDATE ai_music_market_listings
+  SET status = 'sold',
+      buyer_user_id = ?,
+      sold_at = CASE WHEN sold_at = '' THEN datetime('now') ELSE sold_at END,
+      updated_at = datetime('now')
+  WHERE id = ?
+    AND status = 'active'
+`);
+const updateAiMusicSongCopyrightOwnerStmt = db.prepare(`
+  UPDATE ai_music_songs
+  SET copyright_user_id = ?,
+      updated_at = datetime('now')
+  WHERE upstream_song_id = ?
+`);
+const selectAiMusicFavoriteStmt = db.prepare(
+  'SELECT user_id, upstream_song_id FROM ai_music_favorites WHERE user_id = ? AND upstream_song_id = ?'
+);
+const insertAiMusicFavoriteStmt = db.prepare(
+  'INSERT OR IGNORE INTO ai_music_favorites (user_id, upstream_song_id) VALUES (?, ?)'
+);
+const deleteAiMusicFavoriteStmt = db.prepare(
+  'DELETE FROM ai_music_favorites WHERE user_id = ? AND upstream_song_id = ?'
+);
 const listAiMusicOrdersStmt = db.prepare(`
   SELECT
     o.id,
@@ -10359,10 +11174,18 @@ const updateAiMusicSongByUpstreamIdStmt = db.prepare(`
   WHERE upstream_song_id = ?
     AND user_id = ?
 `);
-const selectPublicAiMusicSongByUpstreamIdStmt = db.prepare(`
+const updateAiMusicSongTitleByUpstreamIdStmt = db.prepare(`
+  UPDATE ai_music_songs
+  SET title = ?,
+      updated_at = datetime('now')
+  WHERE upstream_song_id = ?
+    AND (user_id = ? OR COALESCE(copyright_user_id, user_id) = ?)
+`);
+const selectAiMusicSongByUpstreamIdStmt = db.prepare(`
   SELECT
     s.id,
     s.user_id,
+    COALESCE(s.copyright_user_id, s.user_id) AS copyright_user_id,
     s.generation_id,
     s.upstream_song_id,
     s.title,
@@ -10372,12 +11195,85 @@ const selectPublicAiMusicSongByUpstreamIdStmt = db.prepare(`
     s.play_count,
     s.created_at,
     s.updated_at,
-    u.nickname AS author_nickname
+    u.nickname AS author_nickname,
+    cu.nickname AS copyright_nickname,
+    ml.id AS market_listing_id,
+    ml.price AS market_price
   FROM ai_music_songs s
   LEFT JOIN ai_music_users u ON u.id = s.user_id
+  LEFT JOIN ai_music_users cu ON cu.id = COALESCE(s.copyright_user_id, s.user_id)
+  LEFT JOIN ai_music_market_listings ml ON ml.upstream_song_id = s.upstream_song_id AND ml.status = 'active'
+  WHERE s.upstream_song_id = ?
+  LIMIT 1
+`);
+const selectPublicAiMusicSongByUpstreamIdStmt = db.prepare(`
+  SELECT
+    s.id,
+    s.user_id,
+    COALESCE(s.copyright_user_id, s.user_id) AS copyright_user_id,
+    s.generation_id,
+    s.upstream_song_id,
+    s.title,
+    s.status,
+    s.cover_url,
+    s.audio_url,
+    s.play_count,
+    s.created_at,
+    s.updated_at,
+    u.nickname AS author_nickname,
+    cu.nickname AS copyright_nickname
+  FROM ai_music_songs s
+  LEFT JOIN ai_music_users u ON u.id = s.user_id
+  LEFT JOIN ai_music_users cu ON cu.id = COALESCE(s.copyright_user_id, s.user_id)
   WHERE s.upstream_song_id = ?
     AND COALESCE(s.audio_url, '') <> ''
   LIMIT 1
+`);
+const listAiMusicMarketListingsStmt = db.prepare(`
+  SELECT
+    ml.id AS listing_id,
+    ml.upstream_song_id,
+    ml.seller_user_id,
+    ml.price,
+    ml.currency,
+    ml.status AS listing_status,
+    ml.buyer_user_id,
+    ml.created_at AS listing_created_at,
+    ml.sold_at,
+    s.id,
+    s.user_id,
+    COALESCE(s.copyright_user_id, s.user_id) AS copyright_user_id,
+    s.generation_id,
+    s.title,
+    s.status,
+    s.cover_url,
+    s.audio_url,
+    s.play_count,
+    s.created_at,
+    s.updated_at,
+    au.nickname AS author_nickname,
+    cu.nickname AS copyright_nickname,
+    su.nickname AS seller_nickname
+  FROM ai_music_market_listings ml
+  JOIN ai_music_songs s ON s.upstream_song_id = ml.upstream_song_id
+  LEFT JOIN ai_music_users au ON au.id = s.user_id
+  LEFT JOIN ai_music_users cu ON cu.id = COALESCE(s.copyright_user_id, s.user_id)
+  LEFT JOIN ai_music_users su ON su.id = ml.seller_user_id
+  WHERE ml.status = 'active'
+    AND COALESCE(s.audio_url, '') <> ''
+    AND (? = '' OR s.title LIKE ? OR au.nickname LIKE ? OR cu.nickname LIKE ?)
+  ORDER BY datetime(ml.created_at) DESC, ml.id DESC
+  LIMIT ? OFFSET ?
+`);
+const countAiMusicMarketListingsStmt = db.prepare(`
+  SELECT COUNT(*) AS count
+  FROM ai_music_market_listings ml
+  JOIN ai_music_songs s ON s.upstream_song_id = ml.upstream_song_id
+  LEFT JOIN ai_music_users au ON au.id = s.user_id
+  LEFT JOIN ai_music_users cu ON cu.id = COALESCE(s.copyright_user_id, s.user_id)
+  WHERE ml.status = 'active'
+    AND COALESCE(s.audio_url, '') <> ''
+    AND (? = '' OR s.title LIKE ? OR au.nickname LIKE ? OR cu.nickname LIKE ?)
 `);
 const selectPublicAiMusicMediaStmt = db.prepare(`
   SELECT id

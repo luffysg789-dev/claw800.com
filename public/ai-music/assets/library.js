@@ -141,10 +141,11 @@ function playerCard(s) {
   const durTxt = s.duration ? `${Math.round(s.duration)}s` : '--:--';
   const card = el('div', { class: 'hh-my-song-card', style: 'position:relative;' + (s.is_hidden ? 'opacity:0.5;' : '') });
   card.innerHTML = `
-    <div class="hh-my-song-owner-actions" style="position:absolute;top:8px;right:8px;display:flex;gap:6px;z-index:6;">
+    <div class="hh-my-song-owner-actions" style="position:absolute;top:8px;right:8px;display:flex;flex-direction:column;align-items:center;gap:6px;z-index:6;">
       <button type="button" class="hh-btn-fav hh-my-owner-fav${s.user_favorited ? ' hh-fav-active' : ''}" data-act="fav" title="收藏" aria-label="收藏">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
       </button>
+      <button type="button" class="hh-btn-sell" data-act="sell">${s.market_listing_id ? '已上架' : '出售'}</button>
     </div>
     <div class="hh-music-player hh-music-player-md" data-song-id="${esc(s.id)}">
       <div class="hh-music-player-inner">
@@ -184,6 +185,8 @@ function wireCard(card, s) {
   card.querySelector('.hh-music-progress').addEventListener('click', (e) => seek(e, card));
   const favBtn = card.querySelector('.hh-my-owner-fav');
   favBtn.addEventListener('click', (e) => { e.stopPropagation(); doFavorite(s, favBtn); });
+  const sellBtn = card.querySelector('.hh-btn-sell');
+  sellBtn?.addEventListener('click', (e) => { e.stopPropagation(); openSellModal(s); });
   card.querySelector('.hh-card-bar').addEventListener('click', (e) => onBarClick(e, s));
 }
 
@@ -204,27 +207,10 @@ function seek(e, card) {
 //   注：主站此操作条无「公开到广场」——那是 C 端广场语义，不放在我的音乐（规矩#2）。
 function actionBar(s) {
   const bar = el('div', { class: 'hh-card-bar' });
-  const hasLyrics = !!(s.lyrics && String(s.lyrics).trim());
-  const hasCover = !!s.image_url;
-  const stemmed = !!(s.stem_basic || s.stem_pro);
   bar.innerHTML = `
-    <div class="hh-cat">
-      <button type="button" class="hh-bar-btn hh-bar-btn-primary" data-cat-toggle aria-expanded="false">下载<svg class="hh-cat-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></button>
-      <div class="hh-cat-menu" hidden><div class="hh-cat-list">
-        <button type="button" class="hh-cat-item" data-dl="mp3">MP3</button>
-        ${wavItemHtml(s)}
-        ${hasCover ? '<button type="button" class="hh-cat-item" data-dl="cover">封面</button>' : ''}
-        ${hasLyrics ? `<button type="button" class="hh-cat-item" data-lyric="copy">复制歌词</button>
-        <button type="button" class="hh-cat-item" data-lyric="txt">歌词下载</button>
-        <button type="button" class="hh-cat-item" data-lyric="lrc">动态歌词</button>` : ''}
-      </div></div>
-    </div>
-    <button type="button" data-bar-move data-bar-order="1" class="hh-bar-btn" data-act="copyright">授权</button>
     <button type="button" data-bar-move data-bar-order="2" class="hh-bar-btn" data-act="lyrics">歌词</button>
     <button type="button" data-bar-move data-bar-order="3" class="hh-bar-btn" data-act="share">分享</button>
     <button type="button" data-bar-move data-bar-order="4" class="hh-bar-btn" data-act="remake">重做</button>
-    <button type="button" data-bar-move data-bar-order="5" class="hh-bar-btn" data-act="stem-split">${stemmed ? '升级分轨' : '分轨'}</button>
-    <button type="button" data-bar-move data-bar-order="6" class="hh-bar-btn" data-act="stem-inst">分离伴奏</button>
     <div class="hh-cat hh-cat-more-wrap">
       <button type="button" class="hh-bar-btn hh-bar-btn-more" data-cat-toggle aria-label="更多" aria-expanded="false">⋯</button>
       <div class="hh-cat-menu" hidden><div class="hh-cat-list">
@@ -670,7 +656,7 @@ function doCopyright(s) {
 function doShare(s) {
   const title = s.title || 'AI 歌曲';
   const url = `${location.origin}/ai-music/song/${encodeURIComponent(String(s.id || ''))}`;
-  const text = '我在 claw800.com 用 AI 1 分钟做了首歌《' + title + '》, 你也来做一首: ' + url;
+  const text = '我在 https://claw800.com/ai-music/ 用 AI 1 分钟做了首歌《' + title + '》, 你也来做一首: ' + url;
   const done = () => toast('已复制', 'success');
   if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(text).then(done).catch(() => shareFallback(text));
@@ -697,6 +683,52 @@ function shareFallback(text) {
   overlay.addEventListener('click', (e) => { if (e.target === overlay || e.target.hasAttribute('data-close')) overlay.remove(); });
   document.body.appendChild(overlay);
 }
+
+function openSellModal(s) {
+  if (!s.can_sell) {
+    toast('只有当前版权人可以出售这首歌', 'warn');
+    return;
+  }
+  openModal(
+    `<button data-close style="${MODAL_X}">&times;</button>`
+    + '<h3 style="font-size:18px;font-weight:800;color:#111;margin:0 0 4px;text-align:center;">出售歌曲版权</h3>'
+    + `<p style="font-size:12px;color:#9ca3af;text-align:center;margin-bottom:16px;">${esc(s.title || '未命名')}</p>`
+    + '<div style="margin-bottom:14px;"><label style="display:block;font-size:13px;font-weight:700;color:#374151;margin-bottom:6px;">价格（USDT）</label>'
+    + `<input id="sell-price" type="number" min="0.01" step="0.01" placeholder="请输入出售价格" style="${MODAL_INPUT}"></div>`
+    + '<button id="sell-submit" style="width:100%;padding:12px;background:linear-gradient(135deg,#f43f5e,#f97316);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:900;cursor:pointer;">确认出售</button>',
+    (card, close) => {
+      const input = card.querySelector('#sell-price');
+      input.value = s.market_price || '';
+      const submit = card.querySelector('#sell-submit');
+      const go = async () => {
+        const price = String(input.value || '').trim();
+        if (!price || Number(price) <= 0) {
+          toast('请输入有效价格', 'warn');
+          input.focus();
+          return;
+        }
+        submit.disabled = true;
+        submit.textContent = '上架中...';
+        try {
+          const payload = await api.listSong(s.id, price);
+          s.market_listing_id = payload.listing?.id || payload.listing?.listing_id || true;
+          s.market_price = payload.listing?.price || price;
+          toast('已上架到市场', 'success');
+          close();
+          refresh();
+        } catch (e) {
+          toast(e instanceof ApiError ? e.message : '上架失败', 'error');
+          submit.disabled = false;
+          submit.textContent = '确认出售';
+        }
+      };
+      submit.onclick = go;
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+      setTimeout(() => { input.focus(); input.select(); }, 50);
+    }
+  );
+}
+
 async function doRemake(s, btn) {
   btn.disabled = true;
   try {

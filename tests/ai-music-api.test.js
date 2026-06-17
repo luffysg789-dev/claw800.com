@@ -151,13 +151,18 @@ test('ai music schema is created for fresh databases', () => {
       .map((row) => row.name);
 
     assert.deepEqual(tableNames, [
+      'ai_music_asset_ledger',
       'ai_music_callback_logs',
       'ai_music_credit_accounts',
       'ai_music_credit_ledger',
+      'ai_music_favorites',
       'ai_music_generations',
+      'ai_music_market_listings',
+      'ai_music_market_orders',
       'ai_music_orders',
       'ai_music_songs',
-      'ai_music_users'
+      'ai_music_users',
+      'ai_music_wallets'
     ]);
   } finally {
     harness.cleanup();
@@ -511,6 +516,7 @@ test('games api exposes ai music card with direct route', async () => {
     const response = await harness.request('GET', '/api/games');
 
     assert.equal(response.statusCode, 200);
+    assert.equal(response.body.items[0].slug, 'ai-music');
     const item = response.body.items.find((game) => game.slug === 'ai-music');
     assert.equal(item.name, 'AI 音乐');
     assert.equal(item.route, '/ai-music/');
@@ -620,7 +626,7 @@ test('ai music generation does not deduct credits when upstream rejects request'
   }
 });
 
-test('ai music my songs only returns local songs owned by the current user', async () => {
+test('ai music my songs returns authored songs and songs where current user owns copyright', async () => {
   const harness = createHarness();
   try {
     const { cookies: aliceCookies } = await createAiMusicSession(harness, 'ai-music-open-id-alice-songs');
@@ -653,6 +659,152 @@ test('ai music my songs only returns local songs owned by the current user', asy
     assert.equal(aliceSongs.body.total, 1);
     assert.deepEqual(aliceSongs.body.songs.map((song) => song.id), ['alice-upstream-song']);
     assert.deepEqual(aliceSongs.body.songs.map((song) => song.title), ['Alice Song']);
+
+    harness.db.prepare('UPDATE ai_music_songs SET copyright_user_id = ? WHERE upstream_song_id = ?').run(bob.id, 'alice-upstream-song');
+    const bobSongs = await harness.request('GET', '/api/ai-music/music/my-songs', null, { cookies: bobCookies });
+    const aliceAfterSale = await harness.request('GET', '/api/ai-music/music/my-songs', null, { cookies: aliceCookies });
+
+    assert.equal(bobSongs.statusCode, 200);
+    assert.equal(bobSongs.body.songs.some((song) => song.id === 'alice-upstream-song'), true);
+    assert.equal(bobSongs.body.songs.find((song) => song.id === 'alice-upstream-song').copyright_user_id, bob.id);
+    assert.equal(aliceAfterSale.body.songs.some((song) => song.id === 'alice-upstream-song'), true);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('ai music market listing appears publicly and paid notify transfers copyright to buyer', async () => {
+  const harness = createHarness();
+  try {
+    const { cookies: sellerCookies } = await createAiMusicSession(harness, 'ai-music-open-id-market-seller');
+    const { cookies: buyerCookies } = await createAiMusicSession(harness, 'ai-music-open-id-market-buyer');
+    const seller = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-market-seller');
+    const buyer = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-market-buyer');
+    harness.db.prepare('UPDATE ai_music_users SET nickname = ? WHERE id = ?').run('卖家作者', seller.id);
+    harness.db.prepare('UPDATE ai_music_users SET nickname = ? WHERE id = ?').run('买家用户', buyer.id);
+    harness.db.prepare(`
+      INSERT INTO ai_music_songs (user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url)
+      VALUES (?, NULL, ?, ?, ?, ?, ?)
+    `).run(seller.id, 'market-song-1', 'Market Song', 'complete', '/covers/market.jpg', '/audio/market.mp3');
+
+    const list = await harness.request('POST', '/api/ai-music/music/song/market-song-1/list', { price: '9.5' }, { cookies: sellerCookies });
+    const market = await harness.request('GET', '/api/ai-music/market/listings');
+
+    assert.equal(list.statusCode, 200);
+    assert.equal(list.body.listing.price, '9.50');
+    assert.equal(market.statusCode, 200);
+    assert.equal(market.body.listings[0].song.id, 'market-song-1');
+    assert.equal(market.body.listings[0].song.author_nickname, '卖家作者');
+    assert.equal(market.body.listings[0].song.copyright_nickname, '卖家作者');
+
+    const listingId = market.body.listings[0].id;
+    harness.db.prepare(`
+      INSERT INTO ai_music_market_orders (order_no, listing_id, upstream_song_id, buyer_user_id, seller_user_id, amount, currency, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run('ai_music_market_test_order', listingId, 'market-song-1', buyer.id, seller.id, '9.50', 'USDT', 'pending');
+
+    const notify = await harness.request('POST', '/api/ai-music/market/notify', {
+      orderNo: 'ai_music_market_test_order',
+      status: 'SUCCESS',
+      tradeNo: 'nexa-market-paid'
+    });
+    const buyerSongs = await harness.request('GET', '/api/ai-music/music/my-songs', null, { cookies: buyerCookies });
+    const sellerSongs = await harness.request('GET', '/api/ai-music/music/my-songs', null, { cookies: sellerCookies });
+    const sellerAssets = await harness.request('GET', '/api/ai-music/assets', null, { cookies: sellerCookies });
+    const overWithdraw = await harness.request('POST', '/api/ai-music/assets/withdraw', { amount: '10.00' }, { cookies: sellerCookies });
+    const withdraw = await harness.request('POST', '/api/ai-music/assets/withdraw', { amount: '2.50' }, { cookies: sellerCookies });
+    const row = harness.db.prepare('SELECT copyright_user_id FROM ai_music_songs WHERE upstream_song_id = ?').get('market-song-1');
+
+    assert.equal(notify.statusCode, 200);
+    assert.equal(row.copyright_user_id, buyer.id);
+    assert.equal(buyerSongs.body.songs.some((song) => song.id === 'market-song-1'), true);
+    assert.equal(sellerSongs.body.songs.some((song) => song.id === 'market-song-1'), true);
+    assert.equal(buyerSongs.body.songs.find((song) => song.id === 'market-song-1').copyright_nickname, '买家用户');
+    assert.equal(sellerAssets.statusCode, 200);
+    assert.equal(sellerAssets.body.assets.balance, '9.50');
+    assert.equal(sellerAssets.body.assets.entries[0].type, 'sale_income');
+    assert.equal(overWithdraw.statusCode, 400);
+    assert.equal(overWithdraw.body.error, '提现金额不能大于余额');
+    assert.equal(withdraw.statusCode, 200);
+    assert.equal(withdraw.body.assets.balance, '7.00');
+    assert.equal(withdraw.body.assets.entries[0].type, 'withdraw_pending');
+    assert.match(withdraw.body.message, /T\+1 到账/);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('ai music song rename updates the local library title immediately', async () => {
+  const harness = createHarness();
+  try {
+    const { cookies } = await createAiMusicSession(harness, 'ai-music-open-id-rename-local');
+    const user = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-rename-local');
+    harness.db.prepare(`
+      INSERT INTO ai_music_songs (user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url)
+      VALUES (?, NULL, ?, ?, ?, ?, ?)
+    `).run(user.id, 'rename-local-song', 'Old Song Name', 'complete', '/covers/rename.jpg', '/audio/rename.mp3');
+
+    const renamed = await harness.request('POST', '/api/ai-music/music/song/rename-local-song/rename', {
+      title: 'New Song Name'
+    }, { cookies });
+    const songs = await harness.request('GET', '/api/ai-music/music/my-songs', null, { cookies });
+    const row = harness.db.prepare('SELECT title FROM ai_music_songs WHERE upstream_song_id = ?').get('rename-local-song');
+
+    assert.equal(renamed.statusCode, 200);
+    assert.equal(renamed.body.title, 'New Song Name');
+    assert.equal(row.title, 'New Song Name');
+    assert.equal(songs.body.songs[0].title, 'New Song Name');
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('ai music local favorites show up in my music favorites tab', async () => {
+  const harness = createHarness();
+  try {
+    const { cookies } = await createAiMusicSession(harness, 'ai-music-open-id-favorite-local');
+    const user = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-favorite-local');
+    harness.db.prepare(`
+      INSERT INTO ai_music_songs (user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url)
+      VALUES (?, NULL, ?, ?, ?, ?, ?)
+    `).run(user.id, 'favorite-local-song', 'Favorite Song', 'complete', '/covers/fav.jpg', '/audio/fav.mp3');
+
+    const favorite = await harness.request('POST', '/api/ai-music/music/song/favorite-local-song/favorite', {}, { cookies });
+    const favorites = await harness.request('GET', '/api/ai-music/music/my-songs?tab=favorites', null, { cookies });
+    const unfavorite = await harness.request('POST', '/api/ai-music/music/song/favorite-local-song/favorite', {}, { cookies });
+    const empty = await harness.request('GET', '/api/ai-music/music/my-songs?tab=favorites', null, { cookies });
+
+    assert.equal(favorite.statusCode, 200);
+    assert.equal(favorite.body.user_favorited, true);
+    assert.equal(favorites.statusCode, 200);
+    assert.equal(favorites.body.total, 1);
+    assert.equal(favorites.body.songs[0].id, 'favorite-local-song');
+    assert.equal(favorites.body.songs[0].user_favorited, true);
+    assert.equal(unfavorite.body.user_favorited, false);
+    assert.equal(empty.body.total, 0);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('ai music public square can favorite songs for logged in users', async () => {
+  const harness = createHarness();
+  try {
+    const { cookies } = await createAiMusicSession(harness, 'ai-music-open-id-square-favorite');
+    const user = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-square-favorite');
+    harness.db.prepare(`
+      INSERT INTO ai_music_songs (user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url)
+      VALUES (?, NULL, ?, ?, ?, ?, ?)
+    `).run(user.id, 'square-favorite-song', 'Square Favorite Song', 'complete', '/covers/square-fav.jpg', '/audio/square-fav.mp3');
+
+    const favorite = await harness.request('POST', '/api/ai-music/public/songs/square-favorite-song/favorite', {}, { cookies });
+    const square = await harness.request('GET', '/api/ai-music/public/songs', null, { cookies });
+    const favorites = await harness.request('GET', '/api/ai-music/music/my-songs?tab=favorites', null, { cookies });
+
+    assert.equal(favorite.statusCode, 200);
+    assert.equal(favorite.body.user_favorited, true);
+    assert.equal(square.body.songs[0].user_favorited, true);
+    assert.equal(favorites.body.songs[0].id, 'square-favorite-song');
   } finally {
     harness.cleanup();
   }
@@ -895,14 +1047,24 @@ test('ai music public song lyrics are available without login for stored public 
     harness.setFetch(async (url, init = {}) => {
       fetchedUrl = String(url);
       assert.equal(String(init.headers?.Authorization || ''), 'Bearer hh_server_secret');
-      return new Response(JSON.stringify({ lyrics: '第一句\n第二句' }), { status: 200, headers: { 'content-type': 'application/json' } });
+      return new Response(JSON.stringify({
+        data: {
+          result: {
+            lines: [
+              { startTime: 1000, text: '第一句' },
+              { startTime: 2500, text: '第二句' }
+            ]
+          }
+        },
+        lyrics: '{"not":"lyrics"}'
+      }), { status: 200, headers: { 'content-type': 'application/json' } });
     });
 
     const ok = await harness.request('GET', '/api/ai-music/public/songs/public-lyrics-song/lyrics');
     const missing = await harness.request('GET', '/api/ai-music/public/songs/not-found/lyrics');
 
     assert.equal(ok.statusCode, 200);
-    assert.equal(ok.body.lyrics, '第一句\n第二句');
+    assert.equal(ok.body.lyrics, '[0:01.00]第一句\n[0:02.50]第二句');
     assert.equal(fetchedUrl, 'https://ai6666.com/ai6api/music/song/public-lyrics-song/lyrics');
     assert.equal(missing.statusCode, 404);
   } finally {

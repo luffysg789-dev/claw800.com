@@ -71,7 +71,7 @@ function normalizeLyricsValue(value) {
       const rawTime = item?.time ?? item?.start ?? item?.startTime ?? item?.timestamp;
       const numericTime = typeof rawTime === 'number' ? rawTime : Number(rawTime);
       if (Number.isFinite(numericTime)) {
-        const seconds = numericTime > 1000 ? numericTime / 1000 : numericTime;
+        const seconds = numericTime >= 1000 ? numericTime / 1000 : numericTime;
         const minutes = Math.floor(seconds / 60);
         const rest = (seconds - minutes * 60).toFixed(2).padStart(5, '0');
         return `[${minutes}:${rest}]${text}`;
