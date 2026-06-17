@@ -4,6 +4,7 @@ import { toggleGlobalSong } from './player.js?v=20260617-ai-music-payment-refres
 
 let state = { page: 1, page_size: 20, q: '', loading: false, hasMore: true };
 let squareObserver = null;
+let searchTimer = null;
 
 export function renderSquare(root) {
   clear(root);
@@ -36,6 +37,11 @@ function searchBox(root) {
     state.hasMore = true;
     load(root);
   };
+  const scheduleSearch = () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => go(), 320);
+  };
+  input.addEventListener('input', scheduleSearch);
   input.addEventListener('keydown', (event) => { if (event.key === 'Enter') go(); });
   return el('div', { class: 'gm-square-search' }, [
     input,
@@ -97,23 +103,30 @@ function squareCard(song) {
   const title = song.title || '未命名';
   const author = String(song.author_nickname || song.authorNickname || '').trim();
   const cover = mediaUrl(song.image_url || song.cover_url || '');
+  const coverChildren = [
+    cover ? el('img', {
+      class: 'gm-square-cover-img',
+      src: cover,
+      alt: title,
+      loading: 'lazy',
+      onerror: (event) => { event.currentTarget.remove(); }
+    }) : null,
+    el('span', { class: 'gm-square-play', text: '▶' })
+  ].filter(Boolean);
   const card = el('article', { class: 'gm-square-card' }, [
     el('button', {
       type: 'button',
       class: 'gm-square-cover',
-      style: cover ? `background-image:url("${cover}")` : '',
       'aria-label': '播放 ' + title,
       onclick: () => toggleGlobalSong(song)
-    }, [
-      el('span', { class: 'gm-square-play', text: '▶' })
-    ]),
+    }, coverChildren),
     el('div', { class: 'gm-square-info' }, [
       el('a', { class: 'gm-square-title', href: `/ai-music/song/${encodeURIComponent(String(song.id || ''))}`, text: title }),
-      el('div', { class: 'gm-square-author', text: author ? `作者：${author}` : '作者：匿名' }),
+      el('div', { class: 'gm-square-author-row' }, [
+        el('div', { class: 'gm-square-author', text: author ? `作者：${author}` : '作者：匿名' }),
+        el('button', { type: 'button', class: 'gm-btn-ghost sm gm-square-share', text: '分享', onclick: () => shareSong(song) })
+      ]),
       el('div', { class: 'gm-song-meta', text: fmtDate(song.created_at) }),
-      el('div', { class: 'gm-actions gm-square-actions' }, [
-        el('button', { type: 'button', class: 'gm-btn-ghost sm', text: '分享', onclick: () => shareSong(song) })
-      ])
     ])
   ]);
   return card;

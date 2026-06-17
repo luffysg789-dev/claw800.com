@@ -1981,7 +1981,9 @@ function formatLocalAiMusicSong(row = {}) {
 
 function publicAiMusicMediaPath(rawUrl) {
   const url = String(rawUrl || '').trim();
-  return url ? `/api/ai-music/public/media?u=${encodeURIComponent(url)}` : '';
+  if (!url) return '';
+  const absoluteUrl = url.startsWith('/') ? `https://ai6666.com${url}` : url;
+  return `/api/ai-music/public/media?u=${encodeURIComponent(absoluteUrl)}`;
 }
 
 function formatPublicAiMusicSong(row = {}) {
@@ -8431,17 +8433,25 @@ app.get('/api/ai-music/public/media', async (req, res) => {
     if (!/^https?:\/\//i.test(rawUrl)) {
       return res.status(400).json({ ok: false, error: 'INVALID_MEDIA_URL' });
     }
-    const media = selectPublicAiMusicMediaStmt.get(rawUrl, rawUrl);
+    let rawPath = '';
+    try {
+      const parsedUrl = new URL(rawUrl);
+      rawPath = `${parsedUrl.pathname || ''}${parsedUrl.search || ''}`;
+    } catch {
+      rawPath = '';
+    }
+    const media = selectPublicAiMusicMediaStmt.get(rawUrl, rawPath, rawUrl, rawPath);
     if (!media) {
       return res.status(403).json({ ok: false, error: 'MEDIA_NOT_PUBLIC' });
     }
-    const response = await fetch(rawUrl, {
-      headers: {
-        Authorization: `Bearer ${config.apiKey}`
-      }
+    const headers = { Authorization: `Bearer ${config.apiKey}` };
+    const range = String(req.headers?.range || '').trim();
+    if (range) headers.Range = range;
+    const response = await fetch(rawUrl, { headers });
+    ['content-type', 'content-length', 'content-range', 'accept-ranges'].forEach((name) => {
+      const value = response.headers?.get?.(name);
+      if (value) res.setHeader(name, value);
     });
-    const contentType = response.headers?.get?.('content-type');
-    if (contentType) res.setHeader('Content-Type', contentType);
     const buffer = Buffer.from(await response.arrayBuffer());
     return res.status(response.status).send(buffer);
   } catch (error) {
@@ -8536,13 +8546,14 @@ app.get('/api/ai-music/media', async (req, res) => {
     if (!/^https?:\/\//i.test(rawUrl)) {
       return res.status(400).json({ ok: false, error: 'INVALID_MEDIA_URL' });
     }
-    const response = await fetch(rawUrl, {
-      headers: {
-        Authorization: `Bearer ${config.apiKey}`
-      }
+    const headers = { Authorization: `Bearer ${config.apiKey}` };
+    const range = String(req.headers?.range || '').trim();
+    if (range) headers.Range = range;
+    const response = await fetch(rawUrl, { headers });
+    ['content-type', 'content-length', 'content-range', 'accept-ranges'].forEach((name) => {
+      const value = response.headers?.get?.(name);
+      if (value) res.setHeader(name, value);
     });
-    const contentType = response.headers?.get?.('content-type');
-    if (contentType) res.setHeader('Content-Type', contentType);
     const buffer = Buffer.from(await response.arrayBuffer());
     return res.status(response.status).send(buffer);
   } catch (error) {
@@ -10105,8 +10116,8 @@ const selectPublicAiMusicSongByUpstreamIdStmt = db.prepare(`
 const selectPublicAiMusicMediaStmt = db.prepare(`
   SELECT id
   FROM ai_music_songs
-  WHERE audio_url = ?
-     OR cover_url = ?
+  WHERE audio_url IN (?, ?)
+     OR cover_url IN (?, ?)
   LIMIT 1
 `);
 const searchNchatUsersByKeywordStmt = db.prepare(`

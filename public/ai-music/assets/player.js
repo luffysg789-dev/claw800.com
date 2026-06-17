@@ -11,6 +11,45 @@ function cleanText(value) {
   return String(value == null ? '' : value).trim();
 }
 
+function absoluteAiMusicUrl(rawUrl) {
+  const url = cleanText(rawUrl);
+  if (!url) return '';
+  if (url.startsWith('/api/ai-music/')) return '';
+  if (/^https?:\/\//i.test(url)) return url;
+  if (url.startsWith('/')) return `https://ai6666.com${url}`;
+  return '';
+}
+
+function addUnique(list, value) {
+  const url = cleanText(value);
+  if (url && !list.includes(url)) list.push(url);
+}
+
+function buildAudioCandidates(song = {}) {
+  const rawValues = [
+    song.playable_url,
+    song.audio_url,
+    song.mp3_url,
+    song.url,
+    song.play_url
+  ];
+  const urls = [];
+  rawValues.forEach((raw) => {
+    const url = cleanText(raw);
+    if (!url) return;
+    addUnique(urls, mediaUrl(url));
+    const absoluteUrl = absoluteAiMusicUrl(url);
+    let hostname = '';
+    try { hostname = absoluteUrl ? new URL(absoluteUrl).hostname : ''; } catch { hostname = ''; }
+    if (absoluteUrl && /(^|\.)ai6666\.com$/i.test(hostname)) {
+      addUnique(urls, `/api/ai-music/public/media?u=${encodeURIComponent(absoluteUrl)}`);
+      addUnique(urls, `/api/ai-music/media?u=${encodeURIComponent(absoluteUrl)}`);
+    }
+    if (/^https?:\/\//i.test(url) && !/ai6666\.com/i.test(url)) addUnique(urls, url);
+  });
+  return urls;
+}
+
 function parseLyricTimestamp(token) {
   const match = String(token || '').match(/^(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?$/);
   if (!match) return null;
@@ -272,8 +311,8 @@ export function toggleGlobalSong(song = {}) {
     toggleCurrent();
     return;
   }
-  const url = mediaUrl(song.playable_url || song.audio_url || song.mp3_url || song.url || song.play_url || '');
-  if (!url) {
+  const candidates = buildAudioCandidates(song);
+  if (!candidates.length) {
     toast('音频还没准备好', 'warn');
     return;
   }
@@ -290,7 +329,7 @@ export function toggleGlobalSong(song = {}) {
     currentSong.lyrics = '正在加载歌词...';
     lyricLines = parseLyrics(currentSong.lyrics);
   }
-  audio = new Audio(url);
+  audio = new Audio();
   const activeAudio = audio;
   audio.preload = 'auto';
   audio.playsInline = true;
@@ -299,17 +338,35 @@ export function toggleGlobalSong(song = {}) {
   audio.addEventListener('play', updateUi);
   audio.addEventListener('pause', updateUi);
   audio.addEventListener('ended', updateUi);
-  audio.addEventListener('error', () => {
-    if (activeAudio !== audio) return;
-    toast('音频加载失败', 'error');
-  });
   setHidden(false);
   updateUi();
   updateLyric(true);
   if (needsSyncedLyricsFetch) loadSongLyrics(currentSong, cleanText(currentSong.id));
-  audio.play().catch(() => {
-    if (activeAudio !== audio) return;
-    toast('播放失败', 'error');
+  playCandidate(candidates, 0, activeAudio);
+}
+
+function playCandidate(candidates, index, expectedAudio) {
+  if (expectedAudio !== audio) return;
+  const url = candidates[index];
+  if (!url) {
+    toast('音频加载失败', 'error');
     updateUi();
-  });
+    return;
+  }
+
+  let settled = false;
+  const tryNext = () => {
+    if (settled || expectedAudio !== audio) return;
+    settled = true;
+    playCandidate(candidates, index + 1, expectedAudio);
+  };
+  const markReady = () => { settled = true; };
+
+  audio.src = url;
+  audio.preload = 'auto';
+  audio.playsInline = true;
+  audio.addEventListener('canplay', markReady, { once: true });
+  audio.addEventListener('playing', markReady, { once: true });
+  audio.addEventListener('error', tryNext, { once: true });
+  audio.play().catch(tryNext);
 }

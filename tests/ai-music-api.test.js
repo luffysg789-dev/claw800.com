@@ -736,11 +736,11 @@ test('ai music public square and song links are playable without login', async (
     harness.db.prepare(`
       INSERT INTO ai_music_songs (user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url)
       VALUES (?, NULL, ?, ?, ?, ?, ?)
-    `).run(alice.id, 'public-song-a', 'Public Song A', 'complete', 'https://ai6666.com/covers/a.jpg', 'https://ai6666.com/audio/a.mp3');
+    `).run(alice.id, 'public-song-a', 'Public Song A', 'complete', '/covers/a.jpg', 'https://ai6666.com/audio/a.mp3');
     harness.db.prepare(`
       INSERT INTO ai_music_songs (user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url)
       VALUES (?, NULL, ?, ?, ?, ?, ?)
-    `).run(bob.id, 'public-song-b', 'Public Song B', 'complete', 'https://ai6666.com/covers/b.jpg', 'https://ai6666.com/audio/b.mp3');
+    `).run(bob.id, 'public-song-b', 'Public Song B', 'complete', 'https://ai6666.com/covers/b.jpg', '/audio/b.mp3');
 
     const square = await harness.request('GET', '/api/ai-music/public/songs');
     const detail = await harness.request('GET', '/api/ai-music/public/songs/public-song-a');
@@ -751,6 +751,8 @@ test('ai music public square and song links are playable without login', async (
     assert.deepEqual(square.body.songs.map((song) => song.author_nickname), ['Bob 作者', 'Alice 作者']);
     assert.equal(square.body.songs[0].share_url, '/ai-music/song/public-song-b');
     assert.equal(square.body.songs[0].audio_url.startsWith('/api/ai-music/public/media?u='), true);
+    assert.equal(square.body.songs[0].audio_url, '/api/ai-music/public/media?u=https%3A%2F%2Fai6666.com%2Faudio%2Fb.mp3');
+    assert.equal(square.body.songs[1].image_url, '/api/ai-music/public/media?u=https%3A%2F%2Fai6666.com%2Fcovers%2Fa.jpg');
     assert.equal(detail.statusCode, 200);
     assert.equal(detail.body.song.id, 'public-song-a');
     assert.equal(detail.body.song.title, 'Public Song A');
@@ -776,15 +778,28 @@ test('ai music public media proxy only serves stored song media without login', 
     harness.setFetch(async (url, init = {}) => {
       fetchedUrl = String(url);
       fetchedAuth = String(init.headers?.Authorization || '');
-      return new Response(Buffer.from('mp3-bytes'), { status: 200, headers: { 'content-type': 'audio/mpeg' } });
+      assert.equal(String(init.headers?.Range || ''), 'bytes=0-1023');
+      return new Response(Buffer.from('mp3-bytes'), {
+        status: 206,
+        headers: {
+          'content-type': 'audio/mpeg',
+          'content-length': '9',
+          'content-range': 'bytes 0-8/9',
+          'accept-ranges': 'bytes'
+        }
+      });
     });
 
-    const ok = await harness.request('GET', '/api/ai-music/public/media?u=' + encodeURIComponent('https://ai6666.com/audio/media.mp3'));
+    const ok = await harness.request('GET', '/api/ai-music/public/media?u=' + encodeURIComponent('https://ai6666.com/audio/media.mp3'), null, {
+      headers: { range: 'bytes=0-1023' }
+    });
     const forbidden = await harness.request('GET', '/api/ai-music/public/media?u=' + encodeURIComponent('https://ai6666.com/audio/not-stored.mp3'));
 
-    assert.equal(ok.statusCode, 200);
+    assert.equal(ok.statusCode, 206);
     assert.equal(String(ok.body), 'mp3-bytes');
     assert.equal(ok.headers['content-type'], 'audio/mpeg');
+    assert.equal(ok.headers['content-range'], 'bytes 0-8/9');
+    assert.equal(ok.headers['accept-ranges'], 'bytes');
     assert.equal(fetchedUrl, 'https://ai6666.com/audio/media.mp3');
     assert.equal(fetchedAuth, 'Bearer hh_server_secret');
     assert.equal(forbidden.statusCode, 403);
