@@ -1,6 +1,7 @@
 const path = require('path');
 const crypto = require('crypto');
 const net = require('net');
+const { Readable } = require('stream');
 const { execFile } = require('child_process');
 const { promisify } = require('util');
 const express = require('express');
@@ -2025,6 +2026,8 @@ function formatLocalAiMusicSong(row = {}) {
     cover_url: String(row.cover_url || '').trim(),
     playable_url: String(row.audio_url || '').trim(),
     audio_url: String(row.audio_url || '').trim(),
+    play_count: Math.max(0, Number(row.play_count || 0) || 0),
+    playCount: Math.max(0, Number(row.play_count || 0) || 0),
     author_nickname: authorNickname,
     authorNickname,
     created_at: String(row.created_at || '').trim(),
@@ -2109,6 +2112,7 @@ async function listLocalAiMusicSongsForUser(userId, { page = 1, pageSize = 20, q
       s.status,
       s.cover_url,
       s.audio_url,
+      s.play_count,
       s.created_at,
       s.updated_at,
       u.nickname AS author_nickname
@@ -2150,6 +2154,7 @@ async function listPublicAiMusicSongs({ page = 1, pageSize = 20, q = '' } = {}) 
       s.status,
       s.cover_url,
       s.audio_url,
+      s.play_count,
       s.created_at,
       s.updated_at,
       u.nickname AS author_nickname
@@ -2291,6 +2296,36 @@ function buildAiMusicMediaHeaders(req, config) {
   const range = String(req.headers?.range || '').trim();
   if (range) headers.Range = range;
   return headers;
+}
+
+async function sendAiMusicMediaResponse(response, res) {
+  ['content-type', 'content-length', 'content-range', 'accept-ranges'].forEach((name) => {
+    const value = response.headers?.get?.(name);
+    if (value) res.setHeader(name, value);
+  });
+  res.status(response.status);
+  if (!response.body || typeof Readable.fromWeb !== 'function') {
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return res.send(buffer);
+  }
+  await new Promise((resolve, reject) => {
+    const stream = Readable.fromWeb(response.body);
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    const fail = (error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    };
+    stream.on('error', fail);
+    res.on('finish', finish);
+    res.on('close', finish);
+    stream.pipe(res);
+  });
 }
 
 async function forwardAiMusicRequest(req, upstreamPath) {
@@ -8575,6 +8610,22 @@ app.get('/api/ai-music/public/songs/:songId', (req, res) => {
   }
 });
 
+app.post('/api/ai-music/public/songs/:songId/play', (req, res) => {
+  try {
+    const songId = String(req.params?.songId || '').trim();
+    if (!songId) return res.status(400).json({ ok: false, error: 'SONG_ID_REQUIRED' });
+    const existing = selectPublicAiMusicSongPlayCountStmt.get(songId);
+    if (!existing) return res.status(404).json({ ok: false, error: 'SONG_NOT_FOUND' });
+    incrementPublicAiMusicSongPlayCountStmt.run(songId);
+    const row = selectPublicAiMusicSongPlayCountStmt.get(songId);
+    const playCount = Math.max(0, Number(row?.play_count || 0) || 0);
+    return res.json({ ok: true, play_count: playCount, playCount });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 500) || 500;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_PUBLIC_PLAY_FAILED') });
+  }
+});
+
 app.get('/api/ai-music/public/media', async (req, res) => {
   try {
     const config = getAiMusicConfig();
@@ -8598,12 +8649,7 @@ app.get('/api/ai-music/public/media', async (req, res) => {
       return res.status(403).json({ ok: false, error: 'MEDIA_NOT_PUBLIC' });
     }
     const response = await fetch(targetUrl, { headers: buildAiMusicMediaHeaders(req, config) });
-    ['content-type', 'content-length', 'content-range', 'accept-ranges'].forEach((name) => {
-      const value = response.headers?.get?.(name);
-      if (value) res.setHeader(name, value);
-    });
-    const buffer = Buffer.from(await response.arrayBuffer());
-    return res.status(response.status).send(buffer);
+    return sendAiMusicMediaResponse(response, res);
   } catch (error) {
     const statusCode = Number(error?.statusCode || 500) || 500;
     return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_PUBLIC_MEDIA_FAILED') });
@@ -8698,12 +8744,7 @@ app.get('/api/ai-music/media', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'INVALID_MEDIA_URL' });
     }
     const response = await fetch(targetUrl, { headers: buildAiMusicMediaHeaders(req, config) });
-    ['content-type', 'content-length', 'content-range', 'accept-ranges'].forEach((name) => {
-      const value = response.headers?.get?.(name);
-      if (value) res.setHeader(name, value);
-    });
-    const buffer = Buffer.from(await response.arrayBuffer());
-    return res.status(response.status).send(buffer);
+    return sendAiMusicMediaResponse(response, res);
   } catch (error) {
     const statusCode = Number(error?.statusCode || 500) || 500;
     return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_MEDIA_PROXY_FAILED') });
@@ -10252,6 +10293,7 @@ const selectPublicAiMusicSongByUpstreamIdStmt = db.prepare(`
     s.status,
     s.cover_url,
     s.audio_url,
+    s.play_count,
     s.created_at,
     s.updated_at,
     u.nickname AS author_nickname
@@ -10266,6 +10308,20 @@ const selectPublicAiMusicMediaStmt = db.prepare(`
   FROM ai_music_songs
   WHERE audio_url IN (?, ?, ?)
      OR cover_url IN (?, ?, ?)
+  LIMIT 1
+`);
+const incrementPublicAiMusicSongPlayCountStmt = db.prepare(`
+  UPDATE ai_music_songs
+  SET play_count = COALESCE(play_count, 0) + 1,
+      updated_at = datetime('now')
+  WHERE upstream_song_id = ?
+    AND COALESCE(audio_url, '') <> ''
+`);
+const selectPublicAiMusicSongPlayCountStmt = db.prepare(`
+  SELECT COALESCE(play_count, 0) AS play_count
+  FROM ai_music_songs
+  WHERE upstream_song_id = ?
+    AND COALESCE(audio_url, '') <> ''
   LIMIT 1
 `);
 const searchNchatUsersByKeywordStmt = db.prepare(`

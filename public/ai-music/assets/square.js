@@ -1,5 +1,5 @@
 import { api, ApiError } from './api.js?v=20260617-ai-music-payment-refresh';
-import { el, clear, toast, mediaUrl, fmtDate } from './ui.js?v=20260617-ai-music-payment-refresh';
+import { el, clear, toast, mediaUrl } from './ui.js?v=20260617-ai-music-payment-refresh';
 import { toggleGlobalSong } from './player.js?v=20260617-ai-music-payment-refresh';
 
 let state = { page: 1, page_size: 20, q: '', loading: false, hasMore: true };
@@ -17,7 +17,7 @@ export function renderSquare(root) {
   const wrap = el('div', { class: 'gm-square' }, [
     el('div', { class: 'gm-head' }, [
       el('h2', { text: '音乐广场' }),
-      el('a', { class: 'gm-btn-ghost sm', href: '#generate', text: '写歌' })
+      el('a', { class: 'hh-my-create-btn', href: '#generate', text: '写歌' })
     ]),
     searchBox(root),
     el('div', { id: 'gm-square-feed', class: 'gm-square-grid' }),
@@ -103,6 +103,7 @@ function squareCard(song) {
   const title = song.title || '未命名';
   const author = String(song.author_nickname || song.authorNickname || '').trim();
   const cover = mediaUrl(song.image_url || song.cover_url || '');
+  const plays = el('div', { class: 'gm-square-plays', text: formatPlayCount(song) });
   const coverChildren = [
     cover ? el('img', {
       class: 'gm-square-cover-img',
@@ -118,18 +119,42 @@ function squareCard(song) {
       type: 'button',
       class: 'gm-square-cover',
       'aria-label': '播放 ' + title,
-      onclick: () => toggleGlobalSong(song)
+      onclick: () => playPublicSong(song, plays)
     }, coverChildren),
     el('div', { class: 'gm-square-info' }, [
       el('a', { class: 'gm-square-title', href: `/ai-music/song/${encodeURIComponent(String(song.id || ''))}`, text: title }),
       el('div', { class: 'gm-square-author-row' }, [
         el('div', { class: 'gm-square-author', text: author ? `作者：${author}` : '作者：匿名' }),
-        el('button', { type: 'button', class: 'gm-btn-ghost sm gm-square-share', text: '分享', onclick: () => shareSong(song) })
+        el('div', { class: 'gm-square-side' }, [
+          plays,
+          el('button', { type: 'button', class: 'gm-btn-ghost sm gm-square-share', text: '分享', onclick: () => shareSong(song) })
+        ])
       ]),
-      el('div', { class: 'gm-song-meta', text: fmtDate(song.created_at) }),
     ])
   ]);
   return card;
+}
+
+function getPlayCount(song = {}) {
+  return Math.max(0, Number(song.play_count ?? song.playCount ?? 0) || 0);
+}
+
+function formatPlayCount(song = {}) {
+  return `播放 ${getPlayCount(song)} 次`;
+}
+
+async function playPublicSong(song, countEl) {
+  const started = toggleGlobalSong(song);
+  if (!started || !song?.id) return;
+  try {
+    const payload = await api.recordPublicPlay(song.id);
+    const next = Math.max(0, Number(payload.play_count ?? payload.playCount ?? getPlayCount(song) + 1) || 0);
+    song.play_count = next;
+    song.playCount = next;
+    if (countEl) countEl.textContent = formatPlayCount(song);
+  } catch {
+    // 播放不能被计数接口影响。
+  }
 }
 
 function renderPager(root, total) {

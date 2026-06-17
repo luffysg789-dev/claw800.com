@@ -49,14 +49,15 @@ export function renderLibrary(root) {
 
   const wrap = el('div', { class: 'hh-my-wrap' });
 
-  // ——— 工具条：搜索置顶 + 一行(tab 左 / 写歌 右)。照搬主站 owner 视图——无「我的音乐」大标题 header ———
+  // ——— 顶部结构对齐音乐广场：标题右侧写歌，下一行搜索。———
   const tabsBox = el('div', { class: 'hh-my-tabs' }, [tabBtn('mine', '歌曲'), tabBtn('favorites', '收藏')]);
-  const inlineActions = el('div', { class: 'hh-my-inline-actions' }, [
+  const header = el('div', { class: 'gm-head hh-my-top-head' }, [
+    el('h2', { text: '我的音乐' }),
     el('a', { class: 'hh-my-create-btn', href: '#generate', text: '写歌' }),
   ]);
-  const toolbar = el('div', { class: 'hh-my-toolbar' }, [
+  const toolbar = el('div', { class: 'hh-my-toolbar hh-my-toolbar-flat' }, [
     searchBox(),
-    el('div', { class: 'hh-my-toolbar-row' }, [tabsBox, inlineActions]),
+    el('div', { class: 'hh-my-toolbar-row' }, [tabsBox]),
   ]);
 
   // 「正在创作」进度区(生成页提交后跳来这里轮询显示)，在歌曲列表上方
@@ -64,6 +65,7 @@ export function renderLibrary(root) {
   const feed = el('div', { id: 'myMusicFeed', style: 'display:flex;flex-direction:column;gap:16px;' });
   const pager = el('div', { id: 'lib-pager', style: 'display:flex;align-items:center;justify-content:center;gap:12px;margin-top:18px;flex-wrap:wrap;' });
 
+  wrap.appendChild(header);
   wrap.appendChild(toolbar);
   wrap.appendChild(activeBox);
   wrap.appendChild(feed);
@@ -87,12 +89,12 @@ function tabBtn(key, label) {
 }
 
 function searchBox() {
-  const box = el('div', { class: 'hh-my-search' });
-  const input = el('input', { type: 'text', placeholder: '搜索歌名…', value: state.q });
+  const box = el('div', { class: 'gm-square-search hh-my-search-unified' });
+  const input = el('input', { class: 'gm-input', type: 'text', placeholder: '搜索歌名...', value: state.q });
   const go = () => { state.q = input.value.trim(); state.page = 1; load(getLibRoot()); };
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
   box.appendChild(input);
-  box.appendChild(el('button', { type: 'button', text: '搜索', onclick: go }));
+  box.appendChild(el('button', { type: 'button', class: 'gm-btn-ghost', text: '搜索', onclick: go }));
   return box;
 }
 

@@ -1286,6 +1286,18 @@ details[open] .lyrics-arrow { transform: rotate(90deg); }
     border-radius: 14px;
     background: #ffffff;
 }
+.hh-my-toolbar-flat {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+.hh-my-top-head {
+    margin-bottom: 14px;
+}
+.hh-my-search-unified {
+    margin-bottom: 12px;
+}
 .hh-my-toolbar-row {
     display: flex;
     align-items: center;

@@ -177,6 +177,7 @@ export const api = {
   publicSongs: ({ page = 1, page_size = 20, q = '' } = {}) =>
     appRequest('GET', `${PUBLIC_API_BASE}/songs`, { query: { page, page_size, q } }),
   publicSong: (id) => appRequest('GET', `${PUBLIC_API_BASE}/songs/${encodeURIComponent(id)}`),
+  recordPublicPlay: (id) => appRequest('POST', `${PUBLIC_API_BASE}/songs/${encodeURIComponent(id)}/play`, { body: {} }),
   songDetail: (id) => request('GET', `/song/${id}`),
   songLyrics: (id) => request('GET', `/song/${id}/lyrics`),
   songLrc: (id) => request('GET', `/song/${id}/download-lrc`),

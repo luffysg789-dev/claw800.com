@@ -295,26 +295,27 @@ export function hideGlobalPlayer() {
 }
 
 export function toggleCurrent() {
-  if (!audio) return;
-  if (audio.paused || audio.ended) {
+  if (!audio) return false;
+  const willPlay = audio.paused || audio.ended;
+  if (willPlay) {
     audio.play().catch(() => toast('播放失败', 'error'));
   } else {
     audio.pause();
   }
   updateUi();
+  return willPlay;
 }
 
 export function toggleGlobalSong(song = {}) {
   const songId = cleanText(song.id || song.song_id || song.upstream_song_id);
   const currentId = cleanText(currentSong?.id || currentSong?.song_id || currentSong?.upstream_song_id);
   if (audio && songId && currentId && songId === currentId) {
-    toggleCurrent();
-    return;
+    return toggleCurrent();
   }
   const candidates = buildAudioCandidates(song);
   if (!candidates.length) {
     toast('音频还没准备好', 'warn');
-    return;
+    return false;
   }
   if (audio) {
     audio.pause();
@@ -343,6 +344,7 @@ export function toggleGlobalSong(song = {}) {
   updateLyric(true);
   if (needsSyncedLyricsFetch) loadSongLyrics(currentSong, cleanText(currentSong.id));
   playCandidate(candidates, 0, activeAudio);
+  return true;
 }
 
 function playCandidate(candidates, index, expectedAudio) {

@@ -11,6 +11,12 @@ const AI_MUSIC_PACKAGES = [
 ];
 let profileModalPromise = null;
 
+function isNexaAppEnvironment() {
+  const userAgent = String(window.navigator?.userAgent || '').trim();
+  const referrer = String(document.referrer || '').trim();
+  return /nexa/i.test(userAgent) || /nexa/i.test(referrer);
+}
+
 function getAuthCodeFromUrl() {
   const params = new URLSearchParams(window.location.search || '');
   return String(params.get('code') || params.get('authCode') || params.get('auth_code') || '').trim();
@@ -91,9 +97,14 @@ export async function handleNexaAuthCallback() {
 }
 
 export async function startNexaLogin() {
+  if (!isNexaAppEnvironment()) {
+    openNexaDownloadModal();
+    return false;
+  }
   const config = await getNexaPublicConfig();
   const redirectUri = `${window.location.origin}${window.location.pathname}${window.location.hash || ''}`;
   window.location.href = `${NEXA_PROTOCOL_AUTH_BASE}?apikey=${encodeURIComponent(config.apiKey)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+  return true;
 }
 
 export async function buyCredits(tier = '1u') {
@@ -149,6 +160,39 @@ export function openBuyCreditsModal() {
     el('h2', { style: 'text-align:center;font-size:20px;font-weight:900;margin:4px 0 6px', text: '购买生成次数' }),
     el('p', { class: 'gm-note', style: 'text-align:center;margin-bottom:16px', text: '选择套餐后会跳转 Nexa 支付。' }),
     el('div', { class: 'gm-package-list' }, rows)
+  ]));
+  document.body.appendChild(overlay);
+}
+
+export function openNexaDownloadModal() {
+  const overlay = el('div', { class: 'gm-modal', onclick: (e) => { if (e.target === overlay) overlay.remove(); } });
+  overlay.appendChild(el('div', { class: 'gm-modal-card gm-nexa-download-card' }, [
+    el('button', { class: 'gm-modal-close', type: 'button', text: '×', onclick: () => overlay.remove() }),
+    el('div', { style: 'font-size:36px;text-align:center', text: 'N' }),
+    el('h2', { style: 'text-align:center;font-size:20px;font-weight:900;margin:4px 0 6px', text: '请在 Nexa App 内登录' }),
+    el('p', { class: 'gm-note', style: 'text-align:center;margin-bottom:16px', text: 'AI 音乐购买和授权登录需要在 Nexa App 内完成。' }),
+    el('a', {
+      class: 'gm-btn-primary',
+      href: 'https://nexa.ceo',
+      target: '_blank',
+      rel: 'noopener',
+      text: '下载 Nexa App'
+    }),
+    el('button', {
+      class: 'gm-btn-ghost',
+      type: 'button',
+      text: '我已安装，打开 Nexa 授权',
+      onclick: async () => {
+        try {
+          overlay.remove();
+          const config = await getNexaPublicConfig();
+          const redirectUri = `${window.location.origin}${window.location.pathname}${window.location.hash || ''}`;
+          window.location.href = `${NEXA_PROTOCOL_AUTH_BASE}?apikey=${encodeURIComponent(config.apiKey)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+        } catch (error) {
+          toast(error.message || '授权失败', 'error');
+        }
+      }
+    })
   ]));
   document.body.appendChild(overlay);
 }
@@ -251,8 +295,8 @@ export function renderInlineKeyPrompt(sec, label, onSuccess) {
       text: 'Nexa 授权登录',
       onclick: async () => {
         try {
-          await startNexaLogin();
-          onSuccess && onSuccess();
+          const started = await startNexaLogin();
+          if (started) onSuccess && onSuccess();
         } catch (error) {
           toast(error.message || '授权失败', 'error');
         }

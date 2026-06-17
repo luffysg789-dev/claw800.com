@@ -30,6 +30,11 @@ test('ai music frontend uses Claw800 API routes instead of user API keys', () =>
   assert.match(apiJs, /\/api\/ai-music\/media/);
   assert.match(authJs, /nexaauth:\/\/oauth\/authorize/);
   assert.match(authJs, /nexaauth:\/\/order/);
+  assert.match(authJs, /function isNexaAppEnvironment\(\)/);
+  assert.match(authJs, /openNexaDownloadModal/);
+  assert.match(authJs, /https:\/\/nexa\.ceo/);
+  assert.match(authJs, /if \(!isNexaAppEnvironment\(\)\) \{[\s\S]*openNexaDownloadModal\(\);[\s\S]*return false;/);
+  assert.match(authJs, /const started = await startNexaLogin\(\);[\s\S]*if \(started\) onSuccess/);
   assert.match(authJs, /paySign/);
   assert.match(combined, /\/api\/ai-music\/credits\/order/);
 });
@@ -174,8 +179,12 @@ test('ai music uses persistent bottom player with scrolling lyrics', () => {
   assert.match(playerJs, /line\.time\s*<=\s*currentTime/);
   assert.match(apiJs, /publicSongs:\s*\(/);
   assert.match(apiJs, /publicSong:\s*\(id\)/);
+  assert.match(apiJs, /recordPublicPlay:\s*\(id\)/);
   assert.match(squareJs, /api\.publicSongs/);
+  assert.match(squareJs, /api\.recordPublicPlay/);
   assert.match(publicSongJs, /api\.publicSong/);
+  assert.match(publicSongJs, /api\.recordPublicPlay/);
+  assert.match(publicSongJs, /gm-public-plays/);
   assert.match(publicSongJs, /toggleGlobalSong/);
   assert.match(playerJs, /id:\s*'gm-mini-player'/);
   assert.match(playerJs, /class:\s*'gm-mini-lyric'/);
@@ -202,10 +211,16 @@ test('ai music square supports mobile pull-up loading', () => {
   assert.doesNotMatch(squareJs, /text:\s*'播放'/);
   assert.match(squareJs, /gm-square-author-row/);
   assert.match(squareJs, /gm-square-share/);
+  assert.match(squareJs, /class:\s*'hh-my-create-btn'[\s\S]*text:\s*'写歌'/);
+  assert.match(squareJs, /gm-square-plays/);
+  assert.match(squareJs, /formatPlayCount/);
+  assert.match(squareJs, /playPublicSong/);
   assert.match(squareJs, /setTimeout\(\(\)\s*=>\s*go\(\),\s*320\)/);
   assert.match(squareJs, /onerror:\s*\(event\)\s*=>/);
   assert.match(squareJs, /el\('img'/);
   assert.match(styles, /\.gm-square-author-row[\s\S]*align-items:\s*center[\s\S]*justify-content:\s*space-between/);
+  assert.match(styles, /\.gm-square-side/);
+  assert.match(styles, /\.gm-square-plays/);
   assert.match(styles, /\.gm-square-share/);
   assert.match(styles, /@media\(max-width:680px\)[\s\S]*\.gm-square-search\{grid-template-columns:minmax\(0,1fr\) auto/);
   assert.match(squareJs, /loadMore/);
@@ -214,4 +229,18 @@ test('ai music square supports mobile pull-up loading', () => {
   assert.match(styles, /\.gm-square-sentinel/);
   assert.match(styles, /\.gm-square-author/);
   assert.match(styles, /-webkit-overflow-scrolling:\s*touch/);
+});
+
+test('ai music library search and create button match square layout', () => {
+  const libraryJs = readPublicAiMusicFile('assets/library.js');
+  const myMusicCss = readPublicAiMusicFile('assets/my-music.css');
+
+  assert.match(libraryJs, /class:\s*'gm-head hh-my-top-head'/);
+  assert.match(libraryJs, /class:\s*'hh-my-create-btn'[\s\S]*text:\s*'写歌'/);
+  assert.match(libraryJs, /class:\s*'gm-square-search hh-my-search-unified'/);
+  assert.match(libraryJs, /class:\s*'gm-input'/);
+  assert.match(libraryJs, /class:\s*'gm-btn-ghost'[\s\S]*text:\s*'搜索'/);
+  assert.match(myMusicCss, /\.hh-my-toolbar-flat/);
+  assert.match(myMusicCss, /\.hh-my-top-head/);
+  assert.match(myMusicCss, /\.hh-my-search-unified/);
 });

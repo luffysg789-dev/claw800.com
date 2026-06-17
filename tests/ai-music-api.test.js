@@ -54,6 +54,7 @@ function createHarness() {
         }
 
         const res = new EventEmitter();
+        const chunks = [];
         res.statusCode = 200;
         res.headers = {};
         res.locals = {};
@@ -85,8 +86,19 @@ function createHarness() {
           resolve({ statusCode: this.statusCode, body: payload, headers: this.headers });
           return this;
         };
+        res.write = function write(payload) {
+          if (payload !== undefined) {
+            chunks.push(Buffer.isBuffer(payload) ? payload : Buffer.from(String(payload)));
+          }
+          return true;
+        };
         res.end = function end(payload) {
-          resolve({ statusCode: this.statusCode, body: payload, headers: this.headers });
+          if (payload !== undefined) {
+            chunks.push(Buffer.isBuffer(payload) ? payload : Buffer.from(String(payload)));
+          }
+          const resolvedBody = chunks.length ? Buffer.concat(chunks) : payload;
+          resolve({ statusCode: this.statusCode, body: resolvedBody, headers: this.headers });
+          this.emit('finish');
         };
 
         app.handle(req, res, reject);
@@ -828,6 +840,7 @@ test('ai music public square and song links are playable without login', async (
     assert.deepEqual(square.body.songs.map((song) => song.id), ['public-song-b', 'public-song-a']);
     assert.deepEqual(square.body.songs.map((song) => song.author_nickname), ['Bob 作者', 'Alice 作者']);
     assert.equal(square.body.songs[0].share_url, '/ai-music/song/public-song-b');
+    assert.equal(square.body.songs[0].play_count, 0);
     assert.equal(square.body.songs[0].audio_url.startsWith('/api/ai-music/public/media?u='), true);
     assert.equal(square.body.songs[0].audio_url, '/api/ai-music/public/media?u=https%3A%2F%2Fai6666.com%2Faudio%2Fb.mp3');
     assert.equal(square.body.songs[1].image_url, '/api/ai-music/public/media?u=https%3A%2F%2Fai6666.com%2Fcovers%2Fa.jpg');
@@ -835,6 +848,33 @@ test('ai music public square and song links are playable without login', async (
     assert.equal(detail.body.song.id, 'public-song-a');
     assert.equal(detail.body.song.title, 'Public Song A');
     assert.equal(detail.body.song.author_nickname, 'Alice 作者');
+    assert.equal(detail.body.song.play_count, 0);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('ai music public song play count increments without login', async () => {
+  const harness = createHarness();
+  try {
+    const { cookies } = await createAiMusicSession(harness, 'ai-music-open-id-public-play-count');
+    const user = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-public-play-count');
+    assert.ok(cookies);
+    harness.db.prepare(`
+      INSERT INTO ai_music_songs (user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url, play_count)
+      VALUES (?, NULL, ?, ?, ?, ?, ?, ?)
+    `).run(user.id, 'play-count-song', 'Play Count Song', 'complete', '/covers/count.jpg', '/audio/count.mp3', 4);
+
+    const first = await harness.request('POST', '/api/ai-music/public/songs/play-count-song/play', {});
+    const second = await harness.request('POST', '/api/ai-music/public/songs/play-count-song/play', {});
+    const detail = await harness.request('GET', '/api/ai-music/public/songs/play-count-song');
+    const missing = await harness.request('POST', '/api/ai-music/public/songs/not-found/play', {});
+
+    assert.equal(first.statusCode, 200);
+    assert.equal(first.body.play_count, 5);
+    assert.equal(second.body.playCount, 6);
+    assert.equal(detail.body.song.play_count, 6);
+    assert.equal(missing.statusCode, 404);
   } finally {
     harness.cleanup();
   }
@@ -859,7 +899,7 @@ test('ai music public media proxy only serves stored song media without login', 
       assert.equal(String(init.headers?.Range || ''), 'bytes=0-1023');
       assert.equal(String(init.headers?.Referer || ''), 'https://ai6666.com/');
       assert.equal(String(init.headers?.['User-Agent'] || ''), 'claw800-ai-music');
-      return new Response(Buffer.from('mp3-bytes'), {
+      const response = new Response(Buffer.from('mp3-bytes'), {
         status: 206,
         headers: {
           'content-type': 'audio/mpeg',
@@ -868,6 +908,10 @@ test('ai music public media proxy only serves stored song media without login', 
           'accept-ranges': 'bytes'
         }
       });
+      response.arrayBuffer = async () => {
+        throw new Error('media proxy should stream instead of buffering full audio');
+      };
+      return response;
     });
 
     const ok = await harness.request('GET', '/api/ai-music/public/media?u=' + encodeURIComponent('https://ai6666.com/audio/media.mp3'), null, {

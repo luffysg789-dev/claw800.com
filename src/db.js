@@ -338,6 +338,7 @@ db.exec(`
     status TEXT NOT NULL DEFAULT '',
     cover_url TEXT NOT NULL DEFAULT '',
     audio_url TEXT NOT NULL DEFAULT '',
+    play_count INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY(user_id) REFERENCES ai_music_users(id),
@@ -356,6 +357,11 @@ db.exec(`
   ON ai_music_songs(upstream_song_id)
   WHERE upstream_song_id <> '';
 `);
+
+const hasAiMusicSongPlayCount = db.prepare("SELECT 1 FROM pragma_table_info('ai_music_songs') WHERE name = 'play_count'").get();
+if (!hasAiMusicSongPlayCount) {
+  db.exec('ALTER TABLE ai_music_songs ADD COLUMN play_count INTEGER NOT NULL DEFAULT 0');
+}
 
 const hasGameUserEscrowCode = db.prepare("SELECT 1 FROM pragma_table_info('game_users') WHERE name = 'escrow_code'").get();
 if (!hasGameUserEscrowCode) {
