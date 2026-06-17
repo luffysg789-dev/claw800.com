@@ -474,6 +474,11 @@ body.gm-has-mini-player .gm-main{padding-bottom:132px;}
 /* 顶部登录控件 */
 .gm-auth{display:flex;align-items:center;gap:8px;}
 .gm-auth-on{font-size:12px;font-weight:800;color:var(--violet);background:#f5f3ff;border:1px solid #ddd6fe;padding:5px 10px;border-radius:999px;}
+@media(max-width:680px){
+  .gm-auth{gap:4px;flex-shrink:0;}
+  .gm-auth .gm-btn-ghost.sm{padding:5px 8px;font-size:12px;white-space:nowrap;}
+  .gm-auth-on{padding:5px 8px;white-space:nowrap;}
+}
 /* 登录弹窗 */
 .gm-modal{position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.5);display:flex;align-items:center;justify-content:center;padding:16px;}
 .gm-modal-card{background:#fff;border-radius:20px;padding:26px;width:min(380px,94vw);box-shadow:0 30px 70px -20px rgba(0,0,0,.4);}

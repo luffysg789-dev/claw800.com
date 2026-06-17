@@ -11,11 +11,53 @@ function cleanText(value) {
   return String(value == null ? '' : value).trim();
 }
 
+function parseLyricTimestamp(token) {
+  const match = String(token || '').match(/^(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?$/);
+  if (!match) return null;
+  const minutes = Number(match[1] || 0) || 0;
+  const seconds = Number(match[2] || 0) || 0;
+  const fraction = String(match[3] || '');
+  const millis = fraction ? Number(fraction.padEnd(3, '0').slice(0, 3)) || 0 : 0;
+  return minutes * 60 + seconds + millis / 1000;
+}
+
+function normalizeLyricsValue(value) {
+  if (value == null) return '';
+  if (typeof value === 'string') return value.trim();
+  if (Array.isArray(value)) {
+    return value.map((item) => {
+      if (typeof item === 'string') return item;
+      const text = cleanText(item?.text || item?.lyric || item?.line || item?.content || item?.words);
+      if (!text) return '';
+      const rawTime = item?.time ?? item?.start ?? item?.startTime ?? item?.timestamp;
+      const numericTime = typeof rawTime === 'number' ? rawTime : Number(rawTime);
+      if (Number.isFinite(numericTime)) {
+        const seconds = numericTime > 1000 ? numericTime / 1000 : numericTime;
+        const minutes = Math.floor(seconds / 60);
+        const rest = (seconds - minutes * 60).toFixed(2).padStart(5, '0');
+        return `[${minutes}:${rest}]${text}`;
+      }
+      return text;
+    }).filter(Boolean).join('\n');
+  }
+  if (typeof value === 'object') {
+    return normalizeLyricsValue(value.lyrics || value.lyric || value.text || value.lrc || value.lines || value.items || value.data);
+  }
+  return String(value || '').trim();
+}
+
 function parseLyrics(raw) {
-  return cleanText(raw)
+  return normalizeLyricsValue(raw)
     .split(/\r?\n+/)
-    .map((line) => line.replace(/\[[0-9:.]+\]/g, '').trim())
-    .filter(Boolean)
+    .flatMap((line) => {
+      const timestamps = Array.from(line.matchAll(/\[([0-9:.]+)\]/g))
+        .map((match) => parseLyricTimestamp(match[1]))
+        .filter((time) => time !== null);
+      const text = line.replace(/\[[0-9:.]+\]/g, '').trim();
+      if (!text) return [];
+      if (!timestamps.length) return [{ time: null, text }];
+      return timestamps.map((time) => ({ time, text }));
+    })
     .slice(0, 80);
 }
 
@@ -34,21 +76,38 @@ function extractLyricsPayload(payload) {
     payload.song?.lyrics,
     payload.song?.lyric
   ];
-  return String(candidates.find((value) => value != null && String(value).trim()) || '').trim();
+  return normalizeLyricsValue(candidates.find((value) => normalizeLyricsValue(value)));
 }
 
 async function loadSongLyrics(song, songId) {
   if (!songId) return;
+  let text = '';
   try {
     const payload = await api.songLyrics(songId);
-    const text = extractLyricsPayload(payload);
-    if (!text || cleanText(currentSong?.id) !== songId) return;
+    text = extractLyricsPayload(payload);
+  } catch {
+    // 老上游可能没有独立 lyrics 端点，落到歌曲详情兜底。
+  }
+  if (!text) {
+    try {
+      const detail = await api.songDetail(songId);
+      text = extractLyricsPayload(detail);
+    } catch {
+      text = '';
+    }
+  }
+  if (text && cleanText(currentSong?.id) === songId) {
     currentSong = { ...currentSong, lyrics: text };
     lyricLines = parseLyrics(text);
     lyricIndex = -1;
     updateLyric(true);
-  } catch {
-    // 歌词接口不可用时保留标题，不影响播放。
+    return;
+  }
+  if (cleanText(currentSong?.id) === songId && cleanText(currentSong?.lyrics) === '正在加载歌词...') {
+    currentSong = { ...currentSong, lyrics: '' };
+    lyricLines = parseLyrics(cleanText(currentSong.title) || 'AI 音乐');
+    lyricIndex = -1;
+    updateLyric(true);
   }
 }
 
@@ -75,10 +134,21 @@ function updateLyric(force = false) {
     track.textContent = cleanText(currentSong.title) || 'AI 音乐';
     return;
   }
-  const nextIndex = Math.max(0, Math.min(lyricLines.length - 1, Math.floor(((audio && audio.currentTime) || 0) / 6) % lyricLines.length));
+  const currentTime = (audio && audio.currentTime) || 0;
+  let nextIndex = Math.max(0, Math.min(lyricLines.length - 1, Math.floor(currentTime / 6) % lyricLines.length));
+  const timedLines = lyricLines.filter((line) => line.time !== null);
+  if (timedLines.length) {
+    nextIndex = 0;
+    for (let i = 0; i < lyricLines.length; i += 1) {
+      const line = lyricLines[i];
+      if (line.time === null) continue;
+      if (line.time <= currentTime) nextIndex = i;
+      else break;
+    }
+  }
   if (!force && nextIndex === lyricIndex) return;
   lyricIndex = nextIndex;
-  track.textContent = lyricLines[lyricIndex];
+  track.textContent = lyricLines[lyricIndex]?.text || cleanText(currentSong.title) || 'AI 音乐';
   track.style.animation = 'none';
   track.offsetHeight;
   track.style.animation = '';

@@ -33,7 +33,7 @@ function renderShell() {
   if (!SCREENS.some((s) => s.key === active)) active = 'generate';
 
   const nav = el('nav', { class: 'gm-nav' }, [
-    el('a', { class: 'gm-brand', href: '/ai-music/#generate', text: '🎵 AI 音乐' }),
+    el('a', { class: 'gm-brand', href: '/ai-music/#generate', text: 'AI 音乐' }),
     el('div', { class: 'gm-nav-links' }, SCREENS.filter((s) => !s.hidden).map((s) =>
       el('a', { href: '/ai-music/#' + s.key, 'data-key': s.key, class: 'gm-nav-link' + (s.key === active ? ' active' : ''), text: s.label }))),
     el('div', { id: 'gm-authslot' }, [authControl()]),
@@ -52,8 +52,14 @@ function renderShell() {
 }
 
 function authControl() {
+  const squareLink = el('a', {
+    class: 'gm-btn-ghost sm gm-square-top',
+    href: '/ai-music/#square',
+    text: '广场'
+  });
   if (getApiKey()) {
     return el('div', { class: 'gm-auth' }, [
+      squareLink,
       el('span', { class: 'gm-auth-on', id: 'gm-credits-chip', text: '已登录' }),
       el('a', {
         class: 'gm-btn-ghost sm',
@@ -67,7 +73,10 @@ function authControl() {
       }),
     ]);
   }
-  return el('button', { class: 'gm-btn-ghost sm', text: 'Nexa 登录', onclick: () => openKeyModal({}) });
+  return el('div', { class: 'gm-auth' }, [
+    squareLink,
+    el('button', { class: 'gm-btn-ghost sm', text: 'Nexa 登录', onclick: () => openKeyModal({}) })
+  ]);
 }
 
 function refreshAuthUI() {

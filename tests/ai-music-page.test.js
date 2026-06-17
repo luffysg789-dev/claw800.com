@@ -52,6 +52,8 @@ test('ai music purchase flow shows three Nexa package choices', () => {
   assert.match(authJs, /window\.dispatchEvent\(new CustomEvent\('gm-credits-changed'/);
   assert.match(combined, /openBuyCreditsModal/);
   assert.match(appJs, /class:\s*'gm-brand'[\s\S]*href:\s*'\/ai-music\/#generate'/);
+  assert.match(appJs, /text:\s*'AI 音乐'/);
+  assert.doesNotMatch(appJs, /text:\s*'🎵 AI 音乐'/);
   assert.match(appJs, /refreshPendingCreditOrder/);
   assert.match(appJs, /window\.addEventListener\('pageshow'/);
   assert.match(appJs, /window\.addEventListener\('focus'/);
@@ -59,6 +61,8 @@ test('ai music purchase flow shows three Nexa package choices', () => {
   assert.match(appJs, /gm-credits-changed/);
   assert.match(appJs, /href:\s*'\/ai-music\/#library'[\s\S]*text:\s*'我的音乐'/);
   assert.match(appJs, /key:\s*'square'[\s\S]*label:\s*'广场'/);
+  assert.match(appJs, /class:\s*'gm-btn-ghost sm gm-square-top'/);
+  assert.match(appJs, /href:\s*'\/ai-music\/#square'[\s\S]*text:\s*'广场'/);
   assert.match(appJs, /text:\s*'充值'/);
   assert.doesNotMatch(appJs, /text:\s*'购买'/);
   assert.doesNotMatch(appJs, /text:\s*'退出'/);
@@ -103,6 +107,7 @@ test('ai music mobile inputs keep 16px text to prevent iOS focus zoom', () => {
 
   assert.match(styles, /@media\s*\(max-width:\s*768px\)/);
   assert.match(styles, /\.gm-input[\s\S]*font-size:\s*16px\s*!important/);
+  assert.match(styles, /@media\s*\(max-width:\s*680px\)[\s\S]*\.gm-auth[\s\S]*gap:\s*4px/);
   assert.match(styles, /\.cf-scope textarea[\s\S]*font-size:\s*16px\s*!important/);
   assert.match(styles, /\.cf-scope input[\s\S]*font-size:\s*16px\s*!important/);
   assert.match(styles, /\.gm-st-scope input[\s\S]*font-size:\s*16px\s*!important/);
