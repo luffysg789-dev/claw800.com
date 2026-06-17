@@ -1202,3 +1202,41 @@ test('ai music media proxy can force attachment downloads with filename', async 
     harness.cleanup();
   }
 });
+
+test('ai music private image media proxy allows browser cover caching', async () => {
+  const harness = createHarness();
+  try {
+    const { cookies } = await createAiMusicSession(harness, 'ai-music-open-id-media-cache');
+    harness.setHhApiKey('hh_server_secret');
+    harness.setFetch(async (url, init = {}) => {
+      assert.equal(String(url), 'https://ai6666.com/covers/cache.jpg');
+      assert.equal(String(init.headers?.Authorization || ''), 'Bearer hh_server_secret');
+      return new Response(Buffer.from('jpg-bytes'), {
+        status: 200,
+        headers: {
+          'content-type': 'image/jpeg',
+          'content-length': '9',
+          etag: '"cover-cache-v1"',
+          'last-modified': 'Wed, 17 Jun 2026 10:00:00 GMT'
+        }
+      });
+    });
+
+    const response = await harness.request(
+      'GET',
+      '/api/ai-music/media?u=' + encodeURIComponent('https://ai6666.com/covers/cache.jpg'),
+      null,
+      { cookies }
+    );
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(String(response.body), 'jpg-bytes');
+    assert.equal(response.headers['content-type'], 'image/jpeg');
+    assert.match(response.headers['cache-control'], /private/);
+    assert.match(response.headers['cache-control'], /max-age=86400/);
+    assert.equal(response.headers.etag, '"cover-cache-v1"');
+    assert.equal(response.headers['last-modified'], 'Wed, 17 Jun 2026 10:00:00 GMT');
+  } finally {
+    harness.cleanup();
+  }
+});

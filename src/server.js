@@ -2847,11 +2847,24 @@ function buildAiMusicMediaHeaders(req, config) {
   return headers;
 }
 
-async function sendAiMusicMediaResponse(response, res) {
+function applyAiMusicMediaCacheHeaders(response, res, { visibility = 'private' } = {}) {
+  const contentType = String(response.headers?.get?.('content-type') || '').toLowerCase();
+  const disposition = String(res.getHeader?.('content-disposition') || '').toLowerCase();
+  if (!contentType.startsWith('image/') || disposition.includes('attachment')) return;
+  const cacheScope = visibility === 'public' ? 'public' : 'private';
+  res.setHeader('Cache-Control', `${cacheScope}, max-age=86400, stale-while-revalidate=604800`);
+  ['etag', 'last-modified'].forEach((name) => {
+    const value = response.headers?.get?.(name);
+    if (value) res.setHeader(name, value);
+  });
+}
+
+async function sendAiMusicMediaResponse(response, res, options = {}) {
   ['content-type', 'content-length', 'content-range', 'accept-ranges'].forEach((name) => {
     const value = response.headers?.get?.(name);
     if (value) res.setHeader(name, value);
   });
+  applyAiMusicMediaCacheHeaders(response, res, options);
   res.status(response.status);
   if (!response.body || typeof Readable.fromWeb !== 'function') {
     const buffer = Buffer.from(await response.arrayBuffer());
@@ -9417,7 +9430,7 @@ app.get('/api/ai-music/public/media', async (req, res) => {
     }
     const response = await fetch(targetUrl, { headers: buildAiMusicMediaHeaders(req, config) });
     setDownloadDisposition(req, res);
-    return sendAiMusicMediaResponse(response, res);
+    return sendAiMusicMediaResponse(response, res, { visibility: 'public' });
   } catch (error) {
     const statusCode = Number(error?.statusCode || 500) || 500;
     return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_PUBLIC_MEDIA_FAILED') });
@@ -9582,7 +9595,7 @@ app.get('/api/ai-music/media', async (req, res) => {
     }
     const response = await fetch(targetUrl, { headers: buildAiMusicMediaHeaders(req, config) });
     setDownloadDisposition(req, res);
-    return sendAiMusicMediaResponse(response, res);
+    return sendAiMusicMediaResponse(response, res, { visibility: 'private' });
   } catch (error) {
     const statusCode = Number(error?.statusCode || 500) || 500;
     return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_MEDIA_PROXY_FAILED') });
