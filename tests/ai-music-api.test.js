@@ -363,6 +363,33 @@ test('admin site config stores ai music api settings without echoing the key', a
   }
 });
 
+test('ai music config rejects saved key masks before building upstream headers', async () => {
+  const harness = createHarness();
+  try {
+    harness.db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('ai_music_api_key', ?)").run('••••••••AI 音乐 Key 已保存');
+    const { cookies } = await createAiMusicSession(harness, 'ai-music-open-id-mask-key');
+    const user = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-mask-key');
+    harness.db.prepare(`
+      UPDATE ai_music_credit_accounts
+      SET available_credits = 1, total_purchased_credits = 1
+      WHERE user_id = ?
+    `).run(user.id);
+    let fetchCalled = false;
+    harness.setFetch(async () => {
+      fetchCalled = true;
+      return new Response(JSON.stringify({ generation_id: 'should-not-call' }), { status: 200 });
+    });
+
+    const generate = await harness.request('POST', '/api/ai-music/music/generate', { prompt: 'piano' }, { cookies });
+
+    assert.equal(generate.statusCode, 503);
+    assert.equal(fetchCalled, false);
+    assert.match(generate.body.error, /AI 音乐 API Key/);
+  } finally {
+    harness.cleanup();
+  }
+});
+
 test('ai music payment notify marks paid, grants credits, and writes callback logs', async () => {
   const harness = createHarness();
   try {

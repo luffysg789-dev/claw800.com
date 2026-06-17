@@ -1897,6 +1897,11 @@ function getAiMusicConfig() {
     error.statusCode = 503;
     throw error;
   }
+  if (isSavedSecretMask(apiKey) || /[^\x20-\x7E]/.test(apiKey)) {
+    const error = new Error('AI 音乐 API Key 配置错误，请在后台重新填写真实 Key');
+    error.statusCode = 503;
+    throw error;
+  }
   return {
     upstream: String(getSetting('ai_music_api_base_url', '') || process.env.HH_UPSTREAM || 'https://ai6666.com').trim().replace(/\/+$/, ''),
     apiKey
