@@ -1,6 +1,6 @@
-import { getApiKey, logoutSession, bootstrapSession, api } from './api.js';
+import { getApiKey, logoutSession, bootstrapSession, api } from './api.js?v=20260617-ai-music-packages';
 import { el, clear, toast } from './ui.js';
-import { openKeyModal, renderInlineKeyPrompt, handleNexaAuthCallback, openBuyCreditsModal } from './auth.js';
+import { openKeyModal, renderInlineKeyPrompt, handleNexaAuthCallback, openBuyCreditsModal } from './auth.js?v=20260617-ai-music-packages';
 import { renderGenerate } from './generate.js';
 import { renderLibrary } from './library.js';
 import { renderStemLab } from './stemlab.js';

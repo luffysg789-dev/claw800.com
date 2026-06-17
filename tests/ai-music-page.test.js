@@ -13,7 +13,7 @@ test('ai music page shell is installed under public route', () => {
   const html = readPublicAiMusicFile('index.html');
 
   assert.match(html, /<div id="app"><\/div>/);
-  assert.match(html, /assets\/app\.js/);
+  assert.match(html, /assets\/app\.js\?v=/);
 });
 
 test('ai music frontend uses Claw800 API routes instead of user API keys', () => {
@@ -84,4 +84,20 @@ test('ai music mobile inputs keep 16px text to prevent iOS focus zoom', () => {
   assert.match(styles, /\.cf-scope input[\s\S]*font-size:\s*16px\s*!important/);
   assert.match(styles, /\.gm-st-scope input[\s\S]*font-size:\s*16px\s*!important/);
   assert.match(styles, /\.gm-st-scope select[\s\S]*font-size:\s*16px\s*!important/);
+});
+
+test('ai music shell and assets avoid stale Nexa webview caches', () => {
+  const html = readPublicAiMusicFile('index.html');
+  const appJs = readPublicAiMusicFile('assets/app.js');
+  const authJs = readPublicAiMusicFile('assets/auth.js');
+  const serverJs = fs.readFileSync(path.join(rootDir, 'src', 'server.js'), 'utf8');
+
+  assert.match(html, /assets\/styles\.css\?v=/);
+  assert.match(html, /assets\/my-music\.css\?v=/);
+  assert.match(html, /assets\/app\.js\?v=/);
+  assert.match(appJs, /from '\.\/api\.js\?v=/);
+  assert.match(appJs, /from '\.\/auth\.js\?v=/);
+  assert.match(authJs, /from '\.\/api\.js\?v=/);
+  assert.match(serverJs, /app\.get\(\['\/ai-music', '\/ai-music\/'\][\s\S]*Cache-Control', 'no-store/);
+  assert.match(serverJs, /filePath\.includes\(path\.join\('public', 'ai-music'\)\)[\s\S]*Cache-Control', 'no-store/);
 });

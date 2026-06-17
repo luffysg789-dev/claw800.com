@@ -263,6 +263,7 @@ app.get(['/predict-master', '/predict-master/'], (_req, res) => {
 });
 
 app.get(['/ai-music', '/ai-music/'], (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
   res.sendFile(path.join(__dirname, '..', 'public', 'ai-music', 'index.html'));
 });
 
@@ -273,7 +274,11 @@ app.get(['/u', '/u/'], (_req, res) => {
 app.use(express.static(path.join(__dirname, '..', 'public'), {
   maxAge: '7d',
   setHeaders(res, filePath) {
-    if (/\.html?$/i.test(filePath) || path.basename(filePath) === 'admin.js') {
+    if (
+      /\.html?$/i.test(filePath) ||
+      path.basename(filePath) === 'admin.js' ||
+      filePath.includes(path.join('public', 'ai-music'))
+    ) {
       res.setHeader('Cache-Control', 'no-store');
     }
   }

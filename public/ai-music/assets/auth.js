@@ -1,4 +1,4 @@
-import { getApiKey, api, syncSession, createCreditOrder, ApiError } from './api.js';
+import { getApiKey, api, syncSession, createCreditOrder, ApiError } from './api.js?v=20260617-ai-music-packages';
 import { el, clear, toast } from './ui.js';
 
 const NEXA_PROTOCOL_AUTH_BASE = 'nexaauth://oauth/authorize';
