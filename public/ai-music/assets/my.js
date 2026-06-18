@@ -1,26 +1,50 @@
 import { api, getCachedUser, ApiError } from './api.js?v=20260617-ai-music-payment-refresh';
 import { el, clear, toast } from './ui.js?v=20260617-ai-music-payment-refresh';
+import { renderLibrary } from './library.js?v=20260617-ai-music-payment-refresh';
+import { renderAssets } from './assets.js?v=20260617-ai-music-payment-refresh';
+
+const MY_TABS = [
+  { key: 'library', label: '我的音乐' },
+  { key: 'assets', label: '我的资产' },
+  { key: 'nickname', label: '我的昵称' },
+];
+
+let activeMyTab = 'library';
 
 export function renderMy(root) {
   clear(root);
   const user = getCachedUser() || {};
+  const panel = el('div', { class: 'gm-my-panel' });
+  const tabButtons = MY_TABS.map((tab) => el('button', {
+    type: 'button',
+    class: 'gm-my-tab' + (tab.key === activeMyTab ? ' active' : ''),
+    'data-my-tab': tab.key,
+    text: tab.label,
+    onclick: () => {
+      activeMyTab = tab.key;
+      tabButtons.forEach((button) => button.classList.toggle('active', button.dataset.myTab === activeMyTab));
+      renderMyPanel(panel);
+    }
+  }));
   const wrap = el('div', { class: 'gm-my-home' }, [
-    el('div', { class: 'gm-head gm-my-home-head' }, [
-      el('h2', { text: '我的' })
-    ]),
-    nicknameCard(user),
-    el('div', { class: 'gm-my-home-grid' }, [
-      el('a', { class: 'gm-my-home-card', href: '/ai-music/#library' }, [
-        el('strong', { text: '我的音乐' }),
-        el('span', { text: '查看歌曲、收藏、出售和公开设置' })
-      ]),
-      el('a', { class: 'gm-my-home-card', href: '/ai-music/#assets' }, [
-        el('strong', { text: '我的资产' }),
-        el('span', { text: '查看余额、明细和提现申请' })
-      ])
-    ])
+    el('div', { class: 'gm-my-tabs' }, tabButtons),
+    panel
   ]);
   root.appendChild(wrap);
+  renderMyPanel(panel, user);
+}
+
+function renderMyPanel(panel, user = getCachedUser() || {}) {
+  clear(panel);
+  if (activeMyTab === 'assets') {
+    renderAssets(panel, { embedded: true });
+    return;
+  }
+  if (activeMyTab === 'nickname') {
+    panel.appendChild(nicknameCard(user));
+    return;
+  }
+  renderLibrary(panel);
 }
 
 function formatDate(value) {

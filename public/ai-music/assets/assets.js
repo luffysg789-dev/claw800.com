@@ -3,12 +3,13 @@ import { el, clear, toast } from './ui.js?v=20260617-ai-music-payment-refresh';
 
 let cachedAssets = null;
 
-export function renderAssets(root) {
+export function renderAssets(root, options = {}) {
+  const embedded = Boolean(options.embedded);
   clear(root);
   root.appendChild(el('div', { class: 'gm-assets' }, [
     el('div', { class: 'gm-head' }, [
-      el('h2', { text: '资产' }),
-      el('a', { class: 'gm-btn-ghost sm', href: '#library', text: '我的音乐' })
+      el('h2', { text: '我的资产' }),
+      embedded ? null : el('a', { class: 'gm-btn-ghost sm', href: '#library', text: '我的音乐' })
     ]),
     el('section', { class: 'gm-assets-card' }, [
       el('div', { class: 'gm-assets-label', text: '可提现余额' }),

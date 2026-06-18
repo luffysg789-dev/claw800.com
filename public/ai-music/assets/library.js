@@ -7,6 +7,7 @@ import { toggleGlobalSong } from './player.js?v=20260617-ai-music-payment-refres
 
 let state = { tab: 'mine', page: 1, page_size: 20, q: '' };
 let globalBound = false;
+let activeLibraryRoot = null;
 
 // 全局单一音频：同时只播一首
 let cur = { audio: null, player: null };
@@ -19,7 +20,7 @@ function stopCurrent() {
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
-function getLibRoot() { return document.getElementById('screen-library'); }
+function getLibRoot() { return activeLibraryRoot || document.getElementById('screen-library'); }
 
 // 下载分两种情况：
 //  1) 接口下发的绝对签名直链(可跨域取、且带 response-content-disposition=attachment)
@@ -43,6 +44,7 @@ async function proxyDownload(rawUrl, filename) {
 }
 
 export function renderLibrary(root) {
+  activeLibraryRoot = root;
   clear(root);
   state = { tab: 'mine', page: 1, page_size: 20, q: '' };
   stopCurrent();

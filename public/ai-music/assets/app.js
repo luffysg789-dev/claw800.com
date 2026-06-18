@@ -15,7 +15,7 @@ const SCREENS = [
   { key: 'studio', label: '编曲房', module: 'studio', render: 'renderStudio', needsKey: true },
   { key: 'public-song', label: '歌曲', module: 'public-song', render: 'renderPublicSong', needsKey: false, hidden: true },
 ];
-const ALWAYS_RERENDER = new Set(['library', 'assets', 'stemlab', 'studio', 'market', 'square', 'public-song']);
+const ALWAYS_RERENDER = new Set(['my', 'library', 'assets', 'stemlab', 'studio', 'market', 'square', 'public-song']);
 let active = 'generate';
 let mounted = new Set();
 let pendingPaymentRefreshTimer = null;

@@ -50,6 +50,7 @@ test('ai music purchase flow shows three Nexa package choices', () => {
   const generateJs = readPublicAiMusicFile('assets/generate.js');
   const libraryJs = readPublicAiMusicFile('assets/library.js');
   const myJs = readPublicAiMusicFile('assets/my.js');
+  const stylesCss = readPublicAiMusicFile('assets/styles.css');
   const combined = `${apiJs}\n${authJs}\n${appJs}`;
 
   assert.match(apiJs, /createCreditOrder\(tier/);
@@ -76,15 +77,27 @@ test('ai music purchase flow shows three Nexa package choices', () => {
   assert.match(appJs, /href:\s*'\/ai-music\/#my'[\s\S]*text:\s*'我的'/);
   assert.match(appJs, /navKeyFor/);
   assert.match(appJs, /loadScreenModule/);
+  assert.match(appJs, /ALWAYS_RERENDER = new Set\(\['my'/);
   assert.match(appJs, /key:\s*'library'[\s\S]*label:\s*'我的音乐'[\s\S]*hidden:\s*true/);
   assert.match(appJs, /key:\s*'assets'[\s\S]*label:\s*'资产'[\s\S]*hidden:\s*true/);
   assert.match(myJs, /renderMy/);
-  assert.match(myJs, /href:\s*'\/ai-music\/#library'[\s\S]*text:\s*'我的音乐'/);
-  assert.match(myJs, /href:\s*'\/ai-music\/#assets'[\s\S]*text:\s*'我的资产'/);
+  assert.match(myJs, /import \{ renderLibrary \}/);
+  assert.match(myJs, /import \{ renderAssets \}/);
+  assert.match(myJs, /key:\s*'library'[\s\S]*label:\s*'我的音乐'/);
+  assert.match(myJs, /key:\s*'assets'[\s\S]*label:\s*'我的资产'/);
+  assert.match(myJs, /key:\s*'nickname'[\s\S]*label:\s*'我的昵称'/);
+  assert.match(myJs, /renderLibrary\(panel\)/);
+  assert.match(myJs, /renderAssets\(panel,\s*\{\s*embedded:\s*true\s*\}\)/);
+  assert.doesNotMatch(myJs, /href:\s*'\/ai-music\/#library'/);
   assert.match(myJs, /text:\s*'我的昵称'/);
   assert.match(myJs, /nicknameChangesRemaining/);
   assert.match(myJs, /每 30 天可修改一次/);
   assert.match(myJs, /api\.updateProfile/);
+  assert.match(libraryJs, /let activeLibraryRoot = null/);
+  assert.match(libraryJs, /function getLibRoot\(\) \{ return activeLibraryRoot \|\| document\.getElementById\('screen-library'\); \}/);
+  assert.match(stylesCss, /\.gm-my-tabs/);
+  assert.match(stylesCss, /\.gm-my-tab\.active/);
+  assert.match(stylesCss, /\.gm-my-panel/);
   assert.match(appJs, /key:\s*'square'[\s\S]*label:\s*'广场'/);
   assert.match(appJs, /class:\s*'gm-btn-ghost sm gm-square-top'/);
   assert.match(appJs, /href:\s*'\/ai-music\/#square'[\s\S]*text:\s*'广场'/);

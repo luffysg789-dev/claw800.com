@@ -80,6 +80,11 @@ textarea.gm-input{resize:vertical;line-height:1.6;font-family:inherit;}
 
 /* —— 我的 —— */
 .gm-my-home{max-width:760px;margin:0 auto;padding:10px 0 120px;}
+.gm-my-tabs{position:sticky;top:0;z-index:8;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 12px;padding:8px 0;background:linear-gradient(180deg,rgba(255,247,251,.96),rgba(255,247,251,.88));backdrop-filter:blur(10px);}
+.gm-my-tab{min-width:0;border:1px solid #f3d2df;background:#fff;color:#5b6472;font-size:14px;font-weight:900;padding:10px 8px;border-radius:12px;cursor:pointer;white-space:nowrap;}
+.gm-my-tab.active{border-color:#ef477e;background:var(--grad);color:#fff;box-shadow:0 10px 20px -14px rgba(236,72,153,.7);}
+.gm-my-panel{min-width:0;padding-bottom:22px;}
+.gm-my-panel>.hh-my-wrap{padding-top:0;}
 .gm-my-nickname-card{margin-bottom:12px;padding:16px;border:1px solid #f3e8ee;border-radius:18px;background:#fff;box-shadow:0 12px 32px rgba(190,24,93,.08);}
 .gm-my-nickname-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:12px;}
 .gm-my-nickname-head strong{min-width:0;font-size:18px;font-weight:950;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -94,6 +99,8 @@ textarea.gm-input{resize:vertical;line-height:1.6;font-family:inherit;}
 .gm-my-home-card:hover{border-color:#f9a8d4;box-shadow:0 16px 34px rgba(190,24,93,.12);}
 @media(max-width:560px){
   .gm-my-home{padding-left:2px;padding-right:2px;}
+  .gm-my-tabs{gap:6px;margin-bottom:10px;padding:7px 0;}
+  .gm-my-tab{font-size:13px;padding:9px 6px;border-radius:11px;}
   .gm-my-nickname-card{padding:15px;border-radius:16px;}
   .gm-my-nickname-head{align-items:flex-start;flex-direction:column;gap:4px;}
   .gm-my-nickname-edit{grid-template-columns:1fr;}
