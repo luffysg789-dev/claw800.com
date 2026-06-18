@@ -247,40 +247,195 @@ function formHTML() {
         <button type="button" id="proDocsModalClose" aria-label="关闭" style="border:none;background:none;font-size:20px;color:#9ca3af;cursor:pointer;line-height:1;">✕</button>
       </div>
       <div class="gm-pro-docs-body">
-        <section>
-          <h3>字段怎么填</h3>
-          <p><strong>歌曲要求</strong>写整体方向：曲风、情绪、主乐器、人声、速度、制作质感。这里不要写整首歌词。</p>
-          <p><strong>歌词框</strong>只放歌词、结构标签和段落控制。结构越清楚，副歌和段落越稳定。</p>
-          <p><strong>风格</strong>用英文标签并用逗号隔开，例如：<code>Mandarin pop ballad, female vocal, piano, strings, slow tempo</code></p>
+        <div class="gm-pro-docs-index">
+          <a href="#gm-doc-overview">概览</a>
+          <a href="#gm-doc-fields">字段</a>
+          <a href="#gm-doc-syntax">语法</a>
+          <a href="#gm-doc-structure">结构</a>
+          <a href="#gm-doc-vocal">人声</a>
+          <a href="#gm-doc-tags">标签</a>
+          <a href="#gm-doc-advanced">进阶</a>
+          <a href="#gm-doc-examples">模板</a>
+          <a href="#gm-doc-faq">FAQ</a>
+        </div>
+        <section id="gm-doc-overview">
+          <h3>概览</h3>
+          <p>这份文档是 AI音乐 写歌页的提示词手册。新手可以按模板快速生成，专业模式用户可以查结构标签、人声控制、风格标签和歌词插入写法。</p>
+          <p>英文标签可以直接复制到“风格”或“歌词”里；中文说明只帮助你选择方向，不建议整段粘进风格框。</p>
         </section>
-        <section>
-          <h3>常用结构标签</h3>
-          <div class="gm-pro-docs-tags">
-            <code>[Intro]</code><code>[Verse]</code><code>[Pre-Chorus]</code><code>[Chorus]</code><code>[Bridge]</code><code>[Interlude]</code><code>[Outro]</code><code>[End]</code>
+        <section id="gm-doc-fields">
+          <h3>页面字段怎么填</h3>
+          <div class="gm-pro-docs-grid">
+            <div><strong>傻瓜模式</strong><span>用自然语言描述主题、场景、情绪、人声和曲风，适合快速出歌。</span></div>
+            <div><strong>自由模式</strong><span>把语言、曲风、乐器、速度、结构写在同一个输入框里，适合一段式完整要求。</span></div>
+            <div><strong>专业模式歌词</strong><span>只放歌词、结构标签和段落控制，不要把整体曲风都塞进歌词框。</span></div>
+            <div><strong>风格</strong><span>控制整首歌的流派、人声、情绪、乐器、速度和制作质感，多个标签用英文逗号隔开。</span></div>
+            <div><strong>语言</strong><span>选择演唱语言，如中文、English、日本語、한국어、Español、Русский、粤语。</span></div>
+            <div><strong>纯音乐</strong><span>勾选后不生成歌词和人声，适合 BGM、氛围音乐、钢琴曲、配乐。</span></div>
           </div>
-          <p>结构标签单独一行。段落唱法或乐器提示可以写在下一行括号里，例如：<code>(soft female vocal, piano only)</code></p>
         </section>
         <section>
+          <h3>AI音乐实用功能</h3>
+          <p><strong>专业模式 · 最优风格推荐：</strong>先写歌词，再在歌曲要求里写方向，比如古风、失恋、摇滚副歌，点击后自动推荐更合适的风格标签。</p>
+          <p><strong>AI 写歌词：</strong>给一个主题、故事或情绪，AI 会写出可继续编辑的歌词。</p>
+          <p><strong>随机主题：</strong>傻瓜模式里快速填入主题和参考风格，适合没有灵感时试歌。</p>
+          <p><strong>分轨：</strong>生成后可在我的音乐里做伴奏、人声、乐器分离，用于翻唱、剪辑、K 歌和二次创作。</p>
+        </section>
+        <section>
+          <h3>快速开始</h3>
+          <p>最稳的写法是先确定整首歌方向，再写歌词结构。风格可以按这个顺序组织：</p>
+          <pre>核心曲风, 人声, 情绪, 主乐器, 速度, 制作质感</pre>
+          <p>中文伤感情歌：</p>
+          <pre>Mandarin pop ballad, female vocal, melancholic, piano, strings, slow tempo, intimate, emotional build-up</pre>
+          <p>男女对唱：</p>
+          <pre>Mandarin pop, male and female duet, romantic, warm vocal harmony, acoustic guitar, piano, medium tempo</pre>
+        </section>
+        <section id="gm-doc-syntax">
+          <h3>语法规则</h3>
+          <div class="gm-pro-docs-grid">
+            <div><strong>全局风格</strong><span>写在“风格”框里，不加括号，用逗号隔开，例如 <code>piano, strings, slow tempo</code>。</span></div>
+            <div><strong>结构标签</strong><span>写在歌词框里，独立成行，用方括号，例如 <code>[Verse 1]</code>、<code>[Chorus]</code>。</span></div>
+            <div><strong>段落说明</strong><span>写在目标段落下面，用英文括号，例如 <code>(soft female vocal, piano only)</code>。</span></div>
+          </div>
+          <p>记法很简单：风格框管整首歌，<code>[]</code> 告诉 AI 这是哪一段，<code>()</code> 告诉 AI 这一段怎么唱、怎么编。</p>
+        </section>
+        <section id="gm-doc-structure">
+          <h3>歌词结构标签</h3>
+          <div class="gm-pro-docs-tags">
+            <code>[Intro]</code><code>[Verse]</code><code>[Verse 1]</code><code>[Verse 2]</code><code>[Pre-Chorus]</code><code>[Chorus]</code><code>[Post-Chorus]</code><code>[Hook]</code><code>[Bridge]</code><code>[Break]</code><code>[Breakdown]</code><code>[Build-Up]</code><code>[Drop]</code><code>[Interlude]</code><code>[Instrumental]</code><code>[Guitar Solo]</code><code>[Piano Solo]</code><code>[Male Vocal]</code><code>[Female Vocal]</code><code>[Duet]</code><code>[Harmony]</code><code>[Choir]</code><code>[Rap]</code><code>[Spoken Word]</code><code>[Whisper]</code><code>[Outro]</code><code>[Fade Out]</code><code>[End]</code><code>[Solo]</code>
+          </div>
+          <p><strong>[Verse]</strong> 推进故事，通常比副歌克制；<strong>[Pre-Chorus]</strong> 用来抬情绪；<strong>[Chorus]</strong> 放最想让人记住的句子；<strong>[Bridge]</strong> 用来做对比或转折。</p>
+          <p><strong>[Instrumental]</strong>、<strong>[Solo]</strong>、<strong>[Drop]</strong> 适合安排器乐、独奏和电子音乐爆发段。</p>
+        </section>
+        <section id="gm-doc-vocal">
           <h3>人声控制</h3>
-          <p>整首歌的人声放到风格里：<code>male vocal</code>、<code>female vocal</code>、<code>male and female duet</code>。</p>
-          <p>某一段切换人声，可以在歌词里写：<code>[Male Vocal]</code>、<code>[Female Vocal]</code>、<code>[Duet]</code>。</p>
-        </section>
-        <section>
-          <h3>可复制示例</h3>
+          <p>整首歌的人声写在风格里：<code>male vocal</code>、<code>female vocal</code>、<code>male and female duet</code>、<code>choir</code>、<code>rap vocal</code>。</p>
+          <p>某一段切换人声，把标签放在歌词框里目标段落附近：</p>
           <pre>[Verse 1]
+[Male Vocal]
 (soft male vocal, close-mic)
 我把没寄出的信
 放回旧抽屉
 
+[Verse 2]
+[Female Vocal]
+(breathy female vocal)
+我在同一场雨里
+听见你的回音
+
 [Chorus]
 [Duet]
-(male and female duet, warm vocal harmony)
+(male and female duet, vocal harmony)
 如果风会替我们说晚安
 别让爱散在天亮以前</pre>
+          <p>如果只想控制一两句，也可以在单句前写 <code>(male vocal)</code>、<code>(female vocal)</code>，但频繁切换不如拆成更清楚的段落稳定。</p>
+        </section>
+        <section id="gm-doc-tags">
+          <h3>标签速查</h3>
+          <h4>流派 / 曲风</h4>
+          <div class="gm-pro-docs-tags">
+            <code>Mandarin pop</code><code>Mandopop</code><code>Cantopop</code><code>Pop</code><code>Pop ballad</code><code>Indie pop</code><code>Dream pop</code><code>City pop</code><code>Synth-pop</code><code>J-pop</code><code>K-pop</code><code>Anime opening</code><code>Rock</code><code>Pop rock</code><code>Alternative rock</code><code>Metal</code><code>Folk</code><code>Indie folk</code><code>Country</code><code>R&amp;B</code><code>Soul</code><code>Neo-soul</code><code>Hip-hop</code><code>Rap</code><code>Trap</code><code>Lo-fi hip-hop</code><code>EDM</code><code>House</code><code>Techno</code><code>Future bass</code><code>Jazz</code><code>Blues</code><code>Cinematic</code><code>Orchestral</code><code>Chinese traditional</code><code>Ancient Chinese</code>
+          </div>
+          <h4>情绪 / 氛围</h4>
+          <div class="gm-pro-docs-tags">
+            <code>Happy</code><code>Joyful</code><code>Bright</code><code>Sweet</code><code>Romantic</code><code>Warm</code><code>Tender</code><code>Intimate</code><code>Sad</code><code>Melancholic</code><code>Nostalgic</code><code>Sentimental</code><code>Lonely</code><code>Heartbroken</code><code>Bittersweet</code><code>Dreamy</code><code>Ethereal</code><code>Atmospheric</code><code>Mysterious</code><code>Dark</code><code>Hopeful</code><code>Uplifting</code><code>Epic</code><code>Aggressive</code><code>Anxious</code>
+          </div>
+          <h4>人声标签</h4>
+          <div class="gm-pro-docs-tags">
+            <code>Male vocal</code><code>Female vocal</code><code>Male and female duet</code><code>Duet</code><code>Soft vocal</code><code>Powerful vocal</code><code>Breathy vocal</code><code>Raspy vocal</code><code>Falsetto</code><code>Belting</code><code>Whisper</code><code>Spoken word</code><code>Rap vocal</code><code>Vocal harmony</code><code>Choir</code><code>Call and response</code>
+          </div>
+          <h4>乐器 / 音色</h4>
+          <div class="gm-pro-docs-tags">
+            <code>Piano</code><code>Soft piano</code><code>Electric piano</code><code>Rhodes</code><code>Synth</code><code>Synth pad</code><code>Synth lead</code><code>Synth bass</code><code>Acoustic guitar</code><code>Nylon guitar</code><code>Electric guitar</code><code>Distorted guitar</code><code>Guitar solo</code><code>Bass guitar</code><code>Drums</code><code>Acoustic drums</code><code>808</code><code>Strings</code><code>Violin</code><code>Cello</code><code>Brass section</code><code>Saxophone</code><code>Flute</code><code>Guzheng</code><code>Guqin</code><code>Erhu</code><code>Pipa</code><code>Dizi</code><code>Xiao</code><code>Suona</code><code>Kalimba</code><code>Music box</code>
+          </div>
+          <h4>节奏 / 制作 / 音效</h4>
+          <div class="gm-pro-docs-tags">
+            <code>Slow tempo</code><code>Medium tempo</code><code>Fast tempo</code><code>70 BPM</code><code>90 BPM</code><code>120 BPM</code><code>4/4</code><code>3/4</code><code>Waltz</code><code>Swing</code><code>Syncopated</code><code>Build-up</code><code>Drop</code><code>Breakdown</code><code>Fade out</code><code>Clean mix</code><code>Polished</code><code>Raw</code><code>Warm reverb</code><code>Long reverb</code><code>Wide stereo</code><code>Close-mic vocal</code><code>Lo-fi texture</code><code>Vinyl crackle</code><code>Tape saturation</code><code>Sidechain</code><code>Filter sweep</code><code>Glitch</code>
+          </div>
+          <h4>场景音效</h4>
+          <div class="gm-pro-docs-tags">
+            <code>Rain ambience</code><code>Ocean waves</code><code>City night ambience</code><code>Thunder</code><code>Wind chimes</code><code>Fire crackle</code><code>Footsteps</code><code>Heartbeat</code><code>Phone call intro</code><code>Radio voice</code><code>Tape stop</code><code>Riser</code><code>Impact hit</code><code>Silence</code>
+          </div>
+        </section>
+        <section id="gm-doc-advanced">
+          <h3>进阶写法</h3>
+          <p>控制标签越靠近它要影响的段落，越容易被理解。想让某一段低语、暂停、独白、独奏，就把标签写在那一段附近。</p>
+          <div class="gm-pro-docs-grid">
+            <div><strong>短暂停顿</strong><span><code>[Break]</code> + <code>(brief silence)</code>，适合副歌前留白。</span></div>
+            <div><strong>独白</strong><span><code>[Spoken Word]</code> + <code>(quiet spoken male voice)</code>，适合电话感、回忆感。</span></div>
+            <div><strong>低语</strong><span><code>[Whisper]</code> + <code>(whispered female vocal)</code>，适合亲密、悬疑、深夜感。</span></div>
+            <div><strong>哼唱 Hook</strong><span><code>[Post-Chorus]</code> + <code>(humming, vocal chops)</code>，适合副歌后保留旋律记忆点。</span></div>
+            <div><strong>问答人声</strong><span><code>[Call and Response]</code> + <code>(male lead, female response)</code>，适合男女对唱。</span></div>
+            <div><strong>最终副歌爆发</strong><span><code>[Final Chorus]</code> + <code>(full band, choir, key change)</code>，适合最后一遍情绪拉满。</span></div>
+          </div>
+        </section>
+        <section id="gm-doc-examples">
+          <h3>歌词插入示例</h3>
+          <pre>[Intro]
+(rain ambience, soft piano)
+
+[Verse 1]
+(soft female vocal, piano only)
+雨停在凌晨三点半
+你的名字还亮在旧聊天
+
+[Pre-Chorus]
+(strings enter, emotional build-up)
+我把想念调成静音
+却听见心跳一遍一遍
+
+[Chorus]
+(full band, vocal harmony)
+如果风会替我说晚安
+请别让它吹散你的答案
+
+[Instrumental]
+(guzheng solo, cinematic strings)
+
+[Outro]
+(fade out, whispered vocal)
+我把没说完的爱
+留给明天的海</pre>
+        </section>
+        <section>
+          <h3>发音不准怎么办</h3>
+          <p>AI音乐会尽量优化中文发音，但多音字、生僻字、人名、地名仍可能唱错。某个字总是错时，只替换那个字为带声调拼音，其余歌词保持中文。</p>
+          <pre>浉河 → shī河
+钦 → qīn</pre>
+          <p>不要把整句都改成拼音，只改容易唱错的字。</p>
+        </section>
+        <section>
+          <h3>常用模板</h3>
+          <p>中文伤感情歌：</p>
+          <pre>Mandarin pop ballad, sad, female vocal, piano, strings, slow tempo, intimate, emotional build-up</pre>
+          <p>甜蜜男女对唱：</p>
+          <pre>Mandarin pop, male and female duet, romantic, warm, acoustic guitar, piano, medium tempo, vocal harmony</pre>
+          <p>古风情歌：</p>
+          <pre>Ancient Chinese, Mandarin pop ballad, female vocal, guzheng, pipa, dizi, strings, poetic, slow tempo, cinematic</pre>
+          <p>电子舞曲：</p>
+          <pre>EDM, future bass, female vocal, euphoric, 128 BPM, synth lead, sidechain, build-up, drop, wide stereo</pre>
+          <p>说唱 + 旋律副歌：</p>
+          <pre>Hip-hop, trap, rap verse, melodic chorus, male vocal, 808 bass, dark piano, medium tempo, clean mix</pre>
+        </section>
+        <section id="gm-doc-faq">
+          <h3>FAQ</h3>
+          <div class="gm-pro-docs-grid">
+            <div><strong>只写“高级、史诗、洗脑”</strong><span>这些不是音乐细节。改成曲风、情绪、人声、乐器、速度、制作质感。</span></div>
+            <div><strong>标签互相矛盾</strong><span>不要同时写 <code>Slow tempo</code> 和 <code>Very fast</code>，每个维度保留一个清楚方向。</span></div>
+            <div><strong>乐器太多</strong><span>主乐器控制在 1 到 3 个，其他作为背景补充，模型更容易抓住重点。</span></div>
+            <div><strong>副歌不抓耳</strong><span>把最重要、最想重复的一句放进 <code>[Chorus]</code>，不要让副歌太散。</span></div>
+          </div>
         </section>
         <section>
           <h3>提交前检查</h3>
-          <p>先确定整体风格，再写歌词结构。不要只写“高级、爆款、好听”，尽量给出具体音乐细节：曲风、人声、情绪、乐器、速度。</p>
+          <ul>
+            <li>至少有一个核心曲风，例如 <code>Pop ballad</code>、<code>Folk</code>、<code>Rock</code>、<code>R&amp;B</code>。</li>
+            <li>人声方向清楚：男声、女声、对唱、合唱或说唱。</li>
+            <li>乐器有主次，主乐器不要太多。</li>
+            <li>情绪不要互相打架，悲伤、欢快、史诗、黑暗不要全部塞一起。</li>
+            <li>专业模式歌词有清楚的主歌、副歌、桥段或结尾。</li>
+            <li>提示词只是方向，不需要把每个细节都写死，给 AI 留一点创作空间。</li>
+          </ul>
         </section>
       </div>
     </div>
