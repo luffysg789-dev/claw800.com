@@ -68,7 +68,7 @@ function normalizeLyricsValue(value) {
       if (typeof item === 'string') return item;
       const text = cleanText(item?.text || item?.lyric || item?.line || item?.content || item?.words);
       if (!text) return '';
-      const rawTime = item?.time ?? item?.start ?? item?.startTime ?? item?.timestamp;
+      const rawTime = item?.startS ?? item?.start_s ?? item?.time ?? item?.start ?? item?.startTime ?? item?.start_time ?? item?.timestamp;
       const numericTime = typeof rawTime === 'number' ? rawTime : Number(rawTime);
       if (Number.isFinite(numericTime)) {
         const seconds = numericTime >= 1000 ? numericTime / 1000 : numericTime;
@@ -80,7 +80,17 @@ function normalizeLyricsValue(value) {
     }).filter(Boolean).join('\n');
   }
   if (typeof value === 'object') {
-    return normalizeLyricsValue(value.lyrics || value.lyric || value.text || value.lrc || value.lines || value.items || value.data);
+    return normalizeLyricsValue(
+      value.lrc_lines ||
+      value.lrcLines ||
+      value.lyrics ||
+      value.lyric ||
+      value.text ||
+      value.lrc ||
+      value.lines ||
+      value.items ||
+      value.data
+    );
   }
   return String(value || '').trim();
 }
@@ -108,6 +118,8 @@ function extractLyricsPayload(payload) {
   if (!payload) return '';
   if (typeof payload === 'string') return payload.trim();
   const candidates = [
+    payload.lrc_lines,
+    payload.lrcLines,
     payload.raw,
     payload.lyrics,
     payload.lyric,
@@ -126,13 +138,21 @@ function extractLyricsPayload(payload) {
     payload.data?.lrc_text,
     payload.data?.syncedLyrics,
     payload.data?.synced_lyrics,
+    payload.data?.lrc_lines,
+    payload.data?.lrcLines,
+    payload.data?.result?.lrc_lines,
+    payload.data?.result?.lrcLines,
+    payload.data?.song?.lrc_lines,
+    payload.data?.song?.lrcLines,
     payload.song?.lyrics,
     payload.song?.lyric,
     payload.song?.lrc,
     payload.song?.lrcText,
     payload.song?.lrc_text,
     payload.song?.syncedLyrics,
-    payload.song?.synced_lyrics
+    payload.song?.synced_lyrics,
+    payload.song?.lrc_lines,
+    payload.song?.lrcLines
   ];
   return normalizeLyricsValue(candidates.find((value) => normalizeLyricsValue(value)));
 }
@@ -141,11 +161,20 @@ async function loadSongLyrics(song, songId) {
   if (!songId) return;
   let text = '';
   try {
-    const lrcPayload = await api.songLrc(songId);
-    const lrcText = extractLyricsPayload(lrcPayload);
-    if (hasTimedLyrics(parseLyrics(lrcText))) text = lrcText;
+    const detail = await api.songDetail(songId);
+    const detailText = extractLyricsPayload(detail);
+    if (hasTimedLyrics(parseLyrics(detailText))) text = detailText;
   } catch {
-    // 上游同步歌词接口不可用时，再尝试普通歌词和歌曲详情。
+    // 新上游把同步歌词放在歌曲详情 lrc_lines，拿不到再试其他端点。
+  }
+  try {
+    if (!text) {
+      const lrcPayload = await api.songLrc(songId);
+      const lrcText = extractLyricsPayload(lrcPayload);
+      if (hasTimedLyrics(parseLyrics(lrcText))) text = lrcText;
+    }
+  } catch {
+    // 上游同步歌词接口不可用时，再尝试普通歌词。
   }
   try {
     if (!text) {
@@ -322,7 +351,7 @@ export function toggleGlobalSong(song = {}) {
     audio.src = '';
   }
   currentSong = { ...song, id: songId || cleanText(song.id) };
-  lyricLines = parseLyrics(song.lyrics || song.lyric || '');
+  lyricLines = parseLyrics(song.lrc_lines || song.lrcLines || song.lyrics || song.lyric || '');
   lyricIndex = -1;
   const needsLyricsFetch = !lyricLines.length;
   const needsSyncedLyricsFetch = !hasTimedLyrics(lyricLines);

@@ -35,6 +35,7 @@ button{font-family:inherit;}
 .gm-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
 .gm-head h2{font-size:22px;font-weight:900;}
 .gm-head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
+.gm-free-credit-note{font-size:12px;font-weight:800;color:#be123c;white-space:nowrap;}
 .gm-credits{font-size:13px;font-weight:800;color:var(--violet);background:#f5f3ff;border:1px solid #ddd6fe;padding:5px 12px;border-radius:999px;}
 
 /* —— 卡片 / 表单 —— */

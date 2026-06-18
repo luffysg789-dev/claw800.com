@@ -90,6 +90,8 @@ test('ai music purchase flow shows three Nexa package choices', () => {
   assert.doesNotMatch(appJs, /text:\s*'购买'/);
   assert.doesNotMatch(appJs, /text:\s*'退出'/);
   assert.match(generateJs, /gm-credits-changed/);
+  assert.match(generateJs, /每个用户免费赠送1次/);
+  assert.match(generateJs, /gm-free-credit-note/);
   assert.match(generateJs, /pushPendingGen\(\{\s*id:\s*pendingId[\s\S]*local:\s*true[\s\S]*status:\s*'submitting'/);
   assert.match(generateJs, /jumpLibraryNow\(\);[\s\S]*const result = await api\.generate\(payload\)/);
   assert.match(generateJs, /function extractGenerationId\(result = \{\}\)/);
@@ -212,6 +214,8 @@ test('ai music uses persistent bottom player with scrolling lyrics', () => {
   assert.match(playerJs, /api\.songLyrics/);
   assert.match(playerJs, /api\.songLrc/);
   assert.match(playerJs, /api\.songDetail/);
+  assert.match(playerJs, /lrc_lines/);
+  assert.match(playerJs, /startS/);
   assert.match(playerJs, /parseLyricTimestamp/);
   assert.match(playerJs, /hasTimedLyrics/);
   assert.match(playerJs, /needsSyncedLyricsFetch/);

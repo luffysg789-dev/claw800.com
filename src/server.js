@@ -1971,8 +1971,30 @@ function ensureAiMusicUserAccount(session) {
 
   ensureAiMusicCreditAccountStmt.run(Number(row.id));
   ensureAiMusicWalletStmt.run(Number(row.id));
+  grantAiMusicSignupBonus(Number(row.id), openId);
   return formatAiMusicUser(row);
 }
+
+const grantAiMusicSignupBonus = db.transaction((userId, openId) => {
+  const normalizedUserId = Number(userId || 0);
+  const referenceId = String(openId || normalizedUserId || '').trim();
+  if (!normalizedUserId || !referenceId) return getAiMusicCreditSummary(normalizedUserId);
+  ensureAiMusicCreditAccountStmt.run(normalizedUserId);
+  const existing = selectAiMusicCreditLedgerByReferenceStmt.get(normalizedUserId, 'signup_bonus', 'signup', referenceId);
+  if (existing) return getAiMusicCreditSummary(normalizedUserId);
+  incrementAiMusicBonusCreditsStmt.run(1, normalizedUserId);
+  const summary = getAiMusicCreditSummary(normalizedUserId);
+  insertAiMusicCreditLedgerStmt.run(
+    normalizedUserId,
+    'signup_bonus',
+    1,
+    summary.availableCredits,
+    'signup',
+    referenceId,
+    '新用户免费赠送 1 次生成机会'
+  );
+  return summary;
+});
 
 function getAiMusicCreditSummary(userId) {
   ensureAiMusicCreditAccountStmt.run(Number(userId));
@@ -2255,7 +2277,7 @@ function normalizeAiMusicLyricsValue(value) {
       if (typeof item === 'string') return cleanAiMusicLyricsText(item);
       const text = cleanAiMusicLyricsText(item?.text || item?.lyric || item?.line || item?.content || item?.words || item?.sentence);
       if (!text) return '';
-      const rawTime = item?.time ?? item?.start ?? item?.startTime ?? item?.timestamp;
+      const rawTime = item?.startS ?? item?.start_s ?? item?.time ?? item?.start ?? item?.startTime ?? item?.start_time ?? item?.timestamp;
       const numericTime = typeof rawTime === 'number' ? rawTime : Number(rawTime);
       if (Number.isFinite(numericTime)) {
         const seconds = numericTime >= 1000 ? numericTime / 1000 : numericTime;
@@ -2268,6 +2290,8 @@ function normalizeAiMusicLyricsValue(value) {
   }
   if (typeof value === 'object') {
     const candidates = [
+      value.lrc_lines,
+      value.lrcLines,
       value.lyrics,
       value.lyric,
       value.lrc,
@@ -2280,6 +2304,16 @@ function normalizeAiMusicLyricsValue(value) {
       value.raw,
       value.lines,
       value.items,
+      value.song?.lrc_lines,
+      value.song?.lrcLines,
+      value.result?.lrc_lines,
+      value.result?.lrcLines,
+      value.data?.lrc_lines,
+      value.data?.lrcLines,
+      value.data?.song?.lrc_lines,
+      value.data?.song?.lrcLines,
+      value.data?.result?.lrc_lines,
+      value.data?.result?.lrcLines,
       value.song,
       value.result,
       value.data
@@ -11309,6 +11343,12 @@ const incrementAiMusicCreditsStmt = db.prepare(`
   UPDATE ai_music_credit_accounts
   SET available_credits = available_credits + ?,
       total_purchased_credits = total_purchased_credits + ?,
+      updated_at = datetime('now')
+  WHERE user_id = ?
+`);
+const incrementAiMusicBonusCreditsStmt = db.prepare(`
+  UPDATE ai_music_credit_accounts
+  SET available_credits = available_credits + ?,
       updated_at = datetime('now')
   WHERE user_id = ?
 `);

@@ -117,7 +117,7 @@ function formHTML() {
     </div>`).join('');
   const presetChips = presets.map(presetChipHtml).join('');
 
-  return `<div class="gm-head"><h2>生成音乐</h2><div class="gm-head-actions"><span class="gm-credits" id="cf-credits">剩余次数 …</span><button type="button" class="gm-btn-ghost sm" id="cf-recharge">充值</button></div></div>
+  return `<div class="gm-head"><h2>生成音乐</h2><div class="gm-head-actions"><span class="gm-free-credit-note">每个用户免费赠送1次</span><span class="gm-credits" id="cf-credits">剩余次数 …</span><button type="button" class="gm-btn-ghost sm" id="cf-recharge">充值</button></div></div>
   <div class="cf-scope">
    <div class="cf-card">
     <div class="mode-row" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:12px;">

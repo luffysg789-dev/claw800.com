@@ -169,7 +169,7 @@ test('ai music schema is created for fresh databases', () => {
   }
 });
 
-test('ai music session creates user and zero-credit account', async () => {
+test('ai music session creates user and grants one free credit once', async () => {
   const harness = createHarness();
   try {
     const response = await harness.request('POST', '/api/ai-music/session', {
@@ -184,7 +184,7 @@ test('ai music session creates user and zero-credit account', async () => {
     assert.equal(response.body.session.openId, 'ai-music-open-id-session');
     assert.equal(response.body.profileRequired, true);
     assert.equal(response.body.user.nickname, '');
-    assert.equal(response.body.credits.availableCredits, 0);
+    assert.equal(response.body.credits.availableCredits, 1);
     assert.deepEqual(response.body.package, { tier: '1u', amount: '1.00', currency: 'USDT', credits: 2 });
     assert.deepEqual(response.body.packages, [
       { tier: '1u', amount: '1.00', currency: 'USDT', credits: 2 },
@@ -196,7 +196,65 @@ test('ai music session creates user and zero-credit account', async () => {
     const user = harness.db.prepare('SELECT * FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-session');
     assert.equal(user.nickname, '');
     const account = harness.db.prepare('SELECT * FROM ai_music_credit_accounts WHERE user_id = ?').get(user.id);
-    assert.equal(account.available_credits, 0);
+    assert.equal(account.available_credits, 1);
+    assert.equal(account.total_purchased_credits, 0);
+    const bonus = harness.db.prepare(`
+      SELECT * FROM ai_music_credit_ledger
+      WHERE user_id = ? AND type = 'signup_bonus'
+    `).all(user.id);
+    assert.equal(bonus.length, 1);
+    assert.equal(bonus[0].credits, 1);
+
+    const again = await harness.request('POST', '/api/ai-music/session', {
+      openId: 'ai-music-open-id-session',
+      sessionKey: 'ai-music-session-key-2',
+      nickname: 'Composer Again'
+    });
+    assert.equal(again.statusCode, 200);
+    assert.equal(again.body.credits.availableCredits, 1);
+    const bonusAgain = harness.db.prepare(`
+      SELECT COUNT(*) AS count FROM ai_music_credit_ledger
+      WHERE user_id = ? AND type = 'signup_bonus'
+    `).get(user.id);
+    assert.equal(bonusAgain.count, 1);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('ai music existing users also receive the one-time free credit once', async () => {
+  const harness = createHarness();
+  try {
+    harness.db.prepare(`
+      INSERT INTO ai_music_users (open_id, nickname, avatar)
+      VALUES (?, ?, ?)
+    `).run('ai-music-open-id-legacy-free-credit', 'Legacy User', '');
+    const user = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-legacy-free-credit');
+    harness.db.prepare(`
+      INSERT INTO ai_music_credit_accounts (user_id, available_credits, total_purchased_credits, total_used_credits)
+      VALUES (?, 0, 0, 0)
+    `).run(user.id);
+
+    const first = await harness.request('POST', '/api/ai-music/session', {
+      openId: 'ai-music-open-id-legacy-free-credit',
+      sessionKey: 'legacy-session-key'
+    });
+    const second = await harness.request('POST', '/api/ai-music/session', {
+      openId: 'ai-music-open-id-legacy-free-credit',
+      sessionKey: 'legacy-session-key-2'
+    });
+
+    assert.equal(first.statusCode, 200);
+    assert.equal(first.body.credits.availableCredits, 1);
+    assert.equal(second.statusCode, 200);
+    assert.equal(second.body.credits.availableCredits, 1);
+    const account = harness.db.prepare('SELECT * FROM ai_music_credit_accounts WHERE user_id = ?').get(user.id);
+    assert.equal(account.available_credits, 1);
+    const bonus = harness.db.prepare(`
+      SELECT COUNT(*) AS count FROM ai_music_credit_ledger
+      WHERE user_id = ? AND type = 'signup_bonus'
+    `).get(user.id);
+    assert.equal(bonus.count, 1);
   } finally {
     harness.cleanup();
   }
@@ -253,7 +311,7 @@ test('ai music credits endpoint requires session and returns balance', async () 
 
     assert.equal(credits.statusCode, 200);
     assert.equal(credits.body.ok, true);
-    assert.equal(credits.body.credits.availableCredits, 0);
+    assert.equal(credits.body.credits.availableCredits, 1);
     assert.deepEqual(credits.body.package, { tier: '1u', amount: '1.00', currency: 'USDT', credits: 2 });
     assert.equal(credits.body.packages.length, 3);
   } finally {
@@ -359,11 +417,11 @@ test('ai music paid credit order grants three credits exactly once', async () =>
 
     assert.equal(first.statusCode, 200);
     assert.equal(second.statusCode, 200);
-    assert.equal(first.body.credits.availableCredits, 3);
-    assert.equal(second.body.credits.availableCredits, 3);
+    assert.equal(first.body.credits.availableCredits, 4);
+    assert.equal(second.body.credits.availableCredits, 4);
 
     const account = harness.db.prepare('SELECT * FROM ai_music_credit_accounts WHERE user_id = ?').get(user.id);
-    assert.equal(account.available_credits, 3);
+    assert.equal(account.available_credits, 4);
     assert.equal(account.total_purchased_credits, 3);
     const ledgerRows = harness.db.prepare('SELECT COUNT(*) AS count FROM ai_music_credit_ledger WHERE reference_id = ?').get('ai_music_test_order_once');
     assert.equal(ledgerRows.count, 1);
@@ -471,7 +529,7 @@ test('ai music payment notify marks paid, grants credits, and writes callback lo
 
     const credits = await harness.request('GET', '/api/ai-music/credits/order/ai_music_notify_order', null, { cookies });
     assert.equal(credits.body.order.status, 'paid');
-    assert.equal(credits.body.credits.availableCredits, 3);
+    assert.equal(credits.body.credits.availableCredits, 4);
     const log = harness.db.prepare('SELECT * FROM ai_music_callback_logs WHERE order_no = ?').get('ai_music_notify_order');
     assert.equal(log.success, 1);
     assert.match(log.body_json, /nexa-order-paid/);
@@ -624,6 +682,12 @@ test('ai music generation requires available credits before calling upstream', a
   const harness = createHarness();
   try {
     const { cookies } = await createAiMusicSession(harness, 'ai-music-open-id-no-credits');
+    const user = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-no-credits');
+    harness.db.prepare(`
+      UPDATE ai_music_credit_accounts
+      SET available_credits = 0
+      WHERE user_id = ?
+    `).run(user.id);
     harness.setHhApiKey('hh_test_key');
     let fetchCalled = false;
     harness.setFetch(async () => {
@@ -1146,6 +1210,50 @@ test('ai music public song lyrics are available without login for stored public 
     assert.equal(ok.body.lyrics, '[0:01.00]第一句\n[0:02.50]第二句');
     assert.equal(fetchedUrl, 'https://ai6666.com/ai6api/music/song/public-lyrics-song/lyrics');
     assert.equal(missing.statusCode, 404);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('ai music public song lyrics fall back to timed lrc_lines from song detail', async () => {
+  const harness = createHarness();
+  try {
+    const { cookies } = await createAiMusicSession(harness, 'ai-music-open-id-public-lrc-lines');
+    const user = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-public-lrc-lines');
+    assert.ok(cookies);
+    harness.db.prepare(`
+      INSERT INTO ai_music_songs (user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url)
+      VALUES (?, NULL, ?, ?, ?, ?, ?)
+    `).run(user.id, 'public-lrc-lines-song', 'Public Lrc Lines Song', 'complete', '/covers/lrc-lines.jpg', '/audio/lrc-lines.mp3');
+    harness.setHhApiKey('hh_server_secret');
+    const fetchedUrls = [];
+    harness.setFetch(async (url, init = {}) => {
+      fetchedUrls.push(String(url));
+      assert.equal(String(init.headers?.Authorization || ''), 'Bearer hh_server_secret');
+      if (String(url).endsWith('/lyrics')) {
+        return new Response(JSON.stringify({ lyrics: '' }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+      return new Response(JSON.stringify({
+        data: {
+          song: {
+            lrc_lines: [
+              { startS: 1.25, endS: 2.4, text: '带时间第一句' },
+              { startS: 3.5, endS: 4.8, text: '带时间第二句' }
+            ],
+            lyrics: '普通歌词不该优先'
+          }
+        }
+      }), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+
+    const ok = await harness.request('GET', '/api/ai-music/public/songs/public-lrc-lines-song/lyrics');
+
+    assert.equal(ok.statusCode, 200);
+    assert.equal(ok.body.lyrics, '[0:01.25]带时间第一句\n[0:03.50]带时间第二句');
+    assert.deepEqual(fetchedUrls, [
+      'https://ai6666.com/ai6api/music/song/public-lrc-lines-song/lyrics',
+      'https://ai6666.com/ai6api/music/song/public-lrc-lines-song'
+    ]);
   } finally {
     harness.cleanup();
   }
