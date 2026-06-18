@@ -143,16 +143,6 @@ function playerCard(s, index = 0) {
   const coverPriority = index < 4 ? 'high' : 'auto';
   const card = el('div', { class: 'hh-my-song-card', style: 'position:relative;' + (s.is_hidden ? 'opacity:0.5;' : '') });
   card.innerHTML = `
-    <div class="hh-my-song-owner-actions" style="position:absolute;top:8px;right:8px;display:flex;flex-direction:column;align-items:center;gap:6px;z-index:6;">
-      <button type="button" class="hh-btn-fav hh-my-owner-fav${s.user_favorited ? ' hh-fav-active' : ''}" data-act="fav" title="收藏" aria-label="收藏">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-      </button>
-      <label class="gm-public-toggle${s.is_public === false ? '' : ' active'}" title="公开到广场">
-        <input type="checkbox" data-act="public-toggle" ${s.is_public === false ? '' : 'checked'}>
-        <span class="gm-public-toggle-text">公开到广场</span>
-        <span class="gm-public-toggle-track"><span class="gm-public-toggle-knob"></span></span>
-      </label>
-    </div>
     <div class="hh-music-player hh-music-player-md" data-song-id="${esc(s.id)}">
       <div class="hh-music-player-inner">
         <div class="hh-music-cover${cover ? '' : ' hh-music-cover-fallback'}">
@@ -166,7 +156,17 @@ function playerCard(s, index = 0) {
         <div class="hh-music-body">
           <div class="hh-music-head">
             <div class="hh-music-title-wrap">
-              <span class="hh-music-title" title="${esc(title)}">${esc(title)}</span>
+              <div class="hh-my-title-row">
+                <span class="hh-music-title" title="${esc(title)}">${esc(title)}</span>
+                <button type="button" class="hh-btn-fav hh-my-owner-fav hh-my-title-fav${s.user_favorited ? ' hh-fav-active' : ''}" data-act="fav" title="收藏" aria-label="收藏">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                </button>
+              </div>
+              <label class="gm-public-toggle${s.is_public === false ? '' : ' active'}" title="公开到广场">
+                <input type="checkbox" data-act="public-toggle" ${s.is_public === false ? '' : 'checked'}>
+                <span class="gm-public-toggle-text">公开到广场</span>
+                <span class="gm-public-toggle-track"><span class="gm-public-toggle-knob"></span></span>
+              </label>
             </div>
           </div>
           <div class="hh-music-progress" data-act="seek">

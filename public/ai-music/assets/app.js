@@ -1,34 +1,45 @@
 import { getApiKey, bootstrapSession, api } from './api.js?v=20260617-ai-music-payment-refresh';
 import { el, clear, toast } from './ui.js?v=20260617-ai-music-payment-refresh';
 import { openKeyModal, renderInlineKeyPrompt, handleNexaAuthCallback, refreshPendingCreditOrder, ensureProfileComplete } from './auth.js?v=20260617-ai-music-payment-refresh';
-import { renderGenerate } from './generate.js?v=20260617-ai-music-payment-refresh';
-import { renderLibrary } from './library.js?v=20260617-ai-music-payment-refresh';
-import { renderAssets } from './assets.js?v=20260617-ai-music-payment-refresh';
-import { renderMarket, refreshPendingMarketOrder } from './market.js?v=20260617-ai-music-payment-refresh';
-import { renderSquare } from './square.js?v=20260617-ai-music-payment-refresh';
-import { renderPublicSong, publicSongIdFromPath } from './public-song.js?v=20260617-ai-music-payment-refresh';
-import { renderStemLab } from './stemlab.js?v=20260617-ai-music-payment-refresh';
-import { renderStudio } from './studio.js?v=20260617-ai-music-payment-refresh';
-import { initGlobalPlayer } from './player.js?v=20260617-ai-music-payment-refresh';
 
 const app = document.getElementById('app');
 
 const SCREENS = [
-  { key: 'generate', label: '生成音乐', render: renderGenerate, needsKey: true },
-  { key: 'market', label: '市场', render: renderMarket, needsKey: false },
-  { key: 'square', label: '广场', render: renderSquare, needsKey: false },
-  { key: 'library', label: '我的音乐', render: renderLibrary, needsKey: true },
-  { key: 'assets', label: '资产', render: renderAssets, needsKey: true },
-  { key: 'stemlab', label: '分轨', render: renderStemLab, needsKey: true },
-  { key: 'studio', label: '编曲房', render: renderStudio, needsKey: true },
-  { key: 'public-song', label: '歌曲', render: renderPublicSong, needsKey: false, hidden: true },
+  { key: 'generate', label: '生成音乐', module: 'generate', render: 'renderGenerate', needsKey: true },
+  { key: 'market', label: '市场', module: 'market', render: 'renderMarket', needsKey: false },
+  { key: 'square', label: '广场', module: 'square', render: 'renderSquare', needsKey: false },
+  { key: 'library', label: '我的音乐', module: 'library', render: 'renderLibrary', needsKey: true },
+  { key: 'assets', label: '资产', module: 'assets', render: 'renderAssets', needsKey: true },
+  { key: 'stemlab', label: '分轨', module: 'stemlab', render: 'renderStemLab', needsKey: true },
+  { key: 'studio', label: '编曲房', module: 'studio', render: 'renderStudio', needsKey: true },
+  { key: 'public-song', label: '歌曲', module: 'public-song', render: 'renderPublicSong', needsKey: false, hidden: true },
 ];
 const ALWAYS_RERENDER = new Set(['library', 'assets', 'stemlab', 'studio', 'market', 'square', 'public-song']);
 let active = 'generate';
 let mounted = new Set();
 let pendingPaymentRefreshTimer = null;
+const moduleCache = new Map();
+
+function publicSongIdFromPath(pathname = location.pathname) {
+  const match = String(pathname || '').match(/^\/ai-music\/song\/([^/?#]+)/);
+  return match ? decodeURIComponent(match[1]) : '';
+}
 
 function boot() { renderShell(); }
+
+async function loadScreenModule(screen) {
+  if (!moduleCache.has(screen.module)) {
+    moduleCache.set(screen.module, import(`./${screen.module}.js?v=20260617-ai-music-payment-refresh`));
+  }
+  return moduleCache.get(screen.module);
+}
+
+function loadPlayer() {
+  if (!moduleCache.has('player')) {
+    moduleCache.set('player', import(`./player.js?v=20260617-ai-music-payment-refresh`));
+  }
+  return moduleCache.get('player');
+}
 
 function renderShell() {
   clear(app);
@@ -48,7 +59,7 @@ function renderShell() {
 
   app.appendChild(nav);
   app.appendChild(main);
-  initGlobalPlayer();
+  loadPlayer().then((mod) => mod.initGlobalPlayer?.()).catch(() => {});
 
   mount(active);
   refreshCreditsChip();
@@ -109,7 +120,8 @@ function schedulePendingPaymentRefresh(reason = 'page-return') {
     pendingPaymentRefreshTimer = null;
     try {
       const payload = await refreshPendingCreditOrder({ silent: reason !== 'manual' });
-      await refreshPendingMarketOrder({ silent: reason !== 'manual' }).catch(() => null);
+      const market = await loadScreenModule({ module: 'market' });
+      await market.refreshPendingMarketOrder?.({ silent: reason !== 'manual' }).catch(() => null);
       if (payload?.credits) window.dispatchEvent(new CustomEvent('gm-credits-changed', { detail: payload }));
     } catch {
       refreshCreditsChip();
@@ -121,23 +133,37 @@ function switchScreen(key, nav) {
   if (!SCREENS.some((s) => s.key === key)) return;
   active = key;
   nav.querySelectorAll('.gm-nav-link').forEach((a) => a.classList.toggle('active', a.dataset.key === key));
-  mount(key);
+  void mount(key);
 }
 
-function mount(key) {
+async function mount(key) {
   SCREENS.forEach((s) => { document.getElementById('screen-' + s.key).style.display = s.key === key ? 'block' : 'none'; });
   const screen = SCREENS.find((s) => s.key === key);
   const sec = document.getElementById('screen-' + key);
   if (screen.needsKey && !getApiKey()) { renderInlineKeyPrompt(sec, screen.label); return; }
-  if (ALWAYS_RERENDER.has(key) || !mounted.has(key)) { screen.render(sec); mounted.add(key); }
+  if (ALWAYS_RERENDER.has(key) || !mounted.has(key)) {
+    if (!sec.children.length) sec.appendChild(el('div', { class: 'gm-square-empty', text: '加载中...' }));
+    try {
+      const mod = await loadScreenModule(screen);
+      if (active !== key) return;
+      const render = mod[screen.render];
+      if (typeof render !== 'function') throw new Error('页面模块加载失败');
+      render(sec, key === 'public-song' ? publicSongIdFromPath() : undefined);
+      mounted.add(key);
+    } catch (error) {
+      clear(sec);
+      sec.appendChild(el('div', { class: 'gm-square-empty', text: error.message || '页面加载失败' }));
+      toast(error.message || '页面加载失败', 'error');
+    }
+  }
 }
 
 window.addEventListener('gm-auth-changed', () => {
   refreshAuthUI();
-  mount(active);
-  ensureProfileComplete().then(() => { refreshAuthUI(); mount(active); });
+  void mount(active);
+  ensureProfileComplete().then(() => { refreshAuthUI(); void mount(active); });
 });
-window.addEventListener('gm-profile-changed', () => { refreshAuthUI(); mount(active); });
+window.addEventListener('gm-profile-changed', () => { refreshAuthUI(); void mount(active); });
 window.addEventListener('gm-credits-changed', (event) => {
   const credits = event.detail?.credits?.availableCredits;
   if (credits === undefined) refreshCreditsChip();
@@ -156,15 +182,17 @@ window.addEventListener('hashchange', () => {
 });
 
 async function init() {
+  boot();
   try {
     const handledCallback = await handleNexaAuthCallback();
     if (!handledCallback) await bootstrapSession();
     schedulePendingPaymentRefresh('init');
+    refreshAuthUI();
+    void mount(active);
   } catch (error) {
     toast(error.message || '登录状态获取失败', 'error');
   }
-  boot();
-  ensureProfileComplete().then(() => { refreshAuthUI(); mount(active); });
+  ensureProfileComplete().then(() => { refreshAuthUI(); void mount(active); });
 }
 
 init();

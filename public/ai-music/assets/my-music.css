@@ -1463,12 +1463,40 @@ details[open] .lyrics-arrow { transform: rotate(90deg); }
     top: auto !important;
     right: auto !important;
 }
+.hh-my-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+.hh-my-title-row .hh-music-title {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.hh-my-title-fav {
+    position: static !important;
+    top: auto !important;
+    right: auto !important;
+    flex: 0 0 30px;
+    width: 30px !important;
+    height: 30px !important;
+    padding: 5px !important;
+    background: #fff !important;
+    border-color: #fbcfe8 !important;
+    color: #be185d !important;
+    box-sizing: border-box;
+}
+.hh-my-title-fav svg {
+    width: 16px !important;
+    height: 16px !important;
+}
 .gm-public-toggle {
     display: flex;
     flex-direction: row;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: flex-start;
     gap: 5px;
+    margin-top: 5px;
     color: #94a3b8;
     font-size: 10px;
     font-weight: 800;
@@ -1532,9 +1560,7 @@ details[open] .lyrics-arrow { transform: rotate(90deg); }
     display: none;
 }
 .hh-my-song-card .hh-music-player-md .hh-music-head {
-    /* 只需给右上角绝对定位的 ❤ 让出位置(约 34px)+ 小间距，
-       不要预留过多，否则歌名没到右边就提前 … 截断 */
-    padding-right: 44px;
+    padding-right: 0;
 }
 .hh-my-card-actions {
     position: relative;
@@ -1882,7 +1908,7 @@ details[open] .lyrics-arrow { transform: rotate(90deg); }
     }
     .hh-my-song-card .hh-music-player-md .hh-music-body {
         min-width: 0;
-        padding: 0 34px 0 0;
+        padding: 0;
         gap: 4px;
     }
     .hh-my-song-card .hh-music-player-md .hh-music-title {
@@ -1891,7 +1917,7 @@ details[open] .lyrics-arrow { transform: rotate(90deg); }
         line-height: 1.35;
     }
     .hh-my-song-card .hh-music-player-md .hh-music-head {
-        padding-right: 14px;
+        padding-right: 0;
     }
     .hh-my-song-card .hh-music-player-md .hh-music-created {
         margin-top: 3px;
@@ -1950,6 +1976,18 @@ details[open] .lyrics-arrow { transform: rotate(90deg); }
     .hh-my-song-card .hh-music-player-md .hh-btn-fav svg {
         width: 16px;
         height: 16px;
+    }
+    .hh-my-song-card .hh-music-player-md .hh-my-title-fav {
+        position: static !important;
+        top: auto !important;
+        right: auto !important;
+        flex: 0 0 30px;
+        width: 30px !important;
+        height: 30px !important;
+    }
+    .hh-my-song-card .hh-music-player-md .gm-public-toggle {
+        justify-content: flex-start;
+        margin-top: 5px;
     }
     .hh-my-song-owner-actions {
         top: 8px !important;

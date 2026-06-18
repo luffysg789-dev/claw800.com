@@ -72,7 +72,7 @@ test('ai music purchase flow shows three Nexa package choices', () => {
   assert.match(appJs, /document\.addEventListener\('visibilitychange'/);
   assert.match(appJs, /gm-credits-changed/);
   assert.match(appJs, /href:\s*'\/ai-music\/#library'[\s\S]*text:\s*'我的音乐'/);
-  assert.match(appJs, /renderAssets/);
+  assert.match(appJs, /loadScreenModule/);
   assert.match(appJs, /key:\s*'assets'[\s\S]*label:\s*'资产'/);
   assert.match(appJs, /href:\s*'\/ai-music\/#assets'[\s\S]*text:\s*'资产'/);
   assert.match(appJs, /key:\s*'square'[\s\S]*label:\s*'广场'/);
@@ -185,6 +185,9 @@ test('ai music shell and assets avoid stale Nexa webview caches', () => {
   assert.match(html, /\/ai-music\/assets\/app\.js\?v=/);
   assert.match(appJs, /from '\.\/api\.js\?v=/);
   assert.match(appJs, /from '\.\/auth\.js\?v=/);
+  assert.doesNotMatch(appJs, /from '\.\/(?:generate|library|assets|market|square|public-song|stemlab|studio|player)\.js\?v=/);
+  assert.match(appJs, /import\(`\.\/\$\{screen\.module\}\.js\?v=/);
+  assert.match(appJs, /boot\(\);[\s\S]*handleNexaAuthCallback\(\)/);
   assert.match(authJs, /from '\.\/api\.js\?v=/);
   assert.doesNotMatch(combinedModules, /from '\.\/(?:api|auth|ui)\.js'/);
   assert.match(serverJs, /app\.get\(\['\/ai-music', '\/ai-music\/', '\/ai-music\/song\/:songId'\][\s\S]*Cache-Control', 'no-store/);
@@ -358,9 +361,12 @@ test('ai music library search and create button match square layout', () => {
   assert.match(libraryJs, /openSellModal/);
   assert.match(libraryJs, /api\.listSong/);
   assert.match(libraryJs, /gm-public-toggle/);
+  assert.match(libraryJs, /hh-my-title-row[\s\S]*hh-music-title[\s\S]*hh-my-title-fav[\s\S]*gm-public-toggle/);
   assert.match(libraryJs, /gm-public-toggle-text[\s\S]*公开到广场[\s\S]*gm-public-toggle-track/);
   assert.match(libraryJs, /api\.setSongPublic/);
   assert.match(libraryJs, /data-act="public-toggle"/);
+  assert.match(myMusicCss, /\.hh-my-title-row\s*\{[\s\S]*display:\s*flex/);
+  assert.match(myMusicCss, /\.hh-my-title-fav\s*\{[\s\S]*position:\s*static\s*!important/);
   assert.match(myMusicCss, /\.gm-public-toggle\s*\{[\s\S]*flex-direction:\s*row/);
   assert.match(actionBarBody, /data-act="rename"[\s\S]*>改名</);
   assert.match(actionBarBody, /data-act="delete"[\s\S]*>删除</);
