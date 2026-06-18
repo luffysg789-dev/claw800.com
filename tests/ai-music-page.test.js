@@ -12,11 +12,15 @@ function readPublicAiMusicFile(filePath) {
 test('ai music page shell is installed under public route', () => {
   const html = readPublicAiMusicFile('index.html');
 
+  assert.match(html, /<title>AI 音乐<\/title>/);
+  assert.match(html, /<meta property="og:title" content="AI 音乐">/);
+  assert.match(html, /<meta name="twitter:title" content="AI 音乐">/);
   assert.match(html, /<div id="app"><\/div>/);
   assert.match(html, /href="\/ai-music\/assets\/styles\.css\?v=/);
   assert.match(html, /href="\/ai-music\/assets\/my-music\.css\?v=/);
   assert.match(html, /src="\/ai-music\/assets\/app\.js\?v=/);
   assert.doesNotMatch(html, /(?:href|src)="\.\/assets\//);
+  assert.doesNotMatch(html, /教父音乐|教父/);
 });
 
 test('ai music frontend uses Claw800 API routes instead of user API keys', () => {
@@ -25,7 +29,7 @@ test('ai music frontend uses Claw800 API routes instead of user API keys', () =>
   const appJs = readPublicAiMusicFile('assets/app.js');
   const combined = `${apiJs}\n${authJs}\n${appJs}`;
 
-  assert.doesNotMatch(combined, /hh_x|gm_api_key|API Key|教父音乐 API|accounts\/api/);
+  assert.doesNotMatch(combined, /hh_x|gm_api_key|API Key|accounts\/api/);
   assert.match(apiJs, /\/api\/ai-music\/music/);
   assert.match(apiJs, /\/api\/ai-music\/media/);
   assert.match(authJs, /nexaauth:\/\/oauth\/authorize/);

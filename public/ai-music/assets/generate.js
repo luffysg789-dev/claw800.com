@@ -689,7 +689,7 @@ async function runProArrange(root) {
   state.proArrangeBusy = true;
   const btn = $(root, '#proBestStyleBtn');
   btn.disabled = true; btn.style.opacity = '.75'; btn.textContent = '编排中…';
-  showProArrangeNotice(root, '教父正在编排（结构化 + 配风格），约 10-30 秒…');
+  showProArrangeNotice(root, 'AI 正在编排（结构化 + 配风格），约 10-30 秒…');
   try {
     const { task_id } = await api.studioArrange({ messages: [{ role: 'user', content }], lang: _langName($(root, '#singLangSelect').value) });
     const r = await poll(() => api.studioArrangePoll(task_id), {

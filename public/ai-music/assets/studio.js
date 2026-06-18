@@ -66,9 +66,9 @@ function formHTML() {
 
   return `<div class="st-wrap">
     <header style="margin:6px 2px 20px;display:flex;align-items:center;gap:12px;">
-      <div style="width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#f1f3f5;flex-shrink:0;font-size:22px;">🎩</div>
+      <div style="width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#f1f3f5;flex-shrink:0;font-size:22px;">🎼</div>
       <div style="min-width:0;">
-        <h1 style="margin:0;font-size:21px;font-weight:900;color:#111827;line-height:1.2;">🎩 教父编曲房</h1>
+        <h1 style="margin:0;font-size:21px;font-weight:900;color:#111827;line-height:1.2;">AI 编曲房</h1>
         <div style="font-size:13px;color:#9ca3af;font-weight:600;margin-top:4px;">把想法或歌词，编成 AI 唱得好的结构化歌词 + 风格标签</div>
       </div>
     </header>
