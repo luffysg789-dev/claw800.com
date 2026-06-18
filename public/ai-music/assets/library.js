@@ -147,6 +147,11 @@ function playerCard(s, index = 0) {
       <button type="button" class="hh-btn-fav hh-my-owner-fav${s.user_favorited ? ' hh-fav-active' : ''}" data-act="fav" title="收藏" aria-label="收藏">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
       </button>
+      <label class="gm-public-toggle${s.is_public === false ? '' : ' active'}" title="公开到广场">
+        <input type="checkbox" data-act="public-toggle" ${s.is_public === false ? '' : 'checked'}>
+        <span class="gm-public-toggle-track"><span class="gm-public-toggle-knob"></span></span>
+        <span class="gm-public-toggle-text">公开到广场</span>
+      </label>
     </div>
     <div class="hh-music-player hh-music-player-md" data-song-id="${esc(s.id)}">
       <div class="hh-music-player-inner">
@@ -186,6 +191,8 @@ function wireCard(card, s) {
   card.querySelector('.hh-music-progress').addEventListener('click', (e) => seek(e, card));
   const favBtn = card.querySelector('.hh-my-owner-fav');
   favBtn.addEventListener('click', (e) => { e.stopPropagation(); doFavorite(s, favBtn); });
+  const publicToggle = card.querySelector('[data-act="public-toggle"]');
+  publicToggle?.addEventListener('change', (e) => { e.stopPropagation(); doPublicToggle(s, publicToggle); });
   const sellBtn = card.querySelector('.hh-btn-sell');
   sellBtn?.addEventListener('click', (e) => { e.stopPropagation(); openSellModal(s); });
   card.querySelector('.hh-card-bar').addEventListener('click', (e) => onBarClick(e, s));
@@ -775,6 +782,25 @@ async function doFavorite(s, btn) {
     toast(s.user_favorited ? '已收藏' : '已取消收藏', 'success');
     if (state.tab === 'favorites' && !s.user_favorited) refresh();
   } catch (e) { toast(e instanceof ApiError ? e.message : '收藏失败', 'error'); }
+}
+async function doPublicToggle(s, input) {
+  const label = input.closest('.gm-public-toggle');
+  const nextPublic = !!input.checked;
+  input.disabled = true;
+  label?.classList.toggle('active', nextPublic);
+  try {
+    const payload = await api.setSongPublic(s.id, nextPublic);
+    s.is_public = payload.song?.is_public ?? nextPublic;
+    input.checked = !!s.is_public;
+    label?.classList.toggle('active', !!s.is_public);
+    toast(s.is_public ? '已公开到广场' : '已从广场取消公开', 'success');
+  } catch (e) {
+    input.checked = !nextPublic;
+    label?.classList.toggle('active', !nextPublic);
+    toast(e instanceof ApiError ? e.message : '公开设置失败', 'error');
+  } finally {
+    input.disabled = false;
+  }
 }
 // 删除：原生 confirm（主站本就用原生）+ 单卡片淡出收高动画（照搬主站 deleteSong）
 function doDelete(s, item) {

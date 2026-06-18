@@ -206,6 +206,7 @@ export const api = {
   publish: (id, isPublic = true) => request('POST', `/song/${id}/publish`, { body: { public: isPublic } }),
   shareCircle: (id, description = '') => request('POST', `/song/${id}/share-circle`, { body: { description } }),
   rename: (id, title) => request('POST', `/song/${id}/rename`, { body: { title } }),
+  setSongPublic: (id, isPublic) => request('POST', `/song/${id}/public`, { body: { is_public: !!isPublic } }),
   remove: (id) => request('POST', `/song/${id}/delete`, { body: {} }),
   favorite: (id) => request('POST', `/song/${id}/favorite`, { body: {} }),
   downloadCover: (id) => request('GET', `/song/${id}/download-cover`),

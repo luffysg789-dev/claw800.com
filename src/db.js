@@ -379,6 +379,7 @@ db.exec(`
     cover_url TEXT NOT NULL DEFAULT '',
     audio_url TEXT NOT NULL DEFAULT '',
     play_count INTEGER NOT NULL DEFAULT 0,
+    is_public INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY(user_id) REFERENCES ai_music_users(id),
@@ -456,6 +457,11 @@ if (!hasAiMusicSongPlayCount) {
 const hasAiMusicSongCopyrightUserId = db.prepare("SELECT 1 FROM pragma_table_info('ai_music_songs') WHERE name = 'copyright_user_id'").get();
 if (!hasAiMusicSongCopyrightUserId) {
   db.exec('ALTER TABLE ai_music_songs ADD COLUMN copyright_user_id INTEGER DEFAULT NULL');
+}
+
+const hasAiMusicSongIsPublic = db.prepare("SELECT 1 FROM pragma_table_info('ai_music_songs') WHERE name = 'is_public'").get();
+if (!hasAiMusicSongIsPublic) {
+  db.exec('ALTER TABLE ai_music_songs ADD COLUMN is_public INTEGER NOT NULL DEFAULT 1');
 }
 
 db.exec(`

@@ -357,6 +357,10 @@ test('ai music library search and create button match square layout', () => {
   assert.match(libraryJs, /id="sell-price"[^>]*inputmode="decimal"/);
   assert.match(libraryJs, /openSellModal/);
   assert.match(libraryJs, /api\.listSong/);
+  assert.match(libraryJs, /gm-public-toggle/);
+  assert.match(libraryJs, /公开到广场/);
+  assert.match(libraryJs, /api\.setSongPublic/);
+  assert.match(libraryJs, /data-act="public-toggle"/);
   assert.match(actionBarBody, /data-act="rename"[\s\S]*>改名</);
   assert.match(actionBarBody, /data-act="delete"[\s\S]*>删除</);
   assert.match(actionBarBody, /data-act="delete"[\s\S]*data-act="sell"[\s\S]*>出售</);

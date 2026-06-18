@@ -164,6 +164,11 @@ test('ai music schema is created for fresh databases', () => {
       'ai_music_users',
       'ai_music_wallets'
     ]);
+    const songColumns = harness.db
+      .prepare("SELECT name FROM pragma_table_info('ai_music_songs') ORDER BY cid")
+      .all()
+      .map((row) => row.name);
+    assert.ok(songColumns.includes('is_public'));
   } finally {
     harness.cleanup();
   }
@@ -1144,6 +1149,39 @@ test('ai music public square and song links are playable without login', async (
     assert.equal(detail.body.song.title, 'Public Song A');
     assert.equal(detail.body.song.author_nickname, 'Alice 作者');
     assert.equal(detail.body.song.play_count, 0);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('ai music songs can be hidden from and restored to the public square', async () => {
+  const harness = createHarness();
+  try {
+    const { cookies } = await createAiMusicSession(harness, 'ai-music-open-id-public-toggle');
+    const user = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-public-toggle');
+    harness.db.prepare(`
+      INSERT INTO ai_music_songs (user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url)
+      VALUES (?, NULL, ?, ?, ?, ?, ?)
+    `).run(user.id, 'public-toggle-song', 'Public Toggle Song', 'complete', '/covers/toggle.jpg', '/audio/toggle.mp3');
+
+    const mine = await harness.request('GET', '/api/ai-music/music/my-songs', null, { cookies });
+    const visible = await harness.request('GET', '/api/ai-music/public/songs');
+    const hide = await harness.request('POST', '/api/ai-music/music/song/public-toggle-song/public', { is_public: false }, { cookies });
+    const hidden = await harness.request('GET', '/api/ai-music/public/songs');
+    const hiddenDetail = await harness.request('GET', '/api/ai-music/public/songs/public-toggle-song');
+    const show = await harness.request('POST', '/api/ai-music/music/song/public-toggle-song/public', { is_public: true }, { cookies });
+    const restored = await harness.request('GET', '/api/ai-music/public/songs');
+
+    assert.equal(mine.statusCode, 200);
+    assert.equal(mine.body.songs[0].is_public, true);
+    assert.equal(visible.body.songs.some((song) => song.id === 'public-toggle-song'), true);
+    assert.equal(hide.statusCode, 200);
+    assert.equal(hide.body.song.is_public, false);
+    assert.equal(hidden.body.songs.some((song) => song.id === 'public-toggle-song'), false);
+    assert.equal(hiddenDetail.statusCode, 404);
+    assert.equal(show.statusCode, 200);
+    assert.equal(show.body.song.is_public, true);
+    assert.equal(restored.body.songs.some((song) => song.id === 'public-toggle-song'), true);
   } finally {
     harness.cleanup();
   }

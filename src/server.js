@@ -2373,6 +2373,8 @@ function formatLocalAiMusicSong(row = {}) {
     market_listing_id: marketListingId || null,
     market_price: String(row.market_price || '').trim(),
     can_sell: Boolean(row.can_sell ?? true),
+    is_public: Number(row.is_public ?? 1) === 1,
+    isPublic: Number(row.is_public ?? 1) === 1,
     user_favorited: Number(row.user_favorited || 0) === 1,
     created_at: String(row.created_at || '').trim(),
     updated_at: String(row.updated_at || '').trim()
@@ -2669,6 +2671,7 @@ async function listLocalAiMusicSongsForUser(userId, { page = 1, pageSize = 20, q
       s.cover_url,
       s.audio_url,
       s.play_count,
+      s.is_public,
       s.created_at,
       s.updated_at,
       u.nickname AS author_nickname,
@@ -2700,7 +2703,7 @@ async function listPublicAiMusicSongs({ page = 1, pageSize = 20, q = '', userId 
   const normalizedPage = Math.max(1, Number(page || 1) || 1);
   const normalizedPageSize = Math.min(50, Math.max(1, Number(pageSize || 20) || 20));
   const keyword = String(q || '').trim();
-  const where = ["COALESCE(s.audio_url, '') <> ''"];
+  const where = ["COALESCE(s.audio_url, '') <> ''", 'COALESCE(s.is_public, 1) = 1'];
   const params = [];
   if (keyword) {
     where.push('s.title LIKE ?');
@@ -2720,6 +2723,7 @@ async function listPublicAiMusicSongs({ page = 1, pageSize = 20, q = '', userId 
       s.cover_url,
       s.audio_url,
       s.play_count,
+      s.is_public,
       s.created_at,
       s.updated_at,
       u.nickname AS author_nickname,
@@ -9531,6 +9535,28 @@ app.post('/api/ai-music/music/song/:songId/rename', (req, res) => {
   }
 });
 
+app.post('/api/ai-music/music/song/:songId/public', (req, res) => {
+  try {
+    const session = requireAiMusicSession(req);
+    const user = ensureAiMusicUserAccount(session);
+    const songId = String(req.params?.songId || '').trim();
+    if (!songId) return res.status(400).json({ ok: false, error: 'SONG_ID_REQUIRED' });
+    const isPublic = Boolean(req.body?.is_public ?? req.body?.isPublic);
+    const result = updateAiMusicSongPublicByUpstreamIdStmt.run(isPublic ? 1 : 0, songId, Number(user.id), Number(user.id));
+    if (!result.changes) return res.status(404).json({ ok: false, error: 'SONG_NOT_FOUND' });
+    const row = selectAiMusicSongByUpstreamIdStmt.get(songId);
+    return res.json({
+      ok: true,
+      id: songId,
+      is_public: isPublic,
+      song: row ? formatLocalAiMusicSong(row) : null
+    });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 500) || 500;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_PUBLIC_TOGGLE_FAILED') });
+  }
+});
+
 app.post('/api/ai-music/music/song/:songId/favorite', (req, res) => {
   try {
     const session = requireAiMusicSession(req);
@@ -11232,6 +11258,7 @@ const selectAiMusicMarketListingByIdStmt = db.prepare(`
     s.cover_url,
     s.audio_url,
     s.play_count,
+    s.is_public,
     s.created_at,
     s.updated_at,
     au.nickname AS author_nickname,
@@ -11412,6 +11439,13 @@ const updateAiMusicSongTitleByUpstreamIdStmt = db.prepare(`
   WHERE upstream_song_id = ?
     AND (user_id = ? OR COALESCE(copyright_user_id, user_id) = ?)
 `);
+const updateAiMusicSongPublicByUpstreamIdStmt = db.prepare(`
+  UPDATE ai_music_songs
+  SET is_public = ?,
+      updated_at = datetime('now')
+  WHERE upstream_song_id = ?
+    AND (user_id = ? OR COALESCE(copyright_user_id, user_id) = ?)
+`);
 const selectAiMusicSongByUpstreamIdStmt = db.prepare(`
   SELECT
     s.id,
@@ -11424,6 +11458,7 @@ const selectAiMusicSongByUpstreamIdStmt = db.prepare(`
     s.cover_url,
     s.audio_url,
     s.play_count,
+    s.is_public,
     s.created_at,
     s.updated_at,
     u.nickname AS author_nickname,
@@ -11449,6 +11484,7 @@ const selectPublicAiMusicSongByUpstreamIdStmt = db.prepare(`
     s.cover_url,
     s.audio_url,
     s.play_count,
+    s.is_public,
     s.created_at,
     s.updated_at,
     u.nickname AS author_nickname,
@@ -11458,6 +11494,7 @@ const selectPublicAiMusicSongByUpstreamIdStmt = db.prepare(`
   LEFT JOIN ai_music_users cu ON cu.id = COALESCE(s.copyright_user_id, s.user_id)
   WHERE s.upstream_song_id = ?
     AND COALESCE(s.audio_url, '') <> ''
+    AND COALESCE(s.is_public, 1) = 1
   LIMIT 1
 `);
 const listAiMusicMarketListingsStmt = db.prepare(`
@@ -11509,8 +11546,9 @@ const countAiMusicMarketListingsStmt = db.prepare(`
 const selectPublicAiMusicMediaStmt = db.prepare(`
   SELECT id
   FROM ai_music_songs
-  WHERE audio_url IN (?, ?, ?)
-     OR cover_url IN (?, ?, ?)
+  WHERE (audio_url IN (?, ?, ?)
+     OR cover_url IN (?, ?, ?))
+    AND COALESCE(is_public, 1) = 1
   LIMIT 1
 `);
 const incrementPublicAiMusicSongPlayCountStmt = db.prepare(`
@@ -11519,12 +11557,14 @@ const incrementPublicAiMusicSongPlayCountStmt = db.prepare(`
       updated_at = datetime('now')
   WHERE upstream_song_id = ?
     AND COALESCE(audio_url, '') <> ''
+    AND COALESCE(is_public, 1) = 1
 `);
 const selectPublicAiMusicSongPlayCountStmt = db.prepare(`
   SELECT COALESCE(play_count, 0) AS play_count
   FROM ai_music_songs
   WHERE upstream_song_id = ?
     AND COALESCE(audio_url, '') <> ''
+    AND COALESCE(is_public, 1) = 1
   LIMIT 1
 `);
 const searchNchatUsersByKeywordStmt = db.prepare(`
