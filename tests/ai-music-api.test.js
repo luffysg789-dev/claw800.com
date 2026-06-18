@@ -280,10 +280,50 @@ test('ai music profile save is required after login and stores author nickname',
     assert.equal(saved.body.ok, true);
     assert.equal(saved.body.profileRequired, false);
     assert.equal(saved.body.user.nickname, '行李箱作者');
+    assert.equal(saved.body.user.nicknameChangesRemaining, 3);
 
     const bootstrap = await harness.request('GET', '/api/ai-music/session', null, { cookies });
     assert.equal(bootstrap.body.profileRequired, false);
     assert.equal(bootstrap.body.user.nickname, '行李箱作者');
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('ai music nickname changes are limited to once every 30 days and three total changes', async () => {
+  const harness = createHarness();
+  try {
+    const { cookies } = await createAiMusicSession(harness, 'ai-music-open-id-nickname-limit');
+    const initial = await harness.request('POST', '/api/ai-music/profile', { nickname: '初始作者' }, { cookies });
+    assert.equal(initial.statusCode, 200);
+    assert.equal(initial.body.user.nicknameChangeCount, 0);
+    assert.equal(initial.body.user.nicknameChangesRemaining, 3);
+
+    const firstChange = await harness.request('POST', '/api/ai-music/profile', { nickname: '第一次修改' }, { cookies });
+    assert.equal(firstChange.statusCode, 200);
+    assert.equal(firstChange.body.user.nicknameChangeCount, 1);
+    assert.equal(firstChange.body.user.nicknameChangesRemaining, 2);
+
+    const tooSoon = await harness.request('POST', '/api/ai-music/profile', { nickname: '太快修改' }, { cookies });
+    assert.equal(tooSoon.statusCode, 400);
+    assert.match(tooSoon.body.error, /每 30 天/);
+
+    const user = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-nickname-limit');
+    harness.db.prepare("UPDATE ai_music_users SET nickname_changed_at = '2000-01-01 00:00:00' WHERE id = ?").run(user.id);
+    const secondChange = await harness.request('POST', '/api/ai-music/profile', { nickname: '第二次修改' }, { cookies });
+    assert.equal(secondChange.statusCode, 200);
+    assert.equal(secondChange.body.user.nicknameChangeCount, 2);
+
+    harness.db.prepare("UPDATE ai_music_users SET nickname_changed_at = '2000-01-01 00:00:00' WHERE id = ?").run(user.id);
+    const thirdChange = await harness.request('POST', '/api/ai-music/profile', { nickname: '第三次修改' }, { cookies });
+    assert.equal(thirdChange.statusCode, 200);
+    assert.equal(thirdChange.body.user.nicknameChangeCount, 3);
+    assert.equal(thirdChange.body.user.nicknameChangesRemaining, 0);
+
+    harness.db.prepare("UPDATE ai_music_users SET nickname_changed_at = '2000-01-01 00:00:00' WHERE id = ?").run(user.id);
+    const overLimit = await harness.request('POST', '/api/ai-music/profile', { nickname: '第四次修改' }, { cookies });
+    assert.equal(overLimit.statusCode, 400);
+    assert.match(overLimit.body.error, /3 次/);
   } finally {
     harness.cleanup();
   }
@@ -816,6 +856,41 @@ test('ai music my songs returns authored songs and songs where current user owns
     assert.equal(bobSongs.body.songs.some((song) => song.id === 'alice-upstream-song'), true);
     assert.equal(bobSongs.body.songs.find((song) => song.id === 'alice-upstream-song').copyright_user_id, bob.id);
     assert.equal(aliceAfterSale.body.songs.some((song) => song.id === 'alice-upstream-song'), true);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('ai music remake preset opens professional mode with original lyrics and style', async () => {
+  const harness = createHarness();
+  try {
+    const { cookies } = await createAiMusicSession(harness, 'ai-music-open-id-remake-preset');
+    const user = harness.db.prepare('SELECT id FROM ai_music_users WHERE open_id = ?').get('ai-music-open-id-remake-preset');
+    const gen = harness.db.prepare(`
+      INSERT INTO ai_music_generations (user_id, upstream_task_id, request_payload_json, status)
+      VALUES (?, ?, ?, 'success')
+    `).run(user.id, 'remake-task-1', JSON.stringify({
+      title: '孤单行李箱',
+      prompt: '窗外路灯亮了又暗\n行李箱冒烟还往前',
+      style: 'Chinese pop, emotional male vocal, piano',
+      custom_mode: true,
+      lang: '中文',
+      instrumental: false
+    }));
+    harness.db.prepare(`
+      INSERT INTO ai_music_songs (user_id, generation_id, upstream_song_id, title, status, cover_url, audio_url)
+      VALUES (?, ?, ?, ?, 'complete', ?, ?)
+    `).run(user.id, gen.lastInsertRowid, 'remake-song-1', '孤单行李箱', '/cover.jpg', '/song.mp3');
+
+    const response = await harness.request('GET', '/api/ai-music/music/song/remake-song-1/remake-preset', null, { cookies });
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.ok, true);
+    assert.equal(response.body.preset.mode, 'lyrics');
+    assert.equal(response.body.preset.title, '孤单行李箱');
+    assert.equal(response.body.preset.lyrics, '窗外路灯亮了又暗\n行李箱冒烟还往前');
+    assert.equal(response.body.preset.style, 'Chinese pop, emotional male vocal, piano');
+    assert.equal(response.body.preset.lang, '中文');
+    assert.equal(response.body.preset.source_song_id, 'remake-song-1');
   } finally {
     harness.cleanup();
   }

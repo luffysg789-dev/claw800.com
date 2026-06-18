@@ -236,10 +236,20 @@ db.exec(`
     open_id TEXT NOT NULL UNIQUE,
     nickname TEXT NOT NULL DEFAULT '',
     avatar TEXT NOT NULL DEFAULT '',
+    nickname_changed_at TEXT NOT NULL DEFAULT '',
+    nickname_change_count INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
+
+for (const [columnName, ddl] of [
+  ['nickname_changed_at', "ALTER TABLE ai_music_users ADD COLUMN nickname_changed_at TEXT NOT NULL DEFAULT ''"],
+  ['nickname_change_count', "ALTER TABLE ai_music_users ADD COLUMN nickname_change_count INTEGER NOT NULL DEFAULT 0"]
+]) {
+  const hasColumn = db.prepare("SELECT 1 FROM pragma_table_info('ai_music_users') WHERE name = ?").get(columnName);
+  if (!hasColumn) db.exec(ddl);
+}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS ai_music_credit_accounts (

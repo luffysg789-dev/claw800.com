@@ -78,6 +78,30 @@ textarea.gm-input{resize:vertical;line-height:1.6;font-family:inherit;}
 .gm-btn-ghost.sm{padding:5px 10px;font-size:12px;}
 .gm-btn-play{border:0;background:var(--ink);color:#fff;font-weight:700;font-size:13px;padding:7px 14px;border-radius:10px;cursor:pointer;}
 
+/* —— 我的 —— */
+.gm-my-home{max-width:760px;margin:0 auto;padding:10px 0 120px;}
+.gm-my-nickname-card{margin-bottom:12px;padding:16px;border:1px solid #f3e8ee;border-radius:18px;background:#fff;box-shadow:0 12px 32px rgba(190,24,93,.08);}
+.gm-my-nickname-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:12px;}
+.gm-my-nickname-head strong{min-width:0;font-size:18px;font-weight:950;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.gm-my-nickname-edit{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;}
+.gm-my-nickname-input{font-size:16px;}
+.gm-my-nickname-save{width:auto;min-width:96px;height:42px;padding:0 16px;border-radius:12px;}
+.gm-my-nickname-tip{margin:9px 0 0;}
+.gm-my-home-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.gm-my-home-card{display:grid;gap:7px;min-height:112px;padding:18px;border:1px solid #f3e8ee;border-radius:18px;background:#fff;text-decoration:none;color:var(--ink);box-shadow:0 12px 32px rgba(190,24,93,.08);}
+.gm-my-home-card strong{font-size:20px;font-weight:950;}
+.gm-my-home-card span{font-size:13px;line-height:1.55;color:var(--muted);font-weight:700;}
+.gm-my-home-card:hover{border-color:#f9a8d4;box-shadow:0 16px 34px rgba(190,24,93,.12);}
+@media(max-width:560px){
+  .gm-my-home{padding-left:2px;padding-right:2px;}
+  .gm-my-nickname-card{padding:15px;border-radius:16px;}
+  .gm-my-nickname-head{align-items:flex-start;flex-direction:column;gap:4px;}
+  .gm-my-nickname-edit{grid-template-columns:1fr;}
+  .gm-my-nickname-save{width:100%;}
+  .gm-my-home-grid{grid-template-columns:1fr;gap:10px;}
+  .gm-my-home-card{min-height:96px;padding:16px;border-radius:16px;}
+}
+
 /* —— 进度条 —— */
 .gm-bar{height:10px;background:#eef0f3;border-radius:999px;overflow:hidden;margin-top:8px;}
 .gm-bar-fill{height:100%;width:2%;background:var(--grad);transition:width .4s ease;}
@@ -178,7 +202,7 @@ textarea.gm-input{resize:vertical;line-height:1.6;font-family:inherit;}
 .gm-toast.warn{background:#b45309;}
 
 /* —— 底部全局播放器 —— */
-body.gm-has-mini-player .gm-main{padding-bottom:132px;}
+body.gm-has-mini-player .gm-main{padding-bottom:calc(168px + env(safe-area-inset-bottom));}
 .gm-mini-player{position:fixed;left:50%;bottom:0;z-index:45;width:min(100%,1040px);transform:translateX(-50%);
   background:#fff;border:1px solid #fbcfe8;border-bottom:0;border-radius:22px 22px 0 0;box-shadow:0 -18px 44px -30px rgba(15,23,42,.45);overflow:hidden;}
 .gm-mini-player[hidden]{display:none;}
@@ -202,7 +226,7 @@ body.gm-has-mini-player .gm-main{padding-bottom:132px;}
 .gm-mini-close{width:42px;height:42px;border:0;border-radius:999px;background:#f1f5f9;color:#64748b;font-size:24px;font-weight:900;cursor:pointer;line-height:1;}
 .gm-mini-close:hover{background:#e2e8f0;color:#334155;}
 @media(max-width:680px){
-  body.gm-has-mini-player .gm-main{padding-bottom:124px;}
+  body.gm-has-mini-player .gm-main{padding-bottom:calc(190px + env(safe-area-inset-bottom));}
   .gm-mini-player{border-radius:18px 18px 0 0;}
   .gm-mini-lyric{height:34px;padding:0 12px;}
   .gm-mini-lyric-track{font-size:14px;}

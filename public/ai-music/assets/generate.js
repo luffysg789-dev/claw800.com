@@ -100,6 +100,7 @@ export function renderGenerate(root) {
   refreshCredits(root);
   bindCreditsChangedListener(root);
   applyRemakeHandoff(root);
+  bindRemakeHandoffListener();
   bindStudioHandoffListener();
   applyStudioHandoff(root);
 }
@@ -1051,15 +1052,38 @@ function applyRemakeHandoff(root) {
   try { preset = JSON.parse(sessionStorage.getItem('gm_remake') || 'null'); } catch { preset = null; }
   if (!preset) return;
   sessionStorage.removeItem('gm_remake');
-  const isLyrics = preset.mode === 'lyrics' || !!preset.lyrics;
-  switchMode(root, isLyrics ? 'lyrics' : 'description');
-  if (isLyrics) $(root, '#lyricsBox').value = preset.lyrics || preset.desc || '';
-  else $(root, '#descBox').value = preset.desc || preset.prompt || '';
+  switchMode(root, 'lyrics');
+  const lyricsBox = $(root, '#lyricsBox');
+  lyricsBox.value = preset.lyrics || preset.desc || preset.prompt || '';
+  lyricsBox.dispatchEvent(new Event('input', { bubbles: true }));
   if (preset.title) $(root, '#titleInput').value = preset.title;
-  if (preset.style) { $(root, '#styleInput').value = preset.style; if (isLyrics) { setStyleControlMode(root, 'manual'); syncTagButtons(root); } }
+  if (preset.pro_req) $(root, '#proReqBox').value = preset.pro_req;
+  if (preset.style) {
+    setStyleControlMode(root, 'manual');
+    const styleInput = $(root, '#styleInput');
+    styleInput.value = preset.style;
+    styleInput.dispatchEvent(new Event('input', { bubbles: true }));
+    syncTagButtons(root);
+  }
   if (preset.lang) $(root, '#singLangSelect').value = preset.lang;
+  if (preset.instrumental) {
+    const instr = $(root, '#cf-instrumental');
+    instr.checked = true;
+    instr.dispatchEvent(new Event('change', { bubbles: true }));
+  }
   syncAllClearBtns(root);
-  toast('已带入「做同款」参数', 'info');
+  saveDraft(root);
+  toast('已带入专业模式，可修改后重新生成', 'info');
+}
+
+let remakeHandoffBound = false;
+function bindRemakeHandoffListener() {
+  if (remakeHandoffBound) return;
+  remakeHandoffBound = true;
+  window.addEventListener('gm-remake-handoff', () => {
+    const root = document.getElementById('screen-generate');
+    if (root) applyRemakeHandoff(root);
+  });
 }
 
 // ---------- 编曲房「🎵 带去创作」预填 ----------

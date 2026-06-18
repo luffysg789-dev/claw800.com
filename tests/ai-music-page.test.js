@@ -49,6 +49,7 @@ test('ai music purchase flow shows three Nexa package choices', () => {
   const appJs = readPublicAiMusicFile('assets/app.js');
   const generateJs = readPublicAiMusicFile('assets/generate.js');
   const libraryJs = readPublicAiMusicFile('assets/library.js');
+  const myJs = readPublicAiMusicFile('assets/my.js');
   const combined = `${apiJs}\n${authJs}\n${appJs}`;
 
   assert.match(apiJs, /createCreditOrder\(tier/);
@@ -71,10 +72,19 @@ test('ai music purchase flow shows three Nexa package choices', () => {
   assert.match(appJs, /window\.addEventListener\('focus'/);
   assert.match(appJs, /document\.addEventListener\('visibilitychange'/);
   assert.match(appJs, /gm-credits-changed/);
-  assert.match(appJs, /href:\s*'\/ai-music\/#library'[\s\S]*text:\s*'我的音乐'/);
+  assert.match(appJs, /key:\s*'my'[\s\S]*label:\s*'我的'/);
+  assert.match(appJs, /href:\s*'\/ai-music\/#my'[\s\S]*text:\s*'我的'/);
+  assert.match(appJs, /navKeyFor/);
   assert.match(appJs, /loadScreenModule/);
-  assert.match(appJs, /key:\s*'assets'[\s\S]*label:\s*'资产'/);
-  assert.match(appJs, /href:\s*'\/ai-music\/#assets'[\s\S]*text:\s*'资产'/);
+  assert.match(appJs, /key:\s*'library'[\s\S]*label:\s*'我的音乐'[\s\S]*hidden:\s*true/);
+  assert.match(appJs, /key:\s*'assets'[\s\S]*label:\s*'资产'[\s\S]*hidden:\s*true/);
+  assert.match(myJs, /renderMy/);
+  assert.match(myJs, /href:\s*'\/ai-music\/#library'[\s\S]*text:\s*'我的音乐'/);
+  assert.match(myJs, /href:\s*'\/ai-music\/#assets'[\s\S]*text:\s*'我的资产'/);
+  assert.match(myJs, /text:\s*'我的昵称'/);
+  assert.match(myJs, /nicknameChangesRemaining/);
+  assert.match(myJs, /每 30 天可修改一次/);
+  assert.match(myJs, /api\.updateProfile/);
   assert.match(appJs, /key:\s*'square'[\s\S]*label:\s*'广场'/);
   assert.match(appJs, /class:\s*'gm-btn-ghost sm gm-square-top'/);
   assert.match(appJs, /href:\s*'\/ai-music\/#square'[\s\S]*text:\s*'广场'/);
@@ -209,6 +219,13 @@ test('ai music uses persistent bottom player with scrolling lyrics', () => {
   assert.match(appJs, /initGlobalPlayer/);
   assert.match(generateJs, /toggleGlobalSong/);
   assert.match(libraryJs, /toggleGlobalSong/);
+  assert.match(libraryJs, /api\.remakePreset/);
+  assert.match(libraryJs, /sessionStorage\.setItem\('gm_remake'/);
+  assert.match(libraryJs, /new Event\('gm-remake-handoff'\)/);
+  assert.match(generateJs, /bindRemakeHandoffListener/);
+  assert.match(generateJs, /window\.addEventListener\('gm-remake-handoff'/);
+  assert.match(generateJs, /switchMode\(root,\s*'lyrics'\)/);
+  assert.match(generateJs, /已带入专业模式，可修改后重新生成/);
   assert.match(apiJs, /songLyrics:\s*\(id\)\s*=>\s*request\('GET',\s*`\/song\/\$\{id\}\/lyrics`/);
   assert.match(apiJs, /songLrc:\s*\(id\)\s*=>\s*request\('GET',\s*`\/song\/\$\{id\}\/download-lrc`/);
   assert.match(libraryJs, /data-act="lyrics"/);
@@ -282,6 +299,8 @@ test('ai music uses persistent bottom player with scrolling lyrics', () => {
   assert.doesNotMatch(playerJs, /audio\.addEventListener\('error',\s*\(\)\s*=>\s*\{[\s\S]*toast\('音频加载失败'/);
   assert.match(styles, /\.gm-mini-player/);
   assert.match(styles, /\.gm-mini-lyric-track/);
+  assert.match(styles, /body\.gm-has-mini-player \.gm-main\{padding-bottom:calc\(168px \+ env\(safe-area-inset-bottom\)\)/);
+  assert.match(styles, /@media\(max-width:680px\)\{[\s\S]*body\.gm-has-mini-player \.gm-main\{padding-bottom:calc\(190px \+ env\(safe-area-inset-bottom\)\)/);
   assert.match(styles, /\.gm-market-card/);
   assert.match(styles, /\.gm-market\{[^}]*min-height:calc\(100svh - 96px\)[^}]*-webkit-overflow-scrolling:touch[^}]*overscroll-behavior-y:contain/);
   assert.match(styles, /\.gm-assets-card/);

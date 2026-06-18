@@ -1907,11 +1907,18 @@ function formatAiMusicSession(session) {
 }
 
 function formatAiMusicUser(row) {
+  const nicknameChangeCount = Math.max(0, Number(row?.nickname_change_count || 0) || 0);
+  const nicknameChangedAt = String(row?.nickname_changed_at || '').trim();
+  const nextChangeAt = nicknameChangedAt ? new Date(new Date(nicknameChangedAt.replace(' ', 'T') + 'Z').getTime() + 30 * 24 * 60 * 60 * 1000).toISOString() : '';
   return {
     id: Number(row?.id || 0) || 0,
     openId: String(row?.open_id || '').trim(),
     nickname: String(row?.nickname || '').trim(),
-    avatar: String(row?.avatar || '').trim()
+    avatar: String(row?.avatar || '').trim(),
+    nicknameChangeCount,
+    nicknameChangesRemaining: Math.max(0, 3 - nicknameChangeCount),
+    nicknameChangedAt,
+    nicknameNextChangeAt: nextChangeAt
   };
 }
 
@@ -1942,6 +1949,34 @@ function validateAiMusicNickname(value) {
     throw error;
   }
   return nickname;
+}
+
+function parseSqliteUtcMs(value) {
+  const s = String(value || '').trim();
+  if (!s) return 0;
+  const ms = new Date(s.includes('T') ? s : `${s.replace(' ', 'T')}Z`).getTime();
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function assertAiMusicNicknameChangeAllowed(row, nextNickname) {
+  const current = normalizeAiMusicNickname(row?.nickname || '');
+  if (!current || isAiMusicPlaceholderNickname(current)) return { isInitialSetup: true };
+  if (current === nextNickname) return { isNoop: true };
+  const count = Math.max(0, Number(row?.nickname_change_count || 0) || 0);
+  if (count >= 3) {
+    const error = new Error('昵称最多只能修改 3 次');
+    error.statusCode = 400;
+    throw error;
+  }
+  const changedAtMs = parseSqliteUtcMs(row?.nickname_changed_at);
+  const nextAllowedMs = changedAtMs + 30 * 24 * 60 * 60 * 1000;
+  if (changedAtMs && Date.now() < nextAllowedMs) {
+    const nextDate = new Date(nextAllowedMs).toISOString().slice(0, 10);
+    const error = new Error(`昵称每 30 天只能修改一次，下次可修改时间：${nextDate}`);
+    error.statusCode = 400;
+    throw error;
+  }
+  return { isChange: true };
 }
 
 function ensureAiMusicUserAccount(session) {
@@ -2261,6 +2296,14 @@ function extractAiMusicLyricsPayload(payload = {}) {
   return normalizeAiMusicLyricsValue(payload);
 }
 
+function firstAiMusicTextValue(...values) {
+  for (const value of values) {
+    const text = String(value || '').trim();
+    if (text) return text;
+  }
+  return '';
+}
+
 function cleanAiMusicLyricsText(text) {
   const value = String(text || '').trim();
   if (!value) return '';
@@ -2324,6 +2367,70 @@ function normalizeAiMusicLyricsValue(value) {
     }
   }
   return '';
+}
+
+async function fetchAiMusicSongLyricsAndDetail(songId) {
+  const config = getAiMusicConfig();
+  const headers = { Authorization: `Bearer ${config.apiKey}` };
+  const encodedId = encodeURIComponent(String(songId || '').trim());
+  const lyricsUrl = `${config.upstream}/ai6api/music/song/${encodedId}/lyrics`;
+  const detailUrl = `${config.upstream}/ai6api/music/song/${encodedId}`;
+  let lyricsPayload = {};
+  let detailPayload = {};
+  let lyrics = '';
+  try {
+    const response = await fetch(lyricsUrl, { headers });
+    const body = await response.text();
+    try { lyricsPayload = body ? JSON.parse(body) : {}; } catch { lyricsPayload = body || {}; }
+    lyrics = extractAiMusicLyricsPayload(lyricsPayload);
+  } catch {
+    lyricsPayload = {};
+  }
+  try {
+    const response = await fetch(detailUrl, { headers });
+    const body = await response.text();
+    try { detailPayload = body ? JSON.parse(body) : {}; } catch { detailPayload = body || {}; }
+    if (!lyrics) lyrics = extractAiMusicLyricsPayload(detailPayload);
+  } catch {
+    detailPayload = {};
+  }
+  return {
+    lyrics,
+    lyricsPayload,
+    detailPayload,
+    detail: extractAiMusicSongDetail(detailPayload)
+  };
+}
+
+function buildAiMusicRemakePreset(row = {}, upstream = {}) {
+  const requestPayload = safeParseJsonObject(row.request_payload_json, {});
+  const detail = upstream.detail || {};
+  const customMode = Boolean(requestPayload.custom_mode || requestPayload.customMode);
+  const title = firstAiMusicTextValue(row.title, detail.title, detail.name);
+  const lyrics = firstAiMusicTextValue(
+    customMode ? cleanAiMusicLyricsText(requestPayload.prompt) : '',
+    requestPayload.lyrics,
+    upstream.lyrics,
+    extractAiMusicLyricsPayload(detail)
+  );
+  const style = firstAiMusicTextValue(
+    requestPayload.style,
+    requestPayload.ai_style,
+    detail.style,
+    detail.tags,
+    detail.prompt_style,
+    detail.metadata?.style
+  );
+  return {
+    mode: 'lyrics',
+    title,
+    lyrics,
+    style,
+    pro_req: firstAiMusicTextValue(requestPayload.pro_req, requestPayload.requirement, detail.prompt),
+    lang: firstAiMusicTextValue(requestPayload.lang, detail.lang, detail.language),
+    instrumental: Boolean(requestPayload.instrumental || detail.instrumental),
+    source_song_id: String(row.upstream_song_id || row.id || '').trim()
+  };
 }
 
 function isAiMusicCompleteStatus(status) {
@@ -9034,8 +9141,15 @@ app.post('/api/ai-music/profile', (req, res) => {
   try {
     const session = requireAiMusicSession(req);
     const user = ensureAiMusicUserAccount(session);
+    const currentUserRow = selectAiMusicUserByOpenIdStmt.get(user.openId);
     const nickname = validateAiMusicNickname(req.body?.nickname);
-    updateAiMusicUserProfileStmt.run(nickname, Number(user.id));
+    const changeMeta = assertAiMusicNicknameChangeAllowed(currentUserRow, nickname);
+    updateAiMusicUserProfileStmt.run(
+      nickname,
+      changeMeta.isChange ? 1 : 0,
+      changeMeta.isChange ? 1 : 0,
+      Number(user.id)
+    );
     const nextUser = selectAiMusicUserByOpenIdStmt.get(user.openId);
     return res.json({
       ok: true,
@@ -9573,6 +9687,39 @@ app.post('/api/ai-music/music/song/:songId/favorite', (req, res) => {
   } catch (error) {
     const statusCode = Number(error?.statusCode || 500) || 500;
     return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_FAVORITE_FAILED') });
+  }
+});
+
+app.get('/api/ai-music/music/song/:songId/remake-preset', async (req, res) => {
+  try {
+    const session = requireAiMusicSession(req);
+    const user = ensureAiMusicUserAccount(session);
+    const songId = String(req.params?.songId || '').trim();
+    if (!songId) return res.status(400).json({ ok: false, error: 'SONG_ID_REQUIRED' });
+    const row = selectAiMusicSongRemakeByUpstreamIdStmt.get(songId);
+    if (!row) return res.status(404).json({ ok: false, error: 'SONG_NOT_FOUND' });
+    const authorId = Number(row.user_id || 0) || 0;
+    const ownerId = Number(row.copyright_user_id || row.user_id || 0) || 0;
+    if (![authorId, ownerId].includes(Number(user.id))) {
+      return res.status(403).json({ ok: false, error: '无权重做这首歌' });
+    }
+    let upstream = {};
+    let preset = buildAiMusicRemakePreset(row, upstream);
+    if (!preset.lyrics || !preset.style) {
+      try {
+        upstream = await fetchAiMusicSongLyricsAndDetail(songId);
+      } catch {
+        upstream = {};
+      }
+      preset = buildAiMusicRemakePreset(row, upstream);
+    }
+    return res.json({
+      ok: true,
+      preset
+    });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 500) || 500;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || 'AI_MUSIC_REMAKE_PRESET_FAILED') });
   }
 });
 
@@ -11076,7 +11223,7 @@ const updateNchatUserIdentityHintsStmt = db.prepare(
   'UPDATE nchat_users SET nickname = CASE WHEN TRIM(COALESCE(nickname, \'\')) = \'\' THEN ? ELSE nickname END, avatar_url = CASE WHEN TRIM(COALESCE(avatar_url, \'\')) = \'\' THEN ? ELSE avatar_url END, updated_at = datetime(\'now\') WHERE id = ?'
 );
 const selectAiMusicUserByOpenIdStmt = db.prepare(
-  'SELECT id, open_id, nickname, avatar, created_at, updated_at FROM ai_music_users WHERE open_id = ?'
+  'SELECT id, open_id, nickname, avatar, nickname_changed_at, nickname_change_count, created_at, updated_at FROM ai_music_users WHERE open_id = ?'
 );
 const insertAiMusicUserStmt = db.prepare(
   'INSERT INTO ai_music_users (open_id, nickname, avatar) VALUES (?, ?, ?)'
@@ -11085,7 +11232,7 @@ const updateAiMusicUserIdentityStmt = db.prepare(
   'UPDATE ai_music_users SET nickname = ?, avatar = ?, updated_at = datetime(\'now\') WHERE id = ?'
 );
 const updateAiMusicUserProfileStmt = db.prepare(
-  'UPDATE ai_music_users SET nickname = ?, updated_at = datetime(\'now\') WHERE id = ?'
+  'UPDATE ai_music_users SET nickname = ?, nickname_changed_at = CASE WHEN ? THEN datetime(\'now\') ELSE nickname_changed_at END, nickname_change_count = nickname_change_count + ?, updated_at = datetime(\'now\') WHERE id = ?'
 );
 const ensureAiMusicCreditAccountStmt = db.prepare(
   'INSERT OR IGNORE INTO ai_music_credit_accounts (user_id) VALUES (?)'
@@ -11469,6 +11616,25 @@ const selectAiMusicSongByUpstreamIdStmt = db.prepare(`
   LEFT JOIN ai_music_users u ON u.id = s.user_id
   LEFT JOIN ai_music_users cu ON cu.id = COALESCE(s.copyright_user_id, s.user_id)
   LEFT JOIN ai_music_market_listings ml ON ml.upstream_song_id = s.upstream_song_id AND ml.status = 'active'
+  WHERE s.upstream_song_id = ?
+  LIMIT 1
+`);
+const selectAiMusicSongRemakeByUpstreamIdStmt = db.prepare(`
+  SELECT
+    s.id,
+    s.user_id,
+    COALESCE(s.copyright_user_id, s.user_id) AS copyright_user_id,
+    s.generation_id,
+    s.upstream_song_id,
+    s.title,
+    s.status,
+    s.cover_url,
+    s.audio_url,
+    s.created_at,
+    s.updated_at,
+    g.request_payload_json
+  FROM ai_music_songs s
+  LEFT JOIN ai_music_generations g ON g.id = s.generation_id
   WHERE s.upstream_song_id = ?
   LIMIT 1
 `);

@@ -8,8 +8,9 @@ const SCREENS = [
   { key: 'generate', label: '生成音乐', module: 'generate', render: 'renderGenerate', needsKey: true },
   { key: 'market', label: '市场', module: 'market', render: 'renderMarket', needsKey: false },
   { key: 'square', label: '广场', module: 'square', render: 'renderSquare', needsKey: false },
-  { key: 'library', label: '我的音乐', module: 'library', render: 'renderLibrary', needsKey: true },
-  { key: 'assets', label: '资产', module: 'assets', render: 'renderAssets', needsKey: true },
+  { key: 'my', label: '我的', module: 'my', render: 'renderMy', needsKey: true },
+  { key: 'library', label: '我的音乐', module: 'library', render: 'renderLibrary', needsKey: true, hidden: true },
+  { key: 'assets', label: '资产', module: 'assets', render: 'renderAssets', needsKey: true, hidden: true },
   { key: 'stemlab', label: '分轨', module: 'stemlab', render: 'renderStemLab', needsKey: true },
   { key: 'studio', label: '编曲房', module: 'studio', render: 'renderStudio', needsKey: true },
   { key: 'public-song', label: '歌曲', module: 'public-song', render: 'renderPublicSong', needsKey: false, hidden: true },
@@ -23,6 +24,10 @@ const moduleCache = new Map();
 function publicSongIdFromPath(pathname = location.pathname) {
   const match = String(pathname || '').match(/^\/ai-music\/song\/([^/?#]+)/);
   return match ? decodeURIComponent(match[1]) : '';
+}
+
+function navKeyFor(key) {
+  return ['library', 'assets'].includes(key) ? 'my' : key;
 }
 
 function boot() { renderShell(); }
@@ -50,7 +55,7 @@ function renderShell() {
   const nav = el('nav', { class: 'gm-nav' }, [
     el('a', { class: 'gm-brand', href: '/ai-music/#generate', text: 'AI 音乐' }),
     el('div', { class: 'gm-nav-links' }, SCREENS.filter((s) => !s.hidden).map((s) =>
-      el('a', { href: '/ai-music/#' + s.key, 'data-key': s.key, class: 'gm-nav-link' + (s.key === active ? ' active' : ''), text: s.label }))),
+      el('a', { href: '/ai-music/#' + s.key, 'data-key': s.key, class: 'gm-nav-link' + (s.key === navKeyFor(active) ? ' active' : ''), text: s.label }))),
     el('div', { id: 'gm-authslot' }, [authControl()]),
   ]);
 
@@ -83,13 +88,8 @@ function authControl() {
       squareLink,
       el('a', {
         class: 'gm-btn-ghost sm',
-        href: '/ai-music/#library',
-        text: '我的音乐'
-      }),
-      el('a', {
-        class: 'gm-btn-ghost sm',
-        href: '/ai-music/#assets',
-        text: '资产'
+        href: '/ai-music/#my',
+        text: '我的'
       })
     ]);
   }
@@ -132,7 +132,8 @@ function schedulePendingPaymentRefresh(reason = 'page-return') {
 function switchScreen(key, nav) {
   if (!SCREENS.some((s) => s.key === key)) return;
   active = key;
-  nav.querySelectorAll('.gm-nav-link').forEach((a) => a.classList.toggle('active', a.dataset.key === key));
+  const navKey = navKeyFor(key);
+  nav.querySelectorAll('.gm-nav-link').forEach((a) => a.classList.toggle('active', a.dataset.key === navKey));
   void mount(key);
 }
 

@@ -746,7 +746,8 @@ async function doRemake(s, btn) {
     const r = await api.remakePreset(s.id);
     if (!r.ok || !r.preset) { toast('这首歌不支持做同款', 'warn'); return; }
     sessionStorage.setItem('gm_remake', JSON.stringify(r.preset));
-    toast('已带入创作参数，去生成', 'success');
+    window.dispatchEvent(new Event('gm-remake-handoff'));
+    toast('已带入专业模式，去生成', 'success');
     location.hash = 'generate';
   } catch (e) { toast(e instanceof ApiError ? e.message : '做同款失败', 'error'); }
   finally { btn.disabled = false; }
