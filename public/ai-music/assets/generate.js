@@ -239,7 +239,7 @@ function formHTML() {
 
   <div id="proDocsModal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(17,24,39,.5);align-items:center;justify-content:center;padding:16px;">
     <div class="gm-pro-docs-card" style="background:#fff;border-radius:16px;width:min(560px,94vw);max-height:88vh;overflow:auto;padding:18px 20px;box-shadow:0 20px 60px rgba(0,0,0,.25);">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;">
+      <div class="gm-pro-docs-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;">
         <div>
           <div style="font-size:16px;font-weight:950;color:#111827;">AI音乐提示词文档</div>
           <div style="font-size:12px;color:#9ca3af;margin-top:2px;">专业模式常用写法，直接在本页参考，不会跳转离开。</div>

@@ -121,7 +121,9 @@ test('ai music purchase flow shows three Nexa package choices', () => {
   assert.doesNotMatch(generateJs, /ai6666\.com\/docs/);
   assert.doesNotMatch(generateJs, /音乐教父|Godfather Music/);
   assert.match(stylesCss, /\.gm-pro-docs-body/);
+  assert.match(stylesCss, /\.gm-pro-docs-head\{[^}]*position:sticky[^}]*z-index:3/);
   assert.match(stylesCss, /\.gm-pro-docs-index/);
+  assert.match(stylesCss, /\.gm-pro-docs-index\{[^}]*position:sticky[^}]*top:58px/);
   assert.match(stylesCss, /\.gm-pro-docs-grid/);
   assert.match(apiJs, /updateProfile:\s*\(\{\s*nickname/);
   assert.match(authJs, /openProfileModal/);

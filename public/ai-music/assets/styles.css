@@ -79,6 +79,8 @@ textarea.gm-input{resize:vertical;line-height:1.6;font-family:inherit;}
 .gm-btn-ghost.gm-write-top{border-color:#ef477e;background:var(--grad);color:#fff;box-shadow:0 8px 18px -12px rgba(236,72,153,.8);}
 .gm-btn-ghost.gm-write-top:hover{border-color:#ef477e;}
 .gm-btn-play{border:0;background:var(--ink);color:#fff;font-weight:700;font-size:13px;padding:7px 14px;border-radius:10px;cursor:pointer;}
+.gm-pro-docs-head{position:sticky;top:-18px;z-index:3;margin:-18px -20px 8px;padding:18px 20px 10px;background:#fff;border-bottom:1px solid #f1f5f9;}
+.gm-pro-docs-card{scroll-padding-top:86px;}
 .gm-pro-docs-body{display:grid;gap:14px;font-size:13px;line-height:1.7;color:#334155;}
 .gm-pro-docs-body section{padding-top:12px;border-top:1px solid #f1f5f9;}
 .gm-pro-docs-body section:first-child{border-top:0;padding-top:0;}
@@ -89,7 +91,7 @@ textarea.gm-input{resize:vertical;line-height:1.6;font-family:inherit;}
 .gm-pro-docs-body li{margin:4px 0;}
 .gm-pro-docs-body code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:7px;padding:1px 5px;color:#be123c;word-break:break-word;}
 .gm-pro-docs-body pre{margin:8px 0 0;padding:12px;border-radius:12px;background:#111827;color:#f8fafc;font-size:12px;line-height:1.65;white-space:pre-wrap;word-break:break-word;overflow:auto;}
-.gm-pro-docs-index{position:sticky;top:-18px;z-index:1;display:flex;gap:6px;overflow-x:auto;margin:-2px -2px 2px;padding:4px 2px 8px;background:#fff;-webkit-overflow-scrolling:touch;}
+.gm-pro-docs-index{position:sticky;top:58px;z-index:2;display:flex;gap:6px;overflow-x:auto;margin:-2px -2px 2px;padding:7px 2px 8px;background:#fff;border-bottom:1px solid #f8fafc;-webkit-overflow-scrolling:touch;}
 .gm-pro-docs-index a{flex:0 0 auto;text-decoration:none;border:1px solid #f3d2df;border-radius:999px;padding:5px 10px;background:#fff7fb;color:#be185d;font-size:12px;font-weight:900;}
 .gm-pro-docs-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
 .gm-pro-docs-grid>div{padding:10px;border:1px solid #f1f5f9;border-radius:12px;background:#fbfdff;}
@@ -98,7 +100,7 @@ textarea.gm-input{resize:vertical;line-height:1.6;font-family:inherit;}
 .gm-pro-docs-tags{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;}
 @media(max-width:560px){
   .gm-pro-docs-grid{grid-template-columns:1fr;}
-  .gm-pro-docs-index{top:-18px;}
+  .gm-pro-docs-index{top:58px;}
 }
 
 /* —— 我的 —— */
