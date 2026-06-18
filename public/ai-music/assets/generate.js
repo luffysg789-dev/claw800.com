@@ -141,7 +141,7 @@ function formHTML() {
       <div id="proArrangeBlock" style="display:none;margin-bottom:12px;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 6px 2px;">
           <span style="font-size:15px;font-weight:900;color:#111827;">歌曲要求<span style="font-weight:600;color:#9ca3af;">（选填）</span></span>
-          <a href="https://ai6666.com/docs/" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:800;color:#6d28d9;text-decoration:none;">📖 文档</a>
+          <button type="button" id="proDocsBtn" style="display:inline-flex;align-items:center;gap:3px;border:0;background:transparent;padding:0;font-size:12px;font-weight:800;color:#6d28d9;text-decoration:none;cursor:pointer;">📖 文档</button>
         </div>
         <div style="position:relative;">
           <textarea id="proReqBox" rows="5" class="w-full px-4 pt-3 pb-3 rounded-xl border border-gray-200 outline-none font-mono text-sm leading-relaxed resize-none" style="overflow:hidden;padding-right:84px;" placeholder="想要什么风格、什么感觉？比如：古风、治愈、副歌更带劲。可不填。"></textarea>
@@ -237,6 +237,55 @@ function formHTML() {
     </div>
   </div>
 
+  <div id="proDocsModal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(17,24,39,.5);align-items:center;justify-content:center;padding:16px;">
+    <div class="gm-pro-docs-card" style="background:#fff;border-radius:16px;width:min(560px,94vw);max-height:88vh;overflow:auto;padding:18px 20px;box-shadow:0 20px 60px rgba(0,0,0,.25);">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;">
+        <div>
+          <div style="font-size:16px;font-weight:950;color:#111827;">AI音乐提示词文档</div>
+          <div style="font-size:12px;color:#9ca3af;margin-top:2px;">专业模式常用写法，直接在本页参考，不会跳转离开。</div>
+        </div>
+        <button type="button" id="proDocsModalClose" aria-label="关闭" style="border:none;background:none;font-size:20px;color:#9ca3af;cursor:pointer;line-height:1;">✕</button>
+      </div>
+      <div class="gm-pro-docs-body">
+        <section>
+          <h3>字段怎么填</h3>
+          <p><strong>歌曲要求</strong>写整体方向：曲风、情绪、主乐器、人声、速度、制作质感。这里不要写整首歌词。</p>
+          <p><strong>歌词框</strong>只放歌词、结构标签和段落控制。结构越清楚，副歌和段落越稳定。</p>
+          <p><strong>风格</strong>用英文标签并用逗号隔开，例如：<code>Mandarin pop ballad, female vocal, piano, strings, slow tempo</code></p>
+        </section>
+        <section>
+          <h3>常用结构标签</h3>
+          <div class="gm-pro-docs-tags">
+            <code>[Intro]</code><code>[Verse]</code><code>[Pre-Chorus]</code><code>[Chorus]</code><code>[Bridge]</code><code>[Interlude]</code><code>[Outro]</code><code>[End]</code>
+          </div>
+          <p>结构标签单独一行。段落唱法或乐器提示可以写在下一行括号里，例如：<code>(soft female vocal, piano only)</code></p>
+        </section>
+        <section>
+          <h3>人声控制</h3>
+          <p>整首歌的人声放到风格里：<code>male vocal</code>、<code>female vocal</code>、<code>male and female duet</code>。</p>
+          <p>某一段切换人声，可以在歌词里写：<code>[Male Vocal]</code>、<code>[Female Vocal]</code>、<code>[Duet]</code>。</p>
+        </section>
+        <section>
+          <h3>可复制示例</h3>
+          <pre>[Verse 1]
+(soft male vocal, close-mic)
+我把没寄出的信
+放回旧抽屉
+
+[Chorus]
+[Duet]
+(male and female duet, warm vocal harmony)
+如果风会替我们说晚安
+别让爱散在天亮以前</pre>
+        </section>
+        <section>
+          <h3>提交前检查</h3>
+          <p>先确定整体风格，再写歌词结构。不要只写“高级、爆款、好听”，尽量给出具体音乐细节：曲风、人声、情绪、乐器、速度。</p>
+        </section>
+      </div>
+    </div>
+  </div>
+
   <div id="aiLyricsModal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(17,24,39,.5);align-items:center;justify-content:center;padding:16px;">
     <div style="background:#fff;border-radius:16px;width:min(480px,94vw);max-height:88vh;overflow:auto;padding:18px 20px;box-shadow:0 20px 60px rgba(0,0,0,.25);">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;"><span style="font-size:16px;font-weight:900;color:#111827;">✨ 让 AI 帮你写歌词</span><button type="button" id="aiLyricsModalClose" aria-label="关闭" style="border:none;background:none;font-size:20px;color:#9ca3af;cursor:pointer;line-height:1;">✕</button></div>
@@ -313,6 +362,12 @@ function wire(root) {
   modal.addEventListener('click', (e) => { if (e.target === modal) { syncAdvBtn(root); modal.style.display = 'none'; } });
   $(root, '#advShortenIntro').addEventListener('change', () => syncAdvBtn(root));
   $(root, '#advBoostVocal').addEventListener('change', () => syncAdvBtn(root));
+
+  // 专业模式文档：站内弹窗展示，避免跳转到上游页面。
+  const docsModal = $(root, '#proDocsModal');
+  $(root, '#proDocsBtn').addEventListener('click', () => { docsModal.style.display = 'flex'; });
+  $(root, '#proDocsModalClose').addEventListener('click', () => { docsModal.style.display = 'none'; });
+  docsModal.addEventListener('click', (e) => { if (e.target === docsModal) docsModal.style.display = 'none'; });
 
   // 专业模式「✨ 示例」
   $(root, '#proReqExampleBtn').addEventListener('click', () => {

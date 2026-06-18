@@ -108,6 +108,12 @@ test('ai music purchase flow shows three Nexa package choices', () => {
   assert.doesNotMatch(appJs, /text:\s*'充值'/);
   assert.match(generateJs, /openBuyCreditsModal/);
   assert.match(generateJs, /id="cf-recharge"[\s\S]*充值/);
+  assert.match(generateJs, /id="proDocsBtn"[\s\S]*📖 文档/);
+  assert.match(generateJs, /id="proDocsModal"[\s\S]*AI音乐提示词文档/);
+  assert.match(generateJs, /proDocsBtn'\)\.addEventListener\('click'[\s\S]*docsModal\.style\.display = 'flex'/);
+  assert.doesNotMatch(generateJs, /ai6666\.com\/docs/);
+  assert.doesNotMatch(generateJs, /音乐教父|Godfather Music/);
+  assert.match(stylesCss, /\.gm-pro-docs-body/);
   assert.match(apiJs, /updateProfile:\s*\(\{\s*nickname/);
   assert.match(authJs, /openProfileModal/);
   assert.match(authJs, /ensureProfileComplete/);
