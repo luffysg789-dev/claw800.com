@@ -358,9 +358,10 @@ test('ai music library search and create button match square layout', () => {
   assert.match(libraryJs, /openSellModal/);
   assert.match(libraryJs, /api\.listSong/);
   assert.match(libraryJs, /gm-public-toggle/);
-  assert.match(libraryJs, /公开到广场/);
+  assert.match(libraryJs, /gm-public-toggle-text[\s\S]*公开到广场[\s\S]*gm-public-toggle-track/);
   assert.match(libraryJs, /api\.setSongPublic/);
   assert.match(libraryJs, /data-act="public-toggle"/);
+  assert.match(myMusicCss, /\.gm-public-toggle\s*\{[\s\S]*flex-direction:\s*row/);
   assert.match(actionBarBody, /data-act="rename"[\s\S]*>改名</);
   assert.match(actionBarBody, /data-act="delete"[\s\S]*>删除</);
   assert.match(actionBarBody, /data-act="delete"[\s\S]*data-act="sell"[\s\S]*>出售</);

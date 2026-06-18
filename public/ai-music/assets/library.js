@@ -149,8 +149,8 @@ function playerCard(s, index = 0) {
       </button>
       <label class="gm-public-toggle${s.is_public === false ? '' : ' active'}" title="公开到广场">
         <input type="checkbox" data-act="public-toggle" ${s.is_public === false ? '' : 'checked'}>
-        <span class="gm-public-toggle-track"><span class="gm-public-toggle-knob"></span></span>
         <span class="gm-public-toggle-text">公开到广场</span>
+        <span class="gm-public-toggle-track"><span class="gm-public-toggle-knob"></span></span>
       </label>
     </div>
     <div class="hh-music-player hh-music-player-md" data-song-id="${esc(s.id)}">
