@@ -72,6 +72,11 @@ function renderShell() {
 }
 
 function authControl() {
+  const writeLink = el('a', {
+    class: 'gm-btn-ghost sm gm-write-top',
+    href: '/ai-music/#generate',
+    text: '写歌'
+  });
   const marketLink = el('a', {
     class: 'gm-btn-ghost sm gm-market-top',
     href: '/ai-music/#market',
@@ -84,6 +89,7 @@ function authControl() {
   });
   if (getApiKey()) {
     return el('div', { class: 'gm-auth' }, [
+      writeLink,
       marketLink,
       squareLink,
       el('a', {
@@ -94,6 +100,7 @@ function authControl() {
     ]);
   }
   return el('div', { class: 'gm-auth' }, [
+    writeLink,
     marketLink,
     squareLink,
     el('button', { class: 'gm-btn-ghost sm', text: 'Nexa 登录', onclick: () => openKeyModal({}) })

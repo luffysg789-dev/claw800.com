@@ -99,8 +99,11 @@ test('ai music purchase flow shows three Nexa package choices', () => {
   assert.match(stylesCss, /\.gm-my-tab\.active/);
   assert.match(stylesCss, /\.gm-my-panel/);
   assert.match(appJs, /key:\s*'square'[\s\S]*label:\s*'广场'/);
+  assert.match(appJs, /class:\s*'gm-btn-ghost sm gm-write-top'/);
+  assert.match(appJs, /href:\s*'\/ai-music\/#generate'[\s\S]*text:\s*'写歌'[\s\S]*marketLink/);
   assert.match(appJs, /class:\s*'gm-btn-ghost sm gm-square-top'/);
   assert.match(appJs, /href:\s*'\/ai-music\/#square'[\s\S]*text:\s*'广场'/);
+  assert.match(stylesCss, /\.gm-btn-ghost\.gm-write-top\{[^}]*background:var\(--grad\)[^}]*color:#fff/);
   assert.doesNotMatch(appJs, /gm-credits-chip/);
   assert.doesNotMatch(appJs, /text:\s*'充值'/);
   assert.match(generateJs, /openBuyCreditsModal/);

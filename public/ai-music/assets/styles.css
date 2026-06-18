@@ -76,6 +76,8 @@ textarea.gm-input{resize:vertical;line-height:1.6;font-family:inherit;}
 .gm-btn-ghost:hover{border-color:#cbd5e1;}
 .gm-btn-ghost:disabled{opacity:.5;cursor:default;}
 .gm-btn-ghost.sm{padding:5px 10px;font-size:12px;}
+.gm-btn-ghost.gm-write-top{border-color:#ef477e;background:var(--grad);color:#fff;box-shadow:0 8px 18px -12px rgba(236,72,153,.8);}
+.gm-btn-ghost.gm-write-top:hover{border-color:#ef477e;}
 .gm-btn-play{border:0;background:var(--ink);color:#fff;font-weight:700;font-size:13px;padding:7px 14px;border-radius:10px;cursor:pointer;}
 
 /* —— 我的 —— */
