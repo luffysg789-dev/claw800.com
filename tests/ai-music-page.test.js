@@ -370,7 +370,8 @@ test('ai music square supports mobile pull-up loading', () => {
   assert.match(squareJs, /value\.lines/);
   assert.match(squareJs, /class=\|style=/);
   assert.match(squareJs, /gm-square-author-row[\s\S]*gm-square-author[\s\S]*gm-square-actions[\s\S]*gm-square-lyrics[\s\S]*gm-square-share/);
-  assert.match(squareJs, /class:\s*'hh-my-create-btn'[\s\S]*text:\s*'写歌'/);
+  assert.doesNotMatch(squareJs, /text:\s*'音乐广场'/);
+  assert.doesNotMatch(squareJs, /class:\s*'hh-my-create-btn'[\s\S]*text:\s*'写歌'/);
   assert.match(squareJs, /gm-square-plays/);
   assert.match(squareJs, /gm-square-favorite/);
   assert.match(squareJs, /api\.favorite/);
@@ -387,8 +388,9 @@ test('ai music square supports mobile pull-up loading', () => {
   assert.match(squareJs, /el\('img'/);
   assert.match(styles, /\.gm-square-author-row[\s\S]*align-items:\s*center[\s\S]*justify-content:\s*space-between/);
   assert.match(styles, /\.gm-square-title-row/);
+  assert.match(styles, /\.gm-square\{[^}]*margin-top:-10px/);
   assert.match(styles, /\.gm-square-cover\{[^}]*width:68px[^}]*height:68px/);
-  assert.match(styles, /@media\(max-width:680px\)[\s\S]*\.gm-square-cover\{width:62px;height:62px;flex-basis:62px/);
+  assert.match(styles, /@media\(max-width:680px\)[\s\S]*\.gm-square\{margin-top:-12px;\}[\s\S]*\.gm-square-cover\{width:62px;height:62px;flex-basis:62px/);
   assert.match(styles, /\.gm-square-side/);
   assert.match(styles, /\.gm-square-actions/);
   assert.match(styles, /\.gm-square-lyrics-card/);

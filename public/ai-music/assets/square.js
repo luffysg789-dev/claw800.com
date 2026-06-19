@@ -17,10 +17,6 @@ export function renderSquare(root) {
   }
 
   const wrap = el('div', { class: 'gm-square' }, [
-    el('div', { class: 'gm-head' }, [
-      el('h2', { text: '音乐广场' }),
-      el('a', { class: 'hh-my-create-btn', href: '#generate', text: '写歌' })
-    ]),
     searchBox(root),
     el('div', { id: 'gm-square-feed', class: 'gm-square-grid' }),
     el('div', { id: 'gm-square-pager', class: 'gm-square-pager' }),
