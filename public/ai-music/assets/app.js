@@ -16,9 +16,10 @@ const SCREENS = [
   { key: 'public-song', label: '歌曲', module: 'public-song', render: 'renderPublicSong', needsKey: false, hidden: true },
 ];
 const ALWAYS_RERENDER = new Set(['my', 'library', 'assets', 'stemlab', 'studio', 'market', 'square', 'public-song']);
-let active = 'generate';
+let active = 'square';
 let mounted = new Set();
 let pendingPaymentRefreshTimer = null;
+let shellReady = false;
 const moduleCache = new Map();
 
 function publicSongIdFromPath(pathname = location.pathname) {
@@ -31,6 +32,13 @@ function navKeyFor(key) {
 }
 
 function boot() { renderShell(); }
+
+function renderBootLoading() {
+  clear(app);
+  app.appendChild(el('main', { class: 'gm-main' }, [
+    el('div', { class: 'gm-square-empty', text: '正在恢复登录状态...' })
+  ]));
+}
 
 async function loadScreenModule(screen) {
   if (!moduleCache.has(screen.module)) {
@@ -47,13 +55,14 @@ function loadPlayer() {
 }
 
 function renderShell() {
+  shellReady = true;
   clear(app);
   mounted = new Set();
-  active = publicSongIdFromPath() ? 'public-song' : (location.hash.replace('#', '') || 'generate');
-  if (!SCREENS.some((s) => s.key === active)) active = 'generate';
+  active = publicSongIdFromPath() ? 'public-song' : (location.hash.replace('#', '') || 'square');
+  if (!SCREENS.some((s) => s.key === active)) active = 'square';
 
   const nav = el('nav', { class: 'gm-nav' }, [
-    el('a', { class: 'gm-brand', href: '/ai-music/#generate', text: 'AI 音乐' }),
+    el('a', { class: 'gm-brand', href: '/ai-music/#square', text: 'AI 音乐' }),
     el('div', { class: 'gm-nav-links' }, SCREENS.filter((s) => !s.hidden).map((s) =>
       el('a', { href: '/ai-music/#' + s.key, 'data-key': s.key, class: 'gm-nav-link' + (s.key === navKeyFor(active) ? ' active' : ''), text: s.label }))),
     el('div', { id: 'gm-authslot' }, [authControl()]),
@@ -167,11 +176,16 @@ async function mount(key) {
 }
 
 window.addEventListener('gm-auth-changed', () => {
+  if (!shellReady) return;
   refreshAuthUI();
   void mount(active);
   ensureProfileComplete().then(() => { refreshAuthUI(); void mount(active); });
 });
-window.addEventListener('gm-profile-changed', () => { refreshAuthUI(); void mount(active); });
+window.addEventListener('gm-profile-changed', () => {
+  if (!shellReady) return;
+  refreshAuthUI();
+  void mount(active);
+});
 window.addEventListener('gm-credits-changed', (event) => {
   const credits = event.detail?.credits?.availableCredits;
   if (credits === undefined) refreshCreditsChip();
@@ -184,22 +198,25 @@ document.addEventListener('visibilitychange', () => {
 
 window.addEventListener('hashchange', () => {
   if (publicSongIdFromPath()) return;
-  const key = location.hash.replace('#', '') || 'generate';
+  const key = location.hash.replace('#', '') || 'square';
   const nav = document.querySelector('.gm-nav');
   if (nav && SCREENS.some((s) => s.key === key)) switchScreen(key, nav);
 });
 
 async function init() {
-  boot();
+  renderBootLoading();
+  let initError = null;
   try {
     const handledCallback = await handleNexaAuthCallback();
     if (!handledCallback) await bootstrapSession();
-    schedulePendingPaymentRefresh('init');
-    refreshAuthUI();
-    void mount(active);
   } catch (error) {
-    toast(error.message || '登录状态获取失败', 'error');
+    initError = error;
   }
+  boot();
+  schedulePendingPaymentRefresh('init');
+  refreshAuthUI();
+  void mount(active);
+  if (initError) toast(initError.message || '登录状态获取失败', 'error');
   ensureProfileComplete().then(() => { refreshAuthUI(); void mount(active); });
 }
 
