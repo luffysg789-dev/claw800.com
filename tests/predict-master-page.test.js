@@ -18,7 +18,7 @@ test('games config includes Predict Master card defaults', () => {
     [
       'predict-master-football-worldcup',
       '预测',
-      '/predict-master/?type=predict&activity=football-worldcup&productPath=dashboard%2Fpredict%2Fsports',
+      '/predict-master/?type=predict&activity=football-worldcup&productPath=dashboard%2Fpredict%2Fworld-cup',
       'predict'
     ]
   ];
@@ -44,7 +44,7 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(html, /\/predict-master\/style\.css/);
   assert.match(html, /\/predict-master\/script\.js/);
   assert.match(html, /\/predict-master\/style\.css\?v=20260617-02/);
-  assert.match(html, /\/predict-master\/script\.js\?v=20260617-02/);
+  assert.match(html, /\/predict-master\/script\.js\?v=20260627-01/);
   assert.doesNotMatch(html, /class="back-link"/);
   assert.doesNotMatch(html, /id="predictMasterTitle"/);
   assert.doesNotMatch(html, /id="predictMasterStatus"/);
@@ -200,6 +200,12 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(script, /function isPredictMasterDevAuthEnabled\(\)/);
   assert.match(script, /return !isNexaAppEnvironment\(\) \|\| params\.get\('devAuth'\) === '1'/);
   assert.match(script, /function getPredictMasterProductPath\(\)/);
+  assert.match(script, /function applyPredictMasterDarkChartDefaults\(\)/);
+  assert.match(script, /darkChartDefaultTypes = \['trading', 'contract', 'spread'\]/);
+  assert.match(script, /!darkChartDefaultTypes\.includes\(getPredictMasterRenderType\(\)\)/);
+  assert.match(script, /applyPredictMasterDarkChartDefaults\(\);[\s\S]*tradingApp = new Trading/);
+  assert.match(script, /'tradingview\.theme'/);
+  assert.match(script, /'TradingView\.Theme'/);
   assert.match(script, /function buildPredictMasterProductUrl\(/);
   assert.match(script, /function getPredictMasterProductName\(\)/);
   assert.match(script, /function applyPredictMasterProductTitle\(\)/);
@@ -221,7 +227,9 @@ test('admin exposes Predict Master settings without echoing the private key', ()
   assert.match(adminHtml, /id="navPredictMasterClientErrorLogs"/);
   assert.match(adminHtml, /id="navNexaPaymentUpstreamLogs"/);
   assert.match(adminHtml, /id="navPredictMasterOrders"/);
+  assert.match(adminHtml, />预测交易订单<\/button>/);
   assert.match(adminHtml, /id="navPredictMasterRechargeOrders"/);
+  assert.match(adminHtml, />预测充值订单<\/button>/);
   assert.match(adminHtml, /id="navPredictMasterWalletTransactions"/);
   assert.match(adminHtml, /id="navPredictMasterWithdrawals"/);
   assert.match(adminHtml, /id="navPredictMasterShares"/);
@@ -232,7 +240,9 @@ test('admin exposes Predict Master settings without echoing the private key', ()
   assert.match(adminHtml, /id="predictMasterClientErrorLogsSection"/);
   assert.match(adminHtml, /id="nexaPaymentUpstreamLogsSection"/);
   assert.match(adminHtml, /id="predictMasterOrdersSection"/);
+  assert.match(adminHtml, /id="predictMasterOrdersTitle">预测交易订单<\/h2>/);
   assert.match(adminHtml, /id="predictMasterRechargeOrdersSection"/);
+  assert.match(adminHtml, /id="predictMasterRechargeOrdersTitle">预测充值订单<\/h2>/);
   assert.match(adminHtml, /id="predictMasterRechargeOrdersList"/);
   assert.match(adminHtml, /id="predictMasterWalletTransactionsSection"/);
   assert.match(adminHtml, /id="predictMasterWithdrawalsSection"/);
@@ -255,7 +265,10 @@ test('admin exposes Predict Master settings without echoing the private key', ()
   assert.match(adminJs, /\/api\/admin\/nexa-payment-upstream-logs/);
   assert.match(adminJs, /renderNexaPaymentUpstreamLogs/);
   assert.match(adminJs, /\/api\/admin\/predict-master-orders/);
+  assert.match(adminJs, /navPredictMasterOrders:\s*'预测交易订单'/);
+  assert.match(adminJs, /predictMasterOrdersTitle:\s*'预测交易订单'/);
   assert.match(adminJs, /\/api\/admin\/predict-master-recharge-orders/);
+  assert.match(adminJs, /navPredictMasterRechargeOrders:\s*'预测充值订单'/);
   assert.match(adminJs, /renderPredictMasterRechargeOrders/);
   assert.match(adminJs, /\/api\/admin\/predict-master-wallet-transactions/);
   assert.match(adminJs, /\/api\/admin\/predict-master-withdrawals/);

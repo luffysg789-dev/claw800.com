@@ -330,7 +330,7 @@ const texts = {
     navPredictMasterLoginLogs: '预测登录日志',
     navPredictMasterCallbackLogs: '预测上游回调日志',
     navNexaPaymentUpstreamLogs: 'Nexa 支付上游日志',
-    navPredictMasterOrders: '预测订单',
+    navPredictMasterOrders: '预测交易订单',
     navPredictMasterRechargeOrders: '预测充值订单',
     navPredictMasterWalletTransactions: '预测资金流水',
     navPredictMasterWithdrawals: '预测提现审核',
@@ -540,10 +540,10 @@ const texts = {
     nexaPaymentUpstreamLogsRefreshBtn: '刷新',
     nexaPaymentUpstreamLogsEmpty: '暂无 Nexa 支付上游日志。',
     nexaPaymentUpstreamLogsLoadFailed: 'Nexa 支付上游日志加载失败。',
-    predictMasterOrdersTitle: '预测订单',
+    predictMasterOrdersTitle: '预测交易订单',
     predictMasterOrdersRefreshBtn: '刷新',
-    predictMasterOrdersEmpty: '暂无预测订单。',
-    predictMasterOrdersLoadFailed: '预测订单加载失败。',
+    predictMasterOrdersEmpty: '暂无预测交易订单。',
+    predictMasterOrdersLoadFailed: '预测交易订单加载失败。',
     predictMasterRechargeOrdersTitle: '预测充值订单',
     predictMasterRechargeOrdersRefreshBtn: '刷新',
     predictMasterRechargeOrdersEmpty: '暂无预测充值订单。',
@@ -781,7 +781,7 @@ const texts = {
     navPredictMasterLoginLogs: 'Predict Login Logs',
     navPredictMasterCallbackLogs: 'Predict Callback Logs',
     navNexaPaymentUpstreamLogs: 'Nexa Payment Upstream Logs',
-    navPredictMasterOrders: 'Predict Orders',
+    navPredictMasterOrders: 'Predict Trading Orders',
     navPredictMasterRechargeOrders: 'Predict Recharge Orders',
     navPredictMasterWalletTransactions: 'Predict Wallet Ledger',
     navPredictMasterWithdrawals: 'Predict Withdrawals',
@@ -991,10 +991,10 @@ const texts = {
     nexaPaymentUpstreamLogsRefreshBtn: 'Refresh',
     nexaPaymentUpstreamLogsEmpty: 'No Nexa payment upstream logs yet.',
     nexaPaymentUpstreamLogsLoadFailed: 'Failed to load Nexa payment upstream logs.',
-    predictMasterOrdersTitle: 'Predict Orders',
+    predictMasterOrdersTitle: 'Predict Trading Orders',
     predictMasterOrdersRefreshBtn: 'Refresh',
-    predictMasterOrdersEmpty: 'No predict orders yet.',
-    predictMasterOrdersLoadFailed: 'Failed to load predict orders.',
+    predictMasterOrdersEmpty: 'No predict trading orders yet.',
+    predictMasterOrdersLoadFailed: 'Failed to load predict trading orders.',
     predictMasterRechargeOrdersTitle: 'Predict Recharge Orders',
     predictMasterRechargeOrdersRefreshBtn: 'Refresh',
     predictMasterRechargeOrdersEmpty: 'No predict recharge orders yet.',
@@ -3757,10 +3757,11 @@ function renderPredictMasterOrders(items = []) {
     .map(
       (item) => `
         <article class="review-card">
-          <h3>${escapeHtml(item.orderId || '预测订单')}</h3>
+          <h3>${escapeHtml(item.orderId || item.bizId || '预测交易订单')}</h3>
           <p class="small">用户 ID: ${escapeHtml(item.externalUserId || '-')}</p>
           <p class="small">币种: ${escapeHtml(item.currency || '-')} · 金额: ${escapeHtml(String(item.amount ?? '-'))} · 盈亏: ${escapeHtml(String(item.profit ?? '-'))}</p>
-          <p class="small">状态: ${escapeHtml(item.status || '-')} · 标的: ${escapeHtml(item.symbol || '-')} · 类型: ${escapeHtml(item.bizType || '-')}</p>
+          <p class="small">状态: ${escapeHtml(item.status || item.direction || '-')} · 标的: ${escapeHtml(item.symbol || '-')} · 类型: ${escapeHtml(item.bizType || '-')}</p>
+          <p class="small">来源: ${escapeHtml(item.source || '-')} · 子订单: ${escapeHtml(item.bizSubId || '-')} · 余额: ${escapeHtml(String(item.balanceAfter ?? '-'))}</p>
           <p class="small">创建: ${escapeHtml(formatAdminLocalDateTime(item.createdAt))} · 更新: ${escapeHtml(formatAdminLocalDateTime(item.updatedAt))}</p>
           ${renderPredictMasterRawDetails(item.raw)}
         </article>

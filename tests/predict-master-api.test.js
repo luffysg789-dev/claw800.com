@@ -128,7 +128,7 @@ test('predict-master is seeded in the games catalog and routes to its page', asy
       ['predict-master-tap-trading', ['/predict-master/?type=tap-trading&productPath=trade-center%2Ftap-trading', '快速交易']],
       [
         'predict-master-football-worldcup',
-        ['/predict-master/?type=predict&activity=football-worldcup&productPath=dashboard%2Fpredict%2Fsports', '预测']
+        ['/predict-master/?type=predict&activity=football-worldcup&productPath=dashboard%2Fpredict%2Fworld-cup', '预测']
       ]
     ]);
     const expectedActionText = new Map([
@@ -389,14 +389,14 @@ test('predict-master client error logs capture SDK order failures for admin diag
       pageUrl: 'https://claw800.com/predict-master/?type=predict&activity=football-worldcup',
       productType: 'predict',
       activity: 'football-worldcup',
-      productPath: 'dashboard/predict/sports',
+      productPath: 'dashboard/predict/world-cup',
       accessCode: 'access-code-123',
       message: 'Platform key not found.',
       stack: 'Error: Platform key not found.',
       userAgent: 'NexaWebView',
       context: {
         sdkEntry: 'https://testwww.exchange2currency.com',
-        productUrl: 'https://testwww.exchange2currency.com/dashboard/predict/sports'
+        productUrl: 'https://testwww.exchange2currency.com/dashboard/predict/world-cup'
       }
     });
     assert.equal(create.statusCode, 200);
@@ -410,9 +410,9 @@ test('predict-master client error logs capture SDK order failures for admin diag
     assert.equal(response.body.items[0].source, 'sdk-on-error');
     assert.equal(response.body.items[0].productType, 'predict');
     assert.equal(response.body.items[0].activity, 'football-worldcup');
-    assert.equal(response.body.items[0].productPath, 'dashboard/predict/sports');
+    assert.equal(response.body.items[0].productPath, 'dashboard/predict/world-cup');
     assert.equal(response.body.items[0].message, 'Platform key not found.');
-    assert.equal(response.body.items[0].context.productUrl, 'https://testwww.exchange2currency.com/dashboard/predict/sports');
+    assert.equal(response.body.items[0].context.productUrl, 'https://testwww.exchange2currency.com/dashboard/predict/world-cup');
   } finally {
     harness.cleanup();
   }
@@ -580,9 +580,11 @@ test('admin can view recent predict-master operational records', async () => {
 
     assert.equal(orders.statusCode, 200);
     assert.equal(orders.body.ok, true);
-    assert.equal(orders.body.items[0].orderId, 'order-1');
-    assert.equal(orders.body.items[0].profit, 1.25);
-    assert.deepEqual(orders.body.items[0].raw, { orderId: 'order-1' });
+    assert.equal(orders.body.items[0].orderId, 'biz-1');
+    assert.equal(orders.body.items[0].source, 'PLACE_PREDICT_ORDER');
+    assert.equal(orders.body.items[0].bizSubId, 'sub-1');
+    assert.equal(orders.body.items[0].status, 'deduction');
+    assert.deepEqual(orders.body.items[0].raw, { amount: '10' });
 
     assert.equal(walletTransactions.statusCode, 200);
     assert.equal(walletTransactions.body.ok, true);
@@ -633,6 +635,79 @@ test('admin can view predict-master recharge orders', async () => {
     assert.equal(response.body.items[0].currency, 'USDT');
     assert.equal(response.body.items[0].status, 'SUCCESS');
     assert.equal(response.body.items[0].displayStatus, '完成');
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('admin predict trading orders include Detrade user-page order transactions', async () => {
+  const harness = createHarness();
+
+  try {
+    const cookies = await harness.adminCookies();
+    const user = harness.db
+      .prepare("INSERT INTO game_users (openid, nickname, avatar) VALUES (?, 'Nexa User', '')")
+      .run('nexa-open-id-trades');
+    const insertTrade = harness.db.prepare(
+      `INSERT INTO detrade_wallet_transactions (
+        user_id, external_user_id, currency, direction, amount, usd_amount, biz_id, biz_type,
+        source, biz_sub_id, balance_type, balance_after, raw_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    [
+      ['binary-order-1', 'binary', 'PLACE_BINARY_ORDER', 'high-low-sub'],
+      ['spread-order-1', 'binary_spread', 'PLACE_BINARY_SPREAD_ORDER', 'spread-sub'],
+      ['contract-order-1', 'contract', 'PLACE_CONTRACT_ORDER', 'contract-sub'],
+      ['football-order-1', 'predict', 'PLACE_PREDICT_ORDER', 'football-sub']
+    ].forEach(([bizId, bizType, source, bizSubId], index) => {
+      insertTrade.run(
+        user.lastInsertRowid,
+        'nexa-open-id-trades',
+        'USDT',
+        'deduction',
+        10 + index,
+        10 + index,
+        bizId,
+        bizType,
+        source,
+        bizSubId,
+        1,
+        100 - index,
+        JSON.stringify({ bizId, bizType, source, bizSubId })
+      );
+    });
+    insertTrade.run(
+      user.lastInsertRowid,
+      'nexa-open-id-trades',
+      'USDT',
+      'add',
+      99,
+      99,
+      'recharge-biz-1',
+      'recharge',
+      'RECHARGE',
+      'recharge-sub',
+      1,
+      199,
+      JSON.stringify({ source: 'RECHARGE' })
+    );
+
+    const orders = await harness.request('GET', '/api/admin/predict-master-orders', null, { cookies });
+
+    assert.equal(orders.statusCode, 200);
+    assert.equal(orders.body.ok, true);
+    const sources = orders.body.items.map((item) => item.source);
+    assert.deepEqual(sources, [
+      'PLACE_PREDICT_ORDER',
+      'PLACE_CONTRACT_ORDER',
+      'PLACE_BINARY_SPREAD_ORDER',
+      'PLACE_BINARY_ORDER'
+    ]);
+    assert.equal(orders.body.items[0].orderId, 'football-order-1');
+    assert.equal(orders.body.items[0].bizType, 'predict');
+    assert.equal(orders.body.items[0].bizSubId, 'football-sub');
+    assert.equal(orders.body.items[0].amount, 13);
+    assert.equal(orders.body.items[0].status, 'deduction');
   } finally {
     harness.cleanup();
   }
@@ -1165,6 +1240,65 @@ test('predict-master accepts Detrade contract fee deduction callbacks', async ()
       .prepare('SELECT COUNT(*) AS count FROM detrade_wallet_transactions WHERE user_id = ?')
       .get(userId);
     assert.equal(transactionCount.count, 1);
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('predict-market refund add must match the original purchase sub order', async () => {
+  const harness = createHarness();
+
+  try {
+    await harness.request('POST', '/api/predict-master/wallet', {
+      openId: 'nexa-predict-refund-sub-order-user',
+      sessionKey: 'session-predict-refund-sub-order-user'
+    });
+    const userId = harness.db
+      .prepare('SELECT id FROM game_users WHERE openid = ?')
+      .get('nexa-predict-refund-sub-order-user').id;
+    harness.db.prepare("UPDATE detrade_wallets SET available_balance = '100.00' WHERE user_id = ?").run(userId);
+
+    const purchase = await harness.request('POST', '/wallet/amount/deduction', {
+      userId: 'nexa-predict-refund-sub-order-user',
+      amount: '50.00',
+      currency: 'USDT',
+      bizId: 'predict-shares-11',
+      bizType: 'PREDICT_ORDER',
+      source: 'PLACE_PREDICT_ORDER',
+      bizSubId: 'predict-buy-order-201'
+    });
+    assert.equal(purchase.statusCode, 200);
+    assert.equal(purchase.body.code, 200);
+
+    const wrongRefund = await harness.request('POST', '/wallet/amount/add', {
+      userId: 'nexa-predict-refund-sub-order-user',
+      amount: '50.00',
+      currency: 'USDT',
+      bizId: 'predict-shares-11',
+      bizType: 'PREDICT_ORDER',
+      source: 'PREDICT_ORDER_REFUND',
+      bizSubId: 'predict-buy-order-999'
+    });
+    assert.equal(wrongRefund.statusCode, 200);
+    assert.equal(wrongRefund.body.code, 30015);
+
+    const walletAfterWrongRefund = harness.db.prepare('SELECT available_balance FROM detrade_wallets WHERE user_id = ?').get(userId);
+    assert.equal(walletAfterWrongRefund.available_balance, '50.00');
+
+    const matchingRefund = await harness.request('POST', '/wallet/amount/add', {
+      userId: 'nexa-predict-refund-sub-order-user',
+      amount: '50.00',
+      currency: 'USDT',
+      bizId: 'predict-shares-11',
+      bizType: 'PREDICT_ORDER',
+      source: 'PREDICT_ORDER_REFUND',
+      bizSubId: 'predict-buy-order-201'
+    });
+    assert.equal(matchingRefund.statusCode, 200);
+    assert.equal(matchingRefund.body.code, 200);
+
+    const walletAfterMatchingRefund = harness.db.prepare('SELECT available_balance FROM detrade_wallets WHERE user_id = ?').get(userId);
+    assert.equal(walletAfterMatchingRefund.available_balance, '100.00');
   } finally {
     harness.cleanup();
   }

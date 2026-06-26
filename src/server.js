@@ -5194,7 +5194,7 @@ const GAME_ROUTE_MAP = {
   'predict-master-up-down': '/predict-master/?type=up-down&productPath=trade-center%2Fup-down',
   'predict-master-spread': '/predict-master/?type=spread',
   'predict-master-tap-trading': '/predict-master/?type=tap-trading&productPath=trade-center%2Ftap-trading',
-  'predict-master-football-worldcup': '/predict-master/?type=predict&activity=football-worldcup&productPath=dashboard%2Fpredict%2Fsports',
+  'predict-master-football-worldcup': '/predict-master/?type=predict&activity=football-worldcup&productPath=dashboard%2Fpredict%2Fworld-cup',
   'ai-music': '/ai-music/',
   'u-card-query': '/u-card-query/',
   'u-card': '/u',
@@ -12538,6 +12538,16 @@ const selectDetradeMatchingDeductionStmt = db.prepare(`
   ORDER BY id ASC
   LIMIT 1
 `);
+const selectDetradeMatchingDeductionBySubIdStmt = db.prepare(`
+  SELECT *
+  FROM detrade_wallet_transactions
+  WHERE direction = 'deduction'
+    AND biz_id = ?
+    AND biz_sub_id = ?
+    AND source = ?
+  ORDER BY id ASC
+  LIMIT 1
+`);
 const insertDetradeWalletTransactionStmt = db.prepare(`
   INSERT INTO detrade_wallet_transactions (
     user_id, external_user_id, currency, direction, amount, usd_amount, biz_id, biz_type,
@@ -12795,6 +12805,22 @@ const listDetradeWalletTransactionsStmt = db.prepare(`
   SELECT id, external_user_id, currency, direction, amount, usd_amount, biz_id, biz_type,
          source, biz_sub_id, balance_type, balance_after, raw_json, created_at
   FROM detrade_wallet_transactions
+  ORDER BY id DESC
+  LIMIT ?
+`);
+const listDetradeTradingOrderTransactionsStmt = db.prepare(`
+  SELECT id, external_user_id, currency, direction, amount, usd_amount, biz_id, biz_type,
+         source, biz_sub_id, balance_type, balance_after, raw_json, created_at
+  FROM detrade_wallet_transactions
+  WHERE source IN (
+    'PLACE_BINARY_ORDER',
+    'PLACE_BINARY_SPREAD_ORDER',
+    'PLACE_CONTRACT_ORDER',
+    'PLACE_CONTRACT_ENTRUST_ORDER',
+    'PLACE_CONTEST_ORDER',
+    'PLACE_TAP_ORDER',
+    'PLACE_PREDICT_ORDER'
+  )
   ORDER BY id DESC
   LIMIT ?
 `);
@@ -13450,6 +13476,18 @@ function formatDetradeWalletTransaction(row = {}) {
   };
 }
 
+function formatDetradeTradingOrderTransaction(row = {}) {
+  const item = formatDetradeWalletTransaction(row);
+  return {
+    ...item,
+    orderId: item.bizId,
+    status: item.direction,
+    profit: '',
+    symbol: '',
+    updatedAt: item.createdAt
+  };
+}
+
 function formatDetradePredictShare(row = {}) {
   return {
     id: Number(row.id || 0) || 0,
@@ -13749,9 +13787,16 @@ const DETRADE_ADD_SOURCE_TO_DEDUCTION_SOURCE = {
   PREDICT_ORDER_REFUND: 'PLACE_PREDICT_ORDER'
 };
 
-function findMatchingDetradeDeduction({ bizId, source }) {
+function findMatchingDetradeDeduction({ bizId, bizSubId, source }) {
   const deductionSource = DETRADE_ADD_SOURCE_TO_DEDUCTION_SOURCE[String(source || '').trim()];
   if (!deductionSource) return null;
+  if (String(source || '').trim() === 'PREDICT_ORDER_REFUND') {
+    return selectDetradeMatchingDeductionBySubIdStmt.get(
+      String(bizId || '').trim(),
+      String(bizSubId || '').trim(),
+      deductionSource
+    );
+  }
   return selectDetradeMatchingDeductionStmt.get(String(bizId || '').trim(), deductionSource);
 }
 
@@ -13814,7 +13859,7 @@ function applyDetradeAdd(payload = {}) {
   if (!externalUserId || !bizId || !source) return { kind: 'param_invalid' };
   const existing = selectDetradeWalletTransactionStmt.get('add', source, bizId, bizSubId);
   if (existing) return { kind: 'ok', transaction: existing, idempotent: true };
-  if (DETRADE_ADD_SOURCE_TO_DEDUCTION_SOURCE[source] && !findMatchingDetradeDeduction({ bizId, source })) {
+  if (DETRADE_ADD_SOURCE_TO_DEDUCTION_SOURCE[source] && !findMatchingDetradeDeduction({ bizId, bizSubId, source })) {
     return { kind: 'missing_deduction' };
   }
   const ensured = ensureDetradeUserWallet(externalUserId);
@@ -16469,7 +16514,7 @@ app.get('/api/admin/nexa-payment-upstream-logs', requireAdmin, (req, res) => {
 app.get('/api/admin/predict-master-orders', requireAdmin, (req, res) => {
   const limitRaw = Number(req.query?.limit || 100);
   const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
-  const items = listDetradeOrderPushesStmt.all(limit).map(formatDetradeOrderPush);
+  const items = listDetradeTradingOrderTransactionsStmt.all(limit).map(formatDetradeTradingOrderTransaction);
   res.json({ ok: true, items });
 });
 

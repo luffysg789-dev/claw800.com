@@ -17,8 +17,8 @@
   const PREDICT_MASTER_PRODUCT_PATHS = {
     'up-down': 'trade-center/up-down',
     'tap-trading': 'trade-center/tap-trading',
-    'football-worldcup': 'dashboard/predict/sports',
-    predict: 'dashboard/predict/sports'
+    'football-worldcup': 'dashboard/predict/world-cup',
+    predict: 'dashboard/predict/world-cup'
   };
   const PREDICT_MASTER_ACTIVITY_NAMES = {
     'football-worldcup': '预测'
@@ -531,6 +531,71 @@
     }
   }
 
+  function applyPredictMasterDarkChartDefaults() {
+    const darkChartDefaultTypes = ['trading', 'contract', 'spread'];
+    if (!darkChartDefaultTypes.includes(getPredictMasterRenderType())) return;
+    const persistent = getPersistentStorage();
+    if (!persistent?.setItem) return;
+    const darkChartSettings = {
+      theme: 'dark',
+      chartTheme: 'dark',
+      dark: true,
+      background: '#232626',
+      paneProperties: {
+        background: '#232626',
+        backgroundType: 'solid',
+        backgroundGradientStartColor: '#232626',
+        backgroundGradientEndColor: '#232626'
+      },
+      mainSeriesProperties: {
+        candleStyle: {
+          drawBorder: true,
+          upColor: '#24ee89',
+          downColor: '#fc3c3c',
+          borderUpColor: '#24ee89',
+          borderDownColor: '#fc3c3c',
+          wickUpColor: '#24ee89',
+          wickDownColor: '#fc3c3c'
+        }
+      },
+      scalesProperties: {
+        textColor: '#8b9797'
+      }
+    };
+    [
+      ['theme', 'darken'],
+      ['detrade-theme', 'darken'],
+      ['detrade_theme', 'darken'],
+      ['detrade:theme', 'darken'],
+      ['trading-theme', 'darken'],
+      ['trading_theme', 'darken'],
+      ['tradingview.theme', 'dark'],
+      ['TradingView.Theme', 'dark'],
+      ['tradingViewTheme', 'dark'],
+      ['chartTheme', 'dark'],
+      ['chart_theme', 'dark'],
+      ['detrade:chart-theme', 'dark'],
+      ['detrade:contract:chart-theme', 'dark']
+    ].forEach(([key, value]) => {
+      try {
+        persistent.setItem(key, value);
+      } catch {}
+    });
+    [
+      'tradingview.chartproperties',
+      'TradingView.chartproperties',
+      'tradingViewChartProperties',
+      'chartProperties',
+      'chart_properties',
+      'detrade:chart-properties',
+      'detrade:contract:chart-properties'
+    ].forEach((key) => {
+      try {
+        persistent.setItem(key, JSON.stringify(darkChartSettings));
+      } catch {}
+    });
+  }
+
   function buildPredictMasterProductUrl(entry, productPath) {
     if (!entry || !productPath) return '';
     try {
@@ -619,6 +684,7 @@
       productUrl: productUrl || '',
       activity: getPredictMasterActivity() || ''
     };
+    applyPredictMasterDarkChartDefaults();
     tradingApp = new Trading({ container: sdkApp });
     tradingApp.render({
       accessCode: data.accessCode,
