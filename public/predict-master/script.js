@@ -639,8 +639,48 @@
     if (sdkApp) sdkApp.innerHTML = '';
   }
 
+  function preconnectPredictMasterUpstream(entry) {
+    const origin = normalizeSdkEntry(entry);
+    if (!origin) return;
+    let dnsHref = '';
+    try {
+      dnsHref = `//${new URL(origin).host}`;
+    } catch {
+      return;
+    }
+    [
+      ['preconnect', origin],
+      ['dns-prefetch', dnsHref]
+    ].forEach(([rel, href]) => {
+      const selector = `link[data-predict-master-preconnect="true"][rel="${rel}"][href="${href}"]`;
+      if (document.querySelector(selector)) return;
+      const link = document.createElement('link');
+      link.rel = rel;
+      link.href = href;
+      if (rel === 'preconnect') link.crossOrigin = 'anonymous';
+      link.dataset.predictMasterPreconnect = 'true';
+      document.head.appendChild(link);
+    });
+  }
+
+  function preloadTradingScript(entry) {
+    const origin = normalizeSdkEntry(entry);
+    if (!origin) return;
+    const scriptUrl = `${origin.replace(/\/+$/, '')}/trading.js`;
+    const selector = `link[data-predict-master-sdk-preload="true"][href="${scriptUrl}"]`;
+    if (document.querySelector(selector)) return;
+    const link = document.createElement('link');
+    link.rel = 'modulepreload';
+    link.href = scriptUrl;
+    link.crossOrigin = 'anonymous';
+    link.dataset.predictMasterSdkPreload = 'true';
+    document.head.appendChild(link);
+  }
+
   function loadTradingScript(entry) {
     const scriptUrl = `${entry.replace(/\/+$/, '')}/trading.js`;
+    preconnectPredictMasterUpstream(entry);
+    preloadTradingScript(entry);
     if (window.Trading && tradingScriptUrl === scriptUrl) return Promise.resolve();
     const existingScript = document.querySelector(`script[data-predict-master-sdk="true"][src="${scriptUrl}"]`);
     if (existingScript && window.Trading) return Promise.resolve();
@@ -650,6 +690,7 @@
       script.type = 'module';
       script.async = true;
       script.src = scriptUrl;
+      script.crossOrigin = 'anonymous';
       script.dataset.predictMasterSdk = 'true';
       script.onload = () => {
         tradingScriptUrl = scriptUrl;
@@ -672,7 +713,7 @@
     if (!sdkApp) throw new Error('预测大师容器不存在');
 
     setLoading('正在加载预测市场 SDK...');
-    await loadTradingScript(entry);
+    const sdkScriptReady = loadTradingScript(entry);
     unloadTradingApp();
     const productPath = getPredictMasterProductPath();
     const productUrl = buildPredictMasterProductUrl(entry, productPath);
@@ -685,6 +726,7 @@
       activity: getPredictMasterActivity() || ''
     };
     applyPredictMasterDarkChartDefaults();
+    await sdkScriptReady;
     tradingApp = new Trading({ container: sdkApp });
     tradingApp.render({
       accessCode: data.accessCode,

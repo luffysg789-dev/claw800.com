@@ -45,6 +45,10 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(html, /\/predict-master\/script\.js/);
   assert.match(html, /\/predict-master\/style\.css\?v=20260617-02/);
   assert.match(html, /\/predict-master\/script\.js\?v=20260627-01/);
+  assert.match(html, /rel="preconnect"\s+href="https:\/\/detrade\.com"/);
+  assert.match(html, /rel="dns-prefetch"\s+href="\/\/detrade\.com"/);
+  assert.match(html, /rel="preconnect"\s+href="https:\/\/testwww\.exchange2currency\.com"/);
+  assert.match(html, /rel="dns-prefetch"\s+href="\/\/testwww\.exchange2currency\.com"/);
   assert.doesNotMatch(html, /class="back-link"/);
   assert.doesNotMatch(html, /id="predictMasterTitle"/);
   assert.doesNotMatch(html, /id="predictMasterStatus"/);
@@ -190,6 +194,12 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.doesNotMatch(script, /storage\(\)\?\.setItem/);
   assert.match(script, /reloadBtn\.addEventListener\('click', \(\) => \{\s*requestLoginUrl\(\);\s*\}\);/);
   assert.match(script, /\/trading\.js/);
+  assert.match(script, /function preconnectPredictMasterUpstream\(entry\)/);
+  assert.match(script, /function preloadTradingScript\(entry\)/);
+  assert.match(script, /link\.rel = 'modulepreload'/);
+  assert.match(script, /link\.crossOrigin = 'anonymous'/);
+  assert.match(script, /script\.crossOrigin = 'anonymous'/);
+  assert.match(script, /const sdkScriptReady = loadTradingScript\(entry\);[\s\S]*await sdkScriptReady/);
   assert.match(script, /new Trading/);
   assert.match(script, /accessCode:\s*data\.accessCode/);
   assert.match(script, /const PREDICT_MASTER_ALLOWED_TYPES = /);
