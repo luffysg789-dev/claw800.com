@@ -791,7 +791,7 @@
     if (!entry) throw new Error('预测大师登录接口未返回有效 SDK 地址');
     if (!sdkApp) throw new Error('预测大师容器不存在');
 
-    setLoading('正在加载预测市场 SDK...');
+    setLoading('正在加载预测市场...');
     const sdkScriptReady = loadTradingScript(entry);
     unloadTradingApp();
     const productPath = getPredictMasterProductPath();
