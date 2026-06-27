@@ -3759,10 +3759,21 @@ function renderPredictMasterOrders(items = []) {
         <article class="review-card">
           <h3>${escapeHtml(item.orderId || item.bizId || '预测交易订单')}</h3>
           <p class="small">用户 ID: ${escapeHtml(item.externalUserId || '-')}</p>
-          <p class="small">币种: ${escapeHtml(item.currency || '-')} · 金额: ${escapeHtml(String(item.amount ?? '-'))} · 盈亏: ${escapeHtml(String(item.profit ?? '-'))}</p>
+          <p class="small">币种: ${escapeHtml(item.currency || '-')} · 下单: ${escapeHtml(String(item.amount ?? '-'))} · 结算: ${escapeHtml(String(item.settlementAmount ?? '-'))} · 净额: ${escapeHtml(String(item.netAmount ?? item.profit ?? '-'))}</p>
           <p class="small">状态: ${escapeHtml(item.status || item.direction || '-')} · 标的: ${escapeHtml(item.symbol || '-')} · 类型: ${escapeHtml(item.bizType || '-')}</p>
-          <p class="small">来源: ${escapeHtml(item.source || '-')} · 子订单: ${escapeHtml(item.bizSubId || '-')} · 余额: ${escapeHtml(String(item.balanceAfter ?? '-'))}</p>
+          <p class="small">下单来源: ${escapeHtml(item.source || '-')} · 下单子订单: ${escapeHtml(item.bizSubId || '-')} · 余额: ${escapeHtml(String(item.balanceAfter ?? '-'))}</p>
+          <p class="small">结算来源: ${escapeHtml(item.settlementSource || '-')} · 结算子订单: ${escapeHtml(item.settlementBizSubId || '-')}</p>
           <p class="small">创建: ${escapeHtml(formatAdminLocalDateTime(item.createdAt))} · 更新: ${escapeHtml(formatAdminLocalDateTime(item.updatedAt))}</p>
+          ${
+            Array.isArray(item.transactions) && item.transactions.length
+              ? `<details class="small"><summary>流水明细 ${escapeHtml(String(item.transactions.length))} 条</summary>${item.transactions
+                  .map(
+                    (tx) =>
+                      `<p>${escapeHtml(tx.direction || '-')} · ${escapeHtml(tx.source || '-')} · ${escapeHtml(String(tx.amount ?? '-'))} ${escapeHtml(tx.currency || '')} · ${escapeHtml(tx.bizSubId || '-')}</p>`
+                  )
+                  .join('')}</details>`
+              : ''
+          }
           ${renderPredictMasterRawDetails(item.raw)}
         </article>
       `

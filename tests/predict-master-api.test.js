@@ -583,7 +583,7 @@ test('admin can view recent predict-master operational records', async () => {
     assert.equal(orders.body.items[0].orderId, 'biz-1');
     assert.equal(orders.body.items[0].source, 'PLACE_PREDICT_ORDER');
     assert.equal(orders.body.items[0].bizSubId, 'sub-1');
-    assert.equal(orders.body.items[0].status, 'deduction');
+    assert.equal(orders.body.items[0].status, '未结算');
     assert.deepEqual(orders.body.items[0].raw, { amount: '10' });
 
     assert.equal(walletTransactions.statusCode, 200);
@@ -707,7 +707,65 @@ test('admin predict trading orders include Detrade user-page order transactions'
     assert.equal(orders.body.items[0].bizType, 'predict');
     assert.equal(orders.body.items[0].bizSubId, 'football-sub');
     assert.equal(orders.body.items[0].amount, 13);
-    assert.equal(orders.body.items[0].status, 'deduction');
+    assert.equal(orders.body.items[0].status, '未结算');
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('admin predict trading orders group historical predict settlements with purchases', async () => {
+  const harness = createHarness();
+
+  try {
+    const cookies = await harness.adminCookies();
+    await harness.request('POST', '/api/predict-master/wallet', {
+      openId: 'nexa-football-winner',
+      sessionKey: 'session-football-winner'
+    });
+    const userId = harness.db.prepare('SELECT id FROM game_users WHERE openid = ?').get('nexa-football-winner').id;
+    harness.db.prepare("UPDATE detrade_wallets SET available_balance = '100.00' WHERE user_id = ?").run(userId);
+
+    const purchase = await harness.request('POST', '/wallet/amount/deduction', {
+      userId: 'nexa-football-winner',
+      amount: '50.00',
+      currency: 'USDT',
+      bizId: 'worldcup-market-11',
+      bizType: 'PREDICT_ORDER',
+      source: 'PLACE_PREDICT_ORDER',
+      bizSubId: 'buy-order-201'
+    });
+    assert.equal(purchase.statusCode, 200);
+    assert.equal(purchase.body.code, 200);
+
+    const settlement = await harness.request('POST', '/wallet/amount/add', {
+      userId: 'nexa-football-winner',
+      amount: '120.00',
+      currency: 'USDT',
+      bizId: 'worldcup-market-11',
+      bizType: 'PREDICT_ORDER',
+      source: 'PREDICT_ORDER_SETTLE',
+      bizSubId: 'settle-order-205'
+    });
+    assert.equal(settlement.statusCode, 200);
+    assert.equal(settlement.body.code, 200);
+
+    const orders = await harness.request('GET', '/api/admin/predict-master-orders', null, { cookies });
+
+    assert.equal(orders.statusCode, 200);
+    assert.equal(orders.body.ok, true);
+    assert.equal(orders.body.items[0].orderId, 'worldcup-market-11');
+    assert.equal(orders.body.items[0].bizType, 'PREDICT_ORDER');
+    assert.equal(orders.body.items[0].status, '已结算');
+    assert.equal(orders.body.items[0].amount, 50);
+    assert.equal(orders.body.items[0].settlementAmount, 120);
+    assert.equal(orders.body.items[0].netAmount, 70);
+    assert.deepEqual(
+      orders.body.items[0].transactions.map((item) => item.source),
+      ['PREDICT_ORDER_SETTLE', 'PLACE_PREDICT_ORDER']
+    );
+
+    const walletAfter = harness.db.prepare('SELECT available_balance FROM detrade_wallets WHERE user_id = ?').get(userId);
+    assert.equal(walletAfter.available_balance, '170.00');
   } finally {
     harness.cleanup();
   }

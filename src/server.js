@@ -12819,7 +12819,17 @@ const listDetradeTradingOrderTransactionsStmt = db.prepare(`
     'PLACE_CONTRACT_ENTRUST_ORDER',
     'PLACE_CONTEST_ORDER',
     'PLACE_TAP_ORDER',
-    'PLACE_PREDICT_ORDER'
+    'PLACE_PREDICT_ORDER',
+    'BINARY_ORDER_SETTLE',
+    'BINARY_SPREAD_ORDER_SETTLE',
+    'CONTRACT_ORDER_SETTLE',
+    'CONTRACT_ENTRUST_ORDER_SETTLE',
+    'CONTEST_ORDER_SETTLE',
+    'UPDOWN_ORDER_REFUND',
+    'TAP_ORDER_SETTLE',
+    'PREDICT_ORDER_SETTLE',
+    'PREDICT_ORDER_SELL',
+    'PREDICT_ORDER_REFUND'
   )
   ORDER BY id DESC
   LIMIT ?
@@ -13488,6 +13498,74 @@ function formatDetradeTradingOrderTransaction(row = {}) {
   };
 }
 
+function roundDetradeDisplayAmount(value) {
+  const numeric = Number(value || 0);
+  if (!Number.isFinite(numeric)) return 0;
+  return Number(numeric.toFixed(10));
+}
+
+function getDetradeTradingOrderGroupStatus(transactions = []) {
+  const sources = new Set(transactions.map((item) => String(item.source || '').trim()));
+  if ([...sources].some((source) => DETRADE_TRADING_SETTLEMENT_SOURCES.has(source))) return '已结算';
+  if (sources.has('PREDICT_ORDER_REFUND') || sources.has('UPDOWN_ORDER_REFUND')) return '已退款';
+  if (sources.has('PREDICT_ORDER_SELL')) return '已卖出';
+  if (transactions.some((item) => String(item.direction || '').trim() === 'add')) return '已入账';
+  return '未结算';
+}
+
+function formatDetradeTradingOrderGroups(rows = []) {
+  const groups = new Map();
+  rows.map(formatDetradeWalletTransaction).forEach((item) => {
+    const key = `${item.externalUserId}::${item.bizId}::${item.bizType || ''}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        externalUserId: item.externalUserId,
+        currency: item.currency,
+        bizId: item.bizId,
+        bizType: item.bizType,
+        transactions: []
+      });
+    }
+    groups.get(key).transactions.push(item);
+  });
+
+  return [...groups.values()]
+    .map((group) => {
+      const transactions = group.transactions.sort((left, right) => Number(right.id || 0) - Number(left.id || 0));
+      const deductions = transactions.filter((item) => String(item.direction || '') === 'deduction');
+      const additions = transactions.filter((item) => String(item.direction || '') === 'add');
+      const amount = roundDetradeDisplayAmount(deductions.reduce((sum, item) => sum + Number(item.amount || 0), 0));
+      const settlementAmount = roundDetradeDisplayAmount(additions.reduce((sum, item) => sum + Number(item.amount || 0), 0));
+      const latest = transactions[0] || {};
+      const primaryDeduction = deductions[0] || latest;
+      return {
+        id: Number(latest.id || 0) || 0,
+        externalUserId: group.externalUserId,
+        currency: group.currency || latest.currency || 'USDT',
+        orderId: group.bizId,
+        bizId: group.bizId,
+        bizType: group.bizType || primaryDeduction.bizType || '',
+        source: primaryDeduction.source || latest.source || '',
+        settlementSource: additions.map((item) => item.source).filter(Boolean).join(', '),
+        bizSubId: deductions.map((item) => item.bizSubId).filter(Boolean).join(', '),
+        settlementBizSubId: additions.map((item) => item.bizSubId).filter(Boolean).join(', '),
+        status: getDetradeTradingOrderGroupStatus(transactions),
+        direction: latest.direction || '',
+        amount,
+        settlementAmount,
+        netAmount: roundDetradeDisplayAmount(settlementAmount - amount),
+        profit: settlementAmount ? roundDetradeDisplayAmount(settlementAmount - amount) : '',
+        symbol: '',
+        balanceAfter: latest.balanceAfter,
+        raw: latest.raw || {},
+        createdAt: deductions[deductions.length - 1]?.createdAt || latest.createdAt || '',
+        updatedAt: latest.createdAt || '',
+        transactions
+      };
+    })
+    .sort((left, right) => Number(right.id || 0) - Number(left.id || 0));
+}
+
 function formatDetradePredictShare(row = {}) {
   return {
     id: Number(row.id || 0) || 0,
@@ -13786,6 +13864,16 @@ const DETRADE_ADD_SOURCE_TO_DEDUCTION_SOURCE = {
   PREDICT_ORDER_SELL: 'PLACE_PREDICT_ORDER',
   PREDICT_ORDER_REFUND: 'PLACE_PREDICT_ORDER'
 };
+
+const DETRADE_TRADING_SETTLEMENT_SOURCES = new Set([
+  'BINARY_ORDER_SETTLE',
+  'BINARY_SPREAD_ORDER_SETTLE',
+  'CONTRACT_ORDER_SETTLE',
+  'CONTRACT_ENTRUST_ORDER_SETTLE',
+  'CONTEST_ORDER_SETTLE',
+  'TAP_ORDER_SETTLE',
+  'PREDICT_ORDER_SETTLE'
+]);
 
 function findMatchingDetradeDeduction({ bizId, bizSubId, source }) {
   const deductionSource = DETRADE_ADD_SOURCE_TO_DEDUCTION_SOURCE[String(source || '').trim()];
@@ -16514,7 +16602,7 @@ app.get('/api/admin/nexa-payment-upstream-logs', requireAdmin, (req, res) => {
 app.get('/api/admin/predict-master-orders', requireAdmin, (req, res) => {
   const limitRaw = Number(req.query?.limit || 100);
   const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
-  const items = listDetradeTradingOrderTransactionsStmt.all(limit).map(formatDetradeTradingOrderTransaction);
+  const items = formatDetradeTradingOrderGroups(listDetradeTradingOrderTransactionsStmt.all(limit * 4)).slice(0, limit);
   res.json({ ok: true, items });
 });
 
