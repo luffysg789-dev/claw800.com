@@ -43,9 +43,10 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(html, /<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" \/>/);
   assert.match(html, /\/predict-master\/style\.css/);
   assert.match(html, /\/predict-master\/script\.js/);
-  assert.match(html, /\/predict-master\/style\.css\?v=20260627-01/);
+  assert.match(html, /\/predict-master\/style\.css\?v=20260627-02/);
   assert.match(html, /\/predict-master\/script\.js\?v=20260627-02/);
   assert.doesNotMatch(html, /\/predict-master\/style\.css\?v=20260617-02/);
+  assert.doesNotMatch(html, /\/predict-master\/style\.css\?v=20260627-01/);
   assert.match(html, /rel="preconnect"\s+href="https:\/\/detrade\.com"/);
   assert.match(html, /rel="dns-prefetch"\s+href="\/\/detrade\.com"/);
   assert.match(html, /rel="preconnect"\s+href="https:\/\/testwww\.exchange2currency\.com"/);
@@ -102,6 +103,7 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.doesNotMatch(css, /height:\s*calc\(100vh - 70px\);/);
   assert.match(css, /\.predict-master-wallet/);
   assert.match(css, /#predictMasterTradingOrdersBtn\s*\{[\s\S]*font-size:\s*14px;/);
+  assert.match(css, /#predictMasterTradingOrdersBtn\[hidden\]\s*\{[\s\S]*display:\s*none\s*!important;/);
   assert.match(css, /\.predict-master-modal/);
   assert.match(css, /\.predict-master-modal__error/);
   assert.match(css, /\.predict-master-records-list/);

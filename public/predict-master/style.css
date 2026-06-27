@@ -136,6 +136,10 @@ select {
   border-color: var(--line);
 }
 
+#predictMasterTradingOrdersBtn[hidden] {
+  display: none !important;
+}
+
 #predictMasterReloadBtn {
   background: var(--panel-strong);
   color: var(--text);
