@@ -118,7 +118,8 @@ select {
 #predictMasterReloadBtn,
 #predictMasterRechargeBtn,
 #predictMasterWithdrawBtn,
-#predictMasterRecordsBtn {
+#predictMasterRecordsBtn,
+#predictMasterTradingOrdersBtn {
   padding: 0 16px;
   color: #05120d;
   background: var(--accent);
@@ -128,7 +129,8 @@ select {
 }
 
 #predictMasterWithdrawBtn,
-#predictMasterRecordsBtn {
+#predictMasterRecordsBtn,
+#predictMasterTradingOrdersBtn {
   background: #2f453d;
   color: var(--text);
   border-color: var(--line);
@@ -396,7 +398,8 @@ select {
   #predictMasterReloadBtn,
   #predictMasterRechargeBtn,
   #predictMasterWithdrawBtn,
-  #predictMasterRecordsBtn {
+  #predictMasterRecordsBtn,
+  #predictMasterTradingOrdersBtn {
     padding: 0 10px;
   }
 }

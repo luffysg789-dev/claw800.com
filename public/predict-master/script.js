@@ -39,6 +39,7 @@
   const rechargeBtn = document.getElementById('predictMasterRechargeBtn');
   const withdrawBtn = document.getElementById('predictMasterWithdrawBtn');
   const recordsBtn = document.getElementById('predictMasterRecordsBtn');
+  const tradingOrdersBtn = document.getElementById('predictMasterTradingOrdersBtn');
   const rechargeModal = document.getElementById('predictMasterRechargeModal');
   const rechargeCancelBtn = document.getElementById('predictMasterRechargeCancelBtn');
   const rechargeConfirmBtn = document.getElementById('predictMasterRechargeConfirmBtn');
@@ -54,6 +55,10 @@
   const recordsCancelBtn = document.getElementById('predictMasterRecordsCancelBtn');
   const recordsList = document.getElementById('predictMasterRecordsList');
   const recordsLoading = document.getElementById('predictMasterRecordsLoading');
+  const tradingOrdersModal = document.getElementById('predictMasterTradingOrdersModal');
+  const tradingOrdersCancelBtn = document.getElementById('predictMasterTradingOrdersCancelBtn');
+  const tradingOrdersList = document.getElementById('predictMasterTradingOrdersList');
+  const tradingOrdersLoading = document.getElementById('predictMasterTradingOrdersLoading');
   const walletBalance = document.getElementById('predictMasterWalletBalance');
   let tradingApp = null;
   let tradingScriptUrl = '';
@@ -432,6 +437,80 @@
     }
     recordsModal.hidden = false;
     loadPredictMasterRecords();
+  }
+
+  function closeTradingOrdersModal() {
+    if (tradingOrdersModal) tradingOrdersModal.hidden = true;
+  }
+
+  function setTradingOrdersLoading(isLoading, message = '正在加载历史订单...') {
+    if (!tradingOrdersLoading) return;
+    tradingOrdersLoading.textContent = message;
+    tradingOrdersLoading.hidden = !isLoading;
+  }
+
+  function getTradingOrderStatusClass(item) {
+    const status = String(item?.status || '').trim();
+    if (status === '未结算') return 'predict-master-record-item__status--pending';
+    if (status === '已退款') return 'predict-master-record-item__status--rejected';
+    return '';
+  }
+
+  function renderPredictMasterTradingOrders(items = []) {
+    if (!tradingOrdersList) return;
+    if (!items.length) {
+      tradingOrdersList.innerHTML = '<div class="predict-master-record-item"><p class="predict-master-record-item__meta">暂无历史订单</p></div>';
+      return;
+    }
+    tradingOrdersList.innerHTML = items
+      .map((item) => {
+        const time = formatPredictMasterRecordTime(item.updatedAt || item.createdAt);
+        const statusClass = getTradingOrderStatusClass(item);
+        return `
+          <article class="predict-master-record-item">
+            <div class="predict-master-record-item__top">
+              <span>${escapeHtml(item.orderId || item.bizId || '预测订单')}</span>
+              <span class="predict-master-record-item__status ${escapeHtml(statusClass)}">${escapeHtml(item.status || '-')}</span>
+            </div>
+            <p class="predict-master-record-item__meta">下单 ${escapeHtml(String(item.amount ?? '0'))} ${escapeHtml(item.currency || 'USDT')} · 结算 ${escapeHtml(String(item.settlementAmount ?? '0'))} · 净额 ${escapeHtml(String(item.netAmount ?? '0'))}</p>
+            <p class="predict-master-record-item__meta">${escapeHtml(time)} · ${escapeHtml(item.bizType || '-')}</p>
+          </article>
+        `;
+      })
+      .join('');
+  }
+
+  async function loadPredictMasterTradingOrders() {
+    if (!tradingOrdersList) return;
+    tradingOrdersList.innerHTML = '';
+    setTradingOrdersLoading(true);
+    try {
+      const session = normalizeSession(currentSession) || (await getNexaSession());
+      if (!session) return;
+      currentSession = session;
+      const response = await requestJson('/api/predict-master/trading-orders', {
+        method: 'POST',
+        body: JSON.stringify({
+          openId: session.openId,
+          sessionKey: session.sessionKey,
+          limit: 50
+        })
+      });
+      renderPredictMasterTradingOrders(response.items || []);
+    } catch (error) {
+      tradingOrdersList.innerHTML = `<div class="predict-master-record-item"><p class="predict-master-record-item__meta">${escapeHtml(error?.message || '历史订单加载失败')}</p></div>`;
+    } finally {
+      setTradingOrdersLoading(false);
+    }
+  }
+
+  function openTradingOrdersModal() {
+    if (!tradingOrdersModal) {
+      loadPredictMasterTradingOrders();
+      return;
+    }
+    tradingOrdersModal.hidden = false;
+    loadPredictMasterTradingOrders();
   }
 
   function savePendingRechargePayment(payment) {
@@ -1150,6 +1229,9 @@
   if (recordsBtn) {
     recordsBtn.addEventListener('click', openRecordsModal);
   }
+  if (tradingOrdersBtn) {
+    tradingOrdersBtn.addEventListener('click', openTradingOrdersModal);
+  }
   if (rechargeCancelBtn) {
     rechargeCancelBtn.addEventListener('click', closeRechargeModal);
   }
@@ -1158,6 +1240,9 @@
   }
   if (recordsCancelBtn) {
     recordsCancelBtn.addEventListener('click', closeRecordsModal);
+  }
+  if (tradingOrdersCancelBtn) {
+    tradingOrdersCancelBtn.addEventListener('click', closeTradingOrdersModal);
   }
   if (rechargeConfirmBtn) {
     rechargeConfirmBtn.addEventListener('click', beginRechargePayment);
@@ -1178,6 +1263,11 @@
   if (recordsModal) {
     recordsModal.addEventListener('click', (event) => {
       if (event.target?.dataset?.recordsClose === 'true') closeRecordsModal();
+    });
+  }
+  if (tradingOrdersModal) {
+    tradingOrdersModal.addEventListener('click', (event) => {
+      if (event.target?.dataset?.tradingOrdersClose === 'true') closeTradingOrdersModal();
     });
   }
   if (rechargeAmount) {

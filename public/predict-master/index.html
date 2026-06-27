@@ -23,6 +23,7 @@
           <button id="predictMasterRechargeBtn" type="button">充值</button>
           <button id="predictMasterWithdrawBtn" type="button">提现</button>
           <button id="predictMasterRecordsBtn" type="button">记录</button>
+          <button id="predictMasterTradingOrdersBtn" type="button">历史订单</button>
           <button id="predictMasterReloadBtn" type="button">刷新</button>
         </div>
       </header>
@@ -100,6 +101,18 @@
           </div>
           <p id="predictMasterRecordsLoading" class="predict-master-records-loading" hidden>正在加载记录...</p>
           <div id="predictMasterRecordsList" class="predict-master-records-list"></div>
+        </section>
+      </div>
+
+      <div id="predictMasterTradingOrdersModal" class="predict-master-modal" hidden>
+        <div class="predict-master-modal__backdrop" data-trading-orders-close="true"></div>
+        <section class="predict-master-modal__sheet predict-master-records-sheet" role="dialog" aria-modal="true" aria-labelledby="predictMasterTradingOrdersTitle">
+          <div class="predict-master-modal__head">
+            <strong id="predictMasterTradingOrdersTitle">历史订单</strong>
+            <button id="predictMasterTradingOrdersCancelBtn" type="button" aria-label="关闭">关闭</button>
+          </div>
+          <p id="predictMasterTradingOrdersLoading" class="predict-master-records-loading" hidden>正在加载历史订单...</p>
+          <div id="predictMasterTradingOrdersList" class="predict-master-records-list"></div>
         </section>
       </div>
     </main>

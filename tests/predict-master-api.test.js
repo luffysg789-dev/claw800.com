@@ -771,6 +771,69 @@ test('admin predict trading orders group historical predict settlements with pur
   }
 });
 
+test('predict-master trading orders endpoint returns only the current user history', async () => {
+  const harness = createHarness();
+
+  try {
+    await harness.request('POST', '/api/predict-master/wallet', {
+      openId: 'nexa-football-user-own',
+      sessionKey: 'session-football-user-own'
+    });
+    await harness.request('POST', '/api/predict-master/wallet', {
+      openId: 'nexa-football-user-other',
+      sessionKey: 'session-football-user-other'
+    });
+    const ownUserId = harness.db.prepare('SELECT id FROM game_users WHERE openid = ?').get('nexa-football-user-own').id;
+    const otherUserId = harness.db.prepare('SELECT id FROM game_users WHERE openid = ?').get('nexa-football-user-other').id;
+    harness.db.prepare("UPDATE detrade_wallets SET available_balance = '100.00' WHERE user_id IN (?, ?)").run(ownUserId, otherUserId);
+
+    await harness.request('POST', '/wallet/amount/deduction', {
+      userId: 'nexa-football-user-own',
+      amount: '20.00',
+      currency: 'USDT',
+      bizId: 'own-worldcup-market',
+      bizType: 'PREDICT_ORDER',
+      source: 'PLACE_PREDICT_ORDER',
+      bizSubId: 'own-buy-1'
+    });
+    await harness.request('POST', '/wallet/amount/add', {
+      userId: 'nexa-football-user-own',
+      amount: '45.00',
+      currency: 'USDT',
+      bizId: 'own-worldcup-market',
+      bizType: 'PREDICT_ORDER',
+      source: 'PREDICT_ORDER_SETTLE',
+      bizSubId: 'own-settle-1'
+    });
+    await harness.request('POST', '/wallet/amount/deduction', {
+      userId: 'nexa-football-user-other',
+      amount: '30.00',
+      currency: 'USDT',
+      bizId: 'other-worldcup-market',
+      bizType: 'PREDICT_ORDER',
+      source: 'PLACE_PREDICT_ORDER',
+      bizSubId: 'other-buy-1'
+    });
+
+    const response = await harness.request('POST', '/api/predict-master/trading-orders', {
+      openId: 'nexa-football-user-own',
+      sessionKey: 'session-football-user-own',
+      limit: 20
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.ok, true);
+    assert.equal(response.body.items.length, 1);
+    assert.equal(response.body.items[0].orderId, 'own-worldcup-market');
+    assert.equal(response.body.items[0].status, '已结算');
+    assert.equal(response.body.items[0].amount, 20);
+    assert.equal(response.body.items[0].settlementAmount, 45);
+    assert.equal(response.body.items[0].netAmount, 25);
+  } finally {
+    harness.cleanup();
+  }
+});
+
 test('predict-master login url requires Nexa session identity', async () => {
   const harness = createHarness();
 

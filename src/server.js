@@ -8860,6 +8860,25 @@ app.post('/api/predict-master/records', (req, res) => {
   }
 });
 
+app.post('/api/predict-master/trading-orders', (req, res) => {
+  try {
+    const openId = String(req.body?.openId || req.body?.openid || req.body?.open_id || '').trim();
+    const sessionKey = String(req.body?.sessionKey || req.body?.session_key || '').trim();
+    if (!openId || !sessionKey) return res.status(400).json({ error: 'openId 和 sessionKey 必填' });
+    const ensured = ensureDetradeUserWallet(openId);
+    if (!ensured?.user) return res.status(500).json({ error: '预测钱包读取失败' });
+    const limitRaw = Number(req.body?.limit || 50);
+    const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(100, Math.floor(limitRaw))) : 50;
+    const items = formatDetradeTradingOrderGroups(
+      listDetradeTradingOrderTransactionsByUserStmt.all(Number(ensured.user.id), limit * 4)
+    ).slice(0, limit);
+    return res.json({ ok: true, items });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode || 500) || 500;
+    return res.status(statusCode).json({ ok: false, error: String(error?.message || '读取预测历史订单失败') });
+  }
+});
+
 app.post('/api/predict-master/payment/query', async (req, res) => {
   try {
     const orderNo = String(req.body?.orderNo || '').trim();
@@ -12831,6 +12850,33 @@ const listDetradeTradingOrderTransactionsStmt = db.prepare(`
     'PREDICT_ORDER_SELL',
     'PREDICT_ORDER_REFUND'
   )
+  ORDER BY id DESC
+  LIMIT ?
+`);
+const listDetradeTradingOrderTransactionsByUserStmt = db.prepare(`
+  SELECT id, external_user_id, currency, direction, amount, usd_amount, biz_id, biz_type,
+         source, biz_sub_id, balance_type, balance_after, raw_json, created_at
+  FROM detrade_wallet_transactions
+  WHERE user_id = ?
+    AND source IN (
+      'PLACE_BINARY_ORDER',
+      'PLACE_BINARY_SPREAD_ORDER',
+      'PLACE_CONTRACT_ORDER',
+      'PLACE_CONTRACT_ENTRUST_ORDER',
+      'PLACE_CONTEST_ORDER',
+      'PLACE_TAP_ORDER',
+      'PLACE_PREDICT_ORDER',
+      'BINARY_ORDER_SETTLE',
+      'BINARY_SPREAD_ORDER_SETTLE',
+      'CONTRACT_ORDER_SETTLE',
+      'CONTRACT_ENTRUST_ORDER_SETTLE',
+      'CONTEST_ORDER_SETTLE',
+      'UPDOWN_ORDER_REFUND',
+      'TAP_ORDER_SETTLE',
+      'PREDICT_ORDER_SETTLE',
+      'PREDICT_ORDER_SELL',
+      'PREDICT_ORDER_REFUND'
+    )
   ORDER BY id DESC
   LIMIT ?
 `);

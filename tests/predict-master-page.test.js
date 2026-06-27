@@ -60,6 +60,7 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(html, /id="predictMasterRechargeBtn"/);
   assert.match(html, /id="predictMasterWithdrawBtn"/);
   assert.match(html, /id="predictMasterRecordsBtn"/);
+  assert.match(html, /id="predictMasterTradingOrdersBtn"/);
   assert.match(html, /id="predictMasterRechargeModal"/);
   assert.match(html, /id="predictMasterRechargeConfirmBtn"/);
   assert.match(html, /id="predictMasterRechargeCancelBtn"/);
@@ -74,6 +75,10 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(html, /id="predictMasterRecordsCancelBtn"/);
   assert.match(html, /id="predictMasterRecordsList"/);
   assert.match(html, /id="predictMasterRecordsLoading"/);
+  assert.match(html, /id="predictMasterTradingOrdersModal"/);
+  assert.match(html, /id="predictMasterTradingOrdersCancelBtn"/);
+  assert.match(html, /id="predictMasterTradingOrdersList"/);
+  assert.match(html, /id="predictMasterTradingOrdersLoading"/);
   assert.doesNotMatch(html, /<iframe/);
   assert.match(css, /\.predict-master-sdk-shell/);
   assert.match(css, /\.predict-master-sdk-app/);
@@ -159,6 +164,12 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(script, /function getPredictMasterRecordDisplayStatus/);
   assert.match(script, /PREDICT_MASTER_RECHARGE_PENDING_DISPLAY_TIMEOUT_MS = 5 \* 60 \* 1000/);
   assert.match(script, /\/api\/predict-master\/records/);
+  assert.match(script, /\/api\/predict-master\/trading-orders/);
+  assert.match(script, /function openTradingOrdersModal/);
+  assert.match(script, /function loadPredictMasterTradingOrders/);
+  assert.match(script, /function renderPredictMasterTradingOrders/);
+  assert.match(script, /tradingOrdersBtn\.addEventListener\('click', openTradingOrdersModal\)/);
+  assert.match(script, /tradingOrdersCancelBtn\.addEventListener\('click', closeTradingOrdersModal\)/);
   assert.match(script, /function parsePredictMasterServerTime\(/);
   assert.match(script, /return new Date\(`\$\{normalized\}Z`\)/);
   assert.match(script, /提现中/);
