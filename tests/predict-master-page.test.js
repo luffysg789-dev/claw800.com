@@ -44,7 +44,7 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(html, /\/predict-master\/style\.css/);
   assert.match(html, /\/predict-master\/script\.js/);
   assert.match(html, /\/predict-master\/style\.css\?v=20260617-02/);
-  assert.match(html, /\/predict-master\/script\.js\?v=20260627-01/);
+  assert.match(html, /\/predict-master\/script\.js\?v=20260627-02/);
   assert.match(html, /rel="preconnect"\s+href="https:\/\/detrade\.com"/);
   assert.match(html, /rel="dns-prefetch"\s+href="\/\/detrade\.com"/);
   assert.match(html, /rel="preconnect"\s+href="https:\/\/testwww\.exchange2currency\.com"/);
@@ -58,9 +58,15 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(html, /id="predictMasterWalletBalance"/);
   assert.match(html, /id="predictMasterSdkApp"/);
   assert.match(html, /id="predictMasterRechargeBtn"/);
+  assert.match(html, /<button id="predictMasterRechargeBtn" type="button">充<\/button>/);
   assert.match(html, /id="predictMasterWithdrawBtn"/);
+  assert.match(html, /<button id="predictMasterWithdrawBtn" type="button">提<\/button>/);
   assert.match(html, /id="predictMasterRecordsBtn"/);
   assert.match(html, /id="predictMasterTradingOrdersBtn"/);
+  assert.match(html, /<button id="predictMasterTradingOrdersBtn" type="button">订单<\/button>/);
+  assert.doesNotMatch(html, /<button id="predictMasterRechargeBtn" type="button">充值<\/button>/);
+  assert.doesNotMatch(html, /<button id="predictMasterWithdrawBtn" type="button">提现<\/button>/);
+  assert.doesNotMatch(html, /<button id="predictMasterTradingOrdersBtn" type="button">历史订单<\/button>/);
   assert.match(html, /id="predictMasterRechargeModal"/);
   assert.match(html, /id="predictMasterRechargeConfirmBtn"/);
   assert.match(html, /id="predictMasterRechargeCancelBtn"/);
@@ -170,6 +176,7 @@ test('predict-master page shell loads its assets and calls backend login url API
   assert.match(script, /function renderPredictMasterTradingOrders/);
   assert.match(script, /tradingOrdersBtn\.addEventListener\('click', openTradingOrdersModal\)/);
   assert.match(script, /tradingOrdersCancelBtn\.addEventListener\('click', closeTradingOrdersModal\)/);
+  assert.doesNotMatch(html, /\/predict-master\/script\.js\?v=20260627-01/);
   assert.match(script, /function parsePredictMasterServerTime\(/);
   assert.match(script, /return new Date\(`\$\{normalized\}Z`\)/);
   assert.match(script, /提现中/);
