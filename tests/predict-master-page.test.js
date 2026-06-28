@@ -262,6 +262,8 @@ test('admin exposes Predict Master settings without echoing the private key', ()
   assert.match(adminHtml, /id="navPredictMasterRechargeOrders"/);
   assert.match(adminHtml, />预测充值订单<\/button>/);
   assert.match(adminHtml, /id="navPredictMasterWalletTransactions"/);
+  assert.match(adminHtml, /id="navPredictMasterUsers"/);
+  assert.match(adminHtml, />预测用户列表<\/button>/);
   assert.match(adminHtml, /id="navPredictMasterWithdrawals"/);
   assert.match(adminHtml, /id="navPredictMasterShares"/);
   assert.match(adminHtml, /id="navPredictMasterRiskReports"/);
@@ -276,6 +278,10 @@ test('admin exposes Predict Master settings without echoing the private key', ()
   assert.match(adminHtml, /id="predictMasterRechargeOrdersTitle">预测充值订单<\/h2>/);
   assert.match(adminHtml, /id="predictMasterRechargeOrdersList"/);
   assert.match(adminHtml, /id="predictMasterWalletTransactionsSection"/);
+  assert.match(adminHtml, /id="predictMasterUsersSection"/);
+  assert.match(adminHtml, /id="predictMasterUsersSearchInput"/);
+  assert.match(adminHtml, /id="predictMasterUsersPrevBtn"/);
+  assert.match(adminHtml, /id="predictMasterUsersNextBtn"/);
   assert.match(adminHtml, /id="predictMasterWithdrawalsSection"/);
   assert.match(adminHtml, /id="predictMasterWithdrawalsList"/);
   assert.match(adminHtml, /id="predictMasterSharesSection"/);
@@ -296,12 +302,18 @@ test('admin exposes Predict Master settings without echoing the private key', ()
   assert.match(adminJs, /\/api\/admin\/nexa-payment-upstream-logs/);
   assert.match(adminJs, /renderNexaPaymentUpstreamLogs/);
   assert.match(adminJs, /\/api\/admin\/predict-master-orders/);
+  assert.match(adminJs, /manualSettlePredictMasterOrder/);
+  assert.match(adminJs, /\/api\/admin\/predict-master-orders\/\$\{encodeURIComponent\(normalizedBizId\)\}\/settle/);
+  assert.match(adminJs, /predictMasterOrdersManualSettle:\s*'补结算'/);
   assert.match(adminJs, /navPredictMasterOrders:\s*'预测交易订单'/);
   assert.match(adminJs, /predictMasterOrdersTitle:\s*'预测交易订单'/);
   assert.match(adminJs, /\/api\/admin\/predict-master-recharge-orders/);
   assert.match(adminJs, /navPredictMasterRechargeOrders:\s*'预测充值订单'/);
   assert.match(adminJs, /renderPredictMasterRechargeOrders/);
   assert.match(adminJs, /\/api\/admin\/predict-master-wallet-transactions/);
+  assert.match(adminJs, /\/api\/admin\/predict-master-users\?\$\{query\.toString\(\)\}/);
+  assert.match(adminJs, /navPredictMasterUsers:\s*'预测用户列表'/);
+  assert.match(adminJs, /predictMasterUsersPageInfo:\s*'第 \{page\} \/ \{totalPages\} 页，共 \{total\} 个用户'/);
   assert.match(adminJs, /\/api\/admin\/predict-master-withdrawals/);
   assert.match(adminJs, /renderPredictMasterWithdrawals/);
   assert.match(adminJs, /approvePredictMasterWithdrawal/);

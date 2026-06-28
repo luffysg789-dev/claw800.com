@@ -44,6 +44,7 @@
             <button id="navPredictMasterOrders">预测交易订单</button>
             <button id="navPredictMasterRechargeOrders">预测充值订单</button>
             <button id="navPredictMasterWalletTransactions">预测资金流水</button>
+            <button id="navPredictMasterUsers">预测用户列表</button>
             <button id="navPredictMasterWithdrawals">预测提现审核</button>
             <button id="navPredictMasterShares">预测仓位记录</button>
             <button id="navPredictMasterRiskReports">预测风控报告</button>
@@ -435,6 +436,25 @@
               </div>
               <p id="predictMasterWalletTransactionsMessage" class="message"></p>
               <div id="predictMasterWalletTransactionsList" class="admin-list"></div>
+            </div>
+
+            <div id="predictMasterUsersSection" class="hidden">
+              <div class="admin-section-title-row">
+                <h2 id="predictMasterUsersTitle">预测用户列表</h2>
+                <div class="toolbar">
+                  <input id="predictMasterUsersSearchInput" type="search" placeholder="搜索用户ID或昵称" />
+                  <button id="predictMasterUsersSearchBtn" type="button">搜索</button>
+                  <button id="predictMasterUsersClearBtn" type="button">清空</button>
+                  <button id="predictMasterUsersRefreshBtn" type="button">刷新</button>
+                </div>
+              </div>
+              <p id="predictMasterUsersMessage" class="message"></p>
+              <div id="predictMasterUsersList" class="admin-list"></div>
+              <div class="toolbar">
+                <button id="predictMasterUsersPrevBtn" type="button">上一页</button>
+                <span id="predictMasterUsersPageInfo" class="small">第 1 / 1 页</span>
+                <button id="predictMasterUsersNextBtn" type="button">下一页</button>
+              </div>
             </div>
 
             <div id="predictMasterWithdrawalsSection" class="hidden">

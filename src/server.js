@@ -12567,6 +12567,15 @@ const selectDetradeMatchingDeductionBySubIdStmt = db.prepare(`
   ORDER BY id ASC
   LIMIT 1
 `);
+const selectDetradePredictSettlementByBizIdStmt = db.prepare(`
+  SELECT *
+  FROM detrade_wallet_transactions
+  WHERE direction = 'add'
+    AND biz_id = ?
+    AND source = 'PREDICT_ORDER_SETTLE'
+  ORDER BY id ASC
+  LIMIT 1
+`);
 const insertDetradeWalletTransactionStmt = db.prepare(`
   INSERT INTO detrade_wallet_transactions (
     user_id, external_user_id, currency, direction, amount, usd_amount, biz_id, biz_type,
@@ -12730,6 +12739,37 @@ const listDetradeRechargeOrdersStmt = db.prepare(`
   LEFT JOIN game_users u ON u.id = r.user_id
   ORDER BY r.created_at DESC, r.order_no DESC
   LIMIT ?
+`);
+const countAdminDetradeUsersStmt = db.prepare(`
+  SELECT COUNT(*) AS count
+  FROM detrade_wallets w
+  JOIN game_users u ON u.id = w.user_id
+  WHERE (
+    ? = ''
+    OR u.openid LIKE ? ESCAPE '\\'
+    OR u.nickname LIKE ? ESCAPE '\\'
+  )
+`);
+const listAdminDetradeUsersStmt = db.prepare(`
+  SELECT
+    u.id,
+    u.openid,
+    u.nickname,
+    u.avatar,
+    u.created_at,
+    w.currency,
+    w.available_balance,
+    w.frozen_balance,
+    w.updated_at
+  FROM detrade_wallets w
+  JOIN game_users u ON u.id = w.user_id
+  WHERE (
+    ? = ''
+    OR u.openid LIKE ? ESCAPE '\\'
+    OR u.nickname LIKE ? ESCAPE '\\'
+  )
+  ORDER BY u.id DESC
+  LIMIT ? OFFSET ?
 `);
 const insertDetradeWithdrawalStmt = db.prepare(`
   INSERT INTO detrade_withdrawals (
@@ -13711,6 +13751,20 @@ function formatPredictMasterRechargeOrder(row = {}) {
   };
 }
 
+function formatPredictMasterUser(row = {}) {
+  return {
+    id: Number(row.id || 0) || 0,
+    externalUserId: String(row.openid || ''),
+    nickname: String(row.nickname || ''),
+    avatar: String(row.avatar || ''),
+    currency: String(row.currency || 'USDT').trim() || 'USDT',
+    availableBalance: String(row.available_balance || '0.00'),
+    frozenBalance: String(row.frozen_balance || '0.00'),
+    createdAt: String(row.created_at || ''),
+    updatedAt: String(row.updated_at || '')
+  };
+}
+
 function formatPredictMasterWithdrawalRecord(row = {}) {
   const status = String(row.status || 'review_pending').trim() || 'review_pending';
   const statusRank = status.toLowerCase() === 'success' ? 3 : 2;
@@ -14033,6 +14087,46 @@ function applyDetradeAdd(payload = {}) {
       transaction: selectDetradeWalletTransactionStmt.get('add', source, bizId, bizSubId)
     };
   })();
+}
+
+function manuallySettlePredictMasterOrder({ bizId = '', amount = '', note = '' } = {}) {
+  const normalizedBizId = String(bizId || '').trim();
+  if (!normalizedBizId) return { kind: 'invalid_biz_id' };
+
+  let amountUnits = 0n;
+  try {
+    amountUnits = parseDetradeMoneyToUnits(amount);
+  } catch {
+    return { kind: 'invalid_amount' };
+  }
+  if (amountUnits <= 0n) return { kind: 'invalid_amount' };
+
+  const existingSettlement = selectDetradePredictSettlementByBizIdStmt.get(normalizedBizId);
+  if (existingSettlement) return { kind: 'already_settled', transaction: existingSettlement };
+
+  const purchase = selectDetradeMatchingDeductionStmt.get(normalizedBizId, 'PLACE_PREDICT_ORDER');
+  if (!purchase) return { kind: 'purchase_not_found' };
+
+  const settlePayload = {
+    userId: String(purchase.external_user_id || '').trim(),
+    amount: detradeUnitsToMoneyString(amountUnits),
+    currency: String(purchase.currency || 'USDT').trim() || 'USDT',
+    bizId: normalizedBizId,
+    bizType: String(purchase.biz_type || 'PREDICT_ORDER').trim() || 'PREDICT_ORDER',
+    source: 'PREDICT_ORDER_SETTLE',
+    bizSubId: `manual-settle-${normalizedBizId}`,
+    balanceType: purchase.balance_type,
+    manual: true,
+    note: String(note || '').trim(),
+    originalBizSubId: String(purchase.biz_sub_id || '').trim()
+  };
+  const result = applyDetradeAdd(settlePayload);
+  if (result.kind !== 'ok') return result;
+  return {
+    kind: 'ok',
+    transaction: result.transaction,
+    wallet: selectDetradeWalletStmt.get(Number(purchase.user_id))
+  };
 }
 
 function parseSerializedPayload(raw) {
@@ -16652,12 +16746,57 @@ app.get('/api/admin/predict-master-orders', requireAdmin, (req, res) => {
   res.json({ ok: true, items });
 });
 
+app.post('/api/admin/predict-master-orders/:bizId/settle', requireAdmin, (req, res) => {
+  const result = manuallySettlePredictMasterOrder({
+    bizId: req.params.bizId,
+    amount: req.body?.amount,
+    note: req.body?.note
+  });
+  if (result.kind === 'invalid_biz_id') {
+    return res.status(400).json({ ok: false, error: 'INVALID_BIZ_ID' });
+  }
+  if (result.kind === 'invalid_amount') {
+    return res.status(400).json({ ok: false, error: 'INVALID_SETTLEMENT_AMOUNT' });
+  }
+  if (result.kind === 'purchase_not_found' || result.kind === 'missing_deduction') {
+    return res.status(404).json({ ok: false, error: 'PREDICT_ORDER_NOT_FOUND' });
+  }
+  if (result.kind === 'already_settled') {
+    return res.status(409).json({ ok: false, error: 'PREDICT_ORDER_ALREADY_SETTLED' });
+  }
+  if (result.kind !== 'ok') {
+    return res.status(400).json({ ok: false, error: String(result.kind || 'PREDICT_ORDER_SETTLEMENT_FAILED') });
+  }
+  return res.json({
+    ok: true,
+    item: formatDetradeWalletTransaction(result.transaction || {}),
+    walletBalance: String(result.wallet?.available_balance || '0.00')
+  });
+});
+
 app.get('/api/admin/predict-master-recharge-orders', requireAdmin, (req, res) => {
   const limitRaw = Number(req.query?.limit || 100);
   const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 100;
   expirePendingPredictMasterRechargeOrders();
   const items = listDetradeRechargeOrdersStmt.all(limit).map(formatPredictMasterRechargeOrder);
   res.json({ ok: true, items });
+});
+
+app.get('/api/admin/predict-master-users', requireAdmin, (req, res) => {
+  const pageSize = 10;
+  const search = String(req.query?.search || '').trim();
+  const pageRaw = Number(req.query?.page || 1);
+  const page = Number.isFinite(pageRaw) ? Math.max(1, Math.floor(pageRaw)) : 1;
+  const escapedSearch = search.replace(/[\\%_]/g, (match) => `\\${match}`);
+  const keyword = `%${escapedSearch}%`;
+  const total = Number(countAdminDetradeUsersStmt.get(search, keyword, keyword)?.count || 0) || 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const normalizedPage = Math.min(page, totalPages);
+  const offset = (normalizedPage - 1) * pageSize;
+  const items = listAdminDetradeUsersStmt
+    .all(search, keyword, keyword, pageSize, offset)
+    .map(formatPredictMasterUser);
+  res.json({ ok: true, items, page: normalizedPage, pageSize, total, totalPages, search });
 });
 
 app.get('/api/admin/ai-music-orders', requireAdmin, (req, res) => {

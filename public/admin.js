@@ -91,6 +91,16 @@ const predictMasterWalletTransactionsSection = document.getElementById('predictM
 const predictMasterWalletTransactionsRefreshBtn = document.getElementById('predictMasterWalletTransactionsRefreshBtn');
 const predictMasterWalletTransactionsMessage = document.getElementById('predictMasterWalletTransactionsMessage');
 const predictMasterWalletTransactionsList = document.getElementById('predictMasterWalletTransactionsList');
+const predictMasterUsersSection = document.getElementById('predictMasterUsersSection');
+const predictMasterUsersSearchInput = document.getElementById('predictMasterUsersSearchInput');
+const predictMasterUsersSearchBtn = document.getElementById('predictMasterUsersSearchBtn');
+const predictMasterUsersClearBtn = document.getElementById('predictMasterUsersClearBtn');
+const predictMasterUsersRefreshBtn = document.getElementById('predictMasterUsersRefreshBtn');
+const predictMasterUsersMessage = document.getElementById('predictMasterUsersMessage');
+const predictMasterUsersList = document.getElementById('predictMasterUsersList');
+const predictMasterUsersPrevBtn = document.getElementById('predictMasterUsersPrevBtn');
+const predictMasterUsersNextBtn = document.getElementById('predictMasterUsersNextBtn');
+const predictMasterUsersPageInfo = document.getElementById('predictMasterUsersPageInfo');
 const predictMasterWithdrawalsSection = document.getElementById('predictMasterWithdrawalsSection');
 const predictMasterWithdrawalsRefreshBtn = document.getElementById('predictMasterWithdrawalsRefreshBtn');
 const predictMasterWithdrawalsMessage = document.getElementById('predictMasterWithdrawalsMessage');
@@ -333,6 +343,7 @@ const texts = {
     navPredictMasterOrders: '预测交易订单',
     navPredictMasterRechargeOrders: '预测充值订单',
     navPredictMasterWalletTransactions: '预测资金流水',
+    navPredictMasterUsers: '预测用户列表',
     navPredictMasterWithdrawals: '预测提现审核',
     navPredictMasterShares: '预测仓位记录',
     navPredictMasterRiskReports: '预测风控报告',
@@ -544,6 +555,10 @@ const texts = {
     predictMasterOrdersRefreshBtn: '刷新',
     predictMasterOrdersEmpty: '暂无预测交易订单。',
     predictMasterOrdersLoadFailed: '预测交易订单加载失败。',
+    predictMasterOrdersManualSettle: '补结算',
+    predictMasterOrdersManualSettlePrompt: '请输入结算到账金额（USDT）',
+    predictMasterOrdersManualSettleNotePrompt: '请输入备注（可留空）',
+    predictMasterOrdersManualSettleSuccess: '预测订单补结算成功。',
     predictMasterRechargeOrdersTitle: '预测充值订单',
     predictMasterRechargeOrdersRefreshBtn: '刷新',
     predictMasterRechargeOrdersEmpty: '暂无预测充值订单。',
@@ -552,6 +567,16 @@ const texts = {
     predictMasterWalletTransactionsRefreshBtn: '刷新',
     predictMasterWalletTransactionsEmpty: '暂无预测资金流水。',
     predictMasterWalletTransactionsLoadFailed: '预测资金流水加载失败。',
+    predictMasterUsersTitle: '预测用户列表',
+    predictMasterUsersSearchPlaceholder: '搜索用户ID或昵称',
+    predictMasterUsersSearchBtn: '搜索',
+    predictMasterUsersClearBtn: '清空',
+    predictMasterUsersRefreshBtn: '刷新',
+    predictMasterUsersEmpty: '暂无预测用户。',
+    predictMasterUsersLoadFailed: '预测用户列表加载失败。',
+    predictMasterUsersPageInfo: '第 {page} / {totalPages} 页，共 {total} 个用户',
+    predictMasterUsersPrevBtn: '上一页',
+    predictMasterUsersNextBtn: '下一页',
     predictMasterWithdrawalsTitle: '预测提现审核',
     predictMasterWithdrawalsRefreshBtn: '刷新',
     predictMasterWithdrawalsEmpty: '暂无预测提现申请。',
@@ -784,6 +809,7 @@ const texts = {
     navPredictMasterOrders: 'Predict Trading Orders',
     navPredictMasterRechargeOrders: 'Predict Recharge Orders',
     navPredictMasterWalletTransactions: 'Predict Wallet Ledger',
+    navPredictMasterUsers: 'Predict Users',
     navPredictMasterWithdrawals: 'Predict Withdrawals',
     navPredictMasterShares: 'Predict Positions',
     navPredictMasterRiskReports: 'Predict Risk Reports',
@@ -995,6 +1021,10 @@ const texts = {
     predictMasterOrdersRefreshBtn: 'Refresh',
     predictMasterOrdersEmpty: 'No predict trading orders yet.',
     predictMasterOrdersLoadFailed: 'Failed to load predict trading orders.',
+    predictMasterOrdersManualSettle: 'Manual Settle',
+    predictMasterOrdersManualSettlePrompt: 'Enter settlement amount (USDT)',
+    predictMasterOrdersManualSettleNotePrompt: 'Enter note (optional)',
+    predictMasterOrdersManualSettleSuccess: 'Predict order settlement added.',
     predictMasterRechargeOrdersTitle: 'Predict Recharge Orders',
     predictMasterRechargeOrdersRefreshBtn: 'Refresh',
     predictMasterRechargeOrdersEmpty: 'No predict recharge orders yet.',
@@ -1003,6 +1033,16 @@ const texts = {
     predictMasterWalletTransactionsRefreshBtn: 'Refresh',
     predictMasterWalletTransactionsEmpty: 'No predict wallet ledger yet.',
     predictMasterWalletTransactionsLoadFailed: 'Failed to load predict wallet ledger.',
+    predictMasterUsersTitle: 'Predict Users',
+    predictMasterUsersSearchPlaceholder: 'Search user ID or nickname',
+    predictMasterUsersSearchBtn: 'Search',
+    predictMasterUsersClearBtn: 'Clear',
+    predictMasterUsersRefreshBtn: 'Refresh',
+    predictMasterUsersEmpty: 'No predict users yet.',
+    predictMasterUsersLoadFailed: 'Failed to load predict users.',
+    predictMasterUsersPageInfo: 'Page {page} / {totalPages}, {total} users',
+    predictMasterUsersPrevBtn: 'Previous',
+    predictMasterUsersNextBtn: 'Next',
     predictMasterWithdrawalsTitle: 'Predict Withdrawals',
     predictMasterWithdrawalsRefreshBtn: 'Refresh',
     predictMasterWithdrawalsEmpty: 'No predict withdrawals yet.',
@@ -1231,6 +1271,9 @@ let editingUCardPlatformId = null;
 let editingUCardId = null;
 let editingGameId = null;
 let editingPartnerId = null;
+let predictMasterUsersPage = 1;
+let predictMasterUsersTotalPages = 1;
+let predictMasterUsersSearch = '';
 let skillsSyncConfigCache = null;
 let siteConfigCache = null;
 let visitStatsCache = null;
@@ -1267,6 +1310,10 @@ function escapeHtml(str) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
+}
+
+function escapeJsString(value) {
+  return JSON.stringify(String(value || ''));
 }
 
 function ensureEditorFocus() {
@@ -1392,6 +1439,14 @@ function normalizeCategoryInput(raw) {
 }
 
 function localizeApiError(message) {
+  const zhMap = {
+    INVALID_BIZ_ID: '预测订单号无效。',
+    INVALID_SETTLEMENT_AMOUNT: '结算金额无效，请输入大于 0 的 USDT 金额。',
+    PREDICT_ORDER_NOT_FOUND: '未找到可补结算的预测订单。',
+    PREDICT_ORDER_ALREADY_SETTLED: '这笔预测订单已经结算过，不能重复补。',
+    PREDICT_ORDER_SETTLEMENT_FAILED: '预测订单补结算失败。'
+  };
+  if (currentLang !== 'en' && zhMap[message]) return zhMap[message];
   if (currentLang !== 'en') return message;
   if (typeof message === 'string' && message.startsWith('该分类收录了')) {
     const m = message.match(/(\d+)/);
@@ -1419,7 +1474,12 @@ function localizeApiError(message) {
     'sortOrder 必须是数字': 'sortOrder must be a number.',
     '记录不存在': 'Record not found.',
     'JSON 格式错误，需要数组格式': 'Invalid JSON format. Expected an array.',
-    '导入失败': 'Import failed.'
+    '导入失败': 'Import failed.',
+    INVALID_BIZ_ID: 'Invalid predict order ID.',
+    INVALID_SETTLEMENT_AMOUNT: 'Invalid settlement amount.',
+    PREDICT_ORDER_NOT_FOUND: 'No unsettled predict order found.',
+    PREDICT_ORDER_ALREADY_SETTLED: 'This predict order has already been settled.',
+    PREDICT_ORDER_SETTLEMENT_FAILED: 'Failed to settle predict order.'
   };
   return map[message] || message;
 }
@@ -1549,6 +1609,7 @@ function applyLanguage() {
   document.getElementById('navPredictMasterOrders').textContent = dict.navPredictMasterOrders;
   document.getElementById('navPredictMasterRechargeOrders').textContent = dict.navPredictMasterRechargeOrders;
   document.getElementById('navPredictMasterWalletTransactions').textContent = dict.navPredictMasterWalletTransactions;
+  document.getElementById('navPredictMasterUsers').textContent = dict.navPredictMasterUsers;
   document.getElementById('navPredictMasterWithdrawals').textContent = dict.navPredictMasterWithdrawals;
   document.getElementById('navPredictMasterShares').textContent = dict.navPredictMasterShares;
   document.getElementById('navPredictMasterRiskReports').textContent = dict.navPredictMasterRiskReports;
@@ -1710,6 +1771,13 @@ function applyLanguage() {
     dict.predictMasterRechargeOrdersRefreshBtn;
   document.getElementById('predictMasterWalletTransactionsTitle').textContent = dict.predictMasterWalletTransactionsTitle;
   document.getElementById('predictMasterWalletTransactionsRefreshBtn').textContent = dict.predictMasterWalletTransactionsRefreshBtn;
+  document.getElementById('predictMasterUsersTitle').textContent = dict.predictMasterUsersTitle;
+  document.getElementById('predictMasterUsersSearchInput').placeholder = dict.predictMasterUsersSearchPlaceholder;
+  document.getElementById('predictMasterUsersSearchBtn').textContent = dict.predictMasterUsersSearchBtn;
+  document.getElementById('predictMasterUsersClearBtn').textContent = dict.predictMasterUsersClearBtn;
+  document.getElementById('predictMasterUsersRefreshBtn').textContent = dict.predictMasterUsersRefreshBtn;
+  document.getElementById('predictMasterUsersPrevBtn').textContent = dict.predictMasterUsersPrevBtn;
+  document.getElementById('predictMasterUsersNextBtn').textContent = dict.predictMasterUsersNextBtn;
   document.getElementById('predictMasterWithdrawalsTitle').textContent = dict.predictMasterWithdrawalsTitle;
   document.getElementById('predictMasterWithdrawalsRefreshBtn').textContent = dict.predictMasterWithdrawalsRefreshBtn;
   document.getElementById('predictMasterSharesTitle').textContent = dict.predictMasterSharesTitle;
@@ -1807,6 +1875,7 @@ function setView(view) {
   predictMasterOrdersSection.classList.toggle('hidden', view !== 'predict-master-orders');
   predictMasterRechargeOrdersSection.classList.toggle('hidden', view !== 'predict-master-recharge-orders');
   predictMasterWalletTransactionsSection.classList.toggle('hidden', view !== 'predict-master-wallet-transactions');
+  predictMasterUsersSection.classList.toggle('hidden', view !== 'predict-master-users');
   predictMasterWithdrawalsSection.classList.toggle('hidden', view !== 'predict-master-withdrawals');
   predictMasterSharesSection.classList.toggle('hidden', view !== 'predict-master-shares');
   predictMasterRiskReportsSection.classList.toggle('hidden', view !== 'predict-master-risk-reports');
@@ -1862,6 +1931,9 @@ function setView(view) {
   }
   if (view === 'predict-master-wallet-transactions') {
     loadPredictMasterWalletTransactions();
+  }
+  if (view === 'predict-master-users') {
+    loadPredictMasterUsers();
   }
   if (view === 'predict-master-withdrawals') {
     loadPredictMasterWithdrawals();
@@ -3754,8 +3826,17 @@ function renderPredictMasterOrders(items = []) {
   }
 
   predictMasterOrdersList.innerHTML = items
-    .map(
-      (item) => `
+    .map((item) => {
+      const canManualSettle =
+        String(item.status || '') === '未结算' &&
+        String(item.source || '') === 'PLACE_PREDICT_ORDER' &&
+        String(item.bizId || item.orderId || '').trim();
+      const manualSettleAction = canManualSettle
+        ? `<div class="toolbar"><button type="button" onclick="manualSettlePredictMasterOrder(${escapeHtml(
+            escapeJsString(item.bizId || item.orderId)
+          )})">${escapeHtml(t('predictMasterOrdersManualSettle'))}</button></div>`
+        : '';
+      return `
         <article class="review-card">
           <h3>${escapeHtml(item.orderId || item.bizId || '预测交易订单')}</h3>
           <p class="small">用户 ID: ${escapeHtml(item.externalUserId || '-')}</p>
@@ -3774,10 +3855,11 @@ function renderPredictMasterOrders(items = []) {
                   .join('')}</details>`
               : ''
           }
+          ${manualSettleAction}
           ${renderPredictMasterRawDetails(item.raw)}
         </article>
-      `
-    )
+      `;
+    })
     .join('');
 }
 
@@ -3821,6 +3903,39 @@ function renderPredictMasterWalletTransactions(items = []) {
           <p class="small">USD: ${escapeHtml(String(item.usdAmount ?? '-'))} · 余额: ${escapeHtml(String(item.balanceAfter ?? '-'))} · 资金类型: ${escapeHtml(String(item.balanceType || '-'))}</p>
           <p class="small">时间: ${escapeHtml(formatAdminLocalDateTime(item.createdAt))}</p>
           ${renderPredictMasterRawDetails(item.raw)}
+        </article>
+      `
+    )
+    .join('');
+}
+
+function renderPredictMasterUsers(result = {}) {
+  if (!predictMasterUsersList) return;
+  const items = Array.isArray(result.items) ? result.items : [];
+  predictMasterUsersPage = Number(result.page || 1) || 1;
+  predictMasterUsersTotalPages = Math.max(1, Number(result.totalPages || 1) || 1);
+  const total = Number(result.total || 0) || 0;
+  if (predictMasterUsersPageInfo) {
+    predictMasterUsersPageInfo.textContent = t('predictMasterUsersPageInfo')
+      .replace('{page}', String(predictMasterUsersPage))
+      .replace('{totalPages}', String(predictMasterUsersTotalPages))
+      .replace('{total}', String(total));
+  }
+  if (predictMasterUsersPrevBtn) predictMasterUsersPrevBtn.disabled = predictMasterUsersPage <= 1;
+  if (predictMasterUsersNextBtn) predictMasterUsersNextBtn.disabled = predictMasterUsersPage >= predictMasterUsersTotalPages;
+  if (!items.length) {
+    predictMasterUsersList.innerHTML = `<p class="empty">${escapeHtml(t('predictMasterUsersEmpty'))}</p>`;
+    return;
+  }
+
+  predictMasterUsersList.innerHTML = items
+    .map(
+      (item) => `
+        <article class="review-card">
+          <h3>${escapeHtml(item.externalUserId || '-')}</h3>
+          <p class="small">昵称: ${escapeHtml(item.nickname || '-')}</p>
+          <p class="small">余额: ${escapeHtml(item.availableBalance || '0.00')} ${escapeHtml(item.currency || 'USDT')} · 冻结: ${escapeHtml(item.frozenBalance || '0.00')} ${escapeHtml(item.currency || 'USDT')}</p>
+          <p class="small">创建: ${escapeHtml(formatAdminLocalDateTime(item.createdAt) || '-')} · 更新: ${escapeHtml(formatAdminLocalDateTime(item.updatedAt) || '-')}</p>
         </article>
       `
     )
@@ -3935,6 +4050,30 @@ function loadPredictMasterWalletTransactions() {
   });
 }
 
+async function loadPredictMasterUsers(page = predictMasterUsersPage) {
+  if (!predictMasterUsersList) return;
+  if (predictMasterUsersMessage) {
+    predictMasterUsersMessage.textContent = '';
+    predictMasterUsersMessage.className = 'message';
+  }
+  const query = new URLSearchParams();
+  query.set('page', String(Math.max(1, Number(page || 1) || 1)));
+  if (predictMasterUsersSearch) query.set('search', predictMasterUsersSearch);
+  const result = await requestTutorialJson([`/api/admin/predict-master-users?${query.toString()}`], { method: 'GET' });
+  if (result.res?.status === 401) {
+    showLogin();
+    return;
+  }
+  if (!result.res || !result.res.ok) {
+    if (predictMasterUsersMessage) {
+      predictMasterUsersMessage.textContent = localizeApiError(result.data?.error || t('predictMasterUsersLoadFailed'));
+      predictMasterUsersMessage.className = 'message error';
+    }
+    return;
+  }
+  renderPredictMasterUsers(result.data || {});
+}
+
 function loadPredictMasterWithdrawals() {
   return loadPredictMasterList({
     list: predictMasterWithdrawalsList,
@@ -3964,6 +4103,52 @@ function loadPredictMasterRiskReports() {
     loadFailedKey: 'predictMasterRiskReportsLoadFailed'
   });
 }
+
+window.manualSettlePredictMasterOrder = async function manualSettlePredictMasterOrder(bizId) {
+  const normalizedBizId = String(bizId || '').trim();
+  if (!normalizedBizId) return;
+  const amount = window.prompt(t('predictMasterOrdersManualSettlePrompt'), '') || '';
+  if (!amount.trim()) return;
+  const note = window.prompt(t('predictMasterOrdersManualSettleNotePrompt'), '') || '';
+  if (predictMasterOrdersMessage) {
+    predictMasterOrdersMessage.textContent = '';
+    predictMasterOrdersMessage.className = 'message';
+  }
+  const result = await requestTutorialJson(
+    [`/api/admin/predict-master-orders/${encodeURIComponent(normalizedBizId)}/settle`],
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount, note })
+    }
+  );
+  if (!result.res) {
+    if (predictMasterOrdersMessage) {
+      predictMasterOrdersMessage.textContent = t('operationFailed');
+      predictMasterOrdersMessage.className = 'message error';
+    }
+    return;
+  }
+  if (result.res.status === 401) {
+    showLogin();
+    return;
+  }
+  if (!result.res.ok) {
+    if (predictMasterOrdersMessage) {
+      predictMasterOrdersMessage.textContent = localizeApiError(result.data?.error || t('operationFailed'));
+      predictMasterOrdersMessage.className = 'message error';
+    }
+    return;
+  }
+  if (predictMasterOrdersMessage) {
+    predictMasterOrdersMessage.textContent = t('predictMasterOrdersManualSettleSuccess');
+    predictMasterOrdersMessage.className = 'message success';
+  }
+  await loadPredictMasterOrders();
+  if (typeof loadPredictMasterWalletTransactions === 'function') {
+    await loadPredictMasterWalletTransactions();
+  }
+};
 
 window.approvePredictMasterWithdrawal = async function approvePredictMasterWithdrawal(withdrawNo) {
   const note = window.prompt('请输入审核备注（可留空）', '') || '';
@@ -6510,6 +6695,7 @@ document
 document
   .getElementById('navPredictMasterWalletTransactions')
   .addEventListener('click', () => setView('predict-master-wallet-transactions'));
+document.getElementById('navPredictMasterUsers').addEventListener('click', () => setView('predict-master-users'));
 document.getElementById('navPredictMasterWithdrawals').addEventListener('click', () => setView('predict-master-withdrawals'));
 document.getElementById('navPredictMasterShares').addEventListener('click', () => setView('predict-master-shares'));
 document.getElementById('navPredictMasterRiskReports').addEventListener('click', () => setView('predict-master-risk-reports'));
@@ -6562,6 +6748,45 @@ if (predictMasterRechargeOrdersRefreshBtn) {
 }
 if (predictMasterWalletTransactionsRefreshBtn) {
   predictMasterWalletTransactionsRefreshBtn.addEventListener('click', () => loadPredictMasterWalletTransactions());
+}
+if (predictMasterUsersSearchBtn) {
+  predictMasterUsersSearchBtn.addEventListener('click', () => {
+    predictMasterUsersSearch = String(predictMasterUsersSearchInput?.value || '').trim();
+    predictMasterUsersPage = 1;
+    loadPredictMasterUsers(1);
+  });
+}
+if (predictMasterUsersSearchInput) {
+  predictMasterUsersSearchInput.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    predictMasterUsersSearch = String(predictMasterUsersSearchInput.value || '').trim();
+    predictMasterUsersPage = 1;
+    loadPredictMasterUsers(1);
+  });
+}
+if (predictMasterUsersClearBtn) {
+  predictMasterUsersClearBtn.addEventListener('click', () => {
+    if (predictMasterUsersSearchInput) predictMasterUsersSearchInput.value = '';
+    predictMasterUsersSearch = '';
+    predictMasterUsersPage = 1;
+    loadPredictMasterUsers(1);
+  });
+}
+if (predictMasterUsersRefreshBtn) {
+  predictMasterUsersRefreshBtn.addEventListener('click', () => loadPredictMasterUsers(predictMasterUsersPage));
+}
+if (predictMasterUsersPrevBtn) {
+  predictMasterUsersPrevBtn.addEventListener('click', () => {
+    if (predictMasterUsersPage <= 1) return;
+    loadPredictMasterUsers(predictMasterUsersPage - 1);
+  });
+}
+if (predictMasterUsersNextBtn) {
+  predictMasterUsersNextBtn.addEventListener('click', () => {
+    if (predictMasterUsersPage >= predictMasterUsersTotalPages) return;
+    loadPredictMasterUsers(predictMasterUsersPage + 1);
+  });
 }
 if (predictMasterWithdrawalsRefreshBtn) {
   predictMasterWithdrawalsRefreshBtn.addEventListener('click', () => loadPredictMasterWithdrawals());

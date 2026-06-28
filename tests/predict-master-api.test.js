@@ -33,6 +33,7 @@ function createHarness() {
     },
     async request(method, routePath, body, options = {}) {
       return new Promise((resolve, reject) => {
+        const queryParams = Object.fromEntries(new URL(routePath, 'http://localhost').searchParams.entries());
         const req = new EventEmitter();
         req.method = method;
         req.url = routePath;
@@ -41,7 +42,7 @@ function createHarness() {
         req.connection = {};
         req.socket = {};
         req.body = body;
-        req.query = {};
+        req.query = queryParams;
         req.cookies = { ...(options.cookies || {}) };
 
         const res = new EventEmitter();
@@ -640,6 +641,52 @@ test('admin can view predict-master recharge orders', async () => {
   }
 });
 
+test('admin can search paginated predict-master users with wallet balances', async () => {
+  const harness = createHarness();
+
+  try {
+    const cookies = await harness.adminCookies();
+    for (let index = 1; index <= 12; index += 1) {
+      await harness.request('POST', '/api/predict-master/wallet', {
+        openId: `nexa-predict-user-${String(index).padStart(2, '0')}`,
+        sessionKey: `session-predict-user-${index}`
+      });
+      const userId = harness.db
+        .prepare('SELECT id FROM game_users WHERE openid = ?')
+        .get(`nexa-predict-user-${String(index).padStart(2, '0')}`).id;
+      harness.db
+        .prepare("UPDATE game_users SET nickname = ? WHERE id = ?")
+        .run(index === 7 ? 'France Winner' : `Predict User ${index}`, userId);
+      harness.db
+        .prepare("UPDATE detrade_wallets SET available_balance = ?, frozen_balance = '0.00' WHERE user_id = ?")
+        .run(String(index), userId);
+    }
+
+    const firstPage = await harness.request('GET', '/api/admin/predict-master-users?page=1', null, { cookies });
+    assert.equal(firstPage.statusCode, 200);
+    assert.equal(firstPage.body.ok, true);
+    assert.equal(firstPage.body.page, 1);
+    assert.equal(firstPage.body.pageSize, 10);
+    assert.equal(firstPage.body.total, 12);
+    assert.equal(firstPage.body.totalPages, 2);
+    assert.equal(firstPage.body.items.length, 10);
+    assert.equal(firstPage.body.items[0].externalUserId, 'nexa-predict-user-12');
+    assert.equal(firstPage.body.items[0].availableBalance, '12');
+
+    const secondPage = await harness.request('GET', '/api/admin/predict-master-users?page=2', null, { cookies });
+    assert.equal(secondPage.statusCode, 200);
+    assert.equal(secondPage.body.items.length, 2);
+
+    const search = await harness.request('GET', '/api/admin/predict-master-users?search=France', null, { cookies });
+    assert.equal(search.statusCode, 200);
+    assert.equal(search.body.total, 1);
+    assert.equal(search.body.items[0].nickname, 'France Winner');
+    assert.equal(search.body.items[0].externalUserId, 'nexa-predict-user-07');
+  } finally {
+    harness.cleanup();
+  }
+});
+
 test('admin predict trading orders include Detrade user-page order transactions', async () => {
   const harness = createHarness();
 
@@ -766,6 +813,67 @@ test('admin predict trading orders group historical predict settlements with pur
 
     const walletAfter = harness.db.prepare('SELECT available_balance FROM detrade_wallets WHERE user_id = ?').get(userId);
     assert.equal(walletAfter.available_balance, '170.00');
+  } finally {
+    harness.cleanup();
+  }
+});
+
+test('admin can manually settle an unsettled predict order once', async () => {
+  const harness = createHarness();
+
+  try {
+    const cookies = await harness.adminCookies();
+    await harness.request('POST', '/api/predict-master/wallet', {
+      openId: 'nexa-football-manual-winner',
+      sessionKey: 'session-football-manual-winner'
+    });
+    const userId = harness.db.prepare('SELECT id FROM game_users WHERE openid = ?').get('nexa-football-manual-winner').id;
+    harness.db.prepare("UPDATE detrade_wallets SET available_balance = '100.00' WHERE user_id = ?").run(userId);
+
+    const purchase = await harness.request('POST', '/wallet/amount/deduction', {
+      userId: 'nexa-football-manual-winner',
+      amount: '10.00',
+      currency: 'USDT',
+      bizId: 'worldcup-france-win',
+      bizType: 'PREDICT_ORDER',
+      source: 'PLACE_PREDICT_ORDER',
+      bizSubId: 'france-buy-1'
+    });
+    assert.equal(purchase.statusCode, 200);
+    assert.equal(purchase.body.code, 200);
+
+    const settlement = await harness.request(
+      'POST',
+      '/api/admin/predict-master-orders/worldcup-france-win/settle',
+      {
+        amount: '19.50',
+        note: 'France win manual settlement'
+      },
+      { cookies }
+    );
+    assert.equal(settlement.statusCode, 200);
+    assert.equal(settlement.body.ok, true);
+    assert.equal(settlement.body.item.source, 'PREDICT_ORDER_SETTLE');
+    assert.equal(settlement.body.item.amount, 19.5);
+    assert.equal(settlement.body.walletBalance, '109.50');
+
+    const duplicate = await harness.request(
+      'POST',
+      '/api/admin/predict-master-orders/worldcup-france-win/settle',
+      { amount: '19.50' },
+      { cookies }
+    );
+    assert.equal(duplicate.statusCode, 409);
+    assert.equal(duplicate.body.error, 'PREDICT_ORDER_ALREADY_SETTLED');
+
+    const orders = await harness.request('GET', '/api/admin/predict-master-orders', null, { cookies });
+    assert.equal(orders.body.items[0].orderId, 'worldcup-france-win');
+    assert.equal(orders.body.items[0].status, '已结算');
+    assert.equal(orders.body.items[0].settlementAmount, 19.5);
+    assert.equal(orders.body.items[0].netAmount, 9.5);
+
+    const walletAfter = harness.db.prepare('SELECT available_balance FROM detrade_wallets WHERE user_id = ?').get(userId);
+    assert.equal(walletAfter.available_balance, '109.50');
   } finally {
     harness.cleanup();
   }
